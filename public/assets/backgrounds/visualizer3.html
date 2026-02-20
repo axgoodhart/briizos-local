@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;800&family=JetBrains+Mono:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --alloy-base: #0f1113;
+            --alloy-strut: #3a3d41;
+            --alloy-wire: #71767c;
+            --alloy-polish: #e2e4e9;
+            --tension-active: #ff4d00;
+            --tension-low: #00f2ff;
+            --bg-gradient: radial-gradient(circle at center, #1a1e23 0%, #050607 100%);
+            --font-sans: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
+
+        body {
+            background: var(--alloy-base);
+            background-image: var(--bg-gradient);
+            color: var(--alloy-polish);
+            font-family: var(--font-sans);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- ALLOY STRUCTURE LAYOUT --- */
+        .orchestrator-frame {
+            position: relative;
+            width: 95vw;
+            height: 90vh;
+            border-left: 1px solid var(--alloy-strut);
+            border-right: 1px solid var(--alloy-strut);
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+        }
+
+        .corner-bolt {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--alloy-wire);
+            border: 1px solid var(--alloy-polish);
+            border-radius: 50%;
+        }
+        .cb-tl { top: -4px; left: -4px; }
+        .cb-tr { top: -4px; right: -4px; }
+        .cb-bl { bottom: -4px; left: -4px; }
+        .cb-br { bottom: -4px; right: -4px; }
+
+        /* --- HEADER SECTION --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 10;
+        }
+
+        .title-block h1 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            line-height: 0.9;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, var(--alloy-polish) 30%, var(--alloy-wire) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .data-readout {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--alloy-wire);
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 20px;
+            text-align: right;
+        }
+
+        .data-readout span { color: var(--alloy-polish); }
+
+        /* --- VISUALIZER CORE --- */
+        .webwork-container {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tension-overlay {
+            position: absolute;
+            pointer-events: none;
+            width: 600px;
+            height: 600px;
+            border: 1px solid rgba(113, 118, 124, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- CONTROLS --- */
+        .alloy-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(15, 17, 19, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--alloy-strut);
+            border-radius: 4px;
+        }
+
+        .play-trigger {
+            width: 60px;
+            height: 60px;
+            border: 1px solid var(--alloy-wire);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            position: relative;
+        }
+
+        .play-trigger:hover {
+            border-color: var(--alloy-polish);
+            background: rgba(255,255,255,0.05);
+            transform: scale(1.05);
+        }
+
+        .play-trigger::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 8px 0 8px 14px;
+            border-color: transparent transparent transparent var(--alloy-polish);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--alloy-wire);
+        }
+
+        .alloy-slider {
+            width: 150px;
+            height: 2px;
+            background: var(--alloy-strut);
+            position: relative;
+        }
+
+        .alloy-slider .handle {
+            position: absolute;
+            top: -4px;
+            left: 30%;
+            width: 10px;
+            height: 10px;
+            background: var(--alloy-polish);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--alloy-polish);
+        }
+
+        /* --- SIDE METERS --- */
+        .sidebar-meters {
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .meter-unit {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .bar-stack {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 3px;
+        }
+
+        .bar {
+            width: 20px;
+            height: 4px;
+            background: var(--alloy-strut);
+        }
+
+        .bar.active { background: var(--tension-low); box-shadow: 0 0 5px var(--tension-low); }
+
+        /* --- NOISE GRAIN --- */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.04;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="orchestrator-frame">
+        <div class="corner-bolt cb-tl"></div>
+        <div class="corner-bolt cb-tr"></div>
+        <div class="corner-bolt cb-bl"></div>
+        <div class="corner-bolt cb-br"></div>
+
+        <header>
+            <div class="title-block">
+                <h1>Symphonic<br>Resonance</h1>
+            </div>
+            <div class="data-readout">
+                <div>STRUCTURE STATUS <br><span>NOMINAL_STABLE</span></div>
+                <div>DYNAMIC TENSION <br><span id="tension-val">42.82 KN</span></div>
+                <div>OSCILLATION <br><span>144.02 HZ</span></div>
+                <div>ALLOY_NODE <br><span>GRID_7A</span></div>
+            </div>
+        </header>
+
+        <div class="webwork-container">
+            <div class="tension-overlay"></div>
+            <canvas id="visualizerCanvas"></canvas>
+        </div>
+
+        <aside class="sidebar-meters">
+            <div class="meter-unit">
+                <div class="bar-stack" id="low-meter"></div>
+                <div class="slider-label">LOW_FRQ</div>
+            </div>
+            <div class="meter-unit">
+                <div class="bar-stack" id="mid-meter"></div>
+                <div class="slider-label">MID_FRQ</div>
+            </div>
+            <div class="meter-unit">
+                <div class="bar-stack" id="high-meter"></div>
+                <div class="slider-label">HIGH_FRQ</div>
+            </div>
+        </aside>
+
+        <div class="alloy-controls">
+            <div class="play-trigger"></div>
+            <div class="slider-group">
+                <div class="slider-label">STRUCTURAL_RIGIDITY</div>
+                <div class="alloy-slider"><div class="handle"></div></div>
+            </div>
+            <div class="slider-group">
+                <div class="slider-label">REVERB_TENSION</div>
+                <div class="alloy-slider"><div class="handle" style="left: 70%"></div></div>
+            </div>
+            <div class="data-readout" style="text-align: left">
+                00:00:00<br><span>STAGED_BUFFER</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, nodes = [];
+
+        function init() {
+            resize();
+            createNodes();
+            animate();
+            createMeters();
+        }
+
+        function resize() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+        }
+
+        function createNodes() {
+            nodes = [];
+            const count = 40;
+            for (let i = 0; i < count; i++) {
+                nodes.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    originX: Math.random() * width,
+                    originY: Math.random() * height,
+                    size: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function createMeters() {
+            ['low-meter', 'mid-meter', 'high-meter'].forEach(id => {
+                const el = document.getElementById(id);
+                for (let i = 0; i < 15; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    el.appendChild(bar);
+                }
+            });
+        }
+
+        let time = 0;
+        function animate() {
+            time += 0.02;
+            ctx.clearRect(0, 0, width, height);
+
+            // Audio simulation values
+            const intensity = Math.sin(time * 0.5) * 0.5 + 0.5;
+            const tensionVal = (40 + intensity * 20).toFixed(2);
+            document.getElementById('tension-val').innerText = `${tensionVal} KN`;
+
+            updateMeters(intensity);
+
+            // Draw Webwork
+            ctx.strokeStyle = 'rgba(113, 118, 124, 0.2)';
+            ctx.lineWidth = 0.5;
+
+            nodes.forEach((node, i) => {
+                // Movement
+                node.x += node.vx + (Math.sin(time + i) * intensity * 2);
+                node.y += node.vy + (Math.cos(time + i) * intensity * 2);
+
+                // Boundary check
+                if (node.x < 0 || node.x > width) node.vx *= -1;
+                if (node.y < 0 || node.y > height) node.vy *= -1;
+
+                // Draw connections
+                nodes.forEach((other, j) => {
+                    if (i === j) return;
+                    const dx = node.x - other.x;
+                    const dy = node.y - other.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 200) {
+                        ctx.beginPath();
+                        ctx.moveTo(node.x, node.y);
+                        ctx.lineTo(other.x, other.y);
+                        
+                        // Metallic tension effect
+                        const alpha = (1 - dist / 200) * 0.3;
+                        const isHot = intensity > 0.8 && dist < 100;
+                        ctx.strokeStyle = isHot ? `rgba(255, 77, 0, ${alpha * 2})` : `rgba(113, 118, 124, ${alpha})`;
+                        ctx.lineWidth = isHot ? 1.5 : 0.5;
+                        ctx.stroke();
+                    }
+                });
+
+                // Draw Node
+                ctx.fillStyle = intensity > 0.8 ? '#ff4d00' : '#e2e4e9';
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Center Circular Core
+            ctx.save();
+            ctx.translate(width/2, height/2);
+            ctx.rotate(time * 0.1);
+            ctx.strokeStyle = 'rgba(226, 228, 233, 0.1)';
+            for(let k=0; k<3; k++) {
+                ctx.beginPath();
+                const r = 150 + (k * 40) + (intensity * 30);
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Tension Points
+                for(let a=0; a<Math.PI*2; a+=Math.PI/4) {
+                    ctx.fillStyle = '#71767c';
+                    ctx.fillRect(Math.cos(a)*r - 2, Math.sin(a)*r - 2, 4, 4);
+                }
+            }
+            ctx.restore();
+
+            requestAnimationFrame(animate);
+        }
+
+        function updateMeters(intensity) {
+            const meters = ['low-meter', 'mid-meter', 'high-meter'];
+            meters.forEach((m, idx) => {
+                const bars = document.getElementById(m).children;
+                const threshold = (intensity * 15) - (idx * 3);
+                for (let i = 0; i < bars.length; i++) {
+                    if (i < threshold) {
+                        bars[i].classList.add('active');
+                        if (i > 12) bars[i].style.backgroundColor = 'var(--tension-active)';
+                        else bars[i].style.backgroundColor = 'var(--tension-low)';
+                    } else {
+                        bars[i].classList.remove('active');
+                        bars[i].style.backgroundColor = '';
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('resize', resize);
+        document.querySelector('.play-trigger').addEventListener('click', () => {
+            gsap.to('.play-trigger', { duration: 0.1, scale: 0.9, yoyo: true, repeat: 1 });
+        });
+
+        init();
+    </script>
+</body>
+</html>

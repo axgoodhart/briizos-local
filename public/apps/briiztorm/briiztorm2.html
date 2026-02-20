@@ -1,0 +1,3716 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Project Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font: Orbitron for that Sci-Fi/Vaporwave aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Theme System - CSS Custom Properties */
+        :root {
+            --accent: 0, 255, 255;
+            --accent-hex: #00ffff;
+            --accent-secondary: #ff00ff;
+            --text-glow: #e0faff;
+            --panel-bg: 10, 20, 30;
+            --scrollbar-track: #00111a;
+            --scrollbar-thumb: #00cccc;
+            --cursor-triangle: 255, 100, 150;
+        }
+
+        .theme-vaporwave {
+            --accent: 0, 255, 255;
+            --accent-hex: #00ffff;
+            --accent-secondary: #ff00ff;
+            --text-glow: #e0faff;
+            --panel-bg: 10, 20, 30;
+            --scrollbar-track: #00111a;
+            --scrollbar-thumb: #00cccc;
+            --cursor-triangle: 255, 100, 150;
+        }
+
+        .theme-onyx {
+            --accent: 200, 200, 200;
+            --accent-hex: #c8c8c8;
+            --accent-secondary: #666666;
+            --text-glow: #ffffff;
+            --panel-bg: 15, 15, 15;
+            --scrollbar-track: #0a0a0a;
+            --scrollbar-thumb: #555555;
+            --cursor-triangle: 180, 180, 180;
+        }
+
+        .theme-dusk {
+            --accent: 255, 170, 100;
+            --accent-hex: #ffaa64;
+            --accent-secondary: #ff6644;
+            --text-glow: #fff5ee;
+            --panel-bg: 30, 18, 12;
+            --scrollbar-track: #1a0f0a;
+            --scrollbar-thumb: #cc8855;
+            --cursor-triangle: 255, 150, 100;
+        }
+
+        .theme-rose {
+            --accent: 255, 110, 170;
+            --accent-hex: #ff6eaa;
+            --accent-secondary: #aa44ff;
+            --text-glow: #ffe0f0;
+            --panel-bg: 25, 12, 20;
+            --scrollbar-track: #1a0a14;
+            --scrollbar-thumb: #cc6699;
+            --cursor-triangle: 255, 150, 200;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Rajdhani', sans-serif;
+            cursor: none !important;
+        }
+
+        /* Hide default cursor everywhere - we use custom cursors */
+        *, *::before, *::after {
+            cursor: none !important;
+        }
+
+        /* Extra enforcement for canvas and all elements */
+        html, body, canvas, #canvas-container, div, button, input, select, textarea, a {
+            cursor: none !important;
+        }
+
+        /* Custom Cursors */
+        .custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 99999;
+            transition: opacity 0.15s ease;
+            left: 50%;
+            top: 50%;
+        }
+
+        /* Circle cursor for mouse-lookyloo mode */
+        #cursor-circle {
+            width: 32px;
+            height: 32px;
+            border: 2px solid rgba(var(--accent), 0.8);
+            border-radius: 50%;
+            background: rgba(var(--accent), 0.15);
+            box-shadow: 0 0 20px rgba(var(--accent), 0.5), inset 0 0 15px rgba(var(--accent), 0.3);
+            animation: cursorHueRotate 3s linear infinite;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes cursorHueRotate {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        /* Triangle cursor for mouse-ignorybore mode */
+        #cursor-triangle {
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-bottom: 26px solid rgba(var(--cursor-triangle), 0.85);
+            filter: drop-shadow(0 0 8px rgba(var(--cursor-triangle), 0.9));
+            transform: translate(-50%, -50%) rotate(-30deg);
+        }
+        #cursor-triangle::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: -9px;
+            width: 0;
+            height: 0;
+            border-left: 9px solid transparent;
+            border-right: 9px solid transparent;
+            border-bottom: 17px solid rgba(var(--panel-bg), 0.95);
+        }
+        #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* UI Layer */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        /* Holographic HUD styling */
+        .hologram-panel {
+            background: rgba(var(--panel-bg), 0.85);
+            border: 1px solid rgba(var(--accent), 0.3);
+            box-shadow: 0 0 20px rgba(var(--accent), 0.1), inset 0 0 20px rgba(var(--accent), 0.05);
+            backdrop-filter: blur(10px);
+            color: var(--text-glow);
+            transform: perspective(1000px) rotateY(-5deg);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            pointer-events: auto;
+        }
+
+        .neon-text {
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 5px rgba(var(--accent), 0.7), 0 0 10px rgba(var(--accent), 0.5);
+        }
+
+        .neon-border-bottom {
+            border-bottom: 1px solid rgba(var(--accent), 0.5);
+            box-shadow: 0 1px 5px rgba(var(--accent), 0.3);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+        .stat-bar-bg {
+            background: rgba(255, 255, 255, 0.1);
+            height: 6px;
+            width: 100%;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .stat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-hex), var(--accent-secondary));
+            box-shadow: 0 0 10px var(--accent-hex);
+        }
+
+        /* Floating Animation for UI elements */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        .floating { animation: float 4s ease-in-out infinite; }
+
+        /* Input styling */
+        .glass-input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(var(--accent), 0.3);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .glass-input:focus {
+            outline: none;
+            border-color: var(--accent-hex);
+            box-shadow: 0 0 10px rgba(var(--accent), 0.3);
+        }
+
+        /* Toast animation */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        /* Settings drawer open state */
+        #settings-drawer.open {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Custom slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-track {
+            height: 4px;
+            background: rgba(var(--accent), 0.25);
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--accent-hex);
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 0 10px rgba(var(--accent), 0.5);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(var(--accent), 0.8);
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 4px;
+            background: rgba(var(--accent), 0.25);
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--accent-hex);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(var(--accent), 0.5);
+        }
+
+        /* Override Tailwind cyan classes to use theme variables */
+        .text-cyan-200\/50 { color: rgba(var(--accent), 0.5) !important; }
+        .text-cyan-300 { color: var(--text-glow) !important; }
+        .text-cyan-400 { color: rgba(var(--accent), 0.9) !important; }
+        .text-cyan-500 { color: rgba(var(--accent), 0.8) !important; }
+        .text-cyan-600 { color: rgba(var(--accent), 0.6) !important; }
+        .text-cyan-700 { color: rgba(var(--accent), 0.5) !important; }
+
+        .border-cyan-400 { border-color: var(--accent-hex) !important; }
+        .border-cyan-400\/50 { border-color: rgba(var(--accent), 0.5) !important; }
+        .border-cyan-500\/20 { border-color: rgba(var(--accent), 0.2) !important; }
+        .border-cyan-500\/30 { border-color: rgba(var(--accent), 0.3) !important; }
+        .border-cyan-500\/50 { border-color: rgba(var(--accent), 0.5) !important; }
+
+        .bg-cyan-900\/20 { background-color: rgba(var(--accent), 0.15) !important; }
+        .bg-cyan-900\/30 { background-color: rgba(var(--accent), 0.2) !important; }
+        .bg-cyan-900\/50 { background-color: rgba(var(--accent), 0.3) !important; }
+        .bg-cyan-500\/10 { background-color: rgba(var(--accent), 0.1) !important; }
+        .bg-cyan-500\/20 { background-color: rgba(var(--accent), 0.2) !important; }
+
+        .hover\:text-cyan-300:hover { color: var(--text-glow) !important; }
+        .hover\:text-cyan-400:hover { color: rgba(var(--accent), 0.9) !important; }
+        .hover\:border-cyan-400:hover { border-color: var(--accent-hex) !important; }
+        .hover\:border-cyan-500\/40:hover { border-color: rgba(var(--accent), 0.4) !important; }
+        .hover\:bg-cyan-900\/30:hover { background-color: rgba(var(--accent), 0.2) !important; }
+        .hover\:bg-cyan-400\/30:hover { background-color: rgba(var(--accent), 0.3) !important; }
+
+        .group-hover\:text-white:hover { color: white !important; }
+
+        .ring-cyan-400\/50 { --tw-ring-color: rgba(var(--accent), 0.5) !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Custom Cursors -->
+    <div id="cursor-circle" class="custom-cursor" style="opacity: 1;"></div>
+    <div id="cursor-triangle" class="custom-cursor" style="opacity: 0;"></div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer" class="flex flex-col justify-between p-8">
+        
+        <!-- Header / Top Nav -->
+        <div class="flex justify-between items-center pointer-events-auto">
+            <div class="flex items-center gap-4">
+                <div class="text-2xl md:text-4xl font-bold neon-text tracking-widest text-cyan-400 select-none opacity-80">
+                    CELESTIA // OS
+                </div>
+                <button onclick="toggleSearchPanel()" id="search-toggle-btn" class="px-3 py-1.5 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-900/30 hover:text-cyan-300 transition-colors text-xs tracking-widest">
+                    ⌕ SEARCH
+                </button>
+            </div>
+            <div class="text-xs md:text-sm font-mono text-cyan-200/50 tracking-widest">
+                COORDINATES: <span id="coords-display">0, 0, 0</span>
+            </div>
+        </div>
+
+        <!-- Search Panel (slides from left) -->
+        <div id="search-panel" class="fixed top-0 left-0 h-full w-80 hologram-panel transform -translate-x-full transition-transform duration-300 z-30 pointer-events-auto flex flex-col">
+            <!-- Header -->
+            <div class="p-4 border-b border-cyan-500/30">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm neon-text text-cyan-300 tracking-widest">LOCATE CHRYSALIS</span>
+                    <button onclick="toggleSearchPanel()" class="text-cyan-500 hover:text-white">✕</button>
+                </div>
+                <!-- Search Input -->
+                <input type="text" id="search-input" placeholder="Search projects..."
+                    oninput="performSearch()"
+                    class="w-full p-2 glass-input text-sm">
+            </div>
+
+            <!-- Filters -->
+            <div class="p-4 border-b border-cyan-500/20 space-y-3">
+                <!-- Category Filter -->
+                <div>
+                    <label class="text-[10px] text-cyan-600 tracking-widest">CATEGORY</label>
+                    <select id="search-category" onchange="performSearch()" class="w-full p-2 glass-input text-xs mt-1">
+                        <option value="">All Categories</option>
+                        <option value="Composition">Composition</option>
+                        <option value="Programming">Programming</option>
+                        <option value="Writing">Writing</option>
+                        <option value="Design">Design</option>
+                        <option value="AI Development">AI Development</option>
+                        <option value="Game Design">Game Design</option>
+                        <option value="Research">Research</option>
+                        <option value="Art">Art</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Priority Filter -->
+                <div>
+                    <label class="text-[10px] text-cyan-600 tracking-widest">PRIORITY</label>
+                    <select id="search-priority" onchange="performSearch()" class="w-full p-2 glass-input text-xs mt-1">
+                        <option value="">All Priorities</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                    </select>
+                </div>
+
+                <!-- Sort -->
+                <div>
+                    <label class="text-[10px] text-cyan-600 tracking-widest">SORT BY</label>
+                    <select id="search-sort" onchange="performSearch()" class="w-full p-2 glass-input text-xs mt-1">
+                        <option value="name">Name</option>
+                        <option value="updated">Last Updated</option>
+                        <option value="created">Created</option>
+                        <option value="priority">Priority</option>
+                        <option value="shards">Shards</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="flex-1 overflow-y-auto p-2">
+                <div class="text-[10px] text-cyan-600 px-2 py-1 tracking-widest">
+                    RESULTS: <span id="search-count">0</span>
+                </div>
+                <div id="search-results" class="space-y-1">
+                    <!-- Results populated by JS -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="p-3 border-t border-cyan-500/20">
+                <button onclick="clearSearch()" class="w-full py-2 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-900/30 text-[10px] tracking-widest">
+                    CLEAR FILTERS
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="flex justify-between items-end pointer-events-auto w-full">
+            <!-- Left: Create + Controls hint -->
+            <div class="flex flex-col gap-2">
+                <button onclick="openCreationModal()" class="group relative px-6 py-3 bg-black/40 border border-cyan-500/50 hover:border-cyan-400 hover:bg-cyan-900/20 transition-all duration-300 overflow-hidden">
+                    <div class="absolute inset-0 w-0 bg-cyan-500/10 transition-all duration-[250ms] ease-out group-hover:w-full"></div>
+                    <span class="relative neon-text text-cyan-300 text-sm tracking-widest group-hover:text-white">+ MANIFEST PROJECT</span>
+                </button>
+                <div class="text-[10px] text-cyan-700 font-mono hidden md:block">
+                    Mouse: Look | Space: Thrust | Shift: Boost | 1-4: Gears | Tab: Toggle Mouse | WASD: (posers)
+                </div>
+            </div>
+
+            <!-- Right: Thruster controls + Speed + Settings -->
+            <div class="text-right flex flex-col items-end gap-2 relative">
+                <!-- Settings Drawer (slides up) -->
+                <div id="settings-drawer" class="absolute bottom-full right-0 mb-2 w-72 hologram-panel p-4 rounded-lg transform translate-y-4 opacity-0 pointer-events-none transition-all duration-300 origin-bottom overflow-hidden">
+                    <div class="flex justify-between items-center mb-3 border-b border-cyan-500/30 pb-2">
+                        <span class="text-xs neon-text text-cyan-300 tracking-widest">FLIGHT SETTINGS</span>
+                        <button onclick="toggleSettings()" class="text-cyan-500 hover:text-white text-sm">✕</button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- Acceleration -->
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-500 mb-1">
+                                <span>ACCELERATION</span>
+                                <span id="accel-value">0.008</span>
+                            </div>
+                            <input type="range" id="accel-slider" min="0.002" max="0.03" step="0.001" value="0.008"
+                                onchange="updateFlightSetting('acceleration', this.value)"
+                                class="w-full h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Damping -->
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-500 mb-1">
+                                <span>DAMPING (friction)</span>
+                                <span id="damping-value">0.92</span>
+                            </div>
+                            <input type="range" id="damping-slider" min="0.8" max="0.99" step="0.01" value="0.92"
+                                onchange="updateFlightSetting('deceleration', this.value)"
+                                class="w-full h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Max Speed -->
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-500 mb-1">
+                                <span>MAX SPEED</span>
+                                <span id="maxspeed-value">2</span>
+                            </div>
+                            <input type="range" id="maxspeed-slider" min="0.2" max="10.0" step="0.05" value="2"
+                                onchange="updateFlightSetting('maxSpeed', this.value)"
+                                class="w-full h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Camera FOV -->
+                        <div class="pt-2 border-t border-cyan-500/20">
+                            <div class="flex justify-between text-[10px] text-cyan-500 mb-1">
+                                <span>CAMERA FOV</span>
+                                <span id="fov-value">60°</span>
+                            </div>
+                            <input type="range" id="fov-slider" min="40" max="120" step="5" value="60"
+                                onchange="updateCameraFOV(this.value)"
+                                class="w-full h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Look Speed (Mouse sensitivity) -->
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-500 mb-1">
+                                <span>MOUSE SENSITIVITY</span>
+                                <span id="lookspeed-value">0.003</span>
+                            </div>
+                            <input type="range" id="lookspeed-slider" min="0.00001" max="0.008" step="0.0005" value="0.003"
+                                onchange="updateLookSpeed(this.value)"
+                                class="w-full h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Theme Picker -->
+                        <div class="pt-2 border-t border-cyan-500/20">
+                            <div class="text-[10px] text-cyan-500 mb-2">THEME</div>
+                            <div class="flex gap-2">
+                                <button onclick="setTheme('vaporwave')" class="theme-btn flex-1 py-1.5 border border-cyan-500/30 hover:bg-cyan-900/30 text-[9px] tracking-wider" data-theme="vaporwave" title="Vaporwave">
+                                    <span class="inline-block w-3 h-3 rounded-full mr-1" style="background:#00ffff"></span>VAPOR
+                                </button>
+                                <button onclick="setTheme('onyx')" class="theme-btn flex-1 py-1.5 border border-cyan-500/30 hover:bg-cyan-900/30 text-[9px] tracking-wider" data-theme="onyx" title="Onyx">
+                                    <span class="inline-block w-3 h-3 rounded-full mr-1" style="background:#c8c8c8"></span>ONYX
+                                </button>
+                                <button onclick="setTheme('dusk')" class="theme-btn flex-1 py-1.5 border border-cyan-500/30 hover:bg-cyan-900/30 text-[9px] tracking-wider" data-theme="dusk" title="Warm Dusk">
+                                    <span class="inline-block w-3 h-3 rounded-full mr-1" style="background:#ffaa64"></span>DUSK
+                                </button>
+                                <button onclick="setTheme('rose')" class="theme-btn flex-1 py-1.5 border border-cyan-500/30 hover:bg-cyan-900/30 text-[9px] tracking-wider" data-theme="rose" title="Rose">
+                                    <span class="inline-block w-3 h-3 rounded-full mr-1" style="background:#ff6eaa"></span>ROSE
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Weather System -->
+                        <div class="pt-2 border-t border-cyan-500/20">
+                            <div class="text-[10px] text-cyan-500 mb-2">WEATHER</div>
+                            <select id="weather-select" onchange="toggleWeather(this.value)" class="w-full glass-input text-xs p-2 mb-2">
+                                <option value="none">None</option>
+                                <option value="venusian">Venusian Clouds</option>
+                            </select>
+
+                            <div class="flex justify-between text-[10px] text-cyan-500 mb-1">
+                                <span>CYCLE SPEED</span>
+                                <span id="weather-speed-value">1.0x</span>
+                            </div>
+                            <input type="range" id="weather-speed" min="0.5" max="10" step="0.5" value="1"
+                                onchange="updateWeatherSpeed(this.value)"
+                                class="w-full h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Reset + Presets Buttons -->
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="resetFlightSettings()" class="flex-1 py-1.5 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/30 text-[10px] tracking-widest">
+                                RESET DEFAULTS
+                            </button>
+                            <button onclick="openPresetsPanel()" class="w-10 h-8 border border-cyan-400/50 bg-cyan-500/20 hover:bg-cyan-400/30 transition-colors flex items-center justify-center" title="Presets">
+                                <svg class="w-4 h-4 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Presets Panel (slides over settings) -->
+                    <div id="presets-panel" class="absolute inset-0 bg-[#0a141e]/95 p-4 rounded-lg transform translate-x-full transition-transform duration-300">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-sm neon-text text-cyan-300 tracking-widest font-['Orbitron']">PRESETS</span>
+                            <button onclick="closePresetsPanel()" class="text-cyan-500 hover:text-white">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Current Preset -->
+                        <div class="bg-gray-700/50 px-3 py-2 mb-3 text-xs font-mono text-cyan-200">
+                            CURRENT: <span id="current-preset-name">CUSTOM</span>
+                        </div>
+
+                        <!-- Save New Button -->
+                        <button onclick="startSavePreset()" id="save-preset-btn" class="w-full py-2 mb-3 bg-cyan-500/30 border border-cyan-400 text-cyan-200 hover:bg-cyan-400/40 text-xs tracking-widest font-['Orbitron']">
+                            SAVE NEW
+                        </button>
+
+                        <!-- New Preset Input (hidden by default) -->
+                        <div id="new-preset-input" class="hidden mb-3 flex gap-2">
+                            <input type="text" id="new-preset-name" placeholder="ENTER_NAME" class="flex-1 px-2 py-1.5 bg-red-900/30 border border-red-500/50 text-red-200 text-xs font-mono uppercase" maxlength="20">
+                            <button onclick="confirmSavePreset()" class="px-2 text-green-400 hover:text-green-300 text-lg">✓</button>
+                            <button onclick="cancelSavePreset()" class="px-2 text-red-400 hover:text-red-300 text-lg">✕</button>
+                        </div>
+
+                        <!-- Presets List -->
+                        <div id="presets-list" class="space-y-2 max-h-48 overflow-y-auto">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Toggle Button -->
+                <button onclick="toggleSettings()" id="settings-btn" class="px-3 py-1 border border-cyan-500/20 text-[10px] text-cyan-600 hover:text-cyan-400 hover:border-cyan-500/40 transition-colors uppercase tracking-widest">
+                    ⚙ Settings
+                </button>
+
+                <div class="flex items-center gap-3">
+                    <!-- Speed indicator -->
+                    <div class="text-right">
+                        <div class="text-[10px] text-cyan-600 font-mono uppercase">Velocity</div>
+                        <div id="speed-display" class="text-cyan-400 font-mono text-sm">0.00</div>
+                    </div>
+                    <button onclick="toggleDrive()" id="drive-btn" class="px-4 py-2 border border-cyan-500/30 text-xs text-cyan-400 hover:bg-cyan-500/20 transition-colors uppercase tracking-widest min-w-[140px]">
+                        Engage Thrusters
+                    </button>
+                </div>
+                <div>
+                    <div class="text-xs text-cyan-600 font-mono uppercase">System Status</div>
+                    <div id="system-status" class="text-cyan-400 neon-text text-sm">ONLINE // STATIONARY</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Details HUD (Hidden by default) -->
+    <div id="project-hud" class="hidden absolute top-1/2 right-10 -translate-y-1/2 w-96 hologram-panel p-6 rounded-lg pointer-events-auto z-20 max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-start mb-4 border-b border-cyan-500/30 pb-2">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                    <h2 id="hud-title" class="text-2xl neon-text text-white tracking-wide">UNTITLED</h2>
+                    <span id="hud-priority" class="text-[10px] px-2 py-0.5 rounded uppercase tracking-wider">MEDIUM</span>
+                </div>
+                <p id="hud-subtitle" class="text-xs text-cyan-300 uppercase tracking-[0.2em]">Category</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="openEditModal()" class="text-cyan-500 hover:text-white transition-colors" title="Edit">✎</button>
+                <button onclick="closeHUD()" class="text-cyan-500 hover:text-white transition-colors">✕</button>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Description -->
+            <div id="hud-description-section" class="hidden">
+                <p id="hud-description" class="text-sm text-cyan-100/70 italic"></p>
+            </div>
+
+            <!-- Tags -->
+            <div id="hud-tags-section" class="hidden">
+                <div id="hud-tags" class="flex flex-wrap gap-1"></div>
+            </div>
+
+            <!-- Stats Section -->
+            <div id="hud-stats-container" class="space-y-3">
+                <!-- Stats injected via JS -->
+            </div>
+
+            <!-- Notes -->
+            <div id="hud-notes-section" class="hidden border-t border-cyan-500/20 pt-3">
+                <div class="text-[10px] text-cyan-600 uppercase tracking-widest mb-1">Notes</div>
+                <p id="hud-notes" class="text-xs text-cyan-200/60"></p>
+            </div>
+
+            <!-- Links -->
+            <div id="hud-links-section" class="hidden border-t border-cyan-500/20 pt-3">
+                <div class="text-[10px] text-cyan-600 uppercase tracking-widest mb-1">Links</div>
+                <div id="hud-links" class="flex flex-col gap-1"></div>
+            </div>
+
+            <!-- Meta Info -->
+            <div class="pt-3 border-t border-cyan-500/20 flex justify-between text-xs font-mono text-gray-400">
+                <span>UPDATED: <span id="hud-date" class="text-cyan-400">JUST NOW</span></span>
+                <span id="hud-shards" class="text-pink-400">0 SHARDS</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+                <button onclick="navigateToSelected()" class="flex-1 py-2 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/30 transition-colors tracking-widest text-xs uppercase">
+                    Navigate
+                </button>
+                <button onclick="openEditModal()" class="flex-1 py-2 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/30 transition-colors tracking-widest text-xs uppercase">
+                    Edit
+                </button>
+                <button onclick="confirmDeleteProject()" class="flex-1 py-2 border border-red-500/30 text-red-400 hover:bg-red-900/30 hover:text-red-300 transition-colors tracking-widest text-xs uppercase">
+                    Shatter
+                </button>
+            </div>
+        </div>
+
+        <!-- Decorative curved line element -->
+        <div class="absolute -left-12 top-20 w-12 h-32 border-l-2 border-b-2 border-cyan-500/40 rounded-bl-3xl pointer-events-none"></div>
+    </div>
+
+    <!-- Creation Modal -->
+    <div id="creation-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="hologram-panel w-full max-w-md p-8 rounded-none border-2 border-cyan-500/50 transform-none">
+            <h2 class="text-2xl neon-text text-center mb-6 text-cyan-300">INITIALIZE CHRYSALIS</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">PROJECT DESIGNATION</label>
+                    <input type="text" id="new-project-name" class="w-full p-3 glass-input" placeholder="e.g. I SANG FOR SPRING">
+                </div>
+                
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">CATEGORY</label>
+                    <select id="new-project-cat" class="w-full p-3 glass-input">
+                        <option value="Composition">Composition</option>
+                        <option value="Programming">Programming</option>
+                        <option value="Writing">Writing</option>
+                        <option value="Design">Design</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">CORE COLOR</label>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="selectColor('#00ffff')" class="w-8 h-8 rounded-full border border-white/20 hover:scale-110 transition-transform" style="background:#00ffff"></button>
+                        <button onclick="selectColor('#ff00ff')" class="w-8 h-8 rounded-full border border-white/20 hover:scale-110 transition-transform" style="background:#ff00ff"></button>
+                        <button onclick="selectColor('#ffff00')" class="w-8 h-8 rounded-full border border-white/20 hover:scale-110 transition-transform" style="background:#ffff00"></button>
+                        <button onclick="selectColor('#00ff00')" class="w-8 h-8 rounded-full border border-white/20 hover:scale-110 transition-transform" style="background:#00ff00"></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 flex gap-4">
+                <button onclick="closeCreationModal()" class="flex-1 py-3 border border-red-500/30 text-red-400 hover:bg-red-900/20 hover:text-white transition-colors tracking-widest text-xs">ABORT</button>
+                <button onclick="submitNewProject()" class="flex-1 py-3 bg-cyan-900/40 border border-cyan-500 text-cyan-300 hover:bg-cyan-500 hover:text-black transition-colors tracking-widest text-xs font-bold neon-text">MATERIALIZE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto py-8">
+        <div class="hologram-panel w-full max-w-lg p-6 rounded-lg border-2 border-cyan-500/50 transform-none mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl neon-text text-center mb-6 text-cyan-300">RECONFIGURE CHRYSALIS</h2>
+
+            <div class="space-y-4">
+                <!-- Name -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">DESIGNATION</label>
+                    <input type="text" id="edit-name" class="w-full p-3 glass-input">
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">CATEGORY</label>
+                    <select id="edit-category" class="w-full p-3 glass-input">
+                        <option value="Composition">Composition</option>
+                        <option value="Programming">Programming</option>
+                        <option value="Writing">Writing</option>
+                        <option value="Design">Design</option>
+                        <option value="AI Development">AI Development</option>
+                        <option value="Game Design">Game Design</option>
+                        <option value="Research">Research</option>
+                        <option value="Art">Art</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">DESCRIPTION</label>
+                    <textarea id="edit-description" class="w-full p-3 glass-input h-20 resize-none" placeholder="Brief description..."></textarea>
+                </div>
+
+                <!-- Priority -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">PRIORITY</label>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="setEditPriority('LOW')" data-priority="LOW" class="edit-priority-btn flex-1 py-2 border border-gray-500/50 text-gray-400 text-xs">LOW</button>
+                        <button type="button" onclick="setEditPriority('MEDIUM')" data-priority="MEDIUM" class="edit-priority-btn flex-1 py-2 border border-cyan-500/50 text-cyan-400 text-xs">MEDIUM</button>
+                        <button type="button" onclick="setEditPriority('HIGH')" data-priority="HIGH" class="edit-priority-btn flex-1 py-2 border border-yellow-500/50 text-yellow-400 text-xs">HIGH</button>
+                        <button type="button" onclick="setEditPriority('CRITICAL')" data-priority="CRITICAL" class="edit-priority-btn flex-1 py-2 border border-red-500/50 text-red-400 text-xs">CRITICAL</button>
+                    </div>
+                </div>
+
+                <!-- Tags -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">TAGS (comma separated)</label>
+                    <input type="text" id="edit-tags" class="w-full p-3 glass-input" placeholder="ai, research, urgent">
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">NOTES</label>
+                    <textarea id="edit-notes" class="w-full p-3 glass-input h-16 resize-none" placeholder="Additional notes..."></textarea>
+                </div>
+
+                <!-- Color -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-1 tracking-widest">CORE COLOR</label>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="setEditColor('#00ffff')" class="edit-color-btn w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform" style="background:#00ffff" data-color="#00ffff"></button>
+                        <button onclick="setEditColor('#ff00ff')" class="edit-color-btn w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform" style="background:#ff00ff" data-color="#ff00ff"></button>
+                        <button onclick="setEditColor('#ffff00')" class="edit-color-btn w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform" style="background:#ffff00" data-color="#ffff00"></button>
+                        <button onclick="setEditColor('#00ff00')" class="edit-color-btn w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform" style="background:#00ff00" data-color="#00ff00"></button>
+                        <button onclick="setEditColor('#ff6600')" class="edit-color-btn w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform" style="background:#ff6600" data-color="#ff6600"></button>
+                        <button onclick="setEditColor('#6666ff')" class="edit-color-btn w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform" style="background:#6666ff" data-color="#6666ff"></button>
+                    </div>
+                </div>
+
+                <!-- Stats Editor -->
+                <div>
+                    <label class="block text-xs text-cyan-500 mb-2 tracking-widest">METRICS</label>
+                    <div id="edit-stats-container" class="space-y-2">
+                        <!-- Stats populated by JS -->
+                    </div>
+                    <button onclick="addEditStat()" class="mt-2 text-xs text-cyan-400 hover:text-cyan-200">+ Add Metric</button>
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-4">
+                <button onclick="closeEditModal()" class="flex-1 py-3 border border-red-500/30 text-red-400 hover:bg-red-900/20 hover:text-white transition-colors tracking-widest text-xs">CANCEL</button>
+                <button onclick="saveProjectEdits()" class="flex-1 py-3 bg-cyan-900/40 border border-cyan-500 text-cyan-300 hover:bg-cyan-500 hover:text-black transition-colors tracking-widest text-xs font-bold neon-text">SAVE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Imports -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        // ============================================================
+        // PHASE 0.1: ERROR BOUNDARIES & GLOBAL ERROR HANDLING
+        // ============================================================
+
+        // Global error logger
+        const ErrorLogger = {
+            errors: [],
+            log(type, message, details = {}) {
+                const entry = { type, message, details, timestamp: Date.now() };
+                this.errors.push(entry);
+                console.error(`[CELESTIA/${type}]`, message, details);
+            },
+            getRecent(count = 10) {
+                return this.errors.slice(-count);
+            }
+        };
+
+        // Global error handler for uncaught errors
+        window.addEventListener('error', (event) => {
+            ErrorLogger.log('UNCAUGHT', event.message, {
+                filename: event.filename,
+                lineno: event.lineno
+            });
+        });
+
+        // Promise rejection handler
+        window.addEventListener('unhandledrejection', (event) => {
+            ErrorLogger.log('PROMISE', event.reason?.message || 'Unhandled rejection', {
+                reason: event.reason
+            });
+        });
+
+        // Show error modal to user
+        function showErrorModal(title, message, retryCallback = null) {
+            const existing = document.getElementById('celestia-error-modal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'celestia-error-modal';
+            modal.innerHTML = `
+                <div style="position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;">
+                    <div style="background:rgba(10,20,30,0.95);border:1px solid rgba(255,0,100,0.5);border-radius:8px;padding:30px;max-width:400px;text-align:center;font-family:'Orbitron',sans-serif;">
+                        <h2 style="color:#ff0066;margin:0 0 15px;font-size:1.5rem;">${title}</h2>
+                        <p style="color:#e0faff;margin:0 0 20px;font-size:14px;">${message}</p>
+                        ${retryCallback ? '<button id="celestia-retry-btn" style="background:#00ffff;color:#000;border:none;padding:10px 30px;cursor:pointer;font-family:inherit;margin-right:10px;border-radius:4px;">RETRY</button>' : ''}
+                        <button id="celestia-dismiss-btn" style="background:#333;color:#fff;border:1px solid #555;padding:10px 30px;cursor:pointer;font-family:inherit;border-radius:4px;">DISMISS</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('celestia-dismiss-btn').onclick = () => modal.remove();
+            if (retryCallback) {
+                document.getElementById('celestia-retry-btn').onclick = () => {
+                    modal.remove();
+                    retryCallback();
+                };
+            }
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const colors = { info: '#00ffff', success: '#00ff88', error: '#ff0066', warning: '#ffaa00' };
+            toast.style.cssText = `
+                position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+                background:rgba(10,20,30,0.95);border:1px solid ${colors[type]};
+                padding:12px 24px;border-radius:4px;color:${colors[type]};
+                font-family:'Orbitron',sans-serif;font-size:12px;z-index:9998;
+                animation:fadeInUp 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ============================================================
+        // THREE.JS IMPORTS WITH ERROR HANDLING
+        // ============================================================
+
+        let THREE;
+        try {
+            THREE = await import('three');
+        } catch (e) {
+            ErrorLogger.log('CDN', 'Failed to load Three.js', { error: e.message });
+            showErrorModal(
+                'RENDERING ENGINE OFFLINE',
+                'Failed to load 3D engine. Check your connection and retry.',
+                () => location.reload()
+            );
+            throw e;
+        }
+
+        // Non-critical addon - continue without if fails
+        try {
+            await import('three/addons/lights/RectAreaLightUniformsLib.js');
+        } catch (e) {
+            ErrorLogger.log('CDN', 'RectAreaLightUniformsLib failed - continuing without', { error: e.message });
+        }
+
+        // ============================================================
+        // PHASE 0.3: CENTRALIZED STATE MANAGEMENT
+        // ============================================================
+
+        const AppState = {
+            _state: {
+                projects: [],
+                ui: {
+                    moveSpeed: 0,
+                    selectedColor: '#00ffff',
+                    currentlySelectedProject: null,
+                    isHUDOpen: false,
+                    isModalOpen: false
+                },
+                camera: {
+                    position: { x: 0, y: 3, z: 5 }
+                }
+            },
+            _listeners: new Map(),
+
+            // Get state (returns copy to prevent direct mutation)
+            get(path) {
+                const keys = path.split('.');
+                let value = this._state;
+                for (const key of keys) {
+                    if (value === undefined) return undefined;
+                    value = value[key];
+                }
+                return value;
+            },
+
+            // Set state and notify listeners
+            set(path, value) {
+                const keys = path.split('.');
+                const lastKey = keys.pop();
+                let target = this._state;
+
+                for (const key of keys) {
+                    if (target[key] === undefined) target[key] = {};
+                    target = target[key];
+                }
+
+                const oldValue = target[lastKey];
+                target[lastKey] = value;
+
+                // Notify listeners
+                this._notify(path, value, oldValue);
+            },
+
+            // Subscribe to state changes
+            subscribe(path, callback) {
+                if (!this._listeners.has(path)) {
+                    this._listeners.set(path, new Set());
+                }
+                this._listeners.get(path).add(callback);
+
+                // Return unsubscribe function
+                return () => this._listeners.get(path)?.delete(callback);
+            },
+
+            // Notify listeners of changes
+            _notify(path, newValue, oldValue) {
+                // Notify exact path listeners
+                this._listeners.get(path)?.forEach(cb => cb(newValue, oldValue, path));
+
+                // Notify parent path listeners (e.g., 'ui' gets notified when 'ui.moveSpeed' changes)
+                const parts = path.split('.');
+                while (parts.length > 1) {
+                    parts.pop();
+                    const parentPath = parts.join('.');
+                    this._listeners.get(parentPath)?.forEach(cb => cb(this.get(parentPath), null, path));
+                }
+            },
+
+            // Add project to state
+            addProject(projectGroup) {
+                this._state.projects.push(projectGroup);
+                this._notify('projects', this._state.projects, null);
+            },
+
+            // Remove project from state
+            removeProject(projectGroup) {
+                const index = this._state.projects.indexOf(projectGroup);
+                if (index > -1) {
+                    this._state.projects.splice(index, 1);
+                    this._notify('projects', this._state.projects, null);
+                }
+            },
+
+            // Get all projects
+            getProjects() {
+                return this._state.projects;
+            }
+        };
+
+        // ============================================================
+        // GLOBAL STATE (Legacy references for compatibility)
+        // ============================================================
+        let camera, scene, renderer;
+        let grid, grid2; // Two grids for infinite illusion
+        let ambientLight, camLight, starField; // Store for theme updates
+        const projects = AppState.getProjects(); // Reference to state projects
+
+        // Computed getters/setters that sync with AppState
+        Object.defineProperty(window, 'moveSpeed', {
+            get: () => AppState.get('ui.moveSpeed'),
+            set: (val) => AppState.set('ui.moveSpeed', val)
+        });
+
+        Object.defineProperty(window, 'selectedColor', {
+            get: () => AppState.get('ui.selectedColor'),
+            set: (val) => AppState.set('ui.selectedColor', val)
+        });
+
+        Object.defineProperty(window, 'currentlySelectedProject', {
+            get: () => AppState.get('ui.currentlySelectedProject'),
+            set: (val) => AppState.set('ui.currentlySelectedProject', val)
+        });
+
+        let isHovering = false;
+
+        // ============================================================
+        // PHASE 2: NAVIGATION & MOVEMENT CONTROLLER (Look-Based)
+        // ============================================================
+
+        const NavController = {
+            // Velocity (scalar - we move in facing direction)
+            speed: 0,
+
+            // Camera rotation (Euler angles)
+            pitch: 0,    // Up/down rotation (X axis)
+            yaw: 0,      // Left/right rotation (Y axis)
+
+            // Physics constants
+            thrustPower: 0.015,       // How fast we accelerate
+            deceleration: 0.94,       // Friction/damping
+            maxSpeed: 0.6,            // Maximum velocity
+            boostMultiplier: 2.5,     // Shift key multiplier
+
+            // Look sensitivity
+            lookSpeed: 0.003,         // How fast mouse rotates view
+            pitchLimit: Math.PI / 2.2, // Max up/down angle (~80°)
+
+            // Mouse look state
+            mouseLook: {
+                enabled: true,
+                userEnabled: true, // User's preference (Tab toggle)
+                lastX: 0,
+                lastY: 0
+            },
+
+            // Update mouse look based on UI state
+            updateMouseLook() {
+                // Only enable if user wants it AND no UI panels are open
+                const hudOpen = !document.getElementById('project-hud')?.classList.contains('hidden');
+                const settingsOpen = document.getElementById('settings-drawer')?.classList.contains('open');
+                const searchOpen = document.getElementById('search-panel')?.classList.contains('open');
+                const modalOpen = document.querySelector('.fixed.inset-0:not(.hidden)') !== null; // Any visible modal
+
+                const uiOpen = hudOpen || settingsOpen || searchOpen || modalOpen;
+                const shouldEnable = this.mouseLook.userEnabled && !uiOpen;
+
+                // Handle pointer lock
+                const canvas = renderer?.domElement;
+                if (canvas) {
+                    if (shouldEnable && !document.pointerLockElement) {
+                        canvas.requestPointerLock();
+                    } else if (!shouldEnable && document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
+                }
+
+                this.mouseLook.enabled = shouldEnable;
+
+                // Update body class for cursor control
+                if (this.mouseLook.enabled) {
+                    document.body.classList.add('mouse-look-enabled');
+                } else {
+                    document.body.classList.remove('mouse-look-enabled');
+                }
+
+                // Update cursor visuals
+                const circle = document.getElementById('cursor-circle');
+                const triangle = document.getElementById('cursor-triangle');
+                if (circle && triangle) {
+                    if (this.mouseLook.enabled) {
+                        circle.style.opacity = '1';
+                        triangle.style.opacity = '0';
+                    } else {
+                        circle.style.opacity = '0';
+                        triangle.style.opacity = '1';
+                    }
+                }
+            },
+
+            // Update cursor position
+            updateCursorPosition(x, y) {
+                const circle = document.getElementById('cursor-circle');
+                const triangle = document.getElementById('cursor-triangle');
+                if (circle) {
+                    circle.style.left = x + 'px';
+                    circle.style.top = y + 'px';
+                }
+                if (triangle) {
+                    triangle.style.left = x + 'px';
+                    triangle.style.top = y + 'px';
+                }
+            },
+
+            toggleMouseLook() {
+                this.mouseLook.userEnabled = !this.mouseLook.userEnabled;
+                this.updateMouseLook();
+                showToast(this.mouseLook.userEnabled ? 'MOUSE LOOK ENABLED' : 'MOUSE LOOK DISABLED [Tab to re-enable]', 'info');
+            },
+
+            // Thruster gear system
+            thrusterGear: 0,          // 0 = off, 1-4 = speed levels
+            gearSpeeds: [0, 0.08, 0.18, 0.35, 0.55],
+            gearNames: ['IDLE', 'CRUISE', 'BOOST', 'BURN', 'HYPERDRIVE'],
+
+            // Input state
+            keys: {
+                lookUp: false,     // W
+                lookDown: false,   // S
+                lookLeft: false,   // A
+                lookRight: false,  // D
+                thrust: false,     // Space
+                boost: false       // Shift
+            },
+
+            // Auto-pilot state
+            autopilot: {
+                active: false,
+                targetPosition: null,
+                targetProject: null,
+                arrivalCallback: null
+            },
+
+            // Initialize controls
+            init() {
+                window.addEventListener('keydown', (e) => this.onKeyDown(e));
+                window.addEventListener('keyup', (e) => this.onKeyUp(e));
+                window.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+                window.addEventListener('mousemove', (e) => this.onMouseLook(e));
+
+                // Handle pointer lock changes (e.g., CMD+Tab releases it)
+                document.addEventListener('pointerlockchange', () => {
+                    if (document.pointerLockElement) {
+                        // Center custom cursor when pointer locked
+                        this.updateCursorPosition(window.innerWidth / 2, window.innerHeight / 2);
+                    } else {
+                        // Pointer lock lost - disable mouse look
+                        if (this.mouseLook.enabled) {
+                            this.mouseLook.userEnabled = false;
+                            this.updateMouseLook();
+                            showToast('POINTER LOCK LOST [Tab to re-enable]', 'warning');
+                        }
+                    }
+                });
+            },
+
+            // Mouse look handler
+            onMouseLook(e) {
+                // Always update cursor position (when not pointer locked)
+                if (!document.pointerLockElement) {
+                    this.updateCursorPosition(e.clientX, e.clientY);
+                }
+
+                // Only do look rotation if enabled
+                if (!this.mouseLook.enabled) return;
+
+                // Use pointer lock movement when available (unlimited movement!)
+                let deltaX, deltaY;
+                if (document.pointerLockElement) {
+                    deltaX = e.movementX || 0;
+                    deltaY = e.movementY || 0;
+                } else {
+                    // Fallback to position delta
+                    deltaX = e.clientX - this.mouseLook.lastX;
+                    deltaY = e.clientY - this.mouseLook.lastY;
+                    this.mouseLook.lastX = e.clientX;
+                    this.mouseLook.lastY = e.clientY;
+
+                    // Skip huge jumps (first movement or re-entering window)
+                    if (Math.abs(deltaX) > 100 || Math.abs(deltaY) > 100) return;
+                }
+
+                // Apply rotation
+                this.yaw -= deltaX * this.lookSpeed;
+                this.pitch -= deltaY * this.lookSpeed;
+
+                // Clamp pitch
+                this.pitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.pitch));
+            },
+
+            onKeyDown(e) {
+                // Don't capture if typing in input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+                switch(e.code) {
+                    // WASD = Look controls
+                    case 'KeyW': case 'ArrowUp':
+                        this.keys.lookUp = true; break;
+                    case 'KeyS': case 'ArrowDown':
+                        this.keys.lookDown = true; break;
+                    case 'KeyA': case 'ArrowLeft':
+                        this.keys.lookLeft = true; break;
+                    case 'KeyD': case 'ArrowRight':
+                        this.keys.lookRight = true; break;
+
+                    // Space = Thrust forward
+                    case 'Space':
+                        this.keys.thrust = true;
+                        e.preventDefault();
+                        break;
+
+                    // Shift = Boost
+                    case 'ShiftLeft': case 'ShiftRight':
+                        this.keys.boost = true; break;
+
+                    // Thruster gear controls (1-4 keys)
+                    case 'Digit1': this.setGear(1); break;
+                    case 'Digit2': this.setGear(2); break;
+                    case 'Digit3': this.setGear(3); break;
+                    case 'Digit4': this.setGear(4); break;
+                    case 'Digit0': case 'Backquote':
+                        this.setGear(0); break;
+
+                    // Quick stop
+                    case 'KeyX':
+                        this.emergencyStop();
+                        break;
+
+                    // Tab = Toggle mouse look
+                    case 'Tab':
+                        e.preventDefault();
+                        this.toggleMouseLook();
+                        break;
+                }
+            },
+
+            onKeyUp(e) {
+                switch(e.code) {
+                    case 'KeyW': case 'ArrowUp':
+                        this.keys.lookUp = false; break;
+                    case 'KeyS': case 'ArrowDown':
+                        this.keys.lookDown = false; break;
+                    case 'KeyA': case 'ArrowLeft':
+                        this.keys.lookLeft = false; break;
+                    case 'KeyD': case 'ArrowRight':
+                        this.keys.lookRight = false; break;
+                    case 'Space':
+                        this.keys.thrust = false; break;
+                    case 'ShiftLeft': case 'ShiftRight':
+                        this.keys.boost = false; break;
+                }
+            },
+
+            // Scroll wheel to adjust cruise speed (throttled for trackpads)
+            scrollThrottle: 0,
+            scrollCooldown: 150, // ms between gear changes
+
+            onWheel(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                e.preventDefault();
+
+                // Throttle scroll for Magic Trackpad / high-resolution scrolling
+                const now = Date.now();
+                if (now - this.scrollThrottle < this.scrollCooldown) return;
+                this.scrollThrottle = now;
+
+                if (e.deltaY < 0) {
+                    // Scroll up = increase gear
+                    this.setGear(Math.min(4, this.thrusterGear + 1));
+                } else if (e.deltaY > 0) {
+                    // Scroll down = decrease gear
+                    this.setGear(Math.max(0, this.thrusterGear - 1));
+                }
+            },
+
+            setGear(gear) {
+                this.thrusterGear = gear;
+                this.updateUI();
+
+                if (gear === 0) {
+                    showToast('THRUSTERS DISENGAGED', 'info');
+                } else {
+                    showToast(`${this.gearNames[gear]} MODE ENGAGED`, gear >= 3 ? 'warning' : 'info');
+                }
+            },
+
+            cycleGear() {
+                this.setGear((this.thrusterGear + 1) % 5);
+            },
+
+            emergencyStop() {
+                this.speed = 0;
+                this.thrusterGear = 0;
+                this.autopilot.active = false;
+                this.updateUI();
+                showToast('FULL STOP', 'warning');
+            },
+
+            // Navigate to a specific project
+            navigateTo(projectGroup, callback = null) {
+                if (!projectGroup) return;
+
+                this.autopilot.active = true;
+                this.autopilot.targetProject = projectGroup;
+                this.autopilot.arrivalCallback = callback;
+
+                // Target position: in front of the project
+                this.autopilot.targetPosition = {
+                    x: projectGroup.position.x,
+                    y: projectGroup.position.y + 1,
+                    z: projectGroup.position.z + 8
+                };
+
+                showToast(`NAVIGATING TO ${projectGroup.userData.name}`, 'info');
+            },
+
+            // Get direction vector from current pitch/yaw
+            getForwardVector() {
+                return {
+                    x: -Math.sin(this.yaw) * Math.cos(this.pitch),
+                    y: Math.sin(this.pitch),
+                    z: -Math.cos(this.yaw) * Math.cos(this.pitch)
+                };
+            },
+
+            // Main update loop (called every frame)
+            update(camera, deltaTime = 1) {
+                if (this.autopilot.active) {
+                    this.updateAutopilot(camera);
+                } else {
+                    this.updateManual(camera);
+                }
+
+                // Apply camera rotation
+                camera.rotation.order = 'YXZ';
+                camera.rotation.x = this.pitch;
+                camera.rotation.y = this.yaw;
+
+                // Clamp Y position (don't go below grid)
+                camera.position.y = Math.max(0.5, camera.position.y);
+            },
+
+            updateManual(camera) {
+                // Update look direction (WASD)
+                if (this.keys.lookUp) this.pitch += this.lookSpeed;
+                if (this.keys.lookDown) this.pitch -= this.lookSpeed;
+                if (this.keys.lookLeft) this.yaw += this.lookSpeed;
+                if (this.keys.lookRight) this.yaw -= this.lookSpeed;
+
+                // Clamp pitch to prevent flipping
+                this.pitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.pitch));
+
+                // Calculate thrust
+                const thrusterSpeed = this.gearSpeeds[this.thrusterGear];
+                const boostMult = this.keys.boost ? this.boostMultiplier : 1;
+
+                // Apply thrust (spacebar or thruster gear)
+                if (this.keys.thrust) {
+                    this.speed += this.thrustPower * boostMult;
+                }
+
+                // Auto-cruise from thruster gear
+                if (thrusterSpeed > 0) {
+                    // Gradually accelerate to cruise speed
+                    const targetSpeed = thrusterSpeed * boostMult;
+                    this.speed += (targetSpeed - this.speed) * 2;
+                }
+
+                // Apply deceleration
+                this.speed *= this.deceleration;
+
+                // Clamp speed
+                this.speed = this.speed * boostMult;
+
+                // Move in facing direction
+                if (Math.abs(this.speed) > 0.001) {
+                    const forward = this.getForwardVector();
+                    camera.position.x += forward.x * this.speed;
+                    camera.position.y += forward.y * this.speed;
+                    camera.position.z += forward.z * this.speed;
+                }
+            },
+
+            updateAutopilot(camera) {
+                const target = this.autopilot.targetPosition;
+                if (!target) {
+                    this.autopilot.active = false;
+                    return;
+                }
+
+                // Calculate direction to target
+                const dx = target.x - camera.position.x;
+                const dy = target.y - camera.position.y;
+                const dz = target.z - camera.position.z;
+                const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+                // Arrived?
+                if (distance < 2) {
+                    this.autopilot.active = false;
+                    this.speed = 0;
+
+                    // Update pitch/yaw to face the project
+                    this.yaw = Math.atan2(-dx, -dz);
+                    this.pitch = Math.asin(dy / distance) * 0.3; // Gentle look angle
+
+                    if (this.autopilot.arrivalCallback) {
+                        this.autopilot.arrivalCallback();
+                    }
+
+                    showToast('DESTINATION REACHED', 'success');
+                    return;
+                }
+
+                // Smoothly rotate toward target
+                const targetYaw = Math.atan2(-dx, -dz);
+                const targetPitch = Math.asin(dy / distance);
+
+                this.yaw += (targetYaw - this.yaw) * 0.05;
+                this.pitch += (targetPitch - this.pitch) * 0.05;
+
+                // Move toward target
+                const approachSpeed = Math.min(0.4, distance * 0.05);
+                camera.position.x += (dx / distance) * approachSpeed;
+                camera.position.y += (dy / distance) * approachSpeed;
+                camera.position.z += (dz / distance) * approachSpeed;
+            },
+
+            updateUI() {
+                const btn = document.getElementById('drive-btn');
+                const status = document.getElementById('system-status');
+
+                if (this.thrusterGear === 0) {
+                    btn.innerText = 'Engage Thrusters';
+                    status.innerText = 'ONLINE // STATIONARY';
+                    btn.classList.remove('bg-cyan-500/20', 'text-white');
+                } else {
+                    btn.innerText = `GEAR ${this.thrusterGear} [${this.gearNames[this.thrusterGear]}]`;
+                    status.innerText = `ONLINE // ${this.gearNames[this.thrusterGear]}`;
+                    btn.classList.add('bg-cyan-500/20', 'text-white');
+                }
+            },
+
+            // Get current speed for display
+            getSpeed() {
+                return Math.abs(this.speed);
+            }
+        };
+
+        // ============================================================
+        // WEATHER SYSTEM CONTROLLER
+        // ============================================================
+
+        // Create a soft radial texture to fake volumetric sprites (clouds/fog)
+        function createSoftTexture(hexColor, innerAlpha = 0.55, outerAlpha = 0.0, size = 128) {
+            const c = document.createElement('canvas');
+            c.width = c.height = size;
+            const ctx = c.getContext('2d');
+            const color = new THREE.Color(hexColor);
+            const gradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size * 0.5);
+            const rgba = (a) => `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${a})`;
+            gradient.addColorStop(0, rgba(innerAlpha));
+            gradient.addColorStop(1, rgba(outerAlpha));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.minFilter = THREE.LinearMipMapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            return tex;
+        }
+
+        class WeatherSystem {
+            constructor() {
+                this.time = 0; // 0-24 hours
+                this.speed = 1; // time multiplier
+                this.activeSystem = null;
+                this.enabled = false;
+                this.clock = new THREE.Clock();
+
+                // Particle systems
+                this.groundFog = null;
+                this.cloudFormations = [];
+                this.skyClouds = null;
+                this.rain = null;
+
+                // Sprite textures
+                this.cloudTexture = createSoftTexture(0xf6c996, 0.55, 0.0, 192);
+                this.hazeTexture = createSoftTexture(0xf2b365, 0.4, 0.0, 192);
+
+                // Lightning bolts
+                this.activeBolts = [];
+
+                // Atmospheric tuning
+                this.windVector = new THREE.Vector3();
+                this.hazeShell = null;
+                this.currentVenusParams = {
+                    wind: 0,
+                    turbulence: 0.2,
+                    hazeOpacity: 0.2,
+                    cloudTint: 0xffc07a,
+                    skyTint: 0xf7b46a,
+                    fogTint: 0x8c522d,
+                    rainTint: 0xe6ff7f,
+                    rainIntensity: 0,
+                    boltChance: 0.005,
+                    boltColor: 0xfff7d5
+                };
+            }
+
+            update() {
+                if (!this.enabled || !this.activeSystem) return;
+
+                const deltaTime = this.clock.getDelta();
+                this.time += deltaTime * this.speed / 60;
+                if (this.time >= 24) this.time = 0;
+
+                const phase = Math.floor(this.time / 6); // 0=PEACEFUL, 1=LIVELY, 2=DIM, 3=EXTREME
+                const phaseProgress = (this.time % 6) / 6; // 0-1 within current phase
+
+                // Update active weather system
+                if (this.activeSystem === 'venusian') {
+                    this.updateVenusian(phase, phaseProgress, deltaTime);
+                }
+            }
+
+            updateVenusian(phase, progress, deltaTime) {
+                // Phase definitions tuned for Venusian brutality
+                const phases = [
+                    { fogColor: 0x2c160d, fogDensity: 0.0075, lightIntensity: 0.45, rainIntensity: 0.05, wind: 2.6, turbulence: 0.18, hazeOpacity: 0.18, cloudTint: 0xe7c08c, skyTint: 0xf8cfa1, fogTint: 0x8c522d, rainTint: 0xe6ff7f, boltChance: 0.004, boltColor: 0xfff7d5 }, // PEACEFUL
+                    { fogColor: 0x5a2b0e, fogDensity: 0.0095, lightIntensity: 0.64, rainIntensity: 0.25, wind: 3.6, turbulence: 0.28, hazeOpacity: 0.22, cloudTint: 0xf4be7b, skyTint: 0xfcc48a, fogTint: 0xa65a2a, rainTint: 0xddff63, boltChance: 0.012, boltColor: 0xfff0c5 }, // LIVELY
+                    { fogColor: 0x4b1c08, fogDensity: 0.0135, lightIntensity: 0.38, rainIntensity: 0.58, wind: 4.8, turbulence: 0.40, hazeOpacity: 0.27, cloudTint: 0xefaa63, skyTint: 0xf29d5c, fogTint: 0x7b3d1c, rainTint: 0xc9ff4a, boltChance: 0.020, boltColor: 0xfde9a5 }, // DIM
+                    { fogColor: 0x7a2b05, fogDensity: 0.0185, lightIntensity: 0.55, rainIntensity: 0.95, wind: 6.4, turbulence: 0.60, hazeOpacity: 0.33, cloudTint: 0xffb347, skyTint: 0xff8c42, fogTint: 0xa64b1c, rainTint: 0xb4f52d, boltChance: 0.035, boltColor: 0xfff6d6 }  // EXTREME
+                ];
+
+                const current = phases[phase];
+                const next = phases[(phase + 1) % 4];
+
+                // Interpolate between phases
+                const fogColor = this.lerpColor(current.fogColor, next.fogColor, progress);
+                const fogDensity = THREE.MathUtils.lerp(current.fogDensity, next.fogDensity, progress);
+                const lightIntensity = THREE.MathUtils.lerp(current.lightIntensity, next.lightIntensity, progress);
+                const rainIntensity = THREE.MathUtils.lerp(current.rainIntensity, next.rainIntensity, progress);
+                const wind = THREE.MathUtils.lerp(current.wind, next.wind, progress);
+                const turbulence = THREE.MathUtils.lerp(current.turbulence, next.turbulence, progress);
+                const hazeOpacity = THREE.MathUtils.lerp(current.hazeOpacity, next.hazeOpacity, progress);
+                const cloudTint = this.lerpColor(current.cloudTint, next.cloudTint, progress);
+                const skyTint = this.lerpColor(current.skyTint, next.skyTint, progress);
+                const fogTint = this.lerpColor(current.fogTint, next.fogTint, progress);
+                const rainTint = this.lerpColor(current.rainTint, next.rainTint, progress);
+                const boltChance = THREE.MathUtils.lerp(current.boltChance, next.boltChance, progress);
+                const boltColor = this.lerpColor(current.boltColor, next.boltColor, progress);
+
+                this.currentVenusParams = {
+                    wind,
+                    turbulence,
+                    hazeOpacity,
+                    cloudTint,
+                    skyTint,
+                    fogTint,
+                    rainTint,
+                    rainIntensity,
+                    boltChance,
+                    boltColor
+                };
+
+                this.windVector.set(wind, 0, -wind * 0.35);
+
+                // Apply to scene
+                scene.fog.color.setHex(fogColor);
+                scene.fog.density = fogDensity;
+                if (ambientLight) {
+                    ambientLight.intensity = lightIntensity;
+                }
+
+                this.updateHazeShell(fogTint, hazeOpacity, turbulence);
+
+                // Update particle systems
+                this.updateGroundFog(deltaTime);
+                this.updateCloudFormations(deltaTime);
+                this.updateSkyClouds(deltaTime);
+                this.updateRain(deltaTime, rainIntensity);
+
+                // Lightning frequency scales with phase intensity
+                const boltProbability = boltChance * (0.6 + rainIntensity * 0.9 + turbulence * 0.6);
+                if (Math.random() < boltProbability * deltaTime * 60) {
+                    this.spawnLightning({
+                        color: boltColor,
+                        glowColor: skyTint,
+                        width: 2 + rainIntensity * 2,
+                        jaggedness: 1 + turbulence * 0.6,
+                        lifetime: 420
+                    });
+                }
+
+                // Clean up old bolts
+                this.activeBolts = this.activeBolts.filter(bolt => {
+                    const age = Date.now() - bolt.spawnTime;
+                    const lifetime = bolt.lifetime || 300;
+                    const fade = Math.max(0, 1 - age / lifetime);
+
+                    if (bolt.mesh.material) {
+                        bolt.mesh.material.opacity = 0.4 + 0.6 * fade;
+                    }
+                    if (bolt.glow.material) {
+                        bolt.glow.material.opacity = 0.15 + 0.25 * fade;
+                    }
+
+                    if (age > lifetime) {
+                        scene.remove(bolt.mesh);
+                        scene.remove(bolt.glow);
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            updateGroundFog(deltaTime) {
+                if (!this.groundFog) return;
+
+                const params = this.currentVenusParams || {};
+                const dummy = new THREE.Object3D();
+
+                if (this.groundFog.material) {
+                    this.groundFog.material.color.setHex(params.fogTint || 0xaa6633);
+                    this.groundFog.material.opacity = THREE.MathUtils.clamp(0.2 + (params.hazeOpacity || 0) * 0.6, 0.18, 0.7);
+                    this.groundFog.material.needsUpdate = true;
+                }
+
+                for (let i = 0; i < 220; i++) {
+                    this.groundFog.getMatrixAt(i, dummy.matrix);
+                    dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+
+                    // Waft motion with lateral wind push
+                    dummy.position.x += Math.sin(Date.now() * 0.00035 + i) * 0.06;
+                    dummy.position.z += Math.cos(Date.now() * 0.00025 + i) * 0.05;
+                    dummy.position.x += this.windVector.x * deltaTime * 6;
+                    dummy.position.z += this.windVector.z * deltaTime * 3.8;
+                    dummy.position.y = 0.4 + Math.sin(Date.now() * 0.0008 + i) * 0.35 * (params.turbulence || 0.2);
+
+                    // Keep fog near ground, wrap around camera
+                    const wrapRange = 140;
+                    if (camera && Math.abs(dummy.position.x - camera.position.x) > wrapRange) {
+                        dummy.position.x = camera.position.x + (Math.random() - 0.5) * wrapRange;
+                    }
+                    if (camera && Math.abs(dummy.position.z - camera.position.z) > wrapRange) {
+                        dummy.position.z = camera.position.z + (Math.random() - 0.5) * wrapRange;
+                    }
+
+                    dummy.updateMatrix();
+                    this.groundFog.setMatrixAt(i, dummy.matrix);
+                }
+
+                this.groundFog.instanceMatrix.needsUpdate = true;
+            }
+
+            updateCloudFormations(deltaTime) {
+                const params = this.currentVenusParams || {};
+                const driftX = this.windVector.x * deltaTime * 10;
+                const driftZ = this.windVector.z * deltaTime * 6;
+                const swirl = (params.turbulence || 0.2) * 0.35;
+                const baseOpacity = THREE.MathUtils.clamp(0.28 + (params.hazeOpacity || 0) * 0.45, 0.18, 0.75);
+
+                this.cloudFormations.forEach(cloud => {
+                    // Drift and churn
+                    cloud.position.x += driftX + Math.sin(Date.now() * 0.00022 + cloud.position.z * 0.01) * swirl;
+                    cloud.position.z += driftZ + Math.cos(Date.now() * 0.00027 + cloud.position.x * 0.01) * swirl;
+                    cloud.position.y += Math.sin(Date.now() * 0.00035 + cloud.position.x * 0.04) * 0.03 * (1 + swirl * 3);
+
+                    cloud.rotation.y = 0;
+                    cloud.rotation.x = 0;
+                    cloud.children.forEach(mesh => {
+                        if (mesh.material) {
+                            mesh.material.color.setHex(params.cloudTint || 0xddaa77);
+                            mesh.material.opacity = baseOpacity;
+                        }
+                        mesh.lookAt(camera.position);
+                    });
+
+                    // Wrap around view volume
+                    const wrapRange = 220;
+                    if (camera && cloud.position.x - camera.position.x > wrapRange) {
+                        cloud.position.x = camera.position.x - wrapRange;
+                    }
+                    if (camera && cloud.position.x - camera.position.x < -wrapRange) {
+                        cloud.position.x = camera.position.x + wrapRange;
+                    }
+                    if (camera && cloud.position.z - camera.position.z > wrapRange) {
+                        cloud.position.z = camera.position.z - wrapRange;
+                    }
+                    if (camera && cloud.position.z - camera.position.z < -wrapRange) {
+                        cloud.position.z = camera.position.z + wrapRange;
+                    }
+                });
+            }
+
+            updateSkyClouds(deltaTime) {
+                if (!this.skyClouds) return;
+
+                const params = this.currentVenusParams || {};
+                if (this.skyClouds.material) {
+                    this.skyClouds.material.color.setHex(params.skyTint || 0xffbb66);
+                    this.skyClouds.material.opacity = THREE.MathUtils.clamp(0.08 + (params.hazeOpacity || 0) * 0.5, 0.08, 0.75);
+                }
+
+                const dummy = new THREE.Object3D();
+                const driftX = this.windVector.x * deltaTime * 10;
+                const driftZ = this.windVector.z * deltaTime * 6.5;
+                const wobble = (params.turbulence || 0.2) * 0.32;
+
+                for (let i = 0; i < 50; i++) {
+                    this.skyClouds.getMatrixAt(i, dummy.matrix);
+                    dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+
+                    // Drift and slight roll to keep the layer alive
+                    dummy.position.x += driftX + Math.sin(Date.now() * 0.00025 + i) * wobble;
+                    dummy.position.z += driftZ + Math.cos(Date.now() * 0.00018 + i) * wobble;
+                    dummy.lookAt(camera.position);
+
+                    // Wrap
+                    if (camera && dummy.position.x - camera.position.x > 320) {
+                        dummy.position.x = camera.position.x - 320;
+                    }
+                    if (camera && dummy.position.x - camera.position.x < -320) {
+                        dummy.position.x = camera.position.x + 320;
+                    }
+
+                    dummy.updateMatrix();
+                    this.skyClouds.setMatrixAt(i, dummy.matrix);
+                }
+
+                this.skyClouds.instanceMatrix.needsUpdate = true;
+            }
+
+            updateRain(deltaTime, intensity) {
+                if (!this.rain) return;
+
+                const params = this.currentVenusParams || {};
+                if (this.rain.material) {
+                    this.rain.material.color.setHex(params.rainTint || 0xaaaaaa);
+                    this.rain.material.opacity = THREE.MathUtils.clamp(0.15 + intensity * 0.5, 0.1, 0.7);
+                }
+
+                this.rain.visible = intensity > 0.05;
+                if (!this.rain.visible) return;
+
+                const dummy = new THREE.Object3D();
+                const fallSpeed = (4 + (params.wind || 1) * 0.5) * intensity;
+                const driftX = this.windVector.x * deltaTime * 28;
+                const driftZ = this.windVector.z * deltaTime * 18;
+
+                for (let i = 0; i < 1000; i++) {
+                    this.rain.getMatrixAt(i, dummy.matrix);
+                    dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+
+                    // Fall with sideways blast
+                    dummy.position.y -= fallSpeed * deltaTime * 60;
+                    dummy.position.x += driftX;
+                    dummy.position.z += driftZ;
+
+                    // Slant streaks into the wind vector
+                    dummy.lookAt(
+                        dummy.position.x + this.windVector.x,
+                        dummy.position.y - 1,
+                        dummy.position.z + this.windVector.z
+                    );
+
+                    // Reset if below ground
+                    if (dummy.position.y < 0) {
+                        dummy.position.y = 50;
+                        if (camera) {
+                            dummy.position.x = camera.position.x + (Math.random() - 0.5) * 100;
+                            dummy.position.z = camera.position.z + (Math.random() - 0.5) * 100;
+                        }
+                    }
+
+                    dummy.updateMatrix();
+                    this.rain.setMatrixAt(i, dummy.matrix);
+                }
+
+                this.rain.instanceMatrix.needsUpdate = true;
+            }
+
+            updateHazeShell(color, opacity, turbulence) {
+                if (!this.hazeShell) return;
+
+                this.hazeShell.position.copy(camera.position);
+                this.hazeShell.material.color.setHex(color || 0xf2b365);
+                const animatedOpacity = opacity + Math.sin(Date.now() * 0.0007) * 0.02;
+                this.hazeShell.material.opacity = THREE.MathUtils.clamp(animatedOpacity, 0.08, 0.45);
+
+                const pulse = 1 + (turbulence || 0.2) * 0.15 + Math.sin(Date.now() * 0.0005) * 0.03;
+                this.hazeShell.scale.setScalar(pulse);
+            }
+
+            lerpColor(color1, color2, t) {
+                const c1 = new THREE.Color(color1);
+                const c2 = new THREE.Color(color2);
+                return c1.lerp(c2, t).getHex();
+            }
+
+            spawnLightning(options = {}) {
+                const settings = {
+                    color: options.color || 0xffffff,
+                    glowColor: options.glowColor || 0xffffaa,
+                    width: options.width || 3,
+                    jaggedness: options.jaggedness || 1.2,
+                    lifetime: options.lifetime || 360
+                };
+
+                const points = [];
+                let x = (Math.random() * 300 - 150) + (this.windVector.x * 8);
+                let z = camera.position.z - 100 - Math.random() * 100;
+                let y = 42 + Math.random() * 20;
+                points.push(new THREE.Vector3(x, y, z));
+
+                // Create jagged path
+                for (let i = 0; i < 8; i++) {
+                    y -= 4 + Math.random() * 5 * settings.jaggedness;
+                    x += (Math.random() - 0.5) * 12 * settings.jaggedness;
+                    z += (Math.random() - 0.5) * 9 * settings.jaggedness;
+                    points.push(new THREE.Vector3(x, y, z));
+                }
+
+                // Main bolt (thick)
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                    color: settings.color,
+                    linewidth: settings.width,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const bolt = new THREE.Line(geometry, material);
+                scene.add(bolt);
+
+                // Glow (even thicker, dimmer)
+                const glowMaterial = new THREE.LineBasicMaterial({
+                    color: settings.glowColor,
+                    linewidth: settings.width * 2.6,
+                    transparent: true,
+                    opacity: 0.28
+                });
+                const glow = new THREE.Line(geometry.clone(), glowMaterial);
+                scene.add(glow);
+
+                this.activeBolts.push({
+                    mesh: bolt,
+                    glow: glow,
+                    spawnTime: Date.now(),
+                    lifetime: settings.lifetime
+                });
+            }
+
+            createGroundFog() {
+                const geometry = new THREE.PlaneGeometry(10, 10);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    map: this.hazeTexture,
+                    transparent: true,
+                    opacity: 0.4,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                this.groundFog = new THREE.InstancedMesh(geometry, material, 220);
+                const dummy = new THREE.Object3D();
+
+                for (let i = 0; i < 220; i++) {
+                    dummy.position.set(
+                        (Math.random() - 0.5) * 200,
+                        0.5 + Math.random() * 2,
+                        (Math.random() - 0.5) * 200
+                    );
+                    dummy.rotation.x = -Math.PI / 2;
+                    dummy.scale.setScalar(2 + Math.random() * 2.2);
+                    dummy.updateMatrix();
+                    this.groundFog.setMatrixAt(i, dummy.matrix);
+                }
+
+                scene.add(this.groundFog);
+            }
+
+            createCloudFormations() {
+                // Create 12 mid-level cloud sprites grouped into loose clusters
+                for (let i = 0; i < 12; i++) {
+                    const group = new THREE.Group();
+
+                    // Each cloud is multiple billboard sprites using a soft texture
+                    for (let j = 0; j < 6; j++) {
+                        const geometry = new THREE.PlaneGeometry(12, 8);
+                        const material = new THREE.MeshBasicMaterial({
+                            map: this.cloudTexture,
+                            color: 0xffffff,
+                            transparent: true,
+                            opacity: 0.4,
+                            fog: false,
+                            depthWrite: false,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const sprite = new THREE.Mesh(geometry, material);
+                        sprite.position.set(
+                            (Math.random() - 0.5) * 25,
+                            (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 20
+                        );
+                        sprite.scale.multiplyScalar(1.2 + Math.random() * 1.5);
+                        sprite.scale.x *= 1.8;
+                        sprite.scale.y *= 1.25;
+                        sprite.lookAt(camera.position);
+                        group.add(sprite);
+                    }
+
+                    group.position.set(
+                        (Math.random() - 0.5) * 400,
+                        20 + Math.random() * 15,
+                        camera.position.z - 100 - Math.random() * 100
+                    );
+
+                    this.cloudFormations.push(group);
+                    scene.add(group);
+                }
+            }
+
+            createSkyClouds() {
+                const geometry = new THREE.PlaneGeometry(30, 18);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    map: this.cloudTexture,
+                    transparent: true,
+                    opacity: 0.4,
+                    side: THREE.DoubleSide,
+                    fog: false,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                this.skyClouds = new THREE.InstancedMesh(geometry, material, 50);
+                const dummy = new THREE.Object3D();
+
+                for (let i = 0; i < 50; i++) {
+                    dummy.position.set(
+                        (Math.random() - 0.5) * 600,
+                        55 + Math.random() * 35,
+                        camera.position.z + (Math.random() - 0.5) * 420
+                    );
+                    dummy.scale.set(2.8 + Math.random() * 2.2, 1.6 + Math.random() * 1.2, 1);
+                    dummy.lookAt(camera.position);
+                    dummy.updateMatrix();
+                    this.skyClouds.setMatrixAt(i, dummy.matrix);
+                }
+
+                scene.add(this.skyClouds);
+            }
+
+            createRain() {
+                const geometry = new THREE.PlaneGeometry(0.22, 3);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xcde96e,
+                    transparent: true,
+                    opacity: 0.45,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                this.rain = new THREE.InstancedMesh(geometry, material, 1000);
+                const dummy = new THREE.Object3D();
+
+                for (let i = 0; i < 1000; i++) {
+                    dummy.position.set(
+                        (Math.random() - 0.5) * 200,
+                        Math.random() * 50,
+                        (Math.random() - 0.5) * 200
+                    );
+                    dummy.updateMatrix();
+                    this.rain.setMatrixAt(i, dummy.matrix);
+                }
+
+                this.rain.visible = false;
+                scene.add(this.rain);
+            }
+
+            createHazeShell() {
+                const geometry = new THREE.SphereGeometry(260, 32, 32);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xf2b365,
+                    map: this.hazeTexture,
+                    side: THREE.BackSide,
+                    transparent: true,
+                    opacity: 0.22,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                this.hazeShell = new THREE.Mesh(geometry, material);
+                this.hazeShell.frustumCulled = false;
+                scene.add(this.hazeShell);
+            }
+
+            enable() {
+                this.enabled = true;
+                this.activeSystem = 'venusian';
+                this.time = 0;
+
+                // Create all particle systems
+                this.createHazeShell();
+                this.createGroundFog();
+                this.createCloudFormations();
+                this.createSkyClouds();
+                this.createRain();
+
+                showToast('WEATHER SYSTEM ENABLED', 'info');
+            }
+
+            disable() {
+                this.enabled = false;
+                this.activeSystem = null;
+
+                // Clean up particle systems
+                if (this.groundFog) {
+                    scene.remove(this.groundFog);
+                    this.groundFog.geometry.dispose();
+                    this.groundFog.material.dispose();
+                    this.groundFog = null;
+                }
+
+                this.cloudFormations.forEach(cloud => scene.remove(cloud));
+                this.cloudFormations = [];
+
+                if (this.skyClouds) {
+                    scene.remove(this.skyClouds);
+                    this.skyClouds.geometry.dispose();
+                    this.skyClouds.material.dispose();
+                    this.skyClouds = null;
+                }
+
+                if (this.rain) {
+                    scene.remove(this.rain);
+                    this.rain.geometry.dispose();
+                    this.rain.material.dispose();
+                    this.rain = null;
+                }
+
+                if (this.hazeShell) {
+                    scene.remove(this.hazeShell);
+                    this.hazeShell.geometry.dispose();
+                    this.hazeShell.material.dispose();
+                    this.hazeShell = null;
+                }
+
+                this.activeBolts.forEach(bolt => {
+                    scene.remove(bolt.mesh);
+                    scene.remove(bolt.glow);
+                });
+                this.activeBolts = [];
+
+                // Reset scene to theme colors
+                if (currentTheme) {
+                    updateSceneTheme(currentTheme);
+                }
+
+                showToast('WEATHER SYSTEM DISABLED', 'info');
+            }
+        }
+
+        let weatherSystem = new WeatherSystem();
+
+        // Raycaster for interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // ============================================================
+        // PHASE 0.2: MEMORY MANAGEMENT & CLEANUP
+        // ============================================================
+
+        // Label texture cache to avoid creating new canvases per project
+        const labelTextureCache = new Map();
+
+        // Dispose a Three.js object and its resources
+        function disposeObject(obj) {
+            if (!obj) return;
+
+            // Dispose geometry
+            if (obj.geometry) {
+                obj.geometry.dispose();
+            }
+
+            // Dispose material(s)
+            if (obj.material) {
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => disposeMaterial(mat));
+                } else {
+                    disposeMaterial(obj.material);
+                }
+            }
+
+            // Recursively dispose children
+            if (obj.children) {
+                while (obj.children.length > 0) {
+                    disposeObject(obj.children[0]);
+                    obj.remove(obj.children[0]);
+                }
+            }
+        }
+
+        // Dispose material and its textures
+        function disposeMaterial(material) {
+            if (!material) return;
+
+            // Dispose textures
+            const textureProps = ['map', 'lightMap', 'bumpMap', 'normalMap', 'specularMap', 'envMap', 'alphaMap', 'aoMap', 'emissiveMap'];
+            textureProps.forEach(prop => {
+                if (material[prop]) {
+                    material[prop].dispose();
+                }
+            });
+
+            material.dispose();
+        }
+
+        // Delete a project and clean up all resources
+        function deleteProject(projectGroup) {
+            if (!projectGroup) return false;
+
+            const projectName = projectGroup.userData?.name;
+            const index = projects.indexOf(projectGroup);
+
+            if (index === -1) {
+                ErrorLogger.log('DELETE', 'Project not found in array', { name: projectName });
+                return false;
+            }
+
+            // Remove from scene
+            scene.remove(projectGroup);
+
+            // Dispose all resources
+            disposeObject(projectGroup);
+
+            // Remove label from cache if exists
+            if (projectName && labelTextureCache.has(projectName)) {
+                const cachedTex = labelTextureCache.get(projectName);
+                cachedTex.dispose();
+                labelTextureCache.delete(projectName);
+            }
+
+            // Remove from state (syncs with projects array)
+            AppState.removeProject(projectGroup);
+
+            showToast(`Project "${projectName}" deleted`, 'info');
+            return true;
+        }
+
+        // ============================================================
+        // PHASE 1.1: LOCALSTORAGE PERSISTENCE WITH VERSIONING
+        // ============================================================
+
+        const Storage = {
+            STORAGE_KEY: 'celestia_projects',
+            SCHEMA_VERSION: 1,
+
+            // Save projects to localStorage
+            save() {
+                try {
+                    const projectData = projects.map(group => ({
+                        name: group.userData.name,
+                        category: group.userData.category,
+                        color: group.userData.baseColor,
+                        stats: group.userData.stats,
+                        shards: group.userData.shardsCount,
+                        pos: {
+                            x: group.position.x,
+                            y: group.userData.stats?.length * 0.2 || 2, // Base Y before float animation
+                            z: group.position.z
+                        },
+                        date: group.userData.date,
+                        createdAt: group.userData.createdAt || Date.now(),
+                        updatedAt: Date.now()
+                    }));
+
+                    const payload = {
+                        version: this.SCHEMA_VERSION,
+                        savedAt: Date.now(),
+                        projects: projectData
+                    };
+
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
+                    return true;
+                } catch (e) {
+                    ErrorLogger.log('STORAGE', 'Failed to save projects', { error: e.message });
+                    return false;
+                }
+            },
+
+            // Load projects from localStorage
+            load() {
+                try {
+                    const raw = localStorage.getItem(this.STORAGE_KEY);
+                    if (!raw) return null;
+
+                    const data = JSON.parse(raw);
+
+                    // Handle schema migrations
+                    if (data.version !== this.SCHEMA_VERSION) {
+                        return this.migrate(data);
+                    }
+
+                    return data.projects;
+                } catch (e) {
+                    ErrorLogger.log('STORAGE', 'Failed to load projects', { error: e.message });
+                    return null;
+                }
+            },
+
+            // Migrate old schema to new
+            migrate(data) {
+                // Version 0 (no version) -> Version 1
+                if (!data.version) {
+                    // Old format was just an array
+                    if (Array.isArray(data)) {
+                        return data;
+                    }
+                }
+
+                // Future migrations go here
+                // if (data.version === 1) { ... migrate to v2 }
+
+                return data.projects || [];
+            },
+
+            // Clear all saved data
+            clear() {
+                localStorage.removeItem(this.STORAGE_KEY);
+                showToast('Storage cleared', 'info');
+            },
+
+            // Export projects as JSON file
+            exportToFile() {
+                const data = localStorage.getItem(this.STORAGE_KEY);
+                if (!data) {
+                    showToast('No projects to export', 'warning');
+                    return;
+                }
+
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `celestia-projects-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Projects exported', 'success');
+            },
+
+            // Import projects from JSON file
+            importFromFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+                            resolve(data);
+                            showToast('Projects imported - refresh to see changes', 'success');
+                        } catch (err) {
+                            ErrorLogger.log('IMPORT', 'Invalid file format', { error: err.message });
+                            reject(err);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsText(file);
+                });
+            }
+        };
+
+        // Auto-save when projects change
+        AppState.subscribe('projects', () => {
+            Storage.save();
+        });
+
+        // Get or create cached label texture
+        function getLabelTexture(name) {
+            if (labelTextureCache.has(name)) {
+                return labelTextureCache.get(name);
+            }
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            ctx.font = 'Bold 40px Orbitron';
+            ctx.fillStyle = 'rgba(0,255,255,0.8)';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'cyan';
+            ctx.shadowBlur = 10;
+            ctx.fillText(name, 256, 80);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            labelTextureCache.set(name, texture);
+            return texture;
+        }
+
+        // ============================================================
+        // PHASE 1.2: EXTENDED PROJECT MODEL
+        // ============================================================
+
+        // Available categories
+        const PROJECT_CATEGORIES = [
+            'Composition', 'Programming', 'Writing', 'Design',
+            'AI Development', 'Game Design', 'Research', 'Art', 'Other'
+        ];
+
+        // Priority levels
+        const PRIORITY_LEVELS = {
+            LOW: { value: 1, label: 'Low', color: '#888888' },
+            MEDIUM: { value: 2, label: 'Medium', color: '#00ffff' },
+            HIGH: { value: 3, label: 'High', color: '#ffaa00' },
+            CRITICAL: { value: 4, label: 'Critical', color: '#ff0066' }
+        };
+
+        // Default project template
+        function createProjectData(overrides = {}) {
+            return {
+                id: overrides.id || crypto.randomUUID?.() || Date.now().toString(36),
+                name: overrides.name || 'UNTITLED PROJECT',
+                category: overrides.category || 'Other',
+                description: overrides.description || '',
+                color: overrides.color || 0x00ffff,
+                stats: overrides.stats || [
+                    { label: 'Concept', val: 1, max: 10 },
+                    { label: 'Execution', val: 0, max: 10 }
+                ],
+                pos: overrides.pos || { x: 0, y: 2, z: -15 },
+                shards: overrides.shards || 1,
+                tags: overrides.tags || [],
+                priority: overrides.priority || 'MEDIUM',
+                links: overrides.links || [], // { label: string, url: string }
+                notes: overrides.notes || '',
+                date: overrides.date || 'JUST NOW',
+                createdAt: overrides.createdAt || Date.now(),
+                updatedAt: overrides.updatedAt || Date.now()
+            };
+        }
+
+        // Demo Data with extended model
+        const initialProjects = [
+            createProjectData({
+                name: "I SANG FOR SPRING",
+                category: "Composition",
+                description: "A melodic exploration of seasonal rebirth and renewal.",
+                color: 0x00ffff,
+                stats: [
+                    { label: "Lyrics", val: 9, max: 10 },
+                    { label: "Composition", val: 4, max: 10 },
+                    { label: "Concept", val: 8, max: 10 },
+                    { label: "Notation", val: 3, max: 10 }
+                ],
+                pos: { x: -1000, y: 251, z: -715 },
+                shards: 5,
+                tags: ['music', 'vocals', 'spring'],
+                priority: 'HIGH',
+                notes: 'Need to finish bridge section'
+            }),
+            createProjectData({
+                name: "NEURAL BRIDGE",
+                category: "AI Development",
+                description: "Cross-modal AI system connecting vision and language models.",
+                color: 0xff00ff,
+                stats: [
+                    { label: "Training", val: 7, max: 10 },
+                    { label: "Dataset", val: 2, max: 10 }
+                ],
+                pos: { x: -18, y: 1001.5, z: -35 },
+                shards: 3,
+                tags: ['ai', 'ml', 'multimodal'],
+                priority: 'CRITICAL',
+                links: [{ label: 'Research Paper', url: '#' }]
+            }),
+            createProjectData({
+                name: "VOID WALKER",
+                category: "Game Design",
+                description: "Atmospheric exploration game set in procedural void spaces.",
+                color: 0xffff00,
+                stats: [
+                    { label: "Engine", val: 5, max: 10 },
+                    { label: "Art", val: 6, max: 10 },
+                    { label: "Sound", val: 9, max: 10 }
+                ],
+                pos: { x: 62, y: 213, z: 990 },
+                shards: 8,
+                tags: ['game', 'procedural', '3d'],
+                priority: 'MEDIUM'
+            })
+        ];
+
+        // Initialize with error boundary
+        try {
+            init();
+            animate();
+        } catch (e) {
+            ErrorLogger.log('INIT', 'Failed to initialize 3D scene', { error: e.message, stack: e.stack });
+            showErrorModal(
+                'INITIALIZATION FAILED',
+                'The 3D environment could not be created. ' + e.message,
+                () => location.reload()
+            );
+        }
+
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020205); // Deep space dark blue/black
+            // Teal fog with FogExp2
+            scene.fog = new THREE.FogExp2(0x020205, 0.012);
+
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(0, 3, 5); // Start slightly above ground
+
+            // Renderer with WebGL error handling
+            try {
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.5;
+                document.getElementById('canvas-container').appendChild(renderer.domElement);
+            } catch (e) {
+                ErrorLogger.log('WEBGL', 'WebGL initialization failed', { error: e.message });
+                showErrorModal(
+                    'WEBGL NOT AVAILABLE',
+                    'Your browser or device does not support WebGL. Please try a different browser or enable hardware acceleration.',
+                    null
+                );
+                throw e;
+            }
+
+            // Lights
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            // A point light attached to the camera (like a flashlight/miner's helm)
+            camLight = new THREE.PointLight(0xccffff, 1, 50);
+            camera.add(camLight);
+            scene.add(camera);
+
+            // Environment
+            createInfiniteGrid();
+            starField = createStars();
+
+            // Load saved projects or use initial data
+            const savedProjects = Storage.load();
+            const projectsToLoad = savedProjects && savedProjects.length > 0 ? savedProjects : initialProjects;
+            projectsToLoad.forEach(p => createChrysalis(p));
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onClick);
+            window.addEventListener('dblclick', onDoubleClick);
+
+            // Initialize Navigation Controller
+            NavController.init();
+            NavController.updateMouseLook(); // Initialize cursor state
+
+            // Load saved flight settings (deferred to ensure all code is parsed)
+            setTimeout(loadSavedFlightSettings, 0);
+        }
+
+        // --- Environment Generation ---
+
+        function createInfiniteGrid() {
+            // We create two large grids that we leapfrog to simulate infinity
+            const size = 200;
+            const divisions = 100;
+            
+            // Grid 1
+            grid = new THREE.GridHelper(size, divisions, 0x00ffff, 0x112244);
+            grid.position.y = -1; // Slightly below y=0 so projects float
+            scene.add(grid);
+
+            // Grid 2 (starts ahead)
+            grid2 = new THREE.GridHelper(size, divisions, 0x00ffff, 0x112244);
+            grid2.position.y = -1;
+            grid2.position.z = -size;
+            scene.add(grid2);
+            
+            // Reflective Floor Plane (for that glass effect)
+            const planeGeo = new THREE.PlaneGeometry(500, 500);
+            const planeMat = new THREE.MeshPhysicalMaterial({
+                color: 0x0F0000,
+                metalness: 1,
+                roughness: 0.1,
+                reflectivity: 1,
+                clearcoat: 1,
+                clearcoatRoughness: 0.1,
+            });
+            const plane = new THREE.Mesh(planeGeo, planeMat);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -1.1; // Just below grid
+            scene.add(plane);
+        }
+
+        function createStars() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 320000;
+            const posArray = new Float32Array(starsCount * 3);
+
+            for(let i = 0; i < starsCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 1000; // Spread wide
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+            const starsMaterial = new THREE.PointsMaterial({
+                size: 0.08,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.58,
+                sizeAttenuation: true
+            });
+
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+            return stars; // Return for theme updates
+        }
+
+        // --- Project Entity: The Chrysalis ---
+
+        function createChrysalis(data) {
+            const group = new THREE.Group();
+            group.position.set(data.pos.x, data.pos.y, data.pos.z);
+            
+            // Store data in userData for raycasting retrieval (extended model)
+            group.userData = {
+                isProject: true,
+                id: data.id || crypto.randomUUID?.() || Date.now().toString(36),
+                name: data.name,
+                category: data.category,
+                description: data.description || '',
+                stats: data.stats,
+                date: data.date || "JUST NOW",
+                shardsCount: data.shards,
+                baseColor: data.color,
+                tags: data.tags || [],
+                priority: data.priority || 'MEDIUM',
+                links: data.links || [],
+                notes: data.notes || '',
+                createdAt: data.createdAt || Date.now(),
+                updatedAt: data.updatedAt || Date.now()
+            };
+
+            // 1. Core Crystal (Icosahedron)
+            const geometry = new THREE.IcosahedronGeometry(Math.random() * 2 + 10, 1   );
+            const material = new THREE.MeshPhysicalMaterial({
+                color: data.color,
+                metalness: 20,
+                roughness: 0,
+                transmission: -8, // Glass-like
+                thickness: .3, // Volume
+                envMapIntensity: 1,
+                clearcoat: 2,
+                emissive: data.color,
+                emissiveIntensity: 0.2
+            });
+            const crystal = new THREE.Mesh(geometry, material);
+            crystal.userData = group.userData; // Propagate data to mesh for click detection
+            group.add(crystal);
+
+            // 2. Inner Wireframe (Tech feel)
+            const wireGeo = new THREE.WireframeGeometry(geometry);
+            const wireMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+            const wireframe = new THREE.LineSegments(wireGeo, wireMat);
+            group.add(wireframe);
+
+            // 3. Orbiting Shards (Moons)
+            const shardCount = data.shards || 3;
+            const shardGeo = new THREE.TetrahedronGeometry(0.2);
+            
+            for (let i = 0; i < shardCount; i++) {
+                const shardMat = new THREE.MeshBasicMaterial({ color: data.color });
+                const shard = new THREE.Mesh(shardGeo, shardMat);
+                
+                // Random orbit parameters
+                const distance = 2 + Math.random() * 1.5;
+                const speed = 0.01 + Math.random() * 0.02;
+                const axis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+                
+                // Attach update function to shard for animation loop
+                shard.userData = {
+                    orbit: { distance, speed, axis, angle: Math.random() * Math.PI * 2 }
+                };
+                
+                group.add(shard);
+                // We'll manually update positions in animate() via the group
+                group.userData.shards = group.children.filter(c => c.userData.orbit);
+            }
+
+            // 4. Project Label (using cached texture)
+            const labelTex = getLabelTexture(data.name);
+            const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true, opacity: 0.8 });
+            const labelSprite = new THREE.Sprite(labelMat);
+            labelSprite.position.y = 2.5;
+            labelSprite.scale.set(4, 1, 1);
+            group.add(labelSprite);
+
+            scene.add(group);
+            AppState.addProject(group);
+        }
+
+        // --- Main Loop ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = Date.now() * 0.001;
+
+            // 1. Update Navigation Controller (handles all camera movement)
+            NavController.update(camera);
+
+            // 1.5. Update Weather System
+            if (weatherSystem.enabled) {
+                weatherSystem.update();
+            }
+
+            // 2. Infinite Grid Logic - leapfrog grids for endless effect
+            if (camera.position.z < grid.position.z - 100) {
+                grid.position.z -= 400;
+            }
+            if (camera.position.z < grid2.position.z - 100) {
+                grid2.position.z -= 400;
+            }
+            // Also handle backward movement
+            if (camera.position.z > grid.position.z + 100) {
+                grid.position.z += 400;
+            }
+            if (camera.position.z > grid2.position.z + 100) {
+                grid2.position.z += 400;
+            }
+
+            // 3. Animate Projects
+            projects.forEach(group => {
+                // Rotate main crystal
+                group.children[0].rotation.y += 0.005;
+                group.children[0].rotation.z += 0.002;
+                group.children[1].rotation.y -= 0.005; // Wireframe counter-rotate
+
+                // Animate Shards
+                if (group.userData.shards) {
+                    group.userData.shards.forEach(shard => {
+                        const orbit = shard.userData.orbit;
+                        orbit.angle += orbit.speed;
+                        
+                        // Calculate new position based on orbit axis
+                        // Simple circular orbit logic on XZ plane rotated by axis?
+                        // Simplified: Just simple sin/cos on flat plane + axis offset
+                        shard.position.x = Math.cos(orbit.angle) * orbit.distance;
+                        shard.position.z = Math.sin(orbit.angle) * orbit.distance;
+                        shard.position.y = Math.sin(orbit.angle * 2) * 0.5; // Bob up and down
+                        
+                        shard.rotation.x += 0.02;
+                        shard.rotation.y += 0.02;
+                    });
+                }
+                
+                // Hover float effect for the whole group
+                group.position.y = (group.userData.stats ? group.userData.stats.length : 2) * 0.2 + Math.sin(time + group.position.x) * 0.2;
+            });
+
+            // 4. Raycaster for Hover Cursor
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            let foundProject = false;
+            if (intersects.length > 0) {
+                // Traverse up to find the group or mesh with userData
+                let obj = intersects[0].object;
+                while(obj.parent && !obj.userData.isProject) {
+                    obj = obj.parent;
+                }
+                
+                if (obj.userData.isProject) {
+                    foundProject = true;
+                    document.body.style.cursor = 'pointer';
+                }
+            }
+            
+            if (!foundProject) {
+                document.body.style.cursor = 'default';
+            }
+
+            // Update UI Coordinates
+            const zPos = Math.abs(Math.floor(camera.position.z));
+            document.getElementById('coords-display').innerText = `${Math.floor(camera.position.x)}, ${Math.floor(camera.position.y)}, ${zPos}`;
+
+            // Update speed display
+            const speed = NavController.getSpeed();
+            const speedDisplay = document.getElementById('speed-display');
+            speedDisplay.innerText = speed.toFixed(2);
+
+            // Color speed based on velocity
+            if (speed > 0.5) {
+                speedDisplay.className = 'text-red-400 font-mono text-sm';
+            } else if (speed > 0.2) {
+                speedDisplay.className = 'text-yellow-400 font-mono text-sm';
+            } else if (speed > 0.05) {
+                speedDisplay.className = 'text-cyan-400 font-mono text-sm';
+            } else {
+                speedDisplay.className = 'text-cyan-600 font-mono text-sm';
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Interaction Helpers ---
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            // Normalized device coordinates for raycasting (hover detection)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // Camera rotation is now controlled by WASD via NavController
+        }
+
+        function onClick(event) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                // Climb hierarchy to find the project root
+                while(obj.parent && obj.userData && !obj.userData.isProject) {
+                    obj = obj.parent;
+                }
+
+                if (obj.userData && obj.userData.isProject) {
+                    currentlySelectedProject = obj;
+                    openHUD(obj.userData);
+                } else {
+                    // Clicked space? maybe close HUD
+                    // closeHUD();
+                }
+            }
+        }
+
+        // Double-click to navigate to a project
+        function onDoubleClick(event) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while(obj.parent && obj.userData && !obj.userData.isProject) {
+                    obj = obj.parent;
+                }
+
+                if (obj.userData && obj.userData.isProject) {
+                    // Navigate to the project
+                    NavController.navigateTo(obj, () => {
+                        currentlySelectedProject = obj;
+                        openHUD(obj.userData);
+                    });
+                }
+            }
+        }
+
+        // --- UI Integration Functions ---
+
+        window.toggleDrive = function() {
+            NavController.cycleGear();
+        }
+
+        // ============================================================
+        // ============================================================
+        // PANEL STACK MANAGEMENT (for ESC key)
+        // ============================================================
+
+        const panelStack = [];
+
+        function pushPanel(panelName) {
+            // Remove if already in stack (prevent duplicates)
+            const index = panelStack.indexOf(panelName);
+            if (index > -1) {
+                panelStack.splice(index, 1);
+            }
+            panelStack.push(panelName);
+        }
+
+        function popPanel(panelName) {
+            const index = panelStack.indexOf(panelName);
+            if (index > -1) {
+                panelStack.splice(index, 1);
+            }
+        }
+
+        function closeTopPanel() {
+            if (panelStack.length === 0) return false;
+
+            const topPanel = panelStack[panelStack.length - 1];
+
+            switch(topPanel) {
+                case 'presets':
+                    closePresetsPanel();
+                    break;
+                case 'edit-modal':
+                    closeEditModal();
+                    break;
+                case 'creation-modal':
+                    closeCreationModal();
+                    break;
+                case 'search':
+                    toggleSearchPanel();
+                    break;
+                case 'settings':
+                    toggleSettings();
+                    break;
+            }
+
+            return true;
+        }
+
+        // Global ESC key handler
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const closed = closeTopPanel();
+                if (closed) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        });
+
+        // SETTINGS DRAWER FUNCTIONS
+        // ============================================================
+
+        let settingsOpen = false;
+
+        window.toggleSettings = function() {
+            const drawer = document.getElementById('settings-drawer');
+            settingsOpen = !settingsOpen;
+
+            if (settingsOpen) {
+                drawer.classList.add('open');
+                pushPanel('settings');
+            } else {
+                drawer.classList.remove('open');
+                popPanel('settings');
+            }
+            NavController.updateMouseLook();
+        }
+
+        window.updateFlightSetting = function(setting, value) {
+            const numValue = parseFloat(value);
+
+            // Map setting name to NavController property
+            if (setting === 'acceleration') {
+                NavController.thrustPower = numValue;
+                document.getElementById('accel-value').innerText = numValue.toFixed(3);
+            } else if (setting === 'deceleration') {
+                NavController.deceleration = numValue;
+                document.getElementById('damping-value').innerText = numValue.toFixed(2);
+            } else if (setting === 'maxSpeed') {
+                NavController.maxSpeed = numValue;
+                document.getElementById('maxspeed-value').innerText = numValue.toFixed(2);
+            }
+
+            saveCurrentFlightSettings();
+            setCurrentPresetName('CUSTOM');
+        }
+
+        window.updateCameraFOV = function(value) {
+            const fov = parseInt(value);
+            camera.fov = fov;
+            camera.updateProjectionMatrix();
+            document.getElementById('fov-value').innerText = fov + '°';
+            saveCurrentFlightSettings();
+            setCurrentPresetName('CUSTOM');
+        }
+
+        window.updateLookSpeed = function(value) {
+            NavController.lookSpeed = parseFloat(value);
+            document.getElementById('lookspeed-value').innerText = NavController.lookSpeed.toFixed(3);
+            saveCurrentFlightSettings();
+            setCurrentPresetName('CUSTOM');
+        }
+
+        // ============================================================
+        // THEME SYSTEM
+        // ============================================================
+
+        const THEME_KEY = 'celestia_theme';
+        let currentTheme = 'vaporwave';
+
+        window.setTheme = function(themeName) {
+            const validThemes = ['vaporwave', 'onyx', 'dusk', 'rose'];
+            if (!validThemes.includes(themeName)) return;
+
+            // Remove all theme classes
+            document.documentElement.classList.remove('theme-vaporwave', 'theme-onyx', 'theme-dusk', 'theme-rose');
+            // Add new theme class
+            document.documentElement.classList.add('theme-' + themeName);
+            currentTheme = themeName;
+
+            // Save to localStorage
+            localStorage.setItem(THEME_KEY, themeName);
+
+            // Update 3D scene colors
+            updateSceneTheme(themeName);
+
+            // Update button states
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                const isActive = btn.dataset.theme === themeName;
+                btn.classList.toggle('bg-cyan-900/50', isActive);
+                btn.classList.toggle('ring-1', isActive);
+                btn.classList.toggle('ring-cyan-400/50', isActive);
+            });
+
+            showToast(`Theme: ${themeName.toUpperCase()}`, 'info');
+        };
+
+        function loadSavedTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved && ['vaporwave', 'onyx', 'dusk', 'rose'].includes(saved)) {
+                setTheme(saved);
+            } else {
+                setTheme('vaporwave');
+            }
+        }
+
+        // Get theme color palette
+        function getThemeColors(themeName) {
+            const themes = {
+                vaporwave: {
+                    fog: 0x001a1a,
+                    bg: 0x020205,
+                    grid1: 0x00ffff,
+                    grid2: 0x112244,
+                    ambient: 0x4080a0,
+                    camLight: 0xccffff,
+                    stars: 0xaaffff
+                },
+                onyx: {
+                    fog: 0x0a0a0a,
+                    bg: 0x050505,
+                    grid1: 0xaaaaaa,
+                    grid2: 0x222222,
+                    ambient: 0x666666,
+                    camLight: 0xdddddd,
+                    stars: 0xcccccc
+                },
+                dusk: {
+                    fog: 0x1a0f0a,
+                    bg: 0x0f0805,
+                    grid1: 0xffaa64,
+                    grid2: 0x442211,
+                    ambient: 0xaa6644,
+                    camLight: 0xffcc88,
+                    stars: 0xffd4aa
+                },
+                rose: {
+                    fog: 0x1a0a14,
+                    bg: 0x0f050a,
+                    grid1: 0xff6eaa,
+                    grid2: 0x331122,
+                    ambient: 0xaa5588,
+                    camLight: 0xffaacc,
+                    stars: 0xffc4dd
+                }
+            };
+            return themes[themeName] || themes.vaporwave;
+        }
+
+        // Update 3D scene colors to match theme
+        function updateSceneTheme(themeName) {
+            if (!scene) return; // Scene not initialized yet
+
+            const colors = getThemeColors(themeName);
+
+            // Update fog
+            scene.fog.color.setHex(colors.fog);
+            scene.background.setHex(colors.bg);
+
+            // Update grid colors
+            if (grid && grid.material) {
+                grid.material.color.setHex(colors.grid1);
+                grid.material.needsUpdate = true;
+            }
+            if (grid2 && grid2.material) {
+                grid2.material.color.setHex(colors.grid1);
+                grid2.material.needsUpdate = true;
+            }
+
+            // Update ambient light
+            if (ambientLight) {
+                ambientLight.color.setHex(colors.ambient);
+            }
+
+            // Update camera point light
+            if (camLight) {
+                camLight.color.setHex(colors.camLight);
+            }
+
+            // Update starfield
+            if (starField && starField.material) {
+                starField.material.color.setHex(colors.stars);
+                starField.material.needsUpdate = true;
+            }
+        }
+
+        // Load theme on startup (deferred)
+        setTimeout(loadSavedTheme, 0);
+
+        // ============================================================
+        // WEATHER SYSTEM CONTROLS
+        // ============================================================
+
+        window.toggleWeather = function(system) {
+            if (system === 'none') {
+                weatherSystem.disable();
+                document.getElementById('weather-select').value = 'none';
+            } else {
+                weatherSystem.enable();
+                weatherSystem.activeSystem = system;
+                document.getElementById('weather-select').value = system;
+            }
+        }
+
+        window.updateWeatherSpeed = function(value) {
+            const speed = parseFloat(value);
+            weatherSystem.speed = speed;
+            document.getElementById('weather-speed-value').innerText = speed.toFixed(1) + 'x';
+        }
+
+        // ============================================================
+        // FLIGHT SETTINGS PERSISTENCE & PRESETS
+        // ============================================================
+
+        const FLIGHT_SETTINGS_KEY = 'celestia_flight_settings';
+        const FLIGHT_PRESETS_KEY = 'celestia_flight_presets';
+        let currentPresetName = 'CUSTOM';
+
+        // Default presets
+        const defaultPresets = [
+            { name: 'SMOOTH SATELLITE', settings: { acceleration: 0.005, deceleration: 0.96, maxSpeed: 0.4, fov: 55, lookSpeed: 0.002 }},
+            { name: 'RECKLESS INVADERZ', settings: { acceleration: 0.025, deceleration: 0.88, maxSpeed: 1.5, fov: 90, lookSpeed: 0.005 }},
+            { name: 'METEOR FRIGHT', settings: { acceleration: 0.015, deceleration: 0.92, maxSpeed: 0.8, fov: 70, lookSpeed: 0.004 }},
+            { name: 'BABY LDN1235', settings: { acceleration: 0.003, deceleration: 0.98, maxSpeed: 0.25, fov: 50, lookSpeed: 0.0015 }}
+        ];
+
+        function getCurrentFlightSettings() {
+            return {
+                acceleration: NavController.thrustPower,
+                deceleration: NavController.deceleration,
+                maxSpeed: NavController.maxSpeed,
+                fov: camera.fov,
+                lookSpeed: NavController.lookSpeed
+            };
+        }
+
+        function applyFlightSettings(settings) {
+            NavController.thrustPower = settings.acceleration;
+            NavController.deceleration = settings.deceleration;
+            NavController.maxSpeed = settings.maxSpeed;
+            NavController.lookSpeed = settings.lookSpeed;
+            camera.fov = settings.fov;
+            camera.updateProjectionMatrix();
+
+            // Update sliders
+            document.getElementById('accel-slider').value = settings.acceleration;
+            document.getElementById('damping-slider').value = settings.deceleration;
+            document.getElementById('maxspeed-slider').value = settings.maxSpeed;
+            document.getElementById('fov-slider').value = settings.fov;
+            document.getElementById('lookspeed-slider').value = settings.lookSpeed;
+
+            // Update displays
+            document.getElementById('accel-value').innerText = settings.acceleration.toFixed(3);
+            document.getElementById('damping-value').innerText = settings.deceleration.toFixed(2);
+            document.getElementById('maxspeed-value').innerText = settings.maxSpeed.toFixed(2);
+            document.getElementById('fov-value').innerText = settings.fov + '°';
+            document.getElementById('lookspeed-value').innerText = settings.lookSpeed.toFixed(3);
+        }
+
+        function saveCurrentFlightSettings() {
+            const settings = getCurrentFlightSettings();
+            localStorage.setItem(FLIGHT_SETTINGS_KEY, JSON.stringify(settings));
+        }
+
+        function loadSavedFlightSettings() {
+            const saved = localStorage.getItem(FLIGHT_SETTINGS_KEY);
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    applyFlightSettings(settings);
+                } catch(e) {
+                    console.warn('Failed to load flight settings:', e);
+                }
+            }
+        }
+
+        function setCurrentPresetName(name) {
+            currentPresetName = name;
+            const el = document.getElementById('current-preset-name');
+            if (el) el.innerText = name;
+        }
+
+        function getPresets() {
+            const saved = localStorage.getItem(FLIGHT_PRESETS_KEY);
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch(e) {
+                    return [...defaultPresets];
+                }
+            }
+            return [...defaultPresets];
+        }
+
+        function savePresets(presets) {
+            localStorage.setItem(FLIGHT_PRESETS_KEY, JSON.stringify(presets));
+        }
+
+        function renderPresetsList() {
+            const list = document.getElementById('presets-list');
+            const presets = getPresets();
+
+            list.innerHTML = presets.map((preset, index) => `
+                <div class="flex items-center justify-between px-2 py-1.5 hover:bg-cyan-900/30 cursor-pointer group" onclick="loadPreset(${index})">
+                    <span class="text-xs font-mono text-cyan-300">[${index + 1}] ${preset.name}</span>
+                    <button onclick="event.stopPropagation(); deletePreset(${index})" class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-sm">✕</button>
+                </div>
+            `).join('');
+        }
+
+        window.openPresetsPanel = function() {
+            const panel = document.getElementById('presets-panel');
+            panel.classList.remove('translate-x-full');
+            panel.classList.add('translate-x-0');
+            pushPanel('presets');
+            renderPresetsList();
+        }
+
+        window.closePresetsPanel = function() {
+            const panel = document.getElementById('presets-panel');
+            panel.classList.add('translate-x-full');
+            panel.classList.remove('translate-x-0');
+            popPanel('presets');
+            cancelSavePreset();
+        }
+
+        window.startSavePreset = function() {
+            document.getElementById('save-preset-btn').classList.add('hidden');
+            document.getElementById('new-preset-input').classList.remove('hidden');
+            document.getElementById('new-preset-name').value = '';
+            document.getElementById('new-preset-name').focus();
+        }
+
+        window.cancelSavePreset = function() {
+            document.getElementById('save-preset-btn').classList.remove('hidden');
+            document.getElementById('new-preset-input').classList.add('hidden');
+        }
+
+        window.confirmSavePreset = function() {
+            const nameInput = document.getElementById('new-preset-name');
+            const name = nameInput.value.trim().toUpperCase() || 'UNNAMED';
+
+            const presets = getPresets();
+            presets.push({
+                name: name,
+                settings: getCurrentFlightSettings()
+            });
+            savePresets(presets);
+
+            setCurrentPresetName(name);
+            cancelSavePreset();
+            renderPresetsList();
+            showToast(`Preset "${name}" saved`, 'success');
+        }
+
+        window.loadPreset = function(index) {
+            const presets = getPresets();
+            if (presets[index]) {
+                applyFlightSettings(presets[index].settings);
+                saveCurrentFlightSettings();
+                setCurrentPresetName(presets[index].name);
+                showToast(`Loaded "${presets[index].name}"`, 'info');
+            }
+        }
+
+        window.deletePreset = function(index) {
+            const presets = getPresets();
+            if (presets[index]) {
+                const name = presets[index].name;
+                presets.splice(index, 1);
+                savePresets(presets);
+                renderPresetsList();
+                showToast(`Deleted "${name}"`, 'info');
+            }
+        }
+
+        // ============================================================
+        // SEARCH & FILTER FUNCTIONS
+        // ============================================================
+
+        let searchPanelOpen = false;
+
+        window.toggleSearchPanel = function() {
+            const panel = document.getElementById('search-panel');
+            searchPanelOpen = !searchPanelOpen;
+
+            if (searchPanelOpen) {
+                panel.classList.remove('-translate-x-full');
+                panel.classList.add('translate-x-0', 'open');
+                performSearch(); // Populate results
+                document.getElementById('search-input').focus();
+                pushPanel('search');
+            } else {
+                panel.classList.add('-translate-x-full');
+                panel.classList.remove('translate-x-0', 'open');
+                popPanel('search');
+            }
+            NavController.updateMouseLook();
+        }
+
+        window.performSearch = function() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const categoryFilter = document.getElementById('search-category').value;
+            const priorityFilter = document.getElementById('search-priority').value;
+            const sortBy = document.getElementById('search-sort').value;
+
+            // Filter projects
+            let results = projects.filter(p => {
+                const data = p.userData;
+
+                // Text search (name, description, tags)
+                const matchesQuery = !query ||
+                    data.name.toLowerCase().includes(query) ||
+                    (data.description || '').toLowerCase().includes(query) ||
+                    (data.tags || []).some(t => t.toLowerCase().includes(query));
+
+                // Category filter
+                const matchesCategory = !categoryFilter || data.category === categoryFilter;
+
+                // Priority filter
+                const matchesPriority = !priorityFilter || data.priority === priorityFilter;
+
+                return matchesQuery && matchesCategory && matchesPriority;
+            });
+
+            // Sort results
+            const priorityOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+            results.sort((a, b) => {
+                const da = a.userData, db = b.userData;
+                switch(sortBy) {
+                    case 'name':
+                        return da.name.localeCompare(db.name);
+                    case 'updated':
+                        return (db.updatedAt || 0) - (da.updatedAt || 0);
+                    case 'created':
+                        return (db.createdAt || 0) - (da.createdAt || 0);
+                    case 'priority':
+                        return (priorityOrder[db.priority] || 0) - (priorityOrder[da.priority] || 0);
+                    case 'shards':
+                        return (db.shardsCount || 0) - (da.shardsCount || 0);
+                    default:
+                        return 0;
+                }
+            });
+
+            // Render results
+            renderSearchResults(results);
+        }
+
+        function renderSearchResults(results) {
+            const container = document.getElementById('search-results');
+            document.getElementById('search-count').innerText = results.length;
+
+            if (results.length === 0) {
+                container.innerHTML = '<div class="text-center text-cyan-700 text-xs py-8">No projects found</div>';
+                return;
+            }
+
+            container.innerHTML = results.map(p => {
+                const data = p.userData;
+                const priority = PRIORITY_LEVELS[data.priority] || PRIORITY_LEVELS.MEDIUM;
+                const colorHex = '#' + (data.baseColor || 0x00ffff).toString(16).padStart(6, '0');
+
+                return `
+                    <div onclick="navigateToProject('${data.id}')"
+                        class="p-3 bg-black/30 border border-cyan-500/20 hover:border-cyan-500/50 hover:bg-cyan-900/20 cursor-pointer transition-all rounded">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full" style="background:${colorHex};box-shadow:0 0 8px ${colorHex}"></div>
+                                <span class="text-sm text-cyan-100 font-medium">${data.name}</span>
+                            </div>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded" style="background:${priority.color};color:#000">${data.priority}</span>
+                        </div>
+                        <div class="text-[10px] text-cyan-500 mt-1">${data.category}</div>
+                        ${data.tags && data.tags.length > 0 ?
+                            `<div class="flex flex-wrap gap-1 mt-2">${data.tags.slice(0, 3).map(t =>
+                                `<span class="text-[9px] px-1.5 py-0.5 bg-cyan-900/50 text-cyan-400 rounded">#${t}</span>`
+                            ).join('')}</div>` : ''
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.navigateToProject = function(projectId) {
+            const project = projects.find(p => p.userData.id === projectId);
+            if (project) {
+                toggleSearchPanel(); // Close search
+                NavController.navigateTo(project, () => {
+                    currentlySelectedProject = project;
+                    openHUD(project.userData);
+                });
+            }
+        }
+
+        window.clearSearch = function() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-category').value = '';
+            document.getElementById('search-priority').value = '';
+            document.getElementById('search-sort').value = 'name';
+            performSearch();
+        }
+
+        window.resetFlightSettings = function() {
+            const defaults = {
+                acceleration: 0.008,
+                deceleration: 0.92,
+                maxSpeed: 0.8,
+                fov: 60,
+                lookSpeed: 0.003
+            };
+
+            applyFlightSettings(defaults);
+            saveCurrentFlightSettings();
+            setCurrentPresetName('DEFAULT');
+            showToast('Settings reset to defaults', 'info');
+        }
+
+        window.navigateToSelected = function() {
+            if (currentlySelectedProject) {
+                closeHUD();
+                NavController.navigateTo(currentlySelectedProject, () => {
+                    openHUD(currentlySelectedProject.userData);
+                });
+            }
+        }
+
+        window.selectColor = function(color) {
+            selectedColor = color;
+            // Visual feedback could be added here
+        }
+
+        window.openHUD = function(data) {
+            const hud = document.getElementById('project-hud');
+
+            // Basic info
+            document.getElementById('hud-title').innerText = data.name;
+            document.getElementById('hud-subtitle').innerText = data.category;
+            document.getElementById('hud-shards').innerText = (data.shardsCount || 0) + " SHARDS";
+
+            // Format date
+            let dateDisplay = data.date || "UNKNOWN";
+            if (data.updatedAt && typeof data.updatedAt === 'number') {
+                const diff = Date.now() - data.updatedAt;
+                const mins = Math.floor(diff / 60000);
+                const hours = Math.floor(diff / 3600000);
+                const days = Math.floor(diff / 86400000);
+                if (mins < 1) dateDisplay = "JUST NOW";
+                else if (mins < 60) dateDisplay = `${mins}m AGO`;
+                else if (hours < 24) dateDisplay = `${hours}h AGO`;
+                else dateDisplay = `${days}d AGO`;
+            }
+            document.getElementById('hud-date').innerText = dateDisplay;
+
+            // Priority badge
+            const priorityEl = document.getElementById('hud-priority');
+            const priority = PRIORITY_LEVELS[data.priority] || PRIORITY_LEVELS.MEDIUM;
+            priorityEl.innerText = priority.label;
+            priorityEl.style.background = priority.color;
+            priorityEl.style.color = data.priority === 'LOW' ? '#fff' : '#000';
+
+            // Description
+            const descSection = document.getElementById('hud-description-section');
+            const descEl = document.getElementById('hud-description');
+            if (data.description) {
+                descEl.innerText = data.description;
+                descSection.classList.remove('hidden');
+            } else {
+                descSection.classList.add('hidden');
+            }
+
+            // Tags
+            const tagsSection = document.getElementById('hud-tags-section');
+            const tagsEl = document.getElementById('hud-tags');
+            if (data.tags && data.tags.length > 0) {
+                tagsEl.innerHTML = data.tags.map(tag =>
+                    `<span class="text-[10px] px-2 py-0.5 bg-cyan-900/50 border border-cyan-500/30 rounded text-cyan-300">#${tag}</span>`
+                ).join('');
+                tagsSection.classList.remove('hidden');
+            } else {
+                tagsSection.classList.add('hidden');
+            }
+
+            // Stats
+            const statsContainer = document.getElementById('hud-stats-container');
+            statsContainer.innerHTML = '';
+            if (data.stats && data.stats.length > 0) {
+                data.stats.forEach(stat => {
+                    const percentage = (stat.val / stat.max) * 100;
+                    statsContainer.innerHTML += `
+                        <div>
+                            <div class="flex justify-between text-xs font-bold tracking-wider mb-1">
+                                <span class="text-cyan-100">${stat.label.toUpperCase()}</span>
+                                <span class="text-cyan-400">${stat.val}/${stat.max}</span>
+                            </div>
+                            <div class="stat-bar-bg">
+                                <div class="stat-bar-fill" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                statsContainer.innerHTML = '<div class="text-xs text-gray-500 italic">NO METRICS AVAILABLE</div>';
+            }
+
+            // Notes
+            const notesSection = document.getElementById('hud-notes-section');
+            const notesEl = document.getElementById('hud-notes');
+            if (data.notes) {
+                notesEl.innerText = data.notes;
+                notesSection.classList.remove('hidden');
+            } else {
+                notesSection.classList.add('hidden');
+            }
+
+            // Links
+            const linksSection = document.getElementById('hud-links-section');
+            const linksEl = document.getElementById('hud-links');
+            if (data.links && data.links.length > 0) {
+                linksEl.innerHTML = data.links.map(link =>
+                    `<a href="${link.url}" target="_blank" class="text-xs text-cyan-400 hover:text-cyan-200 underline">→ ${link.label}</a>`
+                ).join('');
+                linksSection.classList.remove('hidden');
+            } else {
+                linksSection.classList.add('hidden');
+            }
+
+            hud.classList.remove('hidden');
+            NavController.updateMouseLook();
+        }
+
+        window.closeHUD = function() {
+            document.getElementById('project-hud').classList.add('hidden');
+            currentlySelectedProject = null;
+            NavController.updateMouseLook();
+        }
+
+        // Confirm deletion with modal
+        window.confirmDeleteProject = function() {
+            if (!currentlySelectedProject) return;
+
+            const projectName = currentlySelectedProject.userData?.name || 'this chrysalis';
+
+            const modal = document.createElement('div');
+            modal.id = 'delete-confirm-modal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div class="hologram-panel w-full max-w-sm p-6 rounded-lg border-2 border-red-500/50 transform-none">
+                        <h2 class="text-xl neon-text text-center mb-4 text-red-400">SHATTER CHRYSALIS?</h2>
+                        <p class="text-sm text-center text-cyan-200/70 mb-6">
+                            "${projectName}" will shatter forever.<br>This cannot be undone.
+                        </p>
+                        <div class="flex gap-4">
+                            <button id="cancel-delete" class="flex-1 py-3 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/20 transition-colors tracking-widest text-xs">CANCEL</button>
+                            <button id="confirm-delete" class="flex-1 py-3 bg-red-900/40 border border-red-500 text-red-300 hover:bg-red-500 hover:text-white transition-colors tracking-widest text-xs font-bold">SHATTER</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            NavController.updateMouseLook();
+
+            document.getElementById('cancel-delete').onclick = () => {
+                modal.remove();
+                NavController.updateMouseLook();
+            };
+            document.getElementById('confirm-delete').onclick = () => {
+                deleteProject(currentlySelectedProject);
+                closeHUD();
+                modal.remove();
+                NavController.updateMouseLook();
+            };
+        }
+
+        // ============================================================
+        // PHASE 1.3: EDIT MODAL FUNCTIONS
+        // ============================================================
+
+        let editState = {
+            priority: 'MEDIUM',
+            color: '#00ffff',
+            stats: []
+        };
+
+        window.openEditModal = function() {
+            if (!currentlySelectedProject) return;
+
+            const data = currentlySelectedProject.userData;
+            const modal = document.getElementById('edit-modal');
+
+            // Populate form fields
+            document.getElementById('edit-name').value = data.name || '';
+            document.getElementById('edit-category').value = data.category || 'Other';
+            document.getElementById('edit-description').value = data.description || '';
+            document.getElementById('edit-tags').value = (data.tags || []).join(', ');
+            document.getElementById('edit-notes').value = data.notes || '';
+
+            // Set priority
+            editState.priority = data.priority || 'MEDIUM';
+            updatePriorityButtons();
+
+            // Set color
+            const colorHex = '#' + (data.baseColor || 0x00ffff).toString(16).padStart(6, '0');
+            editState.color = colorHex;
+            updateColorButtons();
+
+            // Populate stats
+            editState.stats = JSON.parse(JSON.stringify(data.stats || []));
+            renderEditStats();
+
+            // Show modal
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            moveSpeed = 0;
+            pushPanel('edit-modal');
+            NavController.updateMouseLook();
+        }
+
+        window.closeEditModal = function() {
+            const modal = document.getElementById('edit-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            popPanel('edit-modal');
+            NavController.updateMouseLook();
+        }
+
+        window.setEditPriority = function(priority) {
+            editState.priority = priority;
+            updatePriorityButtons();
+        }
+
+        function updatePriorityButtons() {
+            document.querySelectorAll('.edit-priority-btn').forEach(btn => {
+                const p = btn.dataset.priority;
+                if (p === editState.priority) {
+                    btn.classList.add('ring-2', 'ring-white');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-white');
+                }
+            });
+        }
+
+        window.setEditColor = function(color) {
+            editState.color = color;
+            updateColorButtons();
+        }
+
+        function updateColorButtons() {
+            document.querySelectorAll('.edit-color-btn').forEach(btn => {
+                if (btn.dataset.color === editState.color) {
+                    btn.classList.add('ring-2', 'ring-white', 'scale-110');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-white', 'scale-110');
+                }
+            });
+        }
+
+        function renderEditStats() {
+            const container = document.getElementById('edit-stats-container');
+            container.innerHTML = editState.stats.map((stat, i) => `
+                <div class="flex gap-2 items-center">
+                    <input type="text" value="${stat.label}" onchange="updateEditStat(${i}, 'label', this.value)" class="flex-1 p-2 glass-input text-xs" placeholder="Metric name">
+                    <input type="number" value="${stat.val}" min="0" max="${stat.max}" onchange="updateEditStat(${i}, 'val', parseInt(this.value))" class="w-16 p-2 glass-input text-xs text-center">
+                    <span class="text-cyan-500 text-xs">/</span>
+                    <input type="number" value="${stat.max}" min="1" onchange="updateEditStat(${i}, 'max', parseInt(this.value))" class="w-16 p-2 glass-input text-xs text-center">
+                    <button onclick="removeEditStat(${i})" class="text-red-400 hover:text-red-200 text-xs px-2">✕</button>
+                </div>
+            `).join('');
+        }
+
+        window.updateEditStat = function(index, field, value) {
+            if (editState.stats[index]) {
+                editState.stats[index][field] = value;
+            }
+        }
+
+        window.addEditStat = function() {
+            editState.stats.push({ label: 'New Metric', val: 0, max: 10 });
+            renderEditStats();
+        }
+
+        window.removeEditStat = function(index) {
+            editState.stats.splice(index, 1);
+            renderEditStats();
+        }
+
+        window.saveProjectEdits = function() {
+            if (!currentlySelectedProject) return;
+
+            const data = currentlySelectedProject.userData;
+            const oldName = data.name;
+
+            // Update userData
+            data.name = document.getElementById('edit-name').value || 'UNTITLED';
+            data.category = document.getElementById('edit-category').value;
+            data.description = document.getElementById('edit-description').value;
+            data.priority = editState.priority;
+            data.tags = document.getElementById('edit-tags').value
+                .split(',')
+                .map(t => t.trim().toLowerCase())
+                .filter(t => t.length > 0);
+            data.notes = document.getElementById('edit-notes').value;
+            data.baseColor = parseInt(editState.color.replace('#', '0x'));
+            data.stats = editState.stats;
+            data.updatedAt = Date.now();
+
+            // Update 3D visuals if name or color changed
+            updateProjectVisuals(currentlySelectedProject, oldName);
+
+            // Trigger save
+            AppState._notify('projects', projects, null);
+
+            // Close modal and refresh HUD
+            closeEditModal();
+            openHUD(data);
+
+            showToast('Project updated', 'success');
+        }
+
+        // Update 3D object visuals after edit
+        function updateProjectVisuals(projectGroup, oldName) {
+            const data = projectGroup.userData;
+
+            // Update crystal color
+            const crystal = projectGroup.children[0];
+            if (crystal && crystal.material) {
+                crystal.material.color.setHex(data.baseColor);
+                crystal.material.emissive.setHex(data.baseColor);
+            }
+
+            // Update shard colors
+            projectGroup.children.forEach(child => {
+                if (child.userData?.orbit && child.material) {
+                    child.material.color.setHex(data.baseColor);
+                }
+            });
+
+            // Update label if name changed
+            if (oldName !== data.name) {
+                // Remove old label texture from cache
+                if (labelTextureCache.has(oldName)) {
+                    labelTextureCache.get(oldName).dispose();
+                    labelTextureCache.delete(oldName);
+                }
+
+                // Find and update label sprite
+                const labelSprite = projectGroup.children.find(c => c.isSprite);
+                if (labelSprite) {
+                    const newTexture = getLabelTexture(data.name);
+                    labelSprite.material.map = newTexture;
+                    labelSprite.material.needsUpdate = true;
+                }
+            }
+        }
+
+        window.openCreationModal = function() {
+            document.getElementById('creation-modal').classList.remove('hidden');
+            document.getElementById('creation-modal').classList.add('flex');
+            moveSpeed = 0; // Pause movement
+            pushPanel('creation-modal');
+            NavController.updateMouseLook();
+        }
+
+        window.closeCreationModal = function() {
+            document.getElementById('creation-modal').classList.add('hidden');
+            document.getElementById('creation-modal').classList.remove('flex');
+            moveSpeed = 0.2; // Resume
+            popPanel('creation-modal');
+            NavController.updateMouseLook();
+        }
+
+        window.submitNewProject = function() {
+            const name = document.getElementById('new-project-name').value || "UNTITLED PROJECT";
+            const cat = document.getElementById('new-project-cat').value;
+            
+            // Create new data object
+            const newProj = {
+                name: name,
+                category: cat,
+                color: parseInt(selectedColor.replace('#', '0x')),
+                stats: [
+                    { label: "Concept", val: 1, max: 10 },
+                    { label: "Execution", val: 0, max: 10 }
+                ],
+                // Spawn it just in front of the camera so we see it fly by
+                pos: { 
+                    x: (Math.random() - 0.5) * 10 + camera.position.x, 
+                    y: 2, 
+                    z: camera.position.z - 30 
+                },
+                shards: 1
+            };
+
+            createChrysalis(newProj);
+            closeCreationModal();
+        }
+    </script>
+</body>
+</html>

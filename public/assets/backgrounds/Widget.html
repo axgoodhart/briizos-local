@@ -1,0 +1,327 @@
+
+<!DOCTYPE html>
+<html lang="en" >
+
+<head>
+  <title>Minimalist Widget Page</title>
+
+    <link rel="canonical" href="https://codepen.io/marhdev/pen/dXdVqM">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Open+Sans:400,800|Poppins'>
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.9/css/weather-icons.min.css'>
+  
+<style>
+body {
+  font-family: "Poppins", "Open Sans", Arial, sans-serif;
+  font-size: 18px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.container {
+  background-color: #000;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  height: 100vh;
+  align-items: center;
+  line-height: 1;
+  color: #fff;
+  position: relative;
+  z-index: -2;
+}
+.container:after {
+  content: "";
+  background: rgba(100, 100, 100, 0.4);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: -1;
+}
+.container #images {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+.container #images .image {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.container #images .image.active {
+  opacity: 1;
+}
+.container #weather {
+  text-transform: capitalize;
+  font-family: "Open Sans", Arial, sans-serif;
+  letter-spacing: 2px;
+}
+.container #bgProgress {
+  height: 5px;
+  width: 0;
+  background: rgba(0, 0, 0, 0.4);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: width 0.13s linear;
+}
+.container #clock {
+  font-size: 120px;
+}
+@media screen and (max-height: 360px) {
+  .container #clock {
+    font-size: 64px;
+  }
+}
+@media screen and (max-width: 580px) {
+  .container #clock {
+    font-size: 85px;
+  }
+}
+@media screen and (max-width: 360px) {
+  .container #clock {
+    font-size: 64px;
+    letter-spacing: -4px;
+  }
+}
+.container #clock span {
+  display: inline-block;
+  font-family: "Open Sans", Arial, sans-serif;
+  position: relative;
+  top: -0.5rem;
+  line-height: 0.5em;
+}
+.container #date {
+  padding: 0 10px;
+  text-align: center;
+  position: absolute;
+  top: 20px;
+  width: 100%;
+}
+@media screen and (max-height: 320px) {
+  .container #date {
+    position: static;
+  }
+}
+@media screen and (max-width: 370px) {
+  .container #date {
+    font-size: 16px;
+  }
+}
+</style>
+
+  <script>
+  window.console = window.console || function(t) {};
+</script>
+
+  
+  
+</head>
+
+<body translate="no">
+  <div class="container">
+  <div id="bgProgress"></div>
+  <div id="images">
+    <div class="image active" style="background-image: url('https://storage.googleapis.com/chydlx/codepen/minimalist-widget-page/dan-rogers-1156523.jpg')"></div>
+    <div class="image" style="background-image: url('https://storage.googleapis.com/chydlx/codepen/minimalist-widget-page/jaanus-jagomagi-1245736.jpg')"></div>
+    <div class="image" style="background-image: url('https://storage.googleapis.com/chydlx/codepen/minimalist-widget-page/patrick-tomasso-1272187.jpg')"></div>
+    <div class="image" style="background-image: url('https://storage.googleapis.com/chydlx/codepen/minimalist-widget-page/sven-scheuermeier-37377.jpg')"></div>
+    <div class="image" style="background-image: url('https://storage.googleapis.com/chydlx/codepen/minimalist-widget-page/tim-easley-1131834.jpg')"></div>
+    <div class="image" style="background-image: url('https://storage.googleapis.com/chydlx/codepen/minimalist-widget-page/weroad-1102821.jpg')"></div>
+  </div>
+  <div id="date">
+    <p>Monday, July 17, 2016</p>
+  </div>
+  <div id="clock">
+    <p>
+       3<span>:</span>00PM</p>
+  </div>
+  <div id="weather">
+    <p>
+       72&#8457; <i class="wi wi-day-sunny"> </i> Sunny</p>
+  </div>
+</div>
+  
+    <script id="rendered-js" >
+var dateObj = function () {
+
+  function month(num) {
+    var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return months[num];
+  }
+
+  function day(num) {
+    var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return days[num];
+  }
+
+  function _getDate() {
+    var today = new Date(),
+    date = {};
+
+    date = {
+      date: today.getDate(),
+      day: day(today.getDay()),
+      month: month(today.getMonth()),
+      year: today.getFullYear() };
+
+
+    return date;
+  }
+
+  return _getDate;
+
+}();
+
+var timeObj = function () {
+  var time = {};
+
+  function _getTime() {
+    var _time = new Date(),
+    hours = _time.getHours(),
+    minutes = _time.getMinutes(),
+    seconds = _time.getSeconds();
+
+    time = {
+      hour: hours === 0 ? hours = 12 : hours > 12 ? hours - 12 : hours,
+      mins: minutes < 10 ? "0" + minutes : minutes,
+      period: hours >= 12 ? "PM" : "AM",
+      secs: seconds < 10 ? "0" + seconds : seconds };
+
+
+    return time;
+  }
+
+  return _getTime;
+}();
+
+var setDateTime = function () {
+  var elm_clock = document.querySelector('#clock p'),
+  elm_date = document.querySelector('#date p');
+
+  var defaults = {
+    dateMsg: "%dateDay, %dateMonth %dateDate, %dateYear",
+    timeMsg: "%timeHour<span>:</span>%timeMinutes %timePeriod" };
+
+
+  function _setTime() {
+    var msg = defaults.timeMsg.
+    replace('%timeHour', timeObj().hour).
+    replace('%timeMinutes', timeObj().mins).
+    replace('%timePeriod', timeObj().period);
+    elm_clock.innerHTML = msg;
+  }
+
+  function _setDate() {
+    var msg = defaults.dateMsg.
+    replace('%dateDay', dateObj().day).
+    replace('%dateMonth', dateObj().month).
+    replace('%dateDate', dateObj().date).
+    replace('%dateYear', dateObj().year);
+
+    elm_date.innerHTML = msg;
+  }
+
+  _setTime();
+  _setDate();
+
+  setInterval(function () {
+    _setDate();
+    _setTime();
+  }, 1000);
+}();
+
+var cycleBG = function () {
+  var progressBar = document.querySelector('#bgProgress'),
+  duration = 15000,
+  bgImages = document.querySelectorAll('#images .image'),
+  i = 0,
+  x = 0;
+
+  console.log(bgImages);
+
+  function changeBg() {
+    // if i >= bgImages.length -1
+    i >= bgImages.length - 1 ? i = 0 : i++;
+    //change bg image
+    bgImages.forEach(function (img, index) {
+      img.classList.remove('active');
+      if (index === i) {img.classList.add('active');}
+    });
+  }
+
+  changeBg();
+
+  setInterval(function () {
+    // if x === 100
+    x === 100 ? (x = 0, changeBg()) : x++;
+    //progressBar width = x
+    progressBar.style.width = x + '%';
+  }, duration / 100);
+}();
+
+var weatherWidget = function () {
+  var cont = document.querySelector('#weather');
+  var apiCall = {
+    id: "d65a9694ae6425d1e080326aab19db69",
+    unit: "imperial",
+    coor: {
+      lat: 32.715736,
+      lon: -117.161087 } };
+
+
+
+  function renderWeather(data) {
+    var html = "<p>";
+    html += Math.floor(data.main.temp);
+    html += apiCall.unit === "imperial" ? "&#8457;" : "&#8451;";
+    html += " <i class='wi wi-fw wi-owm-";
+    html += timeObj().period === "PM" ? "night-" : "day-";
+    html += data.weather[0].id + "'></i> ";
+    html += data.weather[0].description;
+    html += "</p>";
+
+    cont.innerHTML = html;
+  }
+
+  var apiURL = "https://api.openweathermap.org/data/2.5/weather?APPID=" + apiCall.id + "&units=" + apiCall.unit + "&lat=" + apiCall.coor.lat + "&lon=" + apiCall.coor.lon;
+
+  var http = new XMLHttpRequest();
+
+  http.onreadystatechange = function () {
+    if (http.readyState == 4 && http.status == 200) {
+      var data = JSON.parse(http.responseText);
+      renderWeather(data);
+    }
+  };
+  http.open("GET", apiURL, true);
+  http.send();
+
+}();
+//# sourceURL=pen.js
+  </script>
+
+  
+</body>
+
+</html>
