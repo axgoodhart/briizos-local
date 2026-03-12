@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { logger, registerLoggerIPC } = require('./logger');
-const ai = require('./ai');
 const filesystem = require('./filesystem');
 const studio = require('./studio');
 const github = require('./github');
@@ -141,56 +140,6 @@ function createWindow() {
 
   return mainWindow;
 }
-
-// === AI Streaming IPC Handlers ===
-
-ipcMain.handle('ai-stream-chat', async (event, streamId, messages, provider, model, params) => {
-  await ai.streamChat(event, streamId, messages, provider, model, params || {});
-  return { streamId };
-});
-
-ipcMain.handle('ai-get-providers', async () => {
-  return ai.getConfiguredProviders();
-});
-
-ipcMain.handle('ai-set-key', async (event, provider, key) => {
-  ai.setApiKey(provider, key);
-  return true;
-});
-
-// === AI Legacy IPC Handlers ===
-
-ipcMain.handle('ai-chat', async (event, message, selectedFiles, history) => {
-  // Read content of each selected file from disk
-  const fileContexts = [];
-  if (selectedFiles && selectedFiles.length > 0) {
-    for (const file of selectedFiles) {
-      try {
-        const result = filesystem.readFile(file.path);
-        if (!result.error) {
-          fileContexts.push({
-            path: file.path,
-            name: file.name,
-            content: result.content,
-            truncated: result.truncated
-          });
-        }
-      } catch (error) {
-        logger.warn('ipc', 'Failed to read file for AI context', error?.message);
-      }
-    }
-  }
-
-  return ai.chat(message, fileContexts, history || []);
-});
-
-ipcMain.handle('ai-breakdown-task', async (event, taskId, taskTitle) => {
-  return ai.breakdownTask(taskId, taskTitle);
-});
-
-ipcMain.handle('ai-is-configured', async () => {
-  return ai.isConfigured();
-});
 
 // === File System IPC Handlers ===
 
@@ -505,11 +454,10 @@ ipcMain.handle('health-check', async () => {
   for (const [name, dirPath] of Object.entries(dirs)) {
     dirStatus[name] = fs.existsSync(dirPath);
   }
-  const providers = await ai.getConfiguredProviders();
   return {
     timestamp: new Date().toISOString(),
     directories: dirStatus,
-    aiProviders: providers,
+    langgraphStatus: langgraphProcess.getStatus(),
     electronVersion: process.versions.electron,
     nodeVersion: process.versions.node,
     platform: process.platform,
@@ -635,9 +583,6 @@ app.whenReady().then(() => {
     node: process.versions.node,
     startedAt: new Date().toISOString(),
   });
-
-  // Initialize AI on startup
-  ai.initAI();
 
   // Initialize agent App Support directories
   agentConfig.ensureDirectories();
