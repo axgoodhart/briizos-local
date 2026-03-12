@@ -122,6 +122,7 @@ function InteractionPanel() {
     isConfigured,
     filesInContext,
     streamingContent,
+    toolCalls,
     sendMessage,
     clearHistory,
     refreshFilesInContext,
@@ -474,6 +475,62 @@ function InteractionPanel() {
                     </ReactMarkdown>
                   ) : (
                     <span className="typing-indicator">Thinking...</span>
+                  )}
+
+                  {/* Active tool calls */}
+                  {toolCalls && toolCalls.length > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                      {toolCalls.map((tc) => (
+                        <div key={tc.id} style={{
+                          borderLeft: `2px solid ${tc.status === 'running' ? '#fbbf24' : '#4ade80'}`,
+                          padding: '6px 10px',
+                          margin: '4px 0',
+                          fontSize: '12px',
+                          background: 'rgba(255,255,255,0.03)',
+                          borderRadius: '0 4px 4px 0',
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}>
+                            <span style={{
+                              width: '14px',
+                              display: 'inline-block',
+                              textAlign: 'center',
+                              animation: tc.status === 'running' ? 'spin 1s linear infinite' : 'none',
+                            }}>
+                              {tc.status === 'running' ? '\u27F3' : '\u2713'}
+                            </span>
+                            <span style={{
+                              fontWeight: 600,
+                              color: '#94a3b8',
+                            }}>
+                              {tc.name}
+                            </span>
+                            <span style={{
+                              fontSize: '11px',
+                              opacity: 0.7,
+                            }}>
+                              {tc.status === 'running' ? 'Running...' : 'Done'}
+                            </span>
+                          </div>
+                          {tc.status === 'done' && tc.result && (
+                            <div style={{
+                              marginTop: '4px',
+                              fontSize: '12px',
+                              opacity: 0.85,
+                              maxHeight: '120px',
+                              overflowY: 'auto',
+                            }}>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result, null, 2)}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
