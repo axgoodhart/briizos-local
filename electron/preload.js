@@ -99,6 +99,11 @@ contextBridge.exposeInMainWorld('api', {
   canvasList: () => ipcRenderer.invoke('canvas-list'),
   canvasLoad: (filename) => ipcRenderer.invoke('canvas-load', filename),
 
+  // Model Config API
+  getModels: () => ipcRenderer.invoke('models-get-list'),
+  getModelConfig: (name) => ipcRenderer.invoke('models-get-config', name),
+  checkApiKeys: () => ipcRenderer.invoke('models-check-api-keys'),
+
   // LangGraph Status API
   langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
 

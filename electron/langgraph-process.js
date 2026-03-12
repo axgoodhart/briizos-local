@@ -283,7 +283,10 @@ async function start() {
   try {
     const child = spawn(uvPath, args, {
       cwd: BACKEND_DIR,
-      env: { ...process.env },
+      env: {
+        ...process.env,
+        DEER_FLOW_CONFIG_PATH: path.resolve(__dirname, '../../deerflow/config.yaml'),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
     });

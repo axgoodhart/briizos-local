@@ -11,6 +11,7 @@ const agentFs = require('./agent-fs');
 const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
 const langgraphProcess = require('./langgraph-process');
+const modelConfig = require('./model-config');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -516,6 +517,12 @@ ipcMain.handle('health-check', async () => {
 // === LangGraph IPC Handlers ===
 
 ipcMain.handle('langgraph-get-status', async () => langgraphProcess.getStatus());
+
+// === Model Config IPC Handlers ===
+
+ipcMain.handle('models-get-list', async () => modelConfig.getModels());
+ipcMain.handle('models-get-config', async (_, name) => modelConfig.getModelConfig(name));
+ipcMain.handle('models-check-api-keys', async () => modelConfig.checkApiKeyStatus());
 
 // === App Lifecycle ===
 
