@@ -36,6 +36,7 @@ export function useChat() {
   const [toolCalls, setToolCalls] = useState([]);
   const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
   const [modality, setModality] = useState('chat');
+  const [subAgentTasks, setSubAgentTasks] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsEnabled, setSuggestionsEnabled] = useState(() => {
     try {
@@ -47,6 +48,7 @@ export function useChat() {
   const streamContentRef = useRef('');
   const streamIdRef = useRef(null);
   const toolCallsRef = useRef([]);
+  const subAgentTasksRef = useRef([]);
   const threadIdRef = useRef(null);
   const isRemoteResponseRef = useRef(false);
   const messagesRef = useRef([]);
@@ -172,6 +174,57 @@ export function useChat() {
           // Don't call handleStreamEnd -- keep loading state so user knows action is needed
           break;
         }
+        case 'task_started': {
+          const task = {
+            id: data.task_id || data.payload?.task_id,
+            description: data.description || data.payload?.description || 'Sub-agent task',
+            status: 'running',
+            messageCount: 0,
+          };
+          subAgentTasksRef.current = [...subAgentTasksRef.current, task];
+          setSubAgentTasks([...subAgentTasksRef.current]);
+          break;
+        }
+        case 'task_running': {
+          const taskId = data.task_id || data.payload?.task_id;
+          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
+            t.id === taskId
+              ? { ...t, messageCount: data.message_index || data.payload?.message_index || t.messageCount + 1 }
+              : t
+          );
+          setSubAgentTasks([...subAgentTasksRef.current]);
+          break;
+        }
+        case 'task_completed': {
+          const taskId = data.task_id || data.payload?.task_id;
+          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
+            t.id === taskId
+              ? { ...t, status: 'completed', result: data.result || data.payload?.result }
+              : t
+          );
+          setSubAgentTasks([...subAgentTasksRef.current]);
+          break;
+        }
+        case 'task_failed': {
+          const taskId = data.task_id || data.payload?.task_id;
+          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
+            t.id === taskId
+              ? { ...t, status: 'failed', error: data.error || data.payload?.error || 'Task failed' }
+              : t
+          );
+          setSubAgentTasks([...subAgentTasksRef.current]);
+          break;
+        }
+        case 'task_timed_out': {
+          const taskId = data.task_id || data.payload?.task_id;
+          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
+            t.id === taskId
+              ? { ...t, status: 'timed_out', error: data.error || data.payload?.error || 'Task timed out' }
+              : t
+          );
+          setSubAgentTasks([...subAgentTasksRef.current]);
+          break;
+        }
         case 'end': {
           handleStreamEnd();
           break;
@@ -258,9 +311,11 @@ export function useChat() {
     streamContentRef.current = '';
     streamIdRef.current = null;
     toolCallsRef.current = [];
+    subAgentTasksRef.current = [];
     setStreamingContent('');
     setCurrentStreamId(null);
     setToolCalls([]);
+    setSubAgentTasks([]);
     setIsLoading(false);
   }, []);
 
@@ -272,9 +327,11 @@ export function useChat() {
     streamContentRef.current = '';
     streamIdRef.current = null;
     toolCallsRef.current = [];
+    subAgentTasksRef.current = [];
     setStreamingContent('');
     setCurrentStreamId(null);
     setToolCalls([]);
+    setSubAgentTasks([]);
     setIsLoading(false);
   }, []);
 
@@ -518,6 +575,7 @@ export function useChat() {
     streamingContent,
     currentStreamId,
     toolCalls,
+    subAgentTasks,
     pendingToolConfirmation,
     modality,
     setModality,

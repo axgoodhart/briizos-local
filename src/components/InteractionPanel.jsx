@@ -131,6 +131,7 @@ function InteractionPanel() {
     filesInContext,
     streamingContent,
     toolCalls,
+    subAgentTasks,
     pendingToolConfirmation,
     modality,
     setModality,
@@ -550,6 +551,47 @@ function InteractionPanel() {
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result, null, 2)}
                               </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Active sub-agent tasks */}
+                  {subAgentTasks && subAgentTasks.length > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                      {subAgentTasks.map((task) => (
+                        <div key={task.id} style={{
+                          borderLeft: `2px solid ${
+                            task.status === 'running' ? '#818cf8' :
+                            task.status === 'completed' ? '#4ade80' :
+                            '#ef4444'
+                          }`,
+                          padding: '6px 10px',
+                          marginBottom: '4px',
+                          fontSize: '12px',
+                          color: 'var(--text-secondary, #94a3b8)',
+                          background: 'rgba(255,255,255,0.03)',
+                          borderRadius: '0 4px 4px 0',
+                        }}>
+                          <span style={{ fontWeight: 500, color: 'var(--text-primary, #e2e8f0)' }}>
+                            {task.status === 'running' ? '\u27F3' : task.status === 'completed' ? '\u2713' : '\u2717'}
+                            {' '}{task.description}
+                          </span>
+                          {task.status === 'running' && task.messageCount > 0 && (
+                            <span style={{ marginLeft: '8px', opacity: 0.7 }}>
+                              ({task.messageCount} steps)
+                            </span>
+                          )}
+                          {task.status === 'failed' && task.error && (
+                            <div style={{ marginTop: '2px', color: '#ef4444', fontSize: '11px' }}>
+                              {task.error}
+                            </div>
+                          )}
+                          {task.status === 'timed_out' && (
+                            <div style={{ marginTop: '2px', color: '#f59e0b', fontSize: '11px' }}>
+                              Timed out
                             </div>
                           )}
                         </div>
