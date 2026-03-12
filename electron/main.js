@@ -10,6 +10,7 @@ const agentConfig = require('./agent-config');
 const agentFs = require('./agent-fs');
 const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
+const langgraphProcess = require('./langgraph-process');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -34,13 +35,21 @@ function isFirebaseNetworkUrl(url) {
     || url.includes('web.app');
 }
 
+const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
+
+function normalizeCoord(value, min, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return n;
+}
+
 const CSP = [
   "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://apis.google.com https://www.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' ws://localhost:* http://localhost:* https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
+  "connect-src 'self' ws://localhost:* http://localhost:* http://127.0.0.1:2024 https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
   "frame-src 'self' blob: data: https://dex--briizos.us-central1.hosted.app http://localhost:* file: https://*.firebaseapp.com https://*.web.app https://apis.google.com",
   "media-src 'self' blob: data:",
   "worker-src 'self' blob:"
@@ -53,8 +62,10 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     backgroundColor: '#0a1628',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 12 },
+    titleBarStyle: 'customButtonsOnHover',
+    trafficLightPosition: { x: 4, y: 4 },
+        title: 'briizOS',
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -440,6 +451,47 @@ ipcMain.handle('canvas-load', async (event, filename) => {
   } catch { return ''; }
 });
 
+// === Weather IPC Handler ===
+
+ipcMain.handle('weather-get-current', async (event, latitude, longitude) => {
+  const lat = normalizeCoord(latitude, -90, 90);
+  const lon = normalizeCoord(longitude, -180, 180);
+  if (lat === null || lon === null) {
+    return { ok: false, error: 'Invalid coordinates' };
+  }
+
+  const url = `${OPEN_METEO_BASE_URL}?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 10000);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Open-Meteo error ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const temperature = payload?.current?.temperature_2m;
+    const weatherCode = payload?.current?.weather_code;
+
+    if (typeof temperature !== 'number' || typeof weatherCode !== 'number') {
+      throw new Error('Open-Meteo payload missing temperature/weather_code');
+    }
+
+    return { ok: true, temperature, weatherCode };
+  } catch (error) {
+    const message = timedOut ? 'Weather request timed out' : (error?.message || 'Failed to fetch weather');
+    logger.warn('network', 'Weather request failed', { url, error: message });
+    return { ok: false, error: message };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+});
+
 // === Health Check IPC Handler ===
 
 ipcMain.handle('health-check', async () => {
@@ -461,6 +513,10 @@ ipcMain.handle('health-check', async () => {
   };
 });
 
+// === LangGraph IPC Handlers ===
+
+ipcMain.handle('langgraph-get-status', async () => langgraphProcess.getStatus());
+
 // === App Lifecycle ===
 
 app.whenReady().then(() => {
@@ -479,6 +535,17 @@ app.whenReady().then(() => {
 
   // Initialize agent App Support directories
   agentConfig.ensureDirectories();
+
+  // Start LangGraph backend process
+  langgraphProcess.start().then(started => {
+    if (started) {
+      logger.info('app', 'LangGraph process started', { port: langgraphProcess.getPort() });
+    } else {
+      logger.warn('app', 'LangGraph process failed to start', langgraphProcess.getStatus());
+    }
+  }).catch(err => {
+    logger.error('app', 'LangGraph process start error', err?.message);
+  });
 
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {
@@ -503,6 +570,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Stop LangGraph process before quit (fire-and-forget — Electron won't wait for async)
+app.on('before-quit', () => {
+  langgraphProcess.stop();
 });
 
 // Clean up watchers on quit
