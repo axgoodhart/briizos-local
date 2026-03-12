@@ -3,6 +3,7 @@ import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChat } from '../hooks/useChat';
+import { useLangGraphStatus } from '../hooks/useLangGraphStatus';
 import { useChatSettings } from '../context/ChatSettingsContext';
 import { useTools } from '../context/ToolContext';
 import ConfirmationToast from './ConfirmationToast';
@@ -12,19 +13,36 @@ import logger from '../lib/logger';
 
 const CHAT_BACKGROUNDS = [
   { value: '', label: 'Default' },
-  { value: 'assets/backgrounds/default-gradient.html', label: 'Gradient' },
-  { value: 'assets/backgrounds/Stars.html', label: 'Stars' },
-  { value: 'assets/backgrounds/Spheres.html', label: 'Shaped' },
-  { value: 'assets/backgrounds/rainbo.html', label: 'Rainbeau' },
-  { value: 'assets/backgrounds/Butterflies.html', label: 'Butterflewn' },
-  { value: 'assets/backgrounds/thing.html', label: 'Orballix' },
-  { value: 'assets/backgrounds/24h.html', label: 'Reminding Clock' },
-  { value: 'assets/backgrounds/vialinebg.html', label: 'Vile Vial' },
-  { value: 'assets/backgrounds/linetrance.html', label: 'Bipsychal' },
-  { value: 'assets/backgrounds/rainpool.html', label: 'PrismPool' },
-  { value: 'assets/backgrounds/darkwater.html', label: 'Toxiq Swim' },
-  { value: 'assets/backgrounds/wavepool.html', label: 'Gravoidation' },
+  { value: 'assets/backgrounds/24h.html', label: '24h' },
+{ value: 'assets/backgrounds/Butterflies.html', label: 'Butterflies' },
+{ value: 'assets/backgrounds/Darkstars.html', label: 'Darkstars' },
+{ value: 'assets/backgrounds/GlassClock.html', label: 'GlassClock' },
+{ value: 'assets/backgrounds/Insectiana.html', label: 'Insectiana' },
+{ value: 'assets/backgrounds/RotoPulse.html', label: 'RotoPulse' },
+{ value: 'assets/backgrounds/Spheres.html', label: 'Spheres' },
+{ value: 'assets/backgrounds/Stars.html', label: 'Stars' },
+{ value: 'assets/backgrounds/Wallpaper.html', label: 'Wallpaper' },
+{ value: 'assets/backgrounds/Widget.html', label: 'Widget' },
+{ value: 'assets/backgrounds/butterflies.html', label: 'butterflies' },
+{ value: 'assets/backgrounds/colorink.html', label: 'colorink' },
+{ value: 'assets/backgrounds/darkwater.html', label: 'darkwater' },
+{ value: 'assets/backgrounds/default-gradient.html', label: 'default-gradient' },
+{ value: 'assets/backgrounds/linetrance.html', label: 'linetrance' },
+{ value: 'assets/backgrounds/liquid.html', label: 'liquid' },
+{ value: 'assets/backgrounds/neuralnetworkbackground.html', label: 'neuralnetworkbackground' },
+{ value: 'assets/backgrounds/portals.html', label: 'portals' },
+{ value: 'assets/backgrounds/rainbo.html', label: 'rainbo' },
+{ value: 'assets/backgrounds/rainpool.html', label: 'rainpool' },
+{ value: 'assets/backgrounds/thing.html', label: 'thing' },
+{ value: 'assets/backgrounds/transformer.html', label: 'transformer' },
+{ value: 'assets/backgrounds/univer.html', label: 'univer' },
+{ value: 'assets/backgrounds/vialinebg.html', label: 'vialinebg' },
+{ value: 'assets/backgrounds/visualizer5.html', label: 'visualizer5' },
+{ value: 'assets/backgrounds/visualizer6.html', label: 'visualizer6' },
+{ value: 'assets/backgrounds/wavepool.html', label: 'wavepool' }
 ];
+
+
 
 const TOOL_NAME_REGEX = '[A-Za-z][A-Za-z0-9_]*';
 
@@ -107,6 +125,7 @@ function InteractionPanel() {
     refreshFilesInContext,
   } = useChat();
 
+  const { status: lgStatus, ready: lgReady } = useLangGraphStatus();
   const { provider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur } = useChatSettings();
   const { pendingConfirmation, confirmAction, cancelAction } = useTools();
 
@@ -162,8 +181,8 @@ function InteractionPanel() {
   const adjustTextarea = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    el.style.height = '44px';
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    el.style.height = '100%';
+    el.style.height = '100%';
   }, []);
 
   useEffect(() => {
@@ -478,25 +497,60 @@ function InteractionPanel() {
         </div>
       )}
 
+      {/* Backend status indicator */}
+      {lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
+        <div className="lg-status-bar" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 12px',
+          fontSize: '11px',
+          color: lgStatus === 'failed' ? '#f87171'
+            : lgStatus === 'env_missing' ? '#fb923c'
+            : lgStatus === 'crashed' || lgStatus === 'error' ? '#f87171'
+            : '#fbbf24',
+          background: 'rgba(10, 22, 40, 0.7)',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          <span style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: lgStatus === 'starting' ? '#fbbf24'
+              : lgStatus === 'failed' ? '#f87171'
+              : lgStatus === 'env_missing' ? '#fb923c'
+              : '#f87171',
+            animation: lgStatus === 'starting' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+          }} />
+          <span>
+            {lgStatus === 'starting' && 'Starting...'}
+            {(lgStatus === 'crashed' || lgStatus === 'error') && 'Reconnecting...'}
+            {lgStatus === 'failed' && 'Backend unavailable'}
+            {lgStatus === 'env_missing' && 'Python environment not found'}
+          </span>
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="chat-input-area">
         <div className="chat-input-wrapper">
           <textarea
             ref={textareaRef}
             className="chat-textarea"
-            placeholder={filesInContext.length > 0 ? `Ask about ${filesInContext.length} file(s)...` : "Ask anything... (⌘+Enter to send)"}
+            placeholder={!lgReady ? 'Waiting for AI backend...' : filesInContext.length > 0 ? `Ask about ${filesInContext.length} file(s)...` : "Ask anything (\u2318+Enter)"}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading}
+            disabled={isLoading || !lgReady}
             rows={1}
           />
           <button
             className="chat-send-btn"
             onClick={handleSubmit}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isLoading || !lgReady}
           >
-            {isLoading ? '...' : '→'}
+            {isLoading ? '...' : '\u2192'}
           </button>
         </div>
       </div>
