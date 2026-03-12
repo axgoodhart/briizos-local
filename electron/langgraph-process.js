@@ -630,6 +630,7 @@ async function sendMessage(threadId, message, config = {}) {
       configurable: {
         model_name: config.model || null,
         thinking_enabled: config.thinking !== false,
+        subagent_enabled: true,
       },
     },
   };
@@ -694,9 +695,10 @@ async function streamMessage(threadId, message, config = {}, onEvent) {
         model_name: config.model || null,
         thinking_enabled: config.thinking !== false,
         is_plan_mode: config.plan_mode || false,
+        subagent_enabled: true,
       },
     },
-    stream_mode: ['messages-tuple', 'values'],
+    stream_mode: ['messages-tuple', 'values', 'custom_events'],
   };
 
   try {
@@ -848,6 +850,12 @@ function processSSEEvent(eventType, data, onEvent) {
           content: msg.content,
         });
       }
+    }
+  } else if (eventType === 'custom_events') {
+    // Custom events from DeerFlow sub-agent system (task_tool.py stream_writer)
+    // Data payload is the dict written by get_stream_writer() — contains a `type` field.
+    if (data && typeof data === 'object' && typeof data.type === 'string' && data.type.startsWith('task_')) {
+      onEvent(data.type, data);
     }
   } else if (eventType === 'values') {
     onEvent('values', { messages: data?.messages || [] });
