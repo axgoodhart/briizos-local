@@ -93,6 +93,10 @@ contextBridge.exposeInMainWorld('api', {
   memoryGetData: () => ipcRenderer.invoke('memory-get-data'),
   memoryDeleteFact: (factId) => ipcRenderer.invoke('memory-delete-fact', factId),
 
+  // Skills API
+  skillsList: () => ipcRenderer.invoke('skills-get-list'),
+  skillsToggle: (name, enabled) => ipcRenderer.invoke('skills-toggle', name, enabled),
+
   // Logger API (fire-and-forget — logging must never block)
   logToTerminal: (payload) => ipcRenderer.send('log-to-terminal', payload),
 

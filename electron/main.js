@@ -529,6 +529,42 @@ ipcMain.handle('memory-delete-fact', async (event, factId) => {
   return await deleteFact(factId);
 });
 
+// === Skills IPC Handlers ===
+
+ipcMain.handle('skills-get-list', async () => {
+  const fs = require('fs');
+  const configPath = path.resolve(__dirname, '../../deerflow/extensions_config.json');
+  try {
+    const raw = fs.readFileSync(configPath, 'utf8');
+    const data = JSON.parse(raw);
+    const skills = data.skills || {};
+    return Object.entries(skills).map(([name, config]) => ({
+      name,
+      enabled: !!config.enabled,
+    }));
+  } catch (error) {
+    logger.warn('skills', 'Failed to read extensions_config.json', error?.message);
+    return [];
+  }
+});
+
+ipcMain.handle('skills-toggle', async (event, skillName, enabled) => {
+  const fs = require('fs');
+  const configPath = path.resolve(__dirname, '../../deerflow/extensions_config.json');
+  try {
+    const raw = fs.readFileSync(configPath, 'utf8');
+    const data = JSON.parse(raw);
+    if (data.skills && data.skills[skillName]) {
+      data.skills[skillName].enabled = enabled;
+    }
+    fs.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf8');
+    return { success: true };
+  } catch (error) {
+    logger.warn('skills', 'Failed to toggle skill', { skillName, error: error?.message });
+    return { success: false, error: error?.message || 'Failed to toggle skill' };
+  }
+});
+
 // === LangGraph Status API ===
 
 ipcMain.handle('langgraph-get-status', async () => langgraphProcess.getStatus());
