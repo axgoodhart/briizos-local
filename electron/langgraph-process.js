@@ -615,6 +615,7 @@ async function streamMessage(threadId, message, config = {}, onEvent) {
       configurable: {
         model_name: config.model || null,
         thinking_enabled: config.thinking !== false,
+        is_plan_mode: config.plan_mode || false,
       },
     },
     stream_mode: ['messages-tuple', 'values'],

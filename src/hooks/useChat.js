@@ -17,6 +17,14 @@ import { useAppContext } from './useAppContext';
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 const hasApi = typeof window !== 'undefined' && window.api;
 
+const MODALITY_SKILL_MAP = {
+  chat: null,
+  research: 'deep-research',
+  code: 'frontend-design',
+  report: 'consulting-analysis',
+  plan: null,
+};
+
 export function useChat() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +35,7 @@ export function useChat() {
   const [currentStreamId, setCurrentStreamId] = useState(null);
   const [toolCalls, setToolCalls] = useState([]);
   const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
+  const [modality, setModality] = useState('chat');
 
   const streamContentRef = useRef('');
   const streamIdRef = useRef(null);
@@ -335,10 +344,20 @@ export function useChat() {
       setStreamingContent('');
       setToolCalls([]);
 
+      // Prepend skill directive based on selected modality
+      let actualMessage = message;
+      const skillName = MODALITY_SKILL_MAP[modality];
+      if (skillName) {
+        actualMessage = `[Use skill: ${skillName}] ${message}`;
+      } else if (modality === 'plan') {
+        actualMessage = `[Plan mode] ${message}`;
+      }
+
       // Stream via LangGraph IPC bridge
-      await api.langgraphStreamMessage(threadId, message, {
+      await api.langgraphStreamMessage(threadId, actualMessage, {
         model,
         thinking: true,
+        plan_mode: modality === 'plan',
       });
     } catch (error) {
       logger.error('chat', 'Stream initiation error', error?.message);
@@ -349,7 +368,7 @@ export function useChat() {
     }
 
     return null;
-  }, [isLoading, loadSelectedFiles, ensureThread]);
+  }, [isLoading, modality, loadSelectedFiles, ensureThread]);
 
   // Clear chat history
   const clearHistory = useCallback(async () => {
@@ -362,6 +381,8 @@ export function useChat() {
       toolCallsRef.current = [];
       // Reset thread so a new one is created next time
       threadIdRef.current = null;
+      // Reset modality to default
+      setModality('chat');
     } catch (error) {
       logger.error('chat', 'Failed to clear history', error?.message);
     }
@@ -460,6 +481,8 @@ export function useChat() {
     currentStreamId,
     toolCalls,
     pendingToolConfirmation,
+    modality,
+    setModality,
     sendMessage,
     clearHistory,
     loadHistory: () => {},
