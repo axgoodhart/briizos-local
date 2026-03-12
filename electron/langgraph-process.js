@@ -581,6 +581,179 @@ async function sendMessage(threadId, message, config = {}) {
   }
 }
 
+/**
+ * Send a message to the LangGraph lead agent and stream the response via SSE.
+ *
+ * Connects to the /threads/{id}/runs/stream endpoint and parses the SSE text
+ * protocol manually (Node.js fetch + ReadableStream). Each parsed event is
+ * forwarded to the caller through the `onEvent` callback with a normalized
+ * type/payload shape.
+ *
+ * @param {string} threadId - Thread ID (from createThread())
+ * @param {string} message  - User message content
+ * @param {object} [config={}] - Optional config overrides
+ * @param {string} [config.model] - Model name override
+ * @param {boolean} [config.thinking] - Enable extended thinking (default: true)
+ * @param {(type: string, payload: object) => void} onEvent - Callback for each SSE event
+ * @returns {Promise<void>} Resolves when the stream ends or errors
+ */
+async function streamMessage(threadId, message, config = {}, onEvent) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+
+  const body = {
+    assistant_id: 'lead_agent',
+    input: {
+      messages: [{ role: 'human', content: message }],
+    },
+    config: {
+      configurable: {
+        model_name: config.model || null,
+        thinking_enabled: config.thinking !== false,
+      },
+    },
+    stream_mode: ['messages-tuple', 'values'],
+  };
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/threads/${threadId}/runs/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Stream request failed: ${res.status} ${res.statusText} ${errBody}`);
+    }
+
+    // Parse the SSE text stream manually
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let currentEvent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete lines from the buffer
+      const lines = buffer.split('\n');
+      // Keep the last (possibly incomplete) line in the buffer
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          currentEvent = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          const rawData = line.slice(5).trim();
+          if (!rawData) continue;
+
+          try {
+            const data = JSON.parse(rawData);
+            processSSEEvent(currentEvent, data, onEvent);
+          } catch (parseErr) {
+            logger.warn('langgraph', 'Failed to parse SSE data', { event: currentEvent, error: parseErr?.message });
+          }
+        }
+        // Empty lines are event delimiters — we reset currentEvent after processing
+        if (line === '') {
+          currentEvent = '';
+        }
+      }
+    }
+
+    // Flush any remaining buffer content
+    if (buffer.trim()) {
+      const remainingLines = buffer.split('\n');
+      for (const line of remainingLines) {
+        if (line.startsWith('data:')) {
+          const rawData = line.slice(5).trim();
+          if (rawData) {
+            try {
+              const data = JSON.parse(rawData);
+              processSSEEvent(currentEvent, data, onEvent);
+            } catch {
+              // ignore trailing parse errors
+            }
+          }
+        }
+      }
+    }
+
+    onEvent('end', {});
+    logger.info('langgraph', 'Stream completed', { threadId });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const msg = `streamMessage timed out after ${AGENT_TIMEOUT_MS}ms`;
+      logger.error('langgraph', msg, { threadId });
+      onEvent('error', { message: msg });
+    } else {
+      logger.error('langgraph', 'streamMessage failed', { threadId, error: err?.message });
+      onEvent('error', { message: err?.message || 'Stream failed' });
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Process a single SSE event and translate it into the normalized callback format.
+ *
+ * @param {string} eventType - The SSE event type (messages, values, end, error)
+ * @param {*} data - Parsed JSON payload
+ * @param {(type: string, payload: object) => void} onEvent - Callback
+ */
+function processSSEEvent(eventType, data, onEvent) {
+  if (eventType === 'messages') {
+    // data is a [messageObj, metadata] tuple
+    if (!Array.isArray(data) || data.length < 1) return;
+
+    const msg = data[0];
+    const msgType = msg?.type;
+
+    if (msgType === 'ai' || msgType === 'AIMessageChunk') {
+      // Extract text content from AI message
+      const content = msg.content;
+      if (typeof content === 'string' && content.length > 0) {
+        onEvent('text', { content });
+      } else if (Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === 'text' && block.text) {
+            onEvent('text', { content: block.text });
+          }
+        }
+      }
+
+      // Check for tool calls in the AI message
+      if (Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+        for (const tc of msg.tool_calls) {
+          onEvent('tool_call_start', {
+            id: tc.id,
+            name: tc.name,
+            args: tc.args || {},
+          });
+        }
+      }
+    } else if (msgType === 'tool' || msgType === 'ToolMessage') {
+      onEvent('tool_result', {
+        tool_call_id: msg.tool_call_id,
+        name: msg.name,
+        content: msg.content,
+      });
+    }
+  } else if (eventType === 'values') {
+    onEvent('values', { messages: data?.messages || [] });
+  } else if (eventType === 'end') {
+    // Stream end is handled after the read loop completes
+  } else if (eventType === 'error') {
+    onEvent('error', { message: typeof data === 'string' ? data : JSON.stringify(data) });
+  }
+}
+
 module.exports = {
   start,
   stop,
@@ -588,5 +761,6 @@ module.exports = {
   getPort,
   createThread,
   sendMessage,
+  streamMessage,
   BACKEND_URL,
 };
