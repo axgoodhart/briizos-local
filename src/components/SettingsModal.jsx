@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getAllSettings, setSetting, addLog } from '../lib/firestore';
-import { useChatSettings } from '../context/ChatSettingsContext';
 import logger from '../lib/logger';
 
 function SettingsModal({ isOpen, onClose }) {
   const { user, logout, isAuthenticated } = useAuth();
-  const chatSettings = useChatSettings();
   const [activeTab, setActiveTab] = useState('account');
-  const [aiSubTab, setAiSubTab] = useState('openai');
-  const [showKeys, setShowKeys] = useState({ openai: false, gemini: false, claude: false, openclaw: false });
   const [settings, setSettings] = useState({});
-  const [gatewayStatus, setGatewayStatus] = useState(null); // null | 'checking' | 'online' | 'offline' | 'launching'
   const [isLoading, setIsLoading] = useState(true);
+  const [modelList, setModelList] = useState([]);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false });
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showGithubToken, setShowGithubToken] = useState(false);
@@ -24,6 +22,10 @@ function SettingsModal({ isOpen, onClose }) {
   const [memoryData, setMemoryData] = useState(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [deletingFact, setDeletingFact] = useState(null);
+  const [skillsData, setSkillsData] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState(null);
+  const [backendLoading, setBackendLoading] = useState(false);
 
   const loadMemoryData = async () => {
     setMemoryLoading(true);
@@ -57,6 +59,68 @@ function SettingsModal({ isOpen, onClose }) {
     }
   };
 
+  const loadSkillsData = async () => {
+    setSkillsLoading(true);
+    try {
+      const result = await window.api.skillsList();
+      setSkillsData(result || []);
+    } catch (error) {
+      logger.error('config', 'Failed to load skills', error?.message);
+    } finally {
+      setSkillsLoading(false);
+    }
+  };
+
+  const handleSkillToggle = async (skillName, currentEnabled) => {
+    // Optimistic update
+    setSkillsData(prev => prev.map(s =>
+      s.name === skillName ? { ...s, enabled: !currentEnabled } : s
+    ));
+    try {
+      const result = await window.api.skillsToggle(skillName, !currentEnabled);
+      if (!result?.success) {
+        // Revert on failure
+        setSkillsData(prev => prev.map(s =>
+          s.name === skillName ? { ...s, enabled: currentEnabled } : s
+        ));
+      }
+    } catch (error) {
+      logger.error('config', 'Failed to toggle skill', error?.message);
+      // Revert on error
+      setSkillsData(prev => prev.map(s =>
+        s.name === skillName ? { ...s, enabled: currentEnabled } : s
+      ));
+    }
+  };
+
+  const loadBackendStatus = async () => {
+    setBackendLoading(true);
+    try {
+      const result = await window.api.langgraphGetStatus();
+      setBackendStatus(result);
+    } catch (error) {
+      logger.error('config', 'Failed to load backend status', error?.message);
+    } finally {
+      setBackendLoading(false);
+    }
+  };
+
+  const loadModels = async () => {
+    setModelLoading(true);
+    try {
+      const [models, keys] = await Promise.all([
+        window.api.getModels(),
+        window.api.checkApiKeys(),
+      ]);
+      setModelList(models || []);
+      setApiKeyStatus(keys || {});
+    } catch (error) {
+      logger.error('config', 'Failed to load models', error?.message);
+    } finally {
+      setModelLoading(false);
+    }
+  };
+
   // Load settings on mount
   useEffect(() => {
     if (isOpen) {
@@ -70,6 +134,27 @@ function SettingsModal({ isOpen, onClose }) {
   useEffect(() => {
     if (activeTab === 'memory' && memoryData === null && isOpen) {
       loadMemoryData();
+    }
+  }, [activeTab]);
+
+  // Load models when switching to model tab
+  useEffect(() => {
+    if (activeTab === 'model' && modelList.length === 0 && isOpen) {
+      loadModels();
+    }
+  }, [activeTab]);
+
+  // Load skills when switching to skills tab
+  useEffect(() => {
+    if (activeTab === 'skills' && skillsData.length === 0 && isOpen) {
+      loadSkillsData();
+    }
+  }, [activeTab]);
+
+  // Load backend status when switching to backend tab
+  useEffect(() => {
+    if (activeTab === 'backend' && backendStatus === null && isOpen) {
+      loadBackendStatus();
     }
   }, [activeTab]);
 
@@ -208,8 +293,10 @@ function SettingsModal({ isOpen, onClose }) {
     { id: 'api', label: 'API Config' },
     { id: 'integrations', label: 'Integrations' },
     { id: 'memory', label: 'Memory' },
+    { id: 'skills', label: 'Skills' },
     { id: 'model', label: 'AI Model' },
-    { id: 'studio', label: 'Studio URLs' }
+    { id: 'studio', label: 'Studio URLs' },
+    { id: 'backend', label: 'Backend' }
   ];
 
   const studioTools = [
@@ -426,169 +513,109 @@ function SettingsModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* AI Model Tab - Full Provider Settings */}
-              {activeTab === 'model' && chatSettings && (
+              {/* AI Model Tab - LangGraph Model List */}
+              {activeTab === 'model' && (
                 <div className="settings-section">
-                  {/* Provider tabs */}
-                  <div className="settings-provider-tabs">
-                    {['openai', 'gemini', 'claude', 'openclaw'].map(p => (
-                      <button
-                        key={p}
-                        className={`provider-tab ${chatSettings.provider === p ? 'active' : ''}`}
-                        onClick={() => {
-                          chatSettings.setProvider(p);
-                          setAiSubTab(p);
-                          if (p === 'openclaw' && window.api?.openclawGatewayStatus) {
-                            setGatewayStatus('checking');
-                            window.api.openclawGatewayStatus().then(r => setGatewayStatus(r.online ? 'online' : 'offline'));
-                          }
-                        }}
-                        type="button"
-                      >
-                        {p === 'openai' ? 'OpenAI' : p === 'gemini' ? 'Gemini' : p === 'claude' ? 'Claude' : 'OpenClaw'}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Model dropdown */}
-                  <div className="settings-field">
-                    <label className="settings-label">Model</label>
-                    <select
-                      className="settings-input settings-select"
-                      value={chatSettings.currentSettings.model}
-                      onChange={(e) => chatSettings.updateModel(e.target.value)}
-                    >
-                      {chatSettings.getAllModels(chatSettings.provider).map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* OpenClaw Gateway Controls */}
-                  {chatSettings.provider === 'openclaw' && (
-                    <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <button
-                        className="provider-tab"
-                        style={{
-                          padding: '6px 14px',
-                          fontSize: 12,
-                          background: gatewayStatus === 'launching' ? '#555' : '#1a73e8',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 6,
-                          cursor: gatewayStatus === 'launching' ? 'wait' : 'pointer',
-                        }}
-                        disabled={gatewayStatus === 'launching'}
-                        onClick={async () => {
-                          if (!window.api?.openclawLaunchGateway) return;
-                          setGatewayStatus('launching');
-                          try {
-                            await window.api.openclawLaunchGateway();
-                            // Wait a moment for the gateway to become reachable
-                            await new Promise(r => setTimeout(r, 3000));
-                            const s = await window.api.openclawGatewayStatus();
-                            setGatewayStatus(s.online ? 'online' : 'offline');
-                          } catch {
-                            setGatewayStatus('offline');
-                          }
-                        }}
-                        type="button"
-                      >
-                        {gatewayStatus === 'launching' ? 'Launching...' : 'Launch Gateway'}
-                      </button>
-                      <span style={{
-                        fontSize: 12,
-                        color: gatewayStatus === 'online' ? '#4caf50' : gatewayStatus === 'checking' || gatewayStatus === 'launching' ? '#ff9800' : '#f44336',
-                      }}>
-                        {gatewayStatus === 'online' ? 'Gateway Online' : gatewayStatus === 'checking' ? 'Checking...' : gatewayStatus === 'launching' ? 'Starting...' : gatewayStatus === 'offline' ? 'Gateway Offline' : ''}
-                      </span>
+                  <h3 className="settings-section-title">LangGraph Models</h3>
+                  {modelLoading ? (
+                    <div className="settings-loading">Loading models...</div>
+                  ) : modelList.length === 0 ? (
+                    <div className="settings-field">
+                      <p className="settings-hint">No models configured. Check deerflow/config.yaml.</p>
                     </div>
+                  ) : (
+                    <>
+                      {/* Group models by provider */}
+                      {['anthropic', 'openai', 'google'].map(provider => {
+                        const providerModels = modelList.filter(m => m.provider === provider);
+                        if (providerModels.length === 0) return null;
+                        const hasKey = apiKeyStatus[provider];
+                        const providerLabel = provider === 'anthropic' ? 'Anthropic' : provider === 'openai' ? 'OpenAI' : 'Google';
+                        return (
+                          <div key={provider} style={{ marginBottom: 16 }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              marginBottom: 8,
+                            }}>
+                              <span style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: hasKey ? 'var(--palette-accent-cyan, #00c8c8)' : '#ff6b6b',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                              }}>
+                                {providerLabel}
+                              </span>
+                              {!hasKey && (
+                                <span style={{
+                                  fontSize: 11,
+                                  color: '#ff6b6b',
+                                  fontWeight: 500,
+                                }}>(no API key)</span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {providerModels.map(model => (
+                                <div
+                                  key={model.name}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 12px',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    borderRadius: 6,
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    opacity: hasKey ? 1 : 0.5,
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <span style={{
+                                      fontSize: 13,
+                                      fontWeight: 500,
+                                      color: 'var(--palette-text-soft, #ccc)',
+                                    }}>{model.display_name}</span>
+                                    <span style={{
+                                      fontSize: 11,
+                                      color: 'var(--palette-text-muted, #888)',
+                                    }}>{model.model}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    {model.max_tokens && (
+                                      <span style={{
+                                        fontSize: 10,
+                                        color: 'var(--palette-text-muted, #888)',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        padding: '2px 6px',
+                                        borderRadius: 4,
+                                      }}>{(model.max_tokens / 1000).toFixed(0)}k tokens</span>
+                                    )}
+                                    {model.supports_thinking && (
+                                      <span style={{
+                                        fontSize: 10,
+                                        color: 'var(--palette-accent-cyan, #00c8c8)',
+                                        background: 'rgba(0, 200, 200, 0.1)',
+                                        padding: '2px 6px',
+                                        borderRadius: 4,
+                                      }}>thinking</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
-
-                  {/* Parameter sliders */}
-                  <div className="settings-field">
-                    <label className="settings-label">
-                      Temperature: {chatSettings.currentSettings.params.temperature}
-                    </label>
-                    <input
-                      type="range"
-                      className="settings-slider"
-                      min="0" max="2" step="0.1"
-                      value={chatSettings.currentSettings.params.temperature}
-                      onChange={(e) => chatSettings.updateParams({ temperature: parseFloat(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="settings-field">
-                    <label className="settings-label">
-                      Top P: {chatSettings.currentSettings.params.top_p}
-                    </label>
-                    <input
-                      type="range"
-                      className="settings-slider"
-                      min="0" max="1" step="0.05"
-                      value={chatSettings.currentSettings.params.top_p}
-                      onChange={(e) => chatSettings.updateParams({ top_p: parseFloat(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="settings-field">
-                    <label className="settings-label">
-                      Max Tokens: {chatSettings.currentSettings.params.max_tokens}
-                    </label>
-                    <input
-                      type="range"
-                      className="settings-slider"
-                      min="256" max="40000" step="256"
-                      value={chatSettings.currentSettings.params.max_tokens}
-                      onChange={(e) => chatSettings.updateParams({ max_tokens: parseInt(e.target.value) })}
-                    />
-                  </div>
-
-                  {/* Custom system prompt */}
-                  <div className="settings-field">
-                    <label className="settings-label">Custom System Prompt (optional)</label>
-                    <textarea
-                      className="settings-input settings-textarea"
-                      value={chatSettings.currentSettings.prompt || ''}
-                      onChange={(e) => chatSettings.updatePrompt(e.target.value)}
-                      placeholder="Leave empty to use the default tool-enabled prompt..."
-                      rows={3}
-                    />
-                  </div>
 
                   <div className="settings-divider" />
 
-                  {/* API Keys */}
-                  <h3 className="settings-section-title">API Keys</h3>
-                  {['openai', 'gemini', 'claude', 'openclaw'].map(p => (
-                    <div className="settings-field" key={`key-${p}`}>
-                      <label className="settings-label">
-                        {p === 'openai' ? 'OpenAI' : p === 'gemini' ? 'Gemini' : p === 'claude' ? 'Anthropic' : 'OpenClaw Gateway Token'} {p !== 'openclaw' ? 'API Key' : ''}
-                      </label>
-                      <div className="settings-input-group">
-                        <input
-                          type={showKeys[p] ? 'text' : 'password'}
-                          className="settings-input"
-                          value={settings[`${p}_api_key`] || ''}
-                          onChange={(e) => {
-                            handleSettingChange(`${p}_api_key`, e.target.value);
-                            if (window.api?.setAIKey) {
-                              window.api.setAIKey(p, e.target.value);
-                            }
-                          }}
-                          placeholder={p === 'openai' ? 'sk-...' : p === 'gemini' ? 'AIza...' : p === 'claude' ? 'sk-ant-...' : 'gateway-token...'}
-                        />
-                        <button
-                          className="settings-toggle-btn"
-                          onClick={() => setShowKeys(prev => ({ ...prev, [p]: !prev[p] }))}
-                          type="button"
-                        >
-                          {showKeys[p] ? '◉' : '○'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+                    Model selection is available in the chat toolbar. Edit deerflow/config.yaml to add or modify models.
+                  </p>
                 </div>
               )}
 
@@ -610,6 +637,203 @@ function SettingsModal({ isOpen, onClose }) {
                       />
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Skills Tab */}
+              {activeTab === 'skills' && (
+                <div className="settings-section">
+                  {skillsLoading ? (
+                    <div className="settings-loading">Loading skills...</div>
+                  ) : skillsData.length === 0 ? (
+                    <div className="memory-empty">
+                      No skills found. Check deerflow/extensions_config.json.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Refresh button */}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                        <button
+                          type="button"
+                          onClick={loadSkillsData}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: 11,
+                            background: 'rgba(0, 200, 200, 0.1)',
+                            border: '1px solid rgba(0, 200, 200, 0.25)',
+                            borderRadius: 6,
+                            color: 'var(--palette-accent-cyan)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          Refresh
+                        </button>
+                      </div>
+
+                      {/* Enabled skills */}
+                      {(() => {
+                        const enabled = skillsData.filter(s => s.enabled);
+                        const disabled = skillsData.filter(s => !s.enabled);
+                        const formatName = (name) =>
+                          name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+                        return (
+                          <>
+                            {enabled.length > 0 && (
+                              <>
+                                <h3 className="settings-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  Enabled
+                                  <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 400,
+                                    color: 'var(--palette-text-muted)',
+                                    textTransform: 'none',
+                                    letterSpacing: 0,
+                                  }}>({enabled.length})</span>
+                                </h3>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  {enabled.map(skill => (
+                                    <div key={skill.name} className="skills-row">
+                                      <span className="skills-name">{formatName(skill.name)}</span>
+                                      <button
+                                        type="button"
+                                        className={`skills-toggle ${skill.enabled ? 'active' : ''}`}
+                                        onClick={() => handleSkillToggle(skill.name, skill.enabled)}
+                                        title={skill.enabled ? 'Disable skill' : 'Enable skill'}
+                                      >
+                                        <span className="skills-toggle-dot" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+
+                            {enabled.length > 0 && disabled.length > 0 && (
+                              <div className="settings-divider" />
+                            )}
+
+                            {disabled.length > 0 && (
+                              <>
+                                <h3 className="settings-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  Disabled
+                                  <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 400,
+                                    color: 'var(--palette-text-muted)',
+                                    textTransform: 'none',
+                                    letterSpacing: 0,
+                                  }}>({disabled.length})</span>
+                                </h3>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  {disabled.map(skill => (
+                                    <div key={skill.name} className="skills-row">
+                                      <span className="skills-name">{formatName(skill.name)}</span>
+                                      <button
+                                        type="button"
+                                        className={`skills-toggle ${skill.enabled ? 'active' : ''}`}
+                                        onClick={() => handleSkillToggle(skill.name, skill.enabled)}
+                                        title={skill.enabled ? 'Disable skill' : 'Enable skill'}
+                                      >
+                                        <span className="skills-toggle-dot" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Backend Tab */}
+              {activeTab === 'backend' && (
+                <div className="settings-section">
+                  {backendLoading ? (
+                    <div className="settings-loading">Loading backend status...</div>
+                  ) : !backendStatus ? (
+                    <div className="memory-empty">
+                      Unable to retrieve backend status.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Refresh button */}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                        <button
+                          type="button"
+                          onClick={loadBackendStatus}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: 11,
+                            background: 'rgba(0, 200, 200, 0.1)',
+                            border: '1px solid rgba(0, 200, 200, 0.25)',
+                            borderRadius: 6,
+                            color: 'var(--palette-accent-cyan)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          Refresh
+                        </button>
+                      </div>
+
+                      <h3 className="settings-section-title">LangGraph Process</h3>
+
+                      <div className="backend-status-row">
+                        <span className="backend-status-label">Status</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            className="backend-status-dot"
+                            style={{
+                              background: backendStatus.status === 'running'
+                                ? '#4caf50'
+                                : backendStatus.status === 'starting'
+                                  ? '#ff9800'
+                                  : '#f44336',
+                            }}
+                          />
+                          <span className="backend-status-value" style={{
+                            color: backendStatus.status === 'running'
+                              ? '#81c784'
+                              : backendStatus.status === 'starting'
+                                ? '#ffb74d'
+                                : '#ff8a80',
+                          }}>
+                            {backendStatus.status || 'unknown'}
+                          </span>
+                        </span>
+                      </div>
+
+                      {backendStatus.port && (
+                        <div className="backend-status-row">
+                          <span className="backend-status-label">Port</span>
+                          <span className="backend-status-value">{backendStatus.port}</span>
+                        </div>
+                      )}
+
+                      {typeof backendStatus.restartCount === 'number' && (
+                        <div className="backend-status-row">
+                          <span className="backend-status-label">Restart Count</span>
+                          <span className="backend-status-value">{backendStatus.restartCount}</span>
+                        </div>
+                      )}
+
+                      {backendStatus.error && (
+                        <>
+                          <div className="settings-divider" />
+                          <div className="backend-status-row">
+                            <span className="backend-status-label" style={{ color: '#ff8a80' }}>Error</span>
+                            <span className="backend-status-value" style={{ color: '#ff8a80' }}>{backendStatus.error}</span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
