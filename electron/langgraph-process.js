@@ -281,6 +281,11 @@ async function start() {
   state.status = 'starting';
 
   try {
+    // Environment variables inherited by the LangGraph child process:
+    //   ...process.env spreads the full parent environment, which includes:
+    //   - ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY (model providers)
+    //   - TAVILY_API_KEY (web_search tool -- optional, tool errors gracefully if missing)
+    //   - DEER_FLOW_CONFIG_PATH (set explicitly below to point at briizOS config)
     const child = spawn(uvPath, args, {
       cwd: BACKEND_DIR,
       env: {
