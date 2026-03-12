@@ -1,128 +1,211 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useChatSettings } from '../../context/ChatSettingsContext';
 import { getAllSettings, setSetting, addLog } from '../../lib/firestore';
 import logger from '../../lib/logger';
 import './DashboardOverlay.css';
+
+const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
+function applyUiTheme(theme) {
+  if (typeof document === 'undefined') return;
+
+  const root = document.documentElement;
+
+  if (!theme || theme === 'default') {
+    root.removeAttribute('data-theme');
+    return;
+  }
+
+  root.setAttribute('data-theme', theme);
+}
 
 /* ───────────────────────────
    Sub-components (kept small)
    ─────────────────────────── */
 
-function ModelTab({ chatSettings, settings, showKeys, setShowKeys, handleSettingChange }) {
-  if (!chatSettings) return null;
+function ModelTab({ isOpen }) {
+  const [modelList, setModelList] = useState([]);
+  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false });
+  const [loading, setLoading] = useState(true);
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('briizos-selected-model') || null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    loadModels();
+  }, [isOpen]);
+
+  const loadModels = async () => {
+    setLoading(true);
+    try {
+      const [models, keys] = await Promise.all([
+        window.api.getModels(),
+        window.api.checkApiKeys(),
+      ]);
+      setModelList(models || []);
+      setApiKeyStatus(keys || {});
+    } catch (err) {
+      logger.error('config', 'Failed to load models', err?.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Group models by provider
+  const modelsByProvider = modelList.reduce((acc, model) => {
+    const provider = model.provider || 'other';
+    if (!acc[provider]) acc[provider] = [];
+    acc[provider].push(model);
+    return acc;
+  }, {});
+
+  const providerCount = Object.keys(modelsByProvider).length;
+  const selectedModelObj = modelList.find(m => m.name === selectedModel);
+
+  if (loading) {
+    return <div className="settings-loading">Loading model configuration...</div>;
+  }
 
   return (
     <div className="settings-section">
-      {/* Provider tabs */}
-      <div className="settings-provider-tabs">
-        {['openai', 'gemini', 'claude'].map(p => (
-          <button
-            key={p}
-            className={`provider-tab ${chatSettings.provider === p ? 'active' : ''}`}
-            onClick={() => chatSettings.setProvider(p)}
-            type="button"
-          >
-            {p === 'openai' ? 'OpenAI' : p === 'gemini' ? 'Gemini' : 'Claude'}
-          </button>
-        ))}
+      <h3 className="settings-section-title">Model Configuration</h3>
+
+      {/* Summary */}
+      <div className="settings-field">
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '10px 14px',
+          background: 'rgba(0, 200, 200, 0.06)',
+          borderRadius: 8,
+          border: '1px solid rgba(0, 200, 200, 0.15)',
+        }}>
+          <span style={{
+            fontSize: 13,
+            color: 'var(--palette-accent-cyan, #00c8c8)',
+            fontWeight: 600,
+          }}>{providerCount} providers, {modelList.length} models configured</span>
+        </div>
       </div>
 
-      {/* Model dropdown */}
-      <div className="settings-field">
-        <label className="settings-label">Model</label>
-        <select
-          className="settings-input settings-select"
-          value={chatSettings.currentSettings.model}
-          onChange={(e) => chatSettings.updateModel(e.target.value)}
-        >
-          {chatSettings.getAllModels(chatSettings.provider).map(m => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Parameter sliders */}
-      <div className="settings-field">
-        <label className="settings-label">
-          Temperature: {chatSettings.currentSettings.params.temperature}
-        </label>
-        <input
-          type="range" className="settings-slider"
-          min="0" max="2" step="0.1"
-          value={chatSettings.currentSettings.params.temperature}
-          onChange={(e) => chatSettings.updateParams({ temperature: parseFloat(e.target.value) })}
-        />
-      </div>
-
-      <div className="settings-field">
-        <label className="settings-label">
-          Top P: {chatSettings.currentSettings.params.top_p}
-        </label>
-        <input
-          type="range" className="settings-slider"
-          min="0" max="1" step="0.05"
-          value={chatSettings.currentSettings.params.top_p}
-          onChange={(e) => chatSettings.updateParams({ top_p: parseFloat(e.target.value) })}
-        />
-      </div>
-
-      <div className="settings-field">
-        <label className="settings-label">
-          Max Tokens: {chatSettings.currentSettings.params.max_tokens}
-        </label>
-        <input
-          type="range" className="settings-slider"
-          min="256" max="40000" step="256"
-          value={chatSettings.currentSettings.params.max_tokens}
-          onChange={(e) => chatSettings.updateParams({ max_tokens: parseInt(e.target.value) })}
-        />
-      </div>
-
-      {/* Custom system prompt */}
-      <div className="settings-field">
-        <label className="settings-label">Custom System Prompt (optional)</label>
-        <textarea
-          className="settings-input settings-textarea"
-          value={chatSettings.currentSettings.prompt || ''}
-          onChange={(e) => chatSettings.updatePrompt(e.target.value)}
-          placeholder="Leave empty to use the default tool-enabled prompt..."
-          rows={3}
-        />
-      </div>
+      {/* Currently selected model */}
+      {selectedModelObj && (
+        <div className="settings-field">
+          <label className="settings-label">Currently Selected</label>
+          <div style={{
+            padding: '8px 12px',
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: 6,
+            border: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <span style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--palette-text-soft, #ccc)',
+            }}>{selectedModelObj.display_name}</span>
+            <span style={{
+              fontSize: 11,
+              color: 'var(--palette-text-muted, #888)',
+              marginLeft: 8,
+            }}>({selectedModelObj.provider})</span>
+          </div>
+        </div>
+      )}
 
       <div className="settings-divider" />
 
-      {/* API Keys */}
-      <h3 className="settings-section-title">API Keys</h3>
-      {['openai', 'gemini', 'claude'].map(p => (
-        <div className="settings-field" key={`key-${p}`}>
-          <label className="settings-label">
-            {p === 'openai' ? 'OpenAI' : p === 'gemini' ? 'Gemini' : 'Anthropic'} API Key
-          </label>
-          <div className="settings-input-group">
-            <input
-              type={showKeys[p] ? 'text' : 'password'}
-              className="settings-input"
-              value={settings[`${p}_api_key`] || ''}
-              onChange={(e) => {
-                handleSettingChange(`${p}_api_key`, e.target.value);
-                if (window.api?.setAIKey) {
-                  window.api.setAIKey(p, e.target.value);
-                }
-              }}
-              placeholder={p === 'openai' ? 'sk-...' : p === 'gemini' ? 'AIza...' : 'sk-ant-...'}
-            />
-            <button
-              className="settings-toggle-btn"
-              onClick={() => setShowKeys(prev => ({ ...prev, [p]: !prev[p] }))}
-              type="button"
-            >
-              {showKeys[p] ? '\u25C9' : '\u25CB'}
-            </button>
+      {/* Models grouped by provider */}
+      {['anthropic', 'openai', 'google'].map(provider => {
+        const models = modelsByProvider[provider];
+        if (!models || models.length === 0) return null;
+        const hasKey = apiKeyStatus[provider];
+        const providerLabel = provider === 'anthropic' ? 'Anthropic' : provider === 'openai' ? 'OpenAI' : 'Google';
+        return (
+          <div key={provider} style={{ marginBottom: 16 }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 8,
+            }}>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: hasKey ? 'var(--palette-accent-cyan, #00c8c8)' : '#ff6b6b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}>
+                {providerLabel}
+              </span>
+              {!hasKey && (
+                <span style={{
+                  fontSize: 11,
+                  color: '#ff6b6b',
+                  fontWeight: 500,
+                }}>(no API key)</span>
+              )}
+              <span style={{
+                fontSize: 11,
+                color: 'var(--palette-text-muted, #888)',
+              }}>({models.length} models)</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {models.map(model => (
+                <div
+                  key={model.name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: 6,
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    opacity: hasKey ? 1 : 0.5,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: 'var(--palette-text-soft, #ccc)',
+                    }}>{model.display_name}</span>
+                    <span style={{
+                      fontSize: 11,
+                      color: 'var(--palette-text-muted, #888)',
+                    }}>{model.model}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {model.max_tokens && (
+                      <span style={{
+                        fontSize: 10,
+                        color: 'var(--palette-text-muted, #888)',
+                        background: 'rgba(255,255,255,0.05)',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                      }}>{(model.max_tokens / 1000).toFixed(0)}k tokens</span>
+                    )}
+                    {model.supports_thinking && (
+                      <span style={{
+                        fontSize: 10,
+                        color: 'var(--palette-accent-cyan, #00c8c8)',
+                        background: 'rgba(0, 200, 200, 0.1)',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                      }}>thinking</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
+
+      <div className="settings-divider" />
+
+      <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+        Model selection is available in the chat toolbar. Edit deerflow/config.yaml to add or modify models.
+      </p>
     </div>
   );
 }
@@ -809,16 +892,125 @@ function HealthTab({ isOpen }) {
   );
 }
 
+function AppearanceTab({ settings, handleThemeChange }) {
+  const currentTheme = settings.ui_theme || 'default';
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Theme</h3>
+      <p className="settings-section-desc">
+        Pick the visual style for the desktop UI.
+      </p>
+
+      <div className="settings-radio-group">
+        <label className="settings-radio">
+          <input
+            type="radio"
+            name="ui-theme"
+            value="default"
+            checked={currentTheme === 'default'}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          />
+          <span className="radio-label">Default Neon</span>
+          <span className="radio-desc">Current dark neon interface.</span>
+        </label>
+
+        <label className="settings-radio">
+          <input
+            type="radio"
+            name="ui-theme"
+            value="mint-icecube"
+            checked={currentTheme === 'mint-icecube'}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          />
+          <span className="radio-label">Mint Icecube</span>
+          <span className="radio-desc">Frosted mint glass palette with cooler contrast.</span>
+        </label>
+
+              <label className="settings-radio">
+          <input
+            type="radio"
+            name="ui-theme"
+            value="great-wave"
+            checked={currentTheme === 'great-wave'}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          />
+          <span className="radio-label">Great Wave</span>
+          <span className="radio-desc">Kanagawan pallete with muted opacity.</span>
+        </label>
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="sherbert-sakura"
+    checked={currentTheme === 'sherbert-sakura'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Sherbert Sakura</span>
+  <span className="radio-desc">A pastel-neon cherry blossom theme.</span>
+</label>
+
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="burnt-chestnut"
+    checked={currentTheme === 'burnt-chestnut'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Burnt Chestnut</span>
+  <span className="radio-desc">A medium springtime theme.</span>
+</label>
+
+
+
+
+ 
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="verdigris"
+    checked={currentTheme === 'verdigris'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Verdigris</span>
+  <span className="radio-desc">Tarnished bronze with a hint of gold and green.</span>
+</label>
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="space-glass"
+    checked={currentTheme === 'space-glass'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Space Glass</span>
+  <span className="radio-desc">A dark space theme with twilight hue.</span>
+</label>
+
+
+
+        
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────
    Main DashboardOverlay
    ───────────────────── */
 
 function DashboardOverlay({ isOpen, onClose }) {
   const { user, logout, isAuthenticated } = useAuth();
-  const chatSettings = useChatSettings();
 
   const [activeTab, setActiveTab] = useState('model');
-  const [showKeys, setShowKeys] = useState({ openai: false, gemini: false, claude: false });
   const [settings, setSettings] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -841,7 +1033,10 @@ function DashboardOverlay({ isOpen, onClose }) {
     setIsLoading(true);
     try {
       const allSettings = await getAllSettings();
-      setSettings(allSettings);
+      const savedTheme = allSettings.ui_theme || localStorage.getItem(UI_THEME_STORAGE_KEY) || 'default';
+      setSettings({ ...allSettings, ui_theme: savedTheme });
+      localStorage.setItem(UI_THEME_STORAGE_KEY, savedTheme);
+      applyUiTheme(savedTheme);
       if (allSettings.github_token && window.api?.githubSetToken) {
         window.api.githubSetToken(allSettings.github_token);
       }
@@ -864,6 +1059,12 @@ function DashboardOverlay({ isOpen, onClose }) {
   const handleSettingChange = useCallback((key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  const handleThemeChange = useCallback((theme) => {
+    handleSettingChange('ui_theme', theme);
+    localStorage.setItem(UI_THEME_STORAGE_KEY, theme);
+    applyUiTheme(theme);
+  }, [handleSettingChange]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -958,6 +1159,7 @@ function DashboardOverlay({ isOpen, onClose }) {
 
   const tabs = [
     { id: 'model', label: 'Model' },
+    { id: 'appearance', label: 'Appearance' },
     { id: 'integrations', label: 'Integrations' },
     { id: 'memory', label: 'Memory' },
     { id: 'permissions', label: 'Permissions' },
@@ -998,12 +1200,13 @@ function DashboardOverlay({ isOpen, onClose }) {
           ) : (
             <>
               {activeTab === 'model' && (
-                <ModelTab
-                  chatSettings={chatSettings}
+                <ModelTab isOpen={isOpen} />
+              )}
+
+              {activeTab === 'appearance' && (
+                <AppearanceTab
                   settings={settings}
-                  showKeys={showKeys}
-                  setShowKeys={setShowKeys}
-                  handleSettingChange={handleSettingChange}
+                  handleThemeChange={handleThemeChange}
                 />
               )}
 
