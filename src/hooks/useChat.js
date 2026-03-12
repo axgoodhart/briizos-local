@@ -36,12 +36,21 @@ export function useChat() {
   const [toolCalls, setToolCalls] = useState([]);
   const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
   const [modality, setModality] = useState('chat');
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(() => {
+    try {
+      const stored = localStorage.getItem('briizos-suggestions-enabled');
+      return stored !== null ? JSON.parse(stored) : true;
+    } catch { return true; }
+  });
 
   const streamContentRef = useRef('');
   const streamIdRef = useRef(null);
   const toolCallsRef = useRef([]);
   const threadIdRef = useRef(null);
   const isRemoteResponseRef = useRef(false);
+  const messagesRef = useRef([]);
+  const suggestionsEnabledRef = useRef(suggestionsEnabled);
 
   // Contexts
   const { currentSettings } = useChatSettings();
@@ -52,6 +61,15 @@ export function useChat() {
   const currentSettingsRef = useRef(currentSettings);
   useEffect(() => { appContextRef.current = appContext; }, [appContext]);
   useEffect(() => { currentSettingsRef.current = currentSettings; }, [currentSettings]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { suggestionsEnabledRef.current = suggestionsEnabled; }, [suggestionsEnabled]);
+
+  // Persist suggestionsEnabled to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('briizos-suggestions-enabled', JSON.stringify(suggestionsEnabled));
+    } catch {}
+  }, [suggestionsEnabled]);
 
   // Re-check uid each render so subscription restarts when auth becomes ready
   const uid = getCurrentUid();
@@ -221,6 +239,21 @@ export function useChat() {
       isRemoteResponseRef.current = false;
     }
 
+    // Fetch follow-up suggestions (non-blocking, fire-and-forget)
+    if (suggestionsEnabledRef.current && hasApi && api.langgraphGetSuggestions) {
+      const lastMessages = [...(messagesRef.current || [])].slice(-4).map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+      // Include the just-streamed response
+      if (fullContent) {
+        lastMessages.push({ role: 'assistant', content: fullContent.slice(0, 2000) });
+      }
+      api.langgraphGetSuggestions(lastMessages, 3)
+        .then(results => setSuggestions(results || []))
+        .catch(() => setSuggestions([]));
+    }
+
     // Reset streaming state
     streamContentRef.current = '';
     streamIdRef.current = null;
@@ -313,6 +346,9 @@ export function useChat() {
   const sendMessage = useCallback(async (message) => {
     if (!message.trim() || isLoading || !hasApi) return null;
 
+    // Clear previous suggestions
+    setSuggestions([]);
+
     // Save user message to Firestore
     await addChatMessage('user', message);
     setIsLoading(true);
@@ -383,6 +419,8 @@ export function useChat() {
       threadIdRef.current = null;
       // Reset modality to default
       setModality('chat');
+      // Clear suggestions
+      setSuggestions([]);
     } catch (error) {
       logger.error('chat', 'Failed to clear history', error?.message);
     }
@@ -483,6 +521,9 @@ export function useChat() {
     pendingToolConfirmation,
     modality,
     setModality,
+    suggestions,
+    suggestionsEnabled,
+    setSuggestionsEnabled,
     sendMessage,
     clearHistory,
     loadHistory: () => {},

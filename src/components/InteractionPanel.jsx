@@ -134,6 +134,9 @@ function InteractionPanel() {
     pendingToolConfirmation,
     modality,
     setModality,
+    suggestions,
+    suggestionsEnabled,
+    setSuggestionsEnabled,
     sendMessage,
     clearHistory,
     refreshFilesInContext,
@@ -310,6 +313,14 @@ function InteractionPanel() {
           <span className="provider-indicator" title={`${providerLabel} / ${currentSettings.model}`}>
             {providerLabel}
           </span>
+          <button
+            className={`panel-header-btn ${suggestionsEnabled ? '' : 'disabled-indicator'}`}
+            onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
+            title={suggestionsEnabled ? 'Suggestions on' : 'Suggestions off'}
+            style={{ fontSize: '10px', opacity: suggestionsEnabled ? 0.8 : 0.4 }}
+          >
+            ?
+          </button>
           {messages.length > 0 && (
             <>
               <button
@@ -546,6 +557,21 @@ function InteractionPanel() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Suggested follow-ups */}
+            {suggestions.length > 0 && !isLoading && (
+              <div className="suggestion-chips">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    className="suggestion-chip"
+                    onClick={() => setInputValue(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             )}
 
