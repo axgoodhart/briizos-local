@@ -4,32 +4,6 @@ contextBridge.exposeInMainWorld('api', {
   // Platform info
   platform: process.platform,
 
-  // AI Streaming API
-  streamChat: (streamId, messages, provider, model, params) =>
-    ipcRenderer.invoke('ai-stream-chat', streamId, messages, provider, model, params),
-  onStreamChunk: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('ai-stream-chunk', handler);
-    return () => ipcRenderer.removeListener('ai-stream-chunk', handler);
-  },
-  onStreamDone: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('ai-stream-done', handler);
-    return () => ipcRenderer.removeListener('ai-stream-done', handler);
-  },
-  onStreamError: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('ai-stream-error', handler);
-    return () => ipcRenderer.removeListener('ai-stream-error', handler);
-  },
-  getConfiguredProviders: () => ipcRenderer.invoke('ai-get-providers'),
-  setAIKey: (provider, key) => ipcRenderer.invoke('ai-set-key', provider, key),
-
-  // AI Legacy Chat API (backward compat)
-  chat: (message, selectedFiles, history) => ipcRenderer.invoke('ai-chat', message, selectedFiles, history),
-  breakdownTask: (taskId, taskTitle) => ipcRenderer.invoke('ai-breakdown-task', taskId, taskTitle),
-  isAIConfigured: () => ipcRenderer.invoke('ai-is-configured'),
-
   // File System API
   listDirectory: (dirPath) => ipcRenderer.invoke('fs-list-directory', dirPath),
   getHomeDirs: () => ipcRenderer.invoke('fs-get-home-dirs'),
