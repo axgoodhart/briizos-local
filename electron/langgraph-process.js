@@ -28,11 +28,15 @@ const SHUTDOWN_TIMEOUT_MS = 5000;
 
 const state = {
   process: null,
-  status: 'idle',       // idle | starting | running | stopped | crashed | error | env_missing
+  status: 'idle',       // idle | starting | running | stopped | crashed | error | env_missing | failed
   port: PORT,
   pid: null,
   startedAt: null,
   uvPath: null,
+  healthCheckIntervalId: null,
+  restartCount: 0,
+  lastRestartAt: null,
+  stoppingIntentionally: false,
 };
 
 // Cache for environment detection (only run once per session)
@@ -116,6 +120,123 @@ function detectPython() {
 }
 
 // ---------------------------------------------------------------------------
+// Health check polling (BACK-02)
+// ---------------------------------------------------------------------------
+
+const HEALTH_CHECK_TIMEOUT_MS = 2000;
+const HEALTH_POLL_FAST_MS = 2000;   // polling rate while starting / recovering
+const HEALTH_POLL_SLOW_MS = 10000;  // polling rate while running (steady state)
+
+/**
+ * Send a single HTTP GET to the LangGraph health endpoint.
+ * Returns true if the server responds with HTTP 200, false otherwise.
+ */
+async function checkHealth() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/ok`, { signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Begin polling the health endpoint.
+ * - While status is 'starting': poll every 2 seconds.  On first success transition to 'running'.
+ * - While status is 'running': poll every 10 seconds.  On failure transition to 'crashed' and trigger auto-restart.
+ */
+function startHealthCheckPolling() {
+  stopHealthCheckPolling(); // clear any existing interval
+
+  const spawnTime = Date.now();
+
+  const poll = async () => {
+    const healthy = await checkHealth();
+
+    if (healthy && state.status === 'starting') {
+      // First successful health check — backend is ready
+      const startupTime = Date.now() - spawnTime;
+      state.status = 'running';
+      state.restartCount = 0; // reset on successful start / recovery
+      logger.info('langgraph', 'Backend ready', { port: PORT, pid: state.pid, startupTime });
+
+      // Switch to slow polling now that we are healthy
+      stopHealthCheckPolling();
+      state.healthCheckIntervalId = setInterval(poll, HEALTH_POLL_SLOW_MS);
+    } else if (!healthy && state.status === 'running') {
+      // Health check failed while supposedly running — crash detected
+      logger.warn('langgraph', 'Health check failed while running — treating as crash');
+      state.status = 'crashed';
+      stopHealthCheckPolling();
+      handleCrash();
+    }
+  };
+
+  // Start with fast polling
+  state.healthCheckIntervalId = setInterval(poll, HEALTH_POLL_FAST_MS);
+
+  // Also do an immediate first check
+  poll();
+}
+
+/**
+ * Stop the health-check polling interval.
+ */
+function stopHealthCheckPolling() {
+  if (state.healthCheckIntervalId) {
+    clearInterval(state.healthCheckIntervalId);
+    state.healthCheckIntervalId = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-restart with exponential backoff (BACK-03)
+// ---------------------------------------------------------------------------
+
+const MAX_RESTART_ATTEMPTS = 5;
+
+/**
+ * Handle a backend crash by waiting with exponential backoff and restarting.
+ * Gives up after MAX_RESTART_ATTEMPTS consecutive failures.
+ */
+async function handleCrash() {
+  if (state.stoppingIntentionally) return;
+
+  if (state.restartCount >= MAX_RESTART_ATTEMPTS) {
+    state.status = 'failed';
+    logger.error('langgraph', 'Backend failed to restart after max attempts', {
+      attempts: state.restartCount,
+    });
+    return;
+  }
+
+  const backoffMs = Math.min(1000 * Math.pow(2, state.restartCount), 30000);
+  logger.warn('langgraph', 'Backend crashed, restarting', {
+    attempt: state.restartCount + 1,
+    backoffMs,
+  });
+
+  state.restartCount += 1;
+  state.lastRestartAt = Date.now();
+
+  await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+  // Guard: may have been intentionally stopped during the wait
+  if (state.stoppingIntentionally) return;
+
+  const ok = await start();
+  if (!ok) {
+    // start() itself failed — schedule another attempt
+    handleCrash();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Process spawning (BACK-01)
 // ---------------------------------------------------------------------------
 
@@ -129,6 +250,8 @@ async function start() {
     logger.warn('langgraph', 'Process already running or starting', { status: state.status });
     return false;
   }
+
+  state.stoppingIntentionally = false;
 
   // 1. Detect uv
   const uvPath = detectUv();
@@ -209,15 +332,18 @@ async function start() {
     // Handle process exit
     child.on('exit', (code, signal) => {
       const exitInfo = { code, signal, pid: state.pid };
-      if (code === 0 || signal === 'SIGTERM' || signal === 'SIGKILL') {
+      state.process = null;
+      state.pid = null;
+
+      if (state.stoppingIntentionally || code === 0 || signal === 'SIGTERM' || signal === 'SIGKILL') {
         logger.info('langgraph', 'LangGraph process exited', exitInfo);
         state.status = 'stopped';
       } else {
         logger.error('langgraph', 'LangGraph process crashed', exitInfo);
         state.status = 'crashed';
+        stopHealthCheckPolling();
+        handleCrash();
       }
-      state.process = null;
-      state.pid = null;
     });
 
     // Handle spawn errors
@@ -226,7 +352,11 @@ async function start() {
       state.status = 'error';
       state.process = null;
       state.pid = null;
+      stopHealthCheckPolling();
     });
+
+    // Begin health check polling to detect readiness and crashes
+    startHealthCheckPolling();
 
     return true;
   } catch (err) {
@@ -245,6 +375,9 @@ async function start() {
  * Sends SIGTERM first, then SIGKILL after timeout.
  */
 async function stop() {
+  state.stoppingIntentionally = true;
+  stopHealthCheckPolling();
+
   const child = state.process;
 
   if (!child) {
@@ -328,9 +461,12 @@ async function stop() {
 function getStatus() {
   return {
     status: state.status,
+    ready: state.status === 'running',
     port: state.port,
     pid: state.pid,
     uptime: state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : null,
+    restartCount: state.restartCount,
+    lastRestartAt: state.lastRestartAt,
     uvPath: state.uvPath,
     backendDir: BACKEND_DIR,
   };

@@ -99,6 +99,12 @@ contextBridge.exposeInMainWorld('api', {
   canvasList: () => ipcRenderer.invoke('canvas-list'),
   canvasLoad: (filename) => ipcRenderer.invoke('canvas-load', filename),
 
+  // LangGraph Status API
+  langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
+
   // Health Check API
   healthCheck: () => ipcRenderer.invoke('health-check'),
+
+  // Weather API
+  weatherGetCurrent: (latitude, longitude) => ipcRenderer.invoke('weather-get-current', latitude, longitude),
 });
