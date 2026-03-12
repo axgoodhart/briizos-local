@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import './App.css';
 import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
@@ -15,6 +15,7 @@ import { ChatSettingsProvider } from './context/ChatSettingsContext';
 import { ToolProvider, useTools } from './context/ToolContext';
 import { useAppContext } from './hooks/useAppContext';
 import { useAgentWorkers } from './hooks/useAgentWorkers';
+import { useToolBridge } from './hooks/useToolBridge';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
@@ -22,8 +23,157 @@ import { BriiztormOverlay, ActionDeckColumn, OrganizerModal, CalendarModal, Live
 import { NotesWidget } from './components/notes';
 import logger from './lib/logger';
 
+const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
+
+function applyUiTheme(theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (theme === 'mint-icecube') {
+    root.setAttribute('data-theme', 'mint-icecube');
+    return;
+  }
+  root.removeAttribute('data-theme');
+}
+
 // Debug counter to track renders
 let appRenderCount = 0;
+
+// WMO weather code to glyph
+function wmoGlyph(code) {
+  if (code === 0) return '☀';
+  if (code <= 3) return '⛅';
+  if (code <= 48) return '☁';
+  if (code <= 57) return '🌧';
+  if (code <= 67) return '🌧';
+  if (code <= 77) return '❄';
+  if (code <= 82) return '🌧';
+  if (code <= 86) return '❄';
+  if (code <= 99) return '⛈';
+  return '☁';
+}
+
+const WEATHER_FALLBACK_COORDS_BY_TZ = {
+  'America/New_York': { latitude: 40.7128, longitude: -74.0060 }, // NYC
+  'America/Chicago': { latitude: 41.8781, longitude: -87.6298 }, // Chicago
+  'America/Denver': { latitude: 39.7392, longitude: -104.9903 }, // Denver
+  'America/Los_Angeles': { latitude: 34.0522, longitude: -118.2437 }, // Los Angeles
+  default: { latitude: 40.7128, longitude: -74.0060 }
+};
+
+function getFallbackWeatherCoords() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return WEATHER_FALLBACK_COORDS_BY_TZ[tz] || WEATHER_FALLBACK_COORDS_BY_TZ.default;
+}
+
+async function getWeatherCoords() {
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 10 * 60 * 1000
+        })
+      );
+      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    } catch (error) {
+      logger.warn('ui', 'Geolocation unavailable for weather, using timezone fallback', error?.message);
+    }
+  }
+  return getFallbackWeatherCoords();
+}
+
+function normalizeWeatherPayload(data) {
+  const tempRaw = data?.current?.temperature_2m;
+  const codeRaw = data?.current?.weather_code;
+  if (typeof tempRaw !== 'number' || typeof codeRaw !== 'number') {
+    throw new Error('Weather response missing current temperature/code');
+  }
+  return { temp: Math.round(tempRaw), code: codeRaw };
+}
+
+async function fetchWeatherDirect(lat, lon) {
+  const resp = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,
+    { cache: 'no-store' }
+  );
+  if (!resp.ok) throw new Error(`Weather request failed (${resp.status})`);
+  const data = await resp.json();
+  return normalizeWeatherPayload(data);
+}
+
+async function fetchWeatherForCoords(lat, lon) {
+  if (typeof window !== 'undefined' && typeof window.api?.weatherGetCurrent === 'function') {
+    try {
+      const result = await window.api.weatherGetCurrent(lat, lon);
+      if (!result?.ok) {
+        throw new Error(result?.error || 'Weather IPC request failed');
+      }
+      if (typeof result.temperature !== 'number' || typeof result.weatherCode !== 'number') {
+        throw new Error('Weather IPC response missing temperature/code');
+      }
+      return { temp: Math.round(result.temperature), code: result.weatherCode };
+    } catch (error) {
+      logger.warn('ui', 'Weather IPC path failed, trying renderer fetch fallback', error?.message);
+    }
+  }
+  return fetchWeatherDirect(lat, lon);
+}
+
+function HeaderDateTimeWeather() {
+  const [time, setTime] = useState('');
+  const [date, setDate] = useState('');
+  const [weather, setWeather] = useState('--°');
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+      const day = now.getDate();
+      const ord = day % 10 === 1 && day !== 11 ? 'ST' :
+                  day % 10 === 2 && day !== 12 ? 'ND' :
+                  day % 10 === 3 && day !== 13 ? 'RD' : 'TH';
+      setDate(`${now.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}.${now.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}.${day}${ord}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let coordsPromise = null;
+
+    const resolveCoords = () => {
+      if (!coordsPromise) coordsPromise = getWeatherCoords();
+      return coordsPromise;
+    };
+
+    const fetchWeather = async () => {
+      try {
+        const { latitude: lat, longitude: lon } = await resolveCoords();
+        const { temp, code } = await fetchWeatherForCoords(lat, lon);
+        if (!cancelled) {
+          setWeather(`${wmoGlyph(code)} ${temp}°`);
+        }
+      } catch (error) {
+        logger.warn('ui', 'Failed to refresh header weather', error?.message);
+        if (!cancelled) setWeather('--°');
+      }
+    };
+    fetchWeather();
+    const id = setInterval(fetchWeather, 600000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  return (
+    <div className="header-datetime-weather" style={{ WebkitAppRegion: 'no-drag' }}>
+      <span className="header-time">{time}</span>
+      <span className="header-date">{date}</span>
+      <span className="header-weather">{weather}</span>
+    </div>
+  );
+}
 
 // Inner app component that uses auth context
 function AppContent({ layout }) {
@@ -31,12 +181,12 @@ function AppContent({ layout }) {
   const { executeTool } = useTools();
   const appContext = useAppContext();
   useAgentWorkers(executeTool, appContext);
+  useToolBridge(executeTool, appContext);
   appRenderCount++;
   logger.debug('ui', `App render #${appRenderCount}`);
 
   // Existing state
   const [showSettings, setShowSettings] = useState(false);
-  const [controlBarOpen, setControlBarOpen] = useState(false);
   const {
     getVisiblePanels,
     getPanelByType,
@@ -45,18 +195,48 @@ function AppContent({ layout }) {
     updateColumnSizes,
     updateStackSizes,
     movePanel,
-    getLayoutRow
+    getLayoutRow,
+    updateWorkspace,
+    layoutRow,
+    isLoading: layoutLoading
   } = layout;
 
-  // New overlay states
+  // Workspace-persisted overlay states
+  const workspace = layoutRow.workspace || {};
   const [briiztormOpen, setBriiztormOpen] = useState(false);
   const [actionDeckFloating, setActionDeckFloating] = useState(false);
   const [organizerOpen, setOrganizerOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [controlBarOpen, setControlBarOpen] = useState(false);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasData, setCanvasData] = useState(null);
   const [canvasTitle, setCanvasTitle] = useState('Canvas');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem(UI_THEME_STORAGE_KEY) || 'default';
+    applyUiTheme(savedTheme);
+  }, []);
+
+  // Restore workspace state once layout loads from Firestore
+  const workspaceRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!layoutLoading && !workspaceRestoredRef.current) {
+      workspaceRestoredRef.current = true;
+      const ws = layoutRow.workspace;
+      if (ws) {
+        if (ws.notesOpen) setNotesOpen(true);
+        if (ws.actionDeckFloating) setActionDeckFloating(true);
+        if (ws.controlBarOpen) setControlBarOpen(true);
+      }
+    }
+  }, [layoutLoading, layoutRow.workspace]);
+
+  // Persist overlay states to workspace (debounced via useLayout)
+  useEffect(() => {
+    if (!workspaceRestoredRef.current) return;
+    updateWorkspace({ notesOpen, actionDeckFloating, controlBarOpen });
+  }, [notesOpen, actionDeckFloating, controlBarOpen, updateWorkspace]);
 
   // Get the panels from the layout hook
   const panels = getVisiblePanels();
@@ -234,6 +414,8 @@ function AppContent({ layout }) {
         </div>
         <div id="controlBarBtn" onClick={() => setControlBarOpen(!controlBarOpen)}></div>
 
+        <HeaderDateTimeWeather />
+
         <button className="settings-btn" onClick={() => setShowSettings(true)}>
           <span className="settings-icon">⚙</span>
           <span>Settings</span>
@@ -295,6 +477,15 @@ function AppContent({ layout }) {
       <NotesWidget
         isOpen={notesOpen}
         onClose={() => setNotesOpen(false)}
+        drawerPosition={workspace.notesDrawer ? { x: workspace.notesDrawer.x, y: workspace.notesDrawer.y } : null}
+        drawerDimensions={workspace.notesDrawer ? { width: workspace.notesDrawer.width, height: workspace.notesDrawer.height } : null}
+        onDrawerChange={(pos, size) => {
+          updateWorkspace({
+            notesDrawer: pos
+              ? { x: pos.x, y: pos.y, width: size.width, height: size.height }
+              : { width: size.width, height: size.height }
+          });
+        }}
       />
 
       {/* Live Canvas */}
