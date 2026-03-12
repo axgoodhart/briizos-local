@@ -18,8 +18,10 @@ const { logger } = require('./logger');
 // ---------------------------------------------------------------------------
 
 const PORT = 2024;
+const GATEWAY_PORT = 8001;
 const BACKEND_DIR = path.resolve(__dirname, '../../deerflow/backend');
 const BACKEND_URL = `http://127.0.0.1:${PORT}`;
+const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
 const SHUTDOWN_TIMEOUT_MS = 5000;
 
 // ---------------------------------------------------------------------------
@@ -28,6 +30,7 @@ const SHUTDOWN_TIMEOUT_MS = 5000;
 
 const state = {
   process: null,
+  gatewayProcess: null,
   status: 'idle',       // idle | starting | running | stopped | crashed | error | env_missing | failed
   port: PORT,
   pid: null,
@@ -366,6 +369,65 @@ async function start() {
     // Begin health check polling to detect readiness and crashes
     startHealthCheckPolling();
 
+    // Spawn the DeerFlow Gateway API server alongside LangGraph (Phase 8)
+    try {
+      const gatewayArgs = [
+        'run', 'python', '-m', 'uvicorn',
+        'src.gateway.app:app',
+        '--host', '127.0.0.1',
+        '--port', String(GATEWAY_PORT),
+      ];
+
+      logger.info('langgraph', 'Spawning Gateway process', {
+        command: `${uvPath} ${gatewayArgs.join(' ')}`,
+        cwd: BACKEND_DIR,
+        port: GATEWAY_PORT,
+      });
+
+      const gateway = spawn(uvPath, gatewayArgs, {
+        cwd: BACKEND_DIR,
+        env: {
+          ...process.env,
+          DEER_FLOW_CONFIG_PATH: path.resolve(__dirname, '../../deerflow/config.yaml'),
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: false,
+      });
+
+      state.gatewayProcess = gateway;
+
+      if (gateway.stdout) {
+        gateway.stdout.on('data', (data) => {
+          const lines = data.toString().split('\n').filter(Boolean);
+          for (const line of lines) {
+            logger.info('gateway', line.trim());
+          }
+        });
+      }
+
+      if (gateway.stderr) {
+        gateway.stderr.on('data', (data) => {
+          const lines = data.toString().split('\n').filter(Boolean);
+          for (const line of lines) {
+            logger.info('gateway', line.trim());
+          }
+        });
+      }
+
+      gateway.on('exit', (code, signal) => {
+        logger.info('gateway', 'Gateway process exited', { code, signal });
+        state.gatewayProcess = null;
+      });
+
+      gateway.on('error', (err) => {
+        logger.error('gateway', 'Gateway process error', err?.message);
+        state.gatewayProcess = null;
+      });
+    } catch (gatewayErr) {
+      logger.warn('langgraph', 'Failed to spawn Gateway process', gatewayErr?.message);
+      // Non-fatal: LangGraph can still work without gateway
+    }
+
     return true;
   } catch (err) {
     logger.error('langgraph', 'Failed to spawn LangGraph process', err?.message);
@@ -385,6 +447,22 @@ async function start() {
 async function stop() {
   state.stoppingIntentionally = true;
   stopHealthCheckPolling();
+
+  // Terminate gateway process (Phase 8)
+  const gateway = state.gatewayProcess;
+  if (gateway) {
+    logger.info('gateway', 'Stopping Gateway process');
+    try {
+      gateway.kill('SIGTERM');
+    } catch {
+      // Already gone
+    }
+    // Schedule SIGKILL escalation for gateway
+    setTimeout(() => {
+      try { if (state.gatewayProcess) state.gatewayProcess.kill('SIGKILL'); } catch { /* already gone */ }
+    }, SHUTDOWN_TIMEOUT_MS);
+    state.gatewayProcess = null;
+  }
 
   const child = state.process;
 
@@ -916,6 +994,121 @@ async function fetchSuggestions(recentMessages, n = 3) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Memory API helpers (Phase 8 — MEMO-01/MEMO-02/MEMO-03)
+// ---------------------------------------------------------------------------
+
+const fs = require('fs');
+
+/**
+ * Resolve the path to the DeerFlow memory.json file.
+ * Reads storage_path from config.yaml, defaults to .deer-flow/memory.json
+ * relative to BACKEND_DIR.
+ */
+function _resolveMemoryFilePath() {
+  // Default: BACKEND_DIR/.deer-flow/memory.json
+  // The config.yaml storage_path is "memory.json" which DeerFlow resolves
+  // relative to base_dir (cwd/.deer-flow in local dev).
+  return path.join(BACKEND_DIR, '.deer-flow', 'memory.json');
+}
+
+/**
+ * Fetch memory status (config + data) from the DeerFlow gateway API.
+ * Returns parsed JSON with both config and memory data, or null on error.
+ */
+async function fetchMemory() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const res = await fetch(`${GATEWAY_URL}/api/memory/status`, {
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      logger.warn('memory', 'fetchMemory failed', { status: res.status });
+      return null;
+    }
+
+    return await res.json();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      logger.warn('memory', 'fetchMemory timed out');
+    } else {
+      logger.warn('memory', 'fetchMemory error', { error: err?.message });
+    }
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Delete a fact from memory by its ID.
+ * Since the gateway has no delete-fact endpoint, this:
+ *   1. Fetches current memory via GET /api/memory
+ *   2. Filters out the fact with matching id
+ *   3. Writes the updated memory.json via Node.js fs
+ *   4. Calls POST /api/memory/reload to refresh the gateway cache
+ *
+ * @param {string} factId - The fact ID to remove
+ * @returns {Promise<{success: boolean}>}
+ */
+async function deleteFact(factId) {
+  try {
+    // 1. Fetch current memory data from gateway
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    let memoryData;
+    try {
+      const res = await fetch(`${GATEWAY_URL}/api/memory`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        logger.warn('memory', 'deleteFact: failed to fetch memory', { status: res.status });
+        return { success: false };
+      }
+      memoryData = await res.json();
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    // 2. Filter out the fact
+    const originalCount = (memoryData.facts || []).length;
+    memoryData.facts = (memoryData.facts || []).filter(f => f.id !== factId);
+
+    if (memoryData.facts.length === originalCount) {
+      logger.warn('memory', 'deleteFact: fact not found', { factId });
+      return { success: false };
+    }
+
+    // 3. Write updated memory.json
+    const memoryFilePath = _resolveMemoryFilePath();
+    fs.writeFileSync(memoryFilePath, JSON.stringify(memoryData, null, 2), 'utf8');
+    logger.info('memory', 'deleteFact: wrote updated memory.json', { factId, remaining: memoryData.facts.length });
+
+    // 4. Reload gateway cache
+    try {
+      const reloadCtrl = new AbortController();
+      const reloadTimeout = setTimeout(() => reloadCtrl.abort(), 5000);
+      await fetch(`${GATEWAY_URL}/api/memory/reload`, {
+        method: 'POST',
+        signal: reloadCtrl.signal,
+      });
+      clearTimeout(reloadTimeout);
+    } catch {
+      // Non-fatal — gateway will pick up changes on next read
+      logger.warn('memory', 'deleteFact: reload request failed (non-fatal)');
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('memory', 'deleteFact failed', { factId, error: err?.message });
+    return { success: false };
+  }
+}
+
 module.exports = {
   start,
   stop,
@@ -926,5 +1119,7 @@ module.exports = {
   streamMessage,
   resumeRun,
   fetchSuggestions,
+  fetchMemory,
+  deleteFact,
   BACKEND_URL,
 };
