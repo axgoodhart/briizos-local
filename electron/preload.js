@@ -117,6 +117,15 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('langgraph-stream-event', handler);
   },
 
+  // Tool Bridge API (relay tool execution requests from main process)
+  onToolBridgeExecute: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('tool-bridge-execute', handler);
+    return () => ipcRenderer.removeListener('tool-bridge-execute', handler);
+  },
+  toolBridgeResult: (requestId, result, error) =>
+    ipcRenderer.send('tool-bridge-result', { requestId, result, error }),
+
   // Health Check API
   healthCheck: () => ipcRenderer.invoke('health-check'),
 

@@ -12,6 +12,7 @@ const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
 const langgraphProcess = require('./langgraph-process');
 const modelConfig = require('./model-config');
+const toolBridge = require('./tool-bridge');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -50,7 +51,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' ws://localhost:* http://localhost:* http://127.0.0.1:2024 https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
+  "connect-src 'self' ws://localhost:* http://localhost:* http://127.0.0.1:2024 http://127.0.0.1:2025 https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
   "frame-src 'self' blob: data: https://dex--briizos.us-central1.hosted.app http://localhost:* file: https://*.firebaseapp.com https://*.web.app https://apis.google.com",
   "media-src 'self' blob: data:",
   "worker-src 'self' blob:"
@@ -137,6 +138,8 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  return mainWindow;
 }
 
 // === AI Streaming IPC Handlers ===
@@ -587,11 +590,16 @@ app.whenReady().then(() => {
     });
   });
 
-  createWindow();
+  const win = createWindow();
+
+  // Start tool bridge server and pass the main window for IPC relay
+  toolBridge.setMainWindow(win);
+  toolBridge.start();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      const newWin = createWindow();
+      toolBridge.setMainWindow(newWin);
     }
   });
 });
@@ -602,8 +610,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Stop LangGraph process before quit (fire-and-forget — Electron won't wait for async)
+// Stop LangGraph process and tool bridge before quit (fire-and-forget — Electron won't wait for async)
 app.on('before-quit', () => {
+  toolBridge.stop();
   langgraphProcess.stop();
 });
 
