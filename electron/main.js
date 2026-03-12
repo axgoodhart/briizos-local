@@ -544,6 +544,25 @@ ipcMain.handle('langgraph-stream-message', async (event, threadId, message, conf
   return { streamId };
 });
 
+// === LangGraph Resume Run (Tool Confirmation) ===
+
+ipcMain.handle('langgraph-resume-run', async (event, threadId, response, config) => {
+  const streamId = `lg-resume-${Date.now()}`;
+  const sender = event.sender;
+
+  langgraphProcess.resumeRun(threadId, response, config || {}, (type, payload) => {
+    if (!sender.isDestroyed()) {
+      sender.send('langgraph-stream-event', { streamId, type, ...payload });
+    }
+  }).catch(err => {
+    if (!sender.isDestroyed()) {
+      sender.send('langgraph-stream-event', { streamId, type: 'error', message: err?.message || 'Resume failed' });
+    }
+  });
+
+  return { streamId };
+});
+
 // === Model Config IPC Handlers ===
 
 ipcMain.handle('models-get-list', async () => modelConfig.getModels());

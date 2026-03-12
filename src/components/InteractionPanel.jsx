@@ -123,9 +123,12 @@ function InteractionPanel() {
     filesInContext,
     streamingContent,
     toolCalls,
+    pendingToolConfirmation,
     sendMessage,
     clearHistory,
     refreshFilesInContext,
+    approveToolConfirmation,
+    rejectToolConfirmation,
   } = useChat();
 
   const { status: lgStatus, ready: lgReady } = useLangGraphStatus();
@@ -554,6 +557,62 @@ function InteractionPanel() {
               }}
             />
           ))}
+        </div>
+      )}
+
+      {/* Tool Confirmation Bar */}
+      {pendingToolConfirmation && (
+        <div className="lg-status-bar" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#fbbf24',
+          background: 'rgba(251, 191, 36, 0.08)',
+          borderTop: '1px solid rgba(251, 191, 36, 0.2)',
+        }}>
+          <span style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: '#fbbf24',
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }} />
+          <span style={{ flex: 1, lineHeight: '1.3' }}>
+            <strong>Confirm:</strong> {pendingToolConfirmation.summary}
+          </span>
+          <button
+            onClick={approveToolConfirmation}
+            style={{
+              padding: '3px 12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              border: '1px solid rgba(74, 222, 128, 0.4)',
+              borderRadius: '4px',
+              background: 'rgba(74, 222, 128, 0.15)',
+              color: '#4ade80',
+              cursor: 'pointer',
+            }}
+          >
+            Approve
+          </button>
+          <button
+            onClick={rejectToolConfirmation}
+            style={{
+              padding: '3px 12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              border: '1px solid rgba(248, 113, 113, 0.4)',
+              borderRadius: '4px',
+              background: 'rgba(248, 113, 113, 0.15)',
+              color: '#f87171',
+              cursor: 'pointer',
+            }}
+          >
+            Reject
+          </button>
         </div>
       )}
 

@@ -744,11 +744,31 @@ function processSSEEvent(eventType, data, onEvent) {
         }
       }
     } else if (msgType === 'tool' || msgType === 'ToolMessage') {
-      onEvent('tool_result', {
-        tool_call_id: msg.tool_call_id,
-        name: msg.name,
-        content: msg.content,
-      });
+      // Check if this is a tool_confirmation message from ToolConfirmationMiddleware
+      if (_isToolConfirmation(msg.content)) {
+        try {
+          const payload = JSON.parse(msg.content);
+          onEvent('tool_confirmation', {
+            tool_name: payload.tool_name,
+            tool_call_id: payload.tool_call_id,
+            args: payload.args || {},
+            summary: payload.summary || payload.tool_name,
+          });
+        } catch {
+          // If parse fails, treat as normal tool result
+          onEvent('tool_result', {
+            tool_call_id: msg.tool_call_id,
+            name: msg.name,
+            content: msg.content,
+          });
+        }
+      } else {
+        onEvent('tool_result', {
+          tool_call_id: msg.tool_call_id,
+          name: msg.name,
+          content: msg.content,
+        });
+      }
     }
   } else if (eventType === 'values') {
     onEvent('values', { messages: data?.messages || [] });
@@ -759,6 +779,42 @@ function processSSEEvent(eventType, data, onEvent) {
   }
 }
 
+/**
+ * Check if a ToolMessage content string is a tool_confirmation payload
+ * from the ToolConfirmationMiddleware.
+ */
+function _isToolConfirmation(content) {
+  if (typeof content !== 'string') return false;
+  try {
+    const parsed = JSON.parse(content);
+    return parsed && parsed.type === 'tool_confirmation';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resume a run on the same thread after a tool confirmation interruption.
+ *
+ * Since ToolConfirmationMiddleware uses Command(goto=END), the run terminates.
+ * To "resume", we send a new human message on the same thread indicating
+ * the user's decision. The agent will see the previous tool_confirmation
+ * ToolMessage in context and the new user approval/rejection.
+ *
+ * @param {string} threadId - Thread ID to resume on
+ * @param {object} response - { approved: boolean, summary: string }
+ * @param {object} [config={}] - Config overrides (model, thinking)
+ * @param {(type: string, payload: object) => void} onEvent - Callback for SSE events
+ * @returns {Promise<void>}
+ */
+async function resumeRun(threadId, response, config = {}, onEvent) {
+  const message = response.approved
+    ? `[Tool Approved] The user approved the tool operation: ${response.summary || 'confirmed'}. Please proceed with executing it.`
+    : `[Tool Rejected] The user rejected the tool operation: ${response.summary || 'denied'}. Do NOT execute this tool. Explain what you were trying to do and ask how to proceed.`;
+
+  return streamMessage(threadId, message, config, onEvent);
+}
+
 module.exports = {
   start,
   stop,
@@ -767,5 +823,6 @@ module.exports = {
   createThread,
   sendMessage,
   streamMessage,
+  resumeRun,
   BACKEND_URL,
 };

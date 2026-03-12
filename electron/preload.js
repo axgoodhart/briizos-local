@@ -116,6 +116,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('langgraph-stream-event', handler);
     return () => ipcRenderer.removeListener('langgraph-stream-event', handler);
   },
+  langgraphResumeRun: (threadId, response, config) =>
+    ipcRenderer.invoke('langgraph-resume-run', threadId, response, config),
 
   // Tool Bridge API (relay tool execution requests from main process)
   onToolBridgeExecute: (callback) => {

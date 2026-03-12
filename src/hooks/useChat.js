@@ -26,6 +26,7 @@ export function useChat() {
   const [streamingContent, setStreamingContent] = useState('');
   const [currentStreamId, setCurrentStreamId] = useState(null);
   const [toolCalls, setToolCalls] = useState([]);
+  const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
 
   const streamContentRef = useRef('');
   const streamIdRef = useRef(null);
@@ -131,6 +132,17 @@ export function useChat() {
               : tc
           );
           setToolCalls([...toolCallsRef.current]);
+          break;
+        }
+        case 'tool_confirmation': {
+          // Destructive tool intercepted -- show confirmation UI
+          setPendingToolConfirmation({
+            tool_name: data.payload?.tool_name || data.tool_name,
+            tool_call_id: data.payload?.tool_call_id || data.tool_call_id,
+            args: data.payload?.args || data.args || {},
+            summary: data.payload?.summary || data.summary || 'Tool operation',
+          });
+          // Don't call handleStreamEnd -- keep loading state so user knows action is needed
           break;
         }
         case 'end': {
@@ -355,6 +367,84 @@ export function useChat() {
     }
   }, []);
 
+  // Approve a pending destructive tool confirmation
+  const approveToolConfirmation = useCallback(async () => {
+    const confirmation = pendingToolConfirmation;
+    if (!confirmation || !hasApi) return;
+
+    setPendingToolConfirmation(null);
+
+    try {
+      const threadId = threadIdRef.current;
+      if (!threadId) {
+        logger.error('chat', 'Cannot approve tool -- no thread');
+        setIsLoading(false);
+        return;
+      }
+
+      const model = currentSettingsRef.current?.model;
+
+      // Generate new stream ID for the resumed run
+      const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      streamIdRef.current = streamId;
+      streamContentRef.current = '';
+      toolCallsRef.current = [];
+      setCurrentStreamId(streamId);
+      setStreamingContent('');
+      setToolCalls([]);
+
+      await api.langgraphResumeRun(threadId, {
+        approved: true,
+        summary: confirmation.summary,
+      }, { model, thinking: true });
+    } catch (error) {
+      logger.error('chat', 'Failed to approve tool', error?.message);
+      await addChatMessage('assistant', `Error resuming after approval: ${error.message}`, true);
+      setIsLoading(false);
+      streamIdRef.current = null;
+      setCurrentStreamId(null);
+    }
+  }, [pendingToolConfirmation]);
+
+  // Reject a pending destructive tool confirmation
+  const rejectToolConfirmation = useCallback(async () => {
+    const confirmation = pendingToolConfirmation;
+    if (!confirmation || !hasApi) return;
+
+    setPendingToolConfirmation(null);
+
+    try {
+      const threadId = threadIdRef.current;
+      if (!threadId) {
+        logger.error('chat', 'Cannot reject tool -- no thread');
+        setIsLoading(false);
+        return;
+      }
+
+      const model = currentSettingsRef.current?.model;
+
+      // Generate new stream ID for the resumed run
+      const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      streamIdRef.current = streamId;
+      streamContentRef.current = '';
+      toolCallsRef.current = [];
+      setCurrentStreamId(streamId);
+      setStreamingContent('');
+      setToolCalls([]);
+
+      await api.langgraphResumeRun(threadId, {
+        approved: false,
+        summary: confirmation.summary,
+      }, { model, thinking: true });
+    } catch (error) {
+      logger.error('chat', 'Failed to reject tool', error?.message);
+      await addChatMessage('assistant', `Error resuming after rejection: ${error.message}`, true);
+      setIsLoading(false);
+      streamIdRef.current = null;
+      setCurrentStreamId(null);
+    }
+  }, [pendingToolConfirmation]);
+
   // Refresh files in context
   const refreshFilesInContext = useCallback(async () => {
     await loadSelectedFiles();
@@ -369,11 +459,14 @@ export function useChat() {
     streamingContent,
     currentStreamId,
     toolCalls,
+    pendingToolConfirmation,
     sendMessage,
     clearHistory,
     loadHistory: () => {},
     checkConfig,
     refreshFilesInContext,
+    approveToolConfirmation,
+    rejectToolConfirmation,
   };
 }
 
