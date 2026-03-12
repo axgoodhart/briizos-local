@@ -482,10 +482,111 @@ function getPort() {
   return PORT;
 }
 
+// ---------------------------------------------------------------------------
+// Agent invoke helpers (ORCH-01 / ORCH-03)
+// ---------------------------------------------------------------------------
+
+const AGENT_TIMEOUT_MS = 120000; // 120 seconds for long agent runs
+
+/**
+ * Create a new thread on the LangGraph backend.
+ * Returns the thread_id string.
+ */
+async function createThread() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to create thread: ${res.status} ${res.statusText} ${body}`);
+    }
+
+    const data = await res.json();
+    const threadId = data.thread_id;
+    logger.info('langgraph', 'Thread created', { threadId });
+    return threadId;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('createThread timed out');
+    }
+    logger.error('langgraph', 'Failed to create thread', err?.message);
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Send a message to the LangGraph lead agent and wait for the final response.
+ *
+ * @param {string} threadId - Thread ID (from createThread())
+ * @param {string} message  - User message content
+ * @param {object} [config={}] - Optional config overrides
+ * @param {string} [config.model] - Model name override (e.g. "claude-sonnet-4-6")
+ * @param {boolean} [config.thinking] - Enable extended thinking (default: true)
+ * @returns {Promise<object>} The final response state from the agent
+ */
+async function sendMessage(threadId, message, config = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+
+  const body = {
+    assistant_id: 'lead_agent',
+    input: {
+      messages: [{ role: 'human', content: message }],
+    },
+    config: {
+      configurable: {
+        model_name: config.model || null,
+        thinking_enabled: config.thinking !== false,
+      },
+    },
+  };
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/threads/${threadId}/runs/wait`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Agent run failed: ${res.status} ${res.statusText} ${errBody}`);
+    }
+
+    const data = await res.json();
+    logger.info('langgraph', 'Agent response received', {
+      threadId,
+      messageCount: data?.messages?.length ?? 0,
+    });
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`sendMessage timed out after ${AGENT_TIMEOUT_MS}ms`);
+    }
+    logger.error('langgraph', 'sendMessage failed', { threadId, error: err?.message });
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 module.exports = {
   start,
   stop,
   getStatus,
   getPort,
+  createThread,
+  sendMessage,
   BACKEND_URL,
 };
