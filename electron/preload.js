@@ -118,6 +118,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   langgraphResumeRun: (threadId, response, config) =>
     ipcRenderer.invoke('langgraph-resume-run', threadId, response, config),
+  langgraphGetSuggestions: (recentMessages, n) =>
+    ipcRenderer.invoke('langgraph-get-suggestions', recentMessages, n),
 
   // Tool Bridge API (relay tool execution requests from main process)
   onToolBridgeExecute: (callback) => {

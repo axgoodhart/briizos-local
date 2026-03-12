@@ -563,6 +563,12 @@ ipcMain.handle('langgraph-resume-run', async (event, threadId, response, config)
   return { streamId };
 });
 
+// === LangGraph Suggestions API ===
+
+ipcMain.handle('langgraph-get-suggestions', async (event, recentMessages, n) => {
+  return langgraphProcess.fetchSuggestions(recentMessages, n || 3);
+});
+
 // === Model Config IPC Handlers ===
 
 ipcMain.handle('models-get-list', async () => modelConfig.getModels());

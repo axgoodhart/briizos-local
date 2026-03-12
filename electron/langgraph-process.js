@@ -816,6 +816,106 @@ async function resumeRun(threadId, response, config = {}, onEvent) {
   return streamMessage(threadId, message, config, onEvent);
 }
 
+// ---------------------------------------------------------------------------
+// Suggestion generation (CHAT-04)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch follow-up suggestions based on recent conversation messages.
+ * Creates a temporary thread to avoid polluting the main conversation.
+ *
+ * @param {Array<{role: string, content: string}>} recentMessages - Last few messages
+ * @param {number} n - Number of suggestions (default 3)
+ * @returns {Promise<string[]>} Array of suggestion strings
+ */
+async function fetchSuggestions(recentMessages, n = 3) {
+  try {
+    // Format conversation for the prompt
+    const conversation = recentMessages
+      .map(m => {
+        const role = m.role === 'user' || m.role === 'human' ? 'User' : 'Assistant';
+        return `${role}: ${m.content}`;
+      })
+      .join('\n');
+
+    if (!conversation.trim()) return [];
+
+    const prompt = (
+      `You are generating follow-up questions to help the user continue the conversation.\n` +
+      `Based on the conversation below, produce EXACTLY ${n} short questions the user might ask next.\n` +
+      `Requirements:\n` +
+      `- Questions must be relevant to the conversation.\n` +
+      `- Keep each question concise (ideally <= 20 words).\n` +
+      `- Do NOT include numbering, markdown, or any extra text.\n` +
+      `- Output MUST be a JSON array of strings only.\n\n` +
+      `Conversation:\n${conversation}\n`
+    );
+
+    // Create a temporary thread
+    const threadRes = await fetch(`${BACKEND_URL}/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (!threadRes.ok) {
+      logger.warn('langgraph', 'Failed to create suggestions thread');
+      return [];
+    }
+    const thread = await threadRes.json();
+    const tempThreadId = thread.thread_id;
+
+    // Send the suggestion prompt via /runs/wait (synchronous)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    const runRes = await fetch(`${BACKEND_URL}/threads/${tempThreadId}/runs/wait`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistant_id: 'lead_agent',
+        input: {
+          messages: [{ role: 'human', content: prompt }],
+        },
+        config: {
+          configurable: {
+            thinking_enabled: false,
+          },
+        },
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!runRes.ok) {
+      logger.warn('langgraph', 'Suggestions run failed', { status: runRes.status });
+      return [];
+    }
+
+    const result = await runRes.json();
+
+    // Extract the assistant's response text from the run result
+    const messages = result?.messages || result?.values?.messages || [];
+    const lastAI = [...messages].reverse().find(m => m.type === 'ai' || m.role === 'assistant');
+    const raw = typeof lastAI?.content === 'string' ? lastAI.content : (lastAI?.content?.[0]?.text || '');
+
+    // Parse JSON array from response
+    const jsonMatch = raw.match(/\[[\s\S]*?\]/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter(s => typeof s === 'string' && s.trim())
+      .map(s => s.trim())
+      .slice(0, n);
+  } catch (err) {
+    logger.warn('langgraph', 'fetchSuggestions failed', { error: err?.message });
+    return [];
+  }
+}
+
 module.exports = {
   start,
   stop,
@@ -825,5 +925,6 @@ module.exports = {
   sendMessage,
   streamMessage,
   resumeRun,
+  fetchSuggestions,
   BACKEND_URL,
 };
