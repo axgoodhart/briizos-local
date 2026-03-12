@@ -546,6 +546,13 @@ body {
     opacity: 1;
 }
 
+.action-btn.active {
+    border-color: rgba(0, 200, 200, 0.6);
+    background: rgba(0, 200, 200, 0.15) !important;
+    color: var(--palette-accent-cyan-soft);
+    opacity: 1;
+}
+
 .chat-input-area {
     width: 100%;
     position:absolute;
