@@ -1,3 +1,6 @@
+// DEPRECATED: Legacy pre-LangGraph provider settings. Chat visual settings
+// (chatBackground, chatBgBlur) still active. Provider/model settings superseded
+// by LangGraph model-config.js. Remove when all consumers migrated.
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { setSetting, getSetting } from '../lib/firestore';
 import logger from '../lib/logger';
@@ -5,7 +8,7 @@ import logger from '../lib/logger';
 const ChatSettingsContext = createContext(null);
 
 const DEFAULT_MODELS = {
-  openai: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o', 'o3-mini', 'o4-mini'],
+  openai: ['gpt-5.4', 'gpt-5-nano', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o', 'o3-mini', 'o4-mini'],
   gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
   claude: ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001', 'claude-opus-4-20250514'],
 };
@@ -13,7 +16,7 @@ const DEFAULT_MODELS = {
 const DEFAULT_STATE = {
   provider: 'openai',
   providers: {
-    openai: { model: 'gpt-4.1-mini', prompt: '', params: { top_p: 1, temperature: 0.7, max_tokens: 4096 }, customModels: [] },
+    openai: { model: 'gpt-5.4', prompt: '', params: { top_p: 1, temperature: 0.7, max_tokens: 4096 }, customModels: [] },
     gemini: { model: 'gemini-2.5-flash', prompt: '', params: { top_p: 1, temperature: 1.0, max_tokens: 4096 }, customModels: [] },
     claude: { model: 'claude-sonnet-4-5-20250929', prompt: '', params: { top_p: 1, temperature: 1.0, max_tokens: 4096 }, customModels: [] },
   },
