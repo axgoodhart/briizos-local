@@ -107,6 +107,16 @@ contextBridge.exposeInMainWorld('api', {
   // LangGraph Status API
   langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
 
+  // LangGraph Agent API
+  langgraphCreateThread: () => ipcRenderer.invoke('langgraph-create-thread'),
+  langgraphStreamMessage: (threadId, message, config) =>
+    ipcRenderer.invoke('langgraph-stream-message', threadId, message, config),
+  onLanggraphStreamEvent: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('langgraph-stream-event', handler);
+    return () => ipcRenderer.removeListener('langgraph-stream-event', handler);
+  },
+
   // Health Check API
   healthCheck: () => ipcRenderer.invoke('health-check'),
 

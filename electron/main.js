@@ -514,9 +514,32 @@ ipcMain.handle('health-check', async () => {
   };
 });
 
-// === LangGraph IPC Handlers ===
+// === LangGraph Status API ===
 
 ipcMain.handle('langgraph-get-status', async () => langgraphProcess.getStatus());
+
+// === LangGraph Agent API ===
+
+ipcMain.handle('langgraph-create-thread', async () => {
+  return langgraphProcess.createThread();
+});
+
+ipcMain.handle('langgraph-stream-message', async (event, threadId, message, config) => {
+  const streamId = `lg-stream-${Date.now()}`;
+  const sender = event.sender;
+
+  langgraphProcess.streamMessage(threadId, message, config || {}, (type, payload) => {
+    if (!sender.isDestroyed()) {
+      sender.send('langgraph-stream-event', { streamId, type, ...payload });
+    }
+  }).catch(err => {
+    if (!sender.isDestroyed()) {
+      sender.send('langgraph-stream-event', { streamId, type: 'error', message: err?.message || 'Stream failed' });
+    }
+  });
+
+  return { streamId };
+});
 
 // === Model Config IPC Handlers ===
 
