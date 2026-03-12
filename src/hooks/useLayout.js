@@ -1,9 +1,18 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import logger from '../lib/logger';
 import { getLayout, saveLayout as saveLayoutFirestore } from '../lib/firestore';
 import { getCurrentUid } from '../lib/firebase';
+import {
+  migrateFlatToColumns,
+  simplifyLayout,
+  flattenLayoutToPanels,
+  findPanelLocation,
+  removePanelFromLayout,
+  executeStackDrop,
+  executeEdgeDrop
+} from '../lib/layoutUtils';
 
-const DEFAULT_LAYOUT = {
+const DEFAULT_LAYOUT_V1 = {
   panels: [
     { id: 'sources', type: 'sources', size: 20, order: 0, visible: true },
     { id: 'interaction', type: 'interaction', size: 60, order: 1, visible: true },
@@ -12,11 +21,15 @@ const DEFAULT_LAYOUT = {
   version: 1
 };
 
+const DEFAULT_LAYOUT_V2 = migrateFlatToColumns(DEFAULT_LAYOUT_V1.panels);
+
 export function useLayout() {
   const layoutResizeDebugEnabled = typeof window !== 'undefined' && (
     import.meta.env.DEV || window.__BRIIZ_PANEL_DEBUG__ === true
   );
-  const [panels, setPanels] = useState(DEFAULT_LAYOUT.panels);
+
+  // Primary state: v2 LayoutRow
+  const [layoutRow, setLayoutRow] = useState(DEFAULT_LAYOUT_V2);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
@@ -24,20 +37,14 @@ export function useLayout() {
   const hasLoadedRef = useRef(false);
   const saveTimeoutRef = useRef(null);
 
-  const deduplicatePanels = (panelsList) => {
-    const seen = new Set();
-    return panelsList.filter(p => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
-  };
+  // Derived flat panels array for backward compatibility
+  const panels = useMemo(() => flattenLayoutToPanels(layoutRow), [layoutRow]);
 
   // Load layout from Firestore
   const loadLayout = useCallback(async () => {
     const uid = getCurrentUid();
     if (!uid) {
-      setPanels(DEFAULT_LAYOUT.panels);
+      setLayoutRow(DEFAULT_LAYOUT_V2);
       setIsLoading(false);
       hasLoadedRef.current = true;
       return;
@@ -45,24 +52,24 @@ export function useLayout() {
 
     try {
       const result = await getLayout();
-      if (result && result.config && result.config.panels) {
-        const loadedPanels = result.config.panels;
-        const ids = loadedPanels.map(p => p.id);
-        const hasDuplicates = ids.length !== new Set(ids).size;
-
-        if (hasDuplicates) {
-          setPanels(DEFAULT_LAYOUT.panels);
-          setTimeout(() => saveLayout(DEFAULT_LAYOUT.panels), 100);
+      if (result && result.config) {
+        if (result.config.version === 2 && result.config.columns) {
+          // v2 format — use directly
+          setLayoutRow(result.config);
+        } else if (result.config.panels) {
+          // v1 format — migrate
+          const migrated = migrateFlatToColumns(result.config.panels);
+          setLayoutRow(migrated);
         } else {
-          setPanels(loadedPanels);
+          setLayoutRow(DEFAULT_LAYOUT_V2);
         }
         setLastSaved(result.updatedAt);
       } else {
-        setPanels(DEFAULT_LAYOUT.panels);
+        setLayoutRow(DEFAULT_LAYOUT_V2);
       }
     } catch (error) {
       logger.error('ui', 'Failed to load layout', error?.message);
-      setPanels(DEFAULT_LAYOUT.panels);
+      setLayoutRow(DEFAULT_LAYOUT_V2);
     } finally {
       setIsLoading(false);
       hasLoadedRef.current = true;
@@ -70,14 +77,10 @@ export function useLayout() {
   }, []);
 
   // Save layout to Firestore
-  const saveLayout = useCallback(async (panelsToSave) => {
+  const saveLayout = useCallback(async (layoutToSave) => {
     setIsSaving(true);
     try {
-      const config = {
-        panels: panelsToSave,
-        version: DEFAULT_LAYOUT.version
-      };
-      await saveLayoutFirestore(config);
+      await saveLayoutFirestore(layoutToSave);
       setLastSaved(new Date().toISOString());
     } catch (error) {
       logger.error('ui', 'Failed to save layout', error?.message);
@@ -87,12 +90,12 @@ export function useLayout() {
   }, []);
 
   // Debounced save
-  const debouncedSave = useCallback((panelsToSave) => {
+  const debouncedSave = useCallback((layoutToSave) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      saveLayout(panelsToSave);
+      saveLayout(layoutToSave);
     }, 500);
   }, [saveLayout]);
 
@@ -106,86 +109,194 @@ export function useLayout() {
     };
   }, [loadLayout]);
 
-  // Auto-save when panels change
+  // Auto-save when layoutRow changes
   useEffect(() => {
     if (hasLoadedRef.current && !isLoading) {
-      debouncedSave(panels);
+      debouncedSave(layoutRow);
     }
-  }, [panels, isLoading, debouncedSave]);
+  }, [layoutRow, isLoading, debouncedSave]);
+
+  // ---- v2 layout operations ----
+
+  const getLayoutRow = useCallback(() => layoutRow, [layoutRow]);
+
+  /**
+   * Update horizontal column widths from resize events.
+   * sizeMap: { [columnId]: newSizePercent }
+   */
+  const updateColumnSizes = useCallback((sizeMap) => {
+    setLayoutRow(prev => {
+      let changed = false;
+      const columns = prev.columns.map(col => {
+        if (sizeMap[col.id] === undefined) return col;
+        const newSize = Number(sizeMap[col.id].toFixed(2));
+        if (col.size === newSize) return col;
+        changed = true;
+        return { ...col, size: newSize };
+      });
+      if (!changed) return prev;
+      if (layoutResizeDebugEnabled) {
+        console.debug('[useLayout] column size updates', sizeMap);
+      }
+      return { ...prev, columns };
+    });
+  }, [layoutResizeDebugEnabled]);
+
+  /**
+   * Update vertical panel heights within a specific column.
+   * sizeMap: { [panelId]: newSizePercent }
+   */
+  const updateStackSizes = useCallback((columnId, sizeMap) => {
+    setLayoutRow(prev => {
+      let changed = false;
+      const columns = prev.columns.map(col => {
+        if (col.id !== columnId) return col;
+        const panels = col.panels.map(p => {
+          if (sizeMap[p.panelId] === undefined) return p;
+          const newSize = Number(sizeMap[p.panelId].toFixed(2));
+          if (p.size === newSize) return p;
+          changed = true;
+          return { ...p, size: newSize };
+        });
+        return { ...col, panels };
+      });
+      if (!changed) return prev;
+      if (layoutResizeDebugEnabled) {
+        console.debug('[useLayout] stack size updates', columnId, sizeMap);
+      }
+      return { ...prev, columns };
+    });
+  }, [layoutResizeDebugEnabled]);
+
+  /**
+   * Main drag-and-drop handler.
+   * dropZone: 'center' | 'top' | 'bottom' | 'left' | 'right'
+   */
+  const movePanel = useCallback((draggedPanelId, targetPanelId, dropZone) => {
+    setLayoutRow(prev => {
+      let result;
+      if (dropZone === 'center') {
+        result = executeStackDrop(prev, targetPanelId, draggedPanelId);
+      } else {
+        result = executeEdgeDrop(prev, targetPanelId, draggedPanelId, dropZone);
+      }
+      return result;
+    });
+  }, []);
+
+  // ---- Legacy operations (operate on layoutRow internally) ----
 
   const addPanel = useCallback((panel) => {
     const id = panel.id || `${panel.type}-${Date.now()}`;
-    setPanels(prev => {
-      if (prev.some(p => p.id === id)) {
-        return prev;
-      }
+    setLayoutRow(prev => {
+      // Check if panel already exists
+      if (findPanelLocation(prev, id)) return prev;
 
-      const maxOrder = prev.reduce((max, p) => Math.max(max, p.order), -1);
-      const newPanel = {
-        id,
-        type: panel.type,
+      const newColumn = {
+        id: `col-${Date.now()}`,
         size: panel.size || 20,
-        order: panel.order ?? maxOrder + 1,
-        visible: panel.visible !== false,
-        ...panel,
-        id
+        panels: [{ panelId: id, type: panel.type, size: 100 }]
       };
-      return [...prev, newPanel];
+
+      const result = simplifyLayout({
+        ...prev,
+        columns: [...prev.columns, newColumn],
+        hiddenPanels: (prev.hiddenPanels || []).filter(p => p.panelId !== id)
+      });
+      return result;
     });
     return id;
   }, []);
 
   const removePanel = useCallback((panelId) => {
-    setPanels(prev => {
-      const filtered = prev.filter(p => p.id !== panelId);
-      const totalSize = filtered.reduce((sum, p) => sum + (p.visible ? p.size : 0), 0);
-      if (totalSize > 0 && totalSize !== 100) {
-        const scale = 100 / totalSize;
-        return filtered.map(p => ({
-          ...p,
-          size: p.visible ? Math.round(p.size * scale) : p.size
-        }));
-      }
-      return filtered;
+    setLayoutRow(prev => {
+      const result = removePanelFromLayout(prev, panelId);
+      return simplifyLayout(result);
     });
   }, []);
 
   const updatePanel = useCallback((panelId, updates) => {
-    setPanels(prev => prev.map(p =>
-      p.id === panelId ? { ...p, ...updates } : p
-    ));
+    setLayoutRow(prev => {
+      const columns = prev.columns.map(col => ({
+        ...col,
+        panels: col.panels.map(p => {
+          if (p.panelId !== panelId) return p;
+          return { ...p, ...updates };
+        })
+      }));
+      return { ...prev, columns };
+    });
   }, []);
 
+  /**
+   * Legacy updatePanelSizes — maps panel IDs to column sizes for single-panel columns.
+   * Kept for backward compatibility with code that still calls onLayoutChange(sizeMap).
+   */
   const updatePanelSizes = useCallback((sizeMap) => {
-    setPanels(prev => {
+    setLayoutRow(prev => {
       let changed = false;
-      const changes = [];
-      const next = prev.map(p => {
-        if (sizeMap[p.id] === undefined) return p;
-        if (p.size === sizeMap[p.id]) return p;
-        changed = true;
-        changes.push({
-          id: p.id,
-          from: p.size,
-          to: sizeMap[p.id]
-        });
-        return { ...p, size: sizeMap[p.id] };
+      const columns = prev.columns.map(col => {
+        // For single-panel columns, check if the panel ID is in the sizeMap
+        if (col.panels.length === 1) {
+          const panelId = col.panels[0].panelId;
+          if (sizeMap[panelId] !== undefined) {
+            const newSize = Number(sizeMap[panelId].toFixed(2));
+            if (col.size !== newSize) {
+              changed = true;
+              return { ...col, size: newSize };
+            }
+          }
+        }
+        // For column IDs in sizeMap
+        if (sizeMap[col.id] !== undefined) {
+          const newSize = Number(sizeMap[col.id].toFixed(2));
+          if (col.size !== newSize) {
+            changed = true;
+            return { ...col, size: newSize };
+          }
+        }
+        return col;
       });
-      if (changed && layoutResizeDebugEnabled) {
-        console.debug('[useLayout] panel size updates', changes);
-      }
-      return changed ? next : prev;
+      return changed ? { ...prev, columns } : prev;
     });
-  }, [layoutResizeDebugEnabled]);
+  }, []);
 
   const togglePanelVisibility = useCallback((panelId) => {
-    setPanels(prev => prev.map(p =>
-      p.id === panelId ? { ...p, visible: !p.visible } : p
-    ));
+    setLayoutRow(prev => {
+      // Check if panel is in columns (visible)
+      const loc = findPanelLocation(prev, panelId);
+      if (loc) {
+        // Move to hiddenPanels
+        const panel = prev.columns[loc.columnIndex].panels[loc.panelIndex];
+        const result = removePanelFromLayout(prev, panelId);
+        return simplifyLayout({
+          ...result,
+          hiddenPanels: [...(result.hiddenPanels || []), { panelId: panel.panelId, type: panel.type }]
+        });
+      }
+
+      // Check if panel is in hiddenPanels
+      const hidden = (prev.hiddenPanels || []).find(p => p.panelId === panelId);
+      if (hidden) {
+        // Move to a new column
+        const newColumn = {
+          id: `col-${Date.now()}`,
+          size: 20,
+          panels: [{ panelId: hidden.panelId, type: hidden.type, size: 100 }]
+        };
+        return simplifyLayout({
+          ...prev,
+          columns: [...prev.columns, newColumn],
+          hiddenPanels: (prev.hiddenPanels || []).filter(p => p.panelId !== panelId)
+        });
+      }
+
+      return prev;
+    });
   }, []);
 
   const resetLayout = useCallback(() => {
-    setPanels(DEFAULT_LAYOUT.panels);
+    setLayoutRow(DEFAULT_LAYOUT_V2);
   }, []);
 
   const getSortedPanels = useCallback(() => {
@@ -193,14 +304,8 @@ export function useLayout() {
   }, [panels]);
 
   const getVisiblePanels = useCallback(() => {
-    const visible = getSortedPanels().filter(p => p.visible);
-    const seen = new Set();
-    return visible.filter(p => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
-  }, [getSortedPanels]);
+    return panels.filter(p => p.visible);
+  }, [panels]);
 
   const getPanel = useCallback((panelId) => {
     return panels.find(p => p.id === panelId);
@@ -210,39 +315,49 @@ export function useLayout() {
     return panels.find(p => p.type === type);
   }, [panels]);
 
-  const reorderPanel = useCallback((panelId, newOrder) => {
-    setPanels(prev => {
-      const panel = prev.find(p => p.id === panelId);
-      if (!panel) return prev;
-      const oldOrder = panel.order;
-      return prev.map(p => {
-        if (p.id === panelId) {
-          return { ...p, order: newOrder };
-        }
-        if (newOrder < oldOrder) {
-          if (p.order >= newOrder && p.order < oldOrder) {
-            return { ...p, order: p.order + 1 };
-          }
-        } else if (newOrder > oldOrder) {
-          if (p.order > oldOrder && p.order <= newOrder) {
-            return { ...p, order: p.order - 1 };
-          }
-        }
-        return p;
-      });
+  const swapPanels = useCallback((panelIdA, panelIdB) => {
+    setLayoutRow(prev => {
+      const locA = findPanelLocation(prev, panelIdA);
+      const locB = findPanelLocation(prev, panelIdB);
+      if (!locA || !locB) return prev;
+
+      const panelA = prev.columns[locA.columnIndex].panels[locA.panelIndex];
+      const panelB = prev.columns[locB.columnIndex].panels[locB.panelIndex];
+
+      const columns = prev.columns.map((col, ci) => ({
+        ...col,
+        panels: col.panels.map((p, pi) => {
+          if (ci === locA.columnIndex && pi === locA.panelIndex) return { ...panelB };
+          if (ci === locB.columnIndex && pi === locB.panelIndex) return { ...panelA };
+          return p;
+        })
+      }));
+
+      return { ...prev, columns };
     });
   }, []);
 
-  const swapPanels = useCallback((panelIdA, panelIdB) => {
-    setPanels(prev => {
-      const panelA = prev.find(p => p.id === panelIdA);
-      const panelB = prev.find(p => p.id === panelIdB);
-      if (!panelA || !panelB) return prev;
-      return prev.map(p => {
-        if (p.id === panelIdA) return { ...p, order: panelB.order };
-        if (p.id === panelIdB) return { ...p, order: panelA.order };
-        return p;
-      });
+  const reorderPanel = useCallback((panelId, newOrder) => {
+    // In v2, "order" is implicit from column/panel position.
+    // This is a legacy operation — move panel to a new column position.
+    setLayoutRow(prev => {
+      const loc = findPanelLocation(prev, panelId);
+      if (!loc) return prev;
+
+      const panel = prev.columns[loc.columnIndex].panels[loc.panelIndex];
+      let result = removePanelFromLayout(prev, panelId);
+
+      const targetColIndex = Math.min(newOrder, result.columns.length);
+      const newColumn = {
+        id: `col-${Date.now()}`,
+        size: 20,
+        panels: [{ ...panel, size: 100 }]
+      };
+
+      const columns = [...result.columns];
+      columns.splice(targetColIndex, 0, newColumn);
+
+      return simplifyLayout({ ...result, columns });
     });
   }, []);
 
@@ -250,10 +365,18 @@ export function useLayout() {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    await saveLayout(panels);
-  }, [panels, saveLayout]);
+    await saveLayout(layoutRow);
+  }, [layoutRow, saveLayout]);
 
   return {
+    // v2 API
+    layoutRow,
+    getLayoutRow,
+    updateColumnSizes,
+    updateStackSizes,
+    movePanel,
+
+    // Legacy API (backward compat)
     panels,
     isLoading,
     isSaving,
@@ -272,7 +395,7 @@ export function useLayout() {
     getVisiblePanels,
     getPanel,
     getPanelByType,
-    DEFAULT_LAYOUT
+    DEFAULT_LAYOUT: DEFAULT_LAYOUT_V1
   };
 }
 

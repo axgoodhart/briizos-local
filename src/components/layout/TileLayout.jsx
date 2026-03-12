@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { determineDropZone } from '../../lib/layoutUtils';
 import logger from '../../lib/logger';
 import './layout.css';
 
@@ -30,14 +31,15 @@ const toPercentSize = (value, fallbackPercent) => {
 };
 
 /**
- * DraggablePanel - Wrapper component that makes panels draggable and droppable
- * Uses react-dnd hooks for drag-and-drop functionality
+ * DraggablePanel - Wrapper with zone-based drop detection and visual overlay.
  */
-function DraggablePanel({ panel, children, onSwap }) {
+function DraggablePanel({ panelId, children, onDrop }) {
   const wrapperRef = useRef(null);
+  const [dropZone, setDropZone] = useState(null);
+
   const [{ isDragging }, drag] = useDrag({
     type: PANEL_TYPE,
-    item: { id: panel.id },
+    item: { id: panelId },
     collect: (monitor) => ({
       isDragging: monitor.isDragging()
     })
@@ -45,15 +47,36 @@ function DraggablePanel({ panel, children, onSwap }) {
 
   const [{ isOver }, drop] = useDrop({
     accept: PANEL_TYPE,
-    drop: (draggedItem) => {
-      if (draggedItem.id !== panel.id) {
-        onSwap(draggedItem.id, panel.id);
+    hover: (draggedItem, monitor) => {
+      if (draggedItem.id === panelId) {
+        setDropZone(null);
+        return;
+      }
+      const offset = monitor.getClientOffset();
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (offset && rect) {
+        const zone = determineDropZone(
+          { x: offset.x, y: offset.y },
+          { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+        );
+        setDropZone(zone);
       }
     },
+    drop: (draggedItem) => {
+      if (draggedItem.id !== panelId && dropZone && onDrop) {
+        onDrop(draggedItem.id, panelId, dropZone);
+      }
+      setDropZone(null);
+    },
     collect: (monitor) => ({
-      isOver: monitor.isOver() && monitor.getItem()?.id !== panel.id
+      isOver: monitor.isOver() && monitor.getItem()?.id !== panelId
     })
   });
+
+  // Clear drop zone when cursor leaves
+  useEffect(() => {
+    if (!isOver) setDropZone(null);
+  }, [isOver]);
 
   useEffect(() => {
     const wrapperEl = wrapperRef.current;
@@ -67,47 +90,44 @@ function DraggablePanel({ panel, children, onSwap }) {
       if (typeof disconnectDrag === 'function') disconnectDrag();
       if (typeof disconnectDrop === 'function') disconnectDrop();
     };
-  }, [drag, drop, panel.id]);
+  }, [drag, drop, panelId]);
 
   return (
     <div
       ref={wrapperRef}
-      className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver ? 'drop-target' : ''}`}
+      className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver && dropZone ? 'drop-target' : ''}`}
     >
       {children}
+      {isOver && dropZone && (
+        <div className={`drop-zone-overlay drop-zone-${dropZone}`} />
+      )}
     </div>
   );
 }
 
 /**
- * TileLayout - A resizable grid layout component using react-resizable-panels
- *
- * Inspired by Waveterm's TileLayout approach, this component provides:
- * - Resizable panels with drag handles
- * - Panels passed via props from parent (single useLayout instance)
- * - Support for horizontal panel arrangements
- * - Layout change callbacks for state persistence
+ * TileLayout - Renders a v2 LayoutRow with columns and optional vertical stacks.
  *
  * @param {Object} props
- * @param {Array} props.panels - Array of panel configurations { id, type, size, visible }
- * @param {Function} props.renderPanel - Callback to render panel content: (panel) => ReactNode
- * @param {Function} props.onLayoutChange - Called when panel sizes change
- * @param {string} props.direction - Layout direction: 'horizontal' or 'vertical' (default: 'horizontal')
- * @param {string} props.className - Additional CSS class names
+ * @param {Object} props.layoutRow - v2 LayoutRow: { columns: [...], version: 2 }
+ * @param {Function} props.renderPanel - (panel) => ReactNode, receives { panelId, type, size }
+ * @param {Function} props.onColumnResize - (sizeMap) => void, column ID -> new size %
+ * @param {Function} props.onStackResize - (columnId, sizeMap) => void, panel ID -> new size %
+ * @param {Function} props.onMovePanel - (draggedId, targetId, dropZone) => void
+ * @param {string} props.className
  */
 export function TileLayout({
-  panels,
+  layoutRow,
   renderPanel,
-  onLayoutChange,
-  onSwapPanels,
-  direction = 'horizontal',
+  onColumnResize,
+  onStackResize,
+  onMovePanel,
   className = ''
 }) {
   tileLayoutRenderCount++;
   const currentRender = tileLayoutRenderCount;
-  logger.debug('ui', `TileLayout render #${currentRender}`, panels?.map(p => p.id));
+  logger.debug('ui', `TileLayout render #${currentRender}`, layoutRow?.columns?.map(c => c.id));
 
-  // Track mount/unmount
   useEffect(() => {
     logger.debug('ui', `TileLayout MOUNTED (render #${currentRender})`);
     return () => {
@@ -115,148 +135,98 @@ export function TileLayout({
     };
   }, []);
 
-  // Memoize sorted visible panels (with deduplication)
-  const visiblePanels = useMemo(() => {
-    if (!panels) return [];
-    const filtered = panels
-      .filter(p => p.visible !== false)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-    // Deduplicate by ID (keep first occurrence)
-    const seen = new Set();
-    return filtered.filter(p => {
-      if (seen.has(p.id)) {
-        logger.warn('ui', `TileLayout: Duplicate panel ID "${p.id}" filtered out`);
-        return false;
-      }
-      seen.add(p.id);
-      return true;
-    });
-  }, [panels]);
-
-  /**
-   * Handle panel resize - called by react-resizable-panels when layout changes
-   * Receives a Layout object: { [panelId]: sizePercent }
-   */
-  const handleLayoutChange = useCallback((layout) => {
+  // Handle horizontal column resize
+  const handleColumnResize = useCallback((layout) => {
     if (!layout || Object.keys(layout).length === 0) return;
-
-    // layout is already a map of id -> size percentage
     const sizeMap = {};
     Object.entries(layout).forEach(([id, size]) => {
       sizeMap[id] = Number(size.toFixed(2));
     });
+    debugPanelResize('column resize', sizeMap);
+    if (onColumnResize) onColumnResize(sizeMap);
+  }, [onColumnResize]);
 
-    debugPanelResize('group layout change', sizeMap);
-
-    // Call external callback if provided
-    if (onLayoutChange) {
-      onLayoutChange(sizeMap);
-    }
-  }, [onLayoutChange]);
-
-  /**
-   * Handle panel swap via drag-and-drop
-   */
-  const handleSwapPanels = useCallback((draggedId, targetId) => {
-    if (onSwapPanels) {
-      onSwapPanels(draggedId, targetId);
-    }
-  }, [onSwapPanels]);
-
-  const handleSeparatorPointerDown = useCallback((separatorId, orientation, event) => {
-    debugPanelResize('separator pointerdown', {
-      separatorId,
-      orientation,
-      x: event.clientX,
-      y: event.clientY
+  // Handle vertical stack resize within a column
+  const handleStackResize = useCallback((columnId, layout) => {
+    if (!layout || Object.keys(layout).length === 0) return;
+    const sizeMap = {};
+    Object.entries(layout).forEach(([id, size]) => {
+      sizeMap[id] = Number(size.toFixed(2));
     });
+    debugPanelResize('stack resize', columnId, sizeMap);
+    if (onStackResize) onStackResize(columnId, sizeMap);
+  }, [onStackResize]);
 
-    const onPointerUp = (upEvent) => {
-      debugPanelResize('separator pointerup', {
-        separatorId,
-        orientation,
-        x: upEvent.clientX,
-        y: upEvent.clientY
-      });
-      window.removeEventListener('pointerup', onPointerUp);
-    };
+  // Handle panel drop
+  const handleDrop = useCallback((draggedId, targetId, dropZone) => {
+    logger.debug('ui', `TileLayout drop: ${draggedId} -> ${targetId} (${dropZone})`);
+    if (onMovePanel) onMovePanel(draggedId, targetId, dropZone);
+  }, [onMovePanel]);
 
-    window.addEventListener('pointerup', onPointerUp);
-  }, []);
-
-  // If no visible panels, render nothing
-  if (visiblePanels.length === 0) {
+  if (!layoutRow || !layoutRow.columns || layoutRow.columns.length === 0) {
     return (
       <div className={`tile-layout ${className}`}>
-        <div className="tile-layout-empty">
-          No panels to display
-        </div>
+        <div className="tile-layout-empty">No panels to display</div>
       </div>
     );
   }
 
-  // Calculate default layout based on panel configurations
-  const defaultLayout = useMemo(() => {
+  const { columns } = layoutRow;
+
+  // Default layout for the horizontal Group
+  const defaultColumnLayout = useMemo(() => {
     const layout = {};
-    const defaultSize = Math.floor(100 / visiblePanels.length);
-    visiblePanels.forEach(p => {
-      layout[p.id] = p.size || defaultSize;
+    columns.forEach(col => {
+      layout[col.id] = col.size;
     });
-    logger.debug('ui', 'TileLayout defaultLayout computed', layout);
     return layout;
-  }, [visiblePanels]);
+  }, [columns]);
 
-  // Create a key that changes when panel order changes, forcing Group to remount
+  // Key that changes when column structure changes, forcing Group remount
   const groupKey = useMemo(() => {
-    const key = visiblePanels.map(p => p.id).join('-');
-    logger.debug('ui', `TileLayout groupKey computed: "${key}"`);
-    return key;
-  }, [visiblePanels]);
-
-  logger.debug('ui', `TileLayout rendering Group key="${groupKey}", ${visiblePanels.length} panels`);
+    return columns.map(c => `${c.id}:${c.panels.map(p => p.panelId).join('+')}`).join('-');
+  }, [columns]);
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className={`tile-layout ${className}`}>
         <Group
           key={groupKey}
-          orientation={direction}
-          onLayoutChange={handleLayoutChange}
-          defaultLayout={defaultLayout}
+          orientation="horizontal"
+          onLayoutChange={handleColumnResize}
+          defaultLayout={defaultColumnLayout}
           className="tile-layout-content"
         >
-          {visiblePanels.map((panel, index) => (
-            <React.Fragment key={panel.id}>
+          {columns.map((column, colIndex) => (
+            <React.Fragment key={column.id}>
               <Panel
-                id={panel.id}
+                id={column.id}
                 minSize="5%"
-                maxSize="90%"
-                onResize={(size) => {
-                  debugPanelResize('panel onResize', panel.id, {
-                    percent: Number(size.asPercentage.toFixed(2)),
-                    pixels: Math.round(size.inPixels)
-                  });
-                }}
+                maxSize="95%"
                 className="resizable-panel"
               >
-                <DraggablePanel panel={panel} onSwap={handleSwapPanels}>
-                  {renderPanel ? renderPanel(panel) : (
-                    <div className="panel-content">
-                      <div className="widget-empty">
-                        Panel: {panel.type || panel.id}
+                {column.panels.length === 1 ? (
+                  // Single panel column — render at full height
+                  <DraggablePanel panelId={column.panels[0].panelId} onDrop={handleDrop}>
+                    {renderPanel ? renderPanel(column.panels[0]) : (
+                      <div className="panel-content">
+                        <div className="widget-empty">Panel: {column.panels[0].type}</div>
                       </div>
-                    </div>
-                  )}
-                </DraggablePanel>
+                    )}
+                  </DraggablePanel>
+                ) : (
+                  // Stack column — nested vertical Group
+                  <StackColumn
+                    column={column}
+                    renderPanel={renderPanel}
+                    onStackResize={handleStackResize}
+                    onDrop={handleDrop}
+                  />
+                )}
               </Panel>
 
-              {/* Add resize handle between panels (not after last panel) */}
-              {index < visiblePanels.length - 1 && (
-                <Separator
-                  className={`resize-handle ${direction}`}
-                  onPointerDown={(event) => handleSeparatorPointerDown(`sep-${panel.id}-${index}`, direction, event)}
-                />
+              {colIndex < columns.length - 1 && (
+                <Separator className="resize-handle horizontal" />
               )}
             </React.Fragment>
           ))}
@@ -267,40 +237,87 @@ export function TileLayout({
 }
 
 /**
- * TileLayoutWithControls - TileLayout with panel visibility controls
- * Provides additional UI for toggling panel visibility
- *
- * NOTE: panels must be passed via props from a single useLayout() instance
- * in the parent component to avoid duplicate state issues.
+ * StackColumn - Renders a vertical stack of panels within a column.
+ */
+function StackColumn({ column, renderPanel, onStackResize, onDrop }) {
+  const defaultStackLayout = useMemo(() => {
+    const layout = {};
+    column.panels.forEach(p => {
+      layout[p.panelId] = p.size;
+    });
+    return layout;
+  }, [column.panels]);
+
+  const stackKey = useMemo(() => {
+    return column.panels.map(p => p.panelId).join('-');
+  }, [column.panels]);
+
+  const handleResize = useCallback((layout) => {
+    if (onStackResize) onStackResize(column.id, layout);
+  }, [onStackResize, column.id]);
+
+  return (
+    <Group
+      key={stackKey}
+      orientation="vertical"
+      onLayoutChange={handleResize}
+      defaultLayout={defaultStackLayout}
+      className="stack-column"
+    >
+      {column.panels.map((panel, pIndex) => (
+        <React.Fragment key={panel.panelId}>
+          <Panel
+            id={panel.panelId}
+            minSize="5%"
+            maxSize="95%"
+            className="resizable-panel"
+          >
+            <DraggablePanel panelId={panel.panelId} onDrop={onDrop}>
+              {renderPanel ? renderPanel(panel) : (
+                <div className="panel-content">
+                  <div className="widget-empty">Panel: {panel.type}</div>
+                </div>
+              )}
+            </DraggablePanel>
+          </Panel>
+
+          {pIndex < column.panels.length - 1 && (
+            <Separator className="resize-handle vertical" />
+          )}
+        </React.Fragment>
+      ))}
+    </Group>
+  );
+}
+
+/**
+ * TileLayoutWithControls - TileLayout with loading state
  */
 export function TileLayoutWithControls({
-  panels,
+  layoutRow,
   isLoading,
   renderPanel,
-  onLayoutChange,
-  onSwapPanels,
-  direction = 'horizontal',
+  onColumnResize,
+  onStackResize,
+  onMovePanel,
   className = ''
 }) {
   if (isLoading) {
     return (
       <div className={`tile-layout ${className}`}>
-        <div className="tile-layout-loading">
-          Loading layout...
-        </div>
+        <div className="tile-layout-loading">Loading layout...</div>
       </div>
     );
   }
 
   return (
     <div className={`tile-layout-container ${className}`}>
-      {/* Panel visibility controls could be added here */}
       <TileLayout
-        panels={panels}
+        layoutRow={layoutRow}
         renderPanel={renderPanel}
-        onLayoutChange={onLayoutChange}
-        onSwapPanels={onSwapPanels}
-        direction={direction}
+        onColumnResize={onColumnResize}
+        onStackResize={onStackResize}
+        onMovePanel={onMovePanel}
       />
     </div>
   );
@@ -316,22 +333,17 @@ export function NestedTileLayout({
   onLayoutChange,
   className = ''
 }) {
-  // Recursively render nested panel groups
   const renderPanelGroup = (node, depth = 0) => {
     if (!node) return null;
 
-    // Leaf node - render panel content
     if (node.type && !node.children) {
       return renderPanel ? renderPanel(node) : (
         <div className="panel-content">
-          <div className="widget-empty">
-            Panel: {node.type || node.id}
-          </div>
+          <div className="widget-empty">Panel: {node.type || node.id}</div>
         </div>
       );
     }
 
-    // Container node - render nested Group
     const children = node.children || [];
     const orientation = node.direction || 'horizontal';
 

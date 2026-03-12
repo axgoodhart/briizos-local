@@ -42,8 +42,10 @@ function AppContent({ layout }) {
     getPanelByType,
     addPanel,
     togglePanelVisibility,
-    updatePanelSizes,
-    swapPanels
+    updateColumnSizes,
+    updateStackSizes,
+    movePanel,
+    getLayoutRow
   } = layout;
 
   // New overlay states
@@ -198,11 +200,6 @@ function AppContent({ layout }) {
     return () => window.removeEventListener('briizos-canvas', handleCanvasEvent);
   }, []);
 
-  // Handle layout changes (when panels are resized)
-  const handleLayoutChange = useCallback((sizeMap) => {
-    updatePanelSizes(sizeMap);
-  }, [updatePanelSizes]);
-
   // Render the appropriate component based on panel type
   const renderPanel = useCallback((panel) => {
     switch (panel.type) {
@@ -261,11 +258,11 @@ function AppContent({ layout }) {
       {/* Main Content */}
       <main className="app-main">
         <TileLayout
-          panels={panels}
+          layoutRow={getLayoutRow()}
           renderPanel={renderPanel}
-          onLayoutChange={handleLayoutChange}
-          onSwapPanels={swapPanels}
-          direction="horizontal"
+          onColumnResize={updateColumnSizes}
+          onStackResize={updateStackSizes}
+          onMovePanel={movePanel}
         />
       </main>
 
