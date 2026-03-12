@@ -21,15 +21,57 @@ function SettingsModal({ isOpen, onClose }) {
   const [gdriveStatus, setGdriveStatus] = useState(null);
   const [isConnectingGdrive, setIsConnectingGdrive] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [memoryData, setMemoryData] = useState(null);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [deletingFact, setDeletingFact] = useState(null);
 
+  const loadMemoryData = async () => {
+    setMemoryLoading(true);
+    try {
+      const result = await window.api.memoryGetData();
+      setMemoryData(result);
+    } catch (error) {
+      logger.error('config', 'Failed to load memory data', error?.message);
+    } finally {
+      setMemoryLoading(false);
+    }
+  };
+
+  const handleDeleteFact = async (factId) => {
+    setDeletingFact(factId);
+    try {
+      const result = await window.api.memoryDeleteFact(factId);
+      if (result?.success) {
+        setMemoryData(prev => prev ? {
+          ...prev,
+          data: {
+            ...prev.data,
+            facts: prev.data.facts.filter(f => f.id !== factId)
+          }
+        } : prev);
+      }
+    } catch (error) {
+      logger.error('config', 'Failed to delete fact', error?.message);
+    } finally {
+      setDeletingFact(null);
+    }
+  };
 
   // Load settings on mount
   useEffect(() => {
     if (isOpen) {
       loadSettings();
       loadGdriveStatus();
+      if (activeTab === 'memory') loadMemoryData();
     }
   }, [isOpen]);
+
+  // Load memory data when switching to memory tab
+  useEffect(() => {
+    if (activeTab === 'memory' && memoryData === null && isOpen) {
+      loadMemoryData();
+    }
+  }, [activeTab]);
 
   const loadGdriveStatus = async () => {
     try {
@@ -165,6 +207,7 @@ function SettingsModal({ isOpen, onClose }) {
     { id: 'account', label: 'Account' },
     { id: 'api', label: 'API Config' },
     { id: 'integrations', label: 'Integrations' },
+    { id: 'memory', label: 'Memory' },
     { id: 'model', label: 'AI Model' },
     { id: 'studio', label: 'Studio URLs' }
   ];
@@ -567,6 +610,137 @@ function SettingsModal({ isOpen, onClose }) {
                       />
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Memory Tab */}
+              {activeTab === 'memory' && (
+                <div className="settings-section">
+                  {memoryLoading ? (
+                    <div className="settings-loading">Loading memory...</div>
+                  ) : !memoryData || !memoryData.data ? (
+                    <div className="memory-empty">
+                      No memory data available. Chat with the agent to start building memory.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Refresh button */}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                        <button
+                          type="button"
+                          onClick={loadMemoryData}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: 11,
+                            background: 'rgba(0, 200, 200, 0.1)',
+                            border: '1px solid rgba(0, 200, 200, 0.25)',
+                            borderRadius: 6,
+                            color: 'var(--palette-accent-cyan)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          Refresh
+                        </button>
+                      </div>
+
+                      {/* Context Summary Section */}
+                      <h3 className="settings-section-title">Context</h3>
+                      {(() => {
+                        const user = memoryData.data.user;
+                        const contextItems = [
+                          { key: 'workContext', label: 'Work' },
+                          { key: 'personalContext', label: 'Personal' },
+                          { key: 'topOfMind', label: 'Top of Mind' },
+                        ].filter(item => user?.[item.key] && user[item.key].trim());
+
+                        if (contextItems.length === 0) {
+                          return <div className="memory-empty">No context stored yet.</div>;
+                        }
+
+                        return contextItems.map(item => (
+                          <div key={item.key} className="memory-context-item">
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: 'var(--palette-accent-cyan)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                            }}>{item.label}</span>
+                            <p style={{
+                              fontSize: 13,
+                              color: 'var(--palette-text-soft)',
+                              margin: '4px 0 0 0',
+                              lineHeight: 1.5,
+                            }}>{user[item.key]}</p>
+                          </div>
+                        ));
+                      })()}
+
+                      <div className="settings-divider" />
+
+                      {/* Facts Section */}
+                      <h3 className="settings-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        Facts
+                        {memoryData.data.facts && memoryData.data.facts.length > 0 && (
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 400,
+                            color: 'var(--palette-text-muted)',
+                            textTransform: 'none',
+                            letterSpacing: 0,
+                          }}>({memoryData.data.facts.length})</span>
+                        )}
+                      </h3>
+
+                      {!memoryData.data.facts || memoryData.data.facts.length === 0 ? (
+                        <div className="memory-empty">
+                          No facts stored yet. The agent will learn about you over time.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {memoryData.data.facts.map(fact => {
+                            const categoryColors = {
+                              preference: { bg: 'rgba(66, 133, 244, 0.15)', text: '#64b5f6', border: 'rgba(66, 133, 244, 0.3)' },
+                              knowledge: { bg: 'rgba(76, 175, 80, 0.15)', text: '#81c784', border: 'rgba(76, 175, 80, 0.3)' },
+                              context: { bg: 'rgba(158, 158, 158, 0.15)', text: '#bdbdbd', border: 'rgba(158, 158, 158, 0.3)' },
+                              behavior: { bg: 'rgba(171, 71, 188, 0.15)', text: '#ce93d8', border: 'rgba(171, 71, 188, 0.3)' },
+                              goal: { bg: 'rgba(255, 152, 0, 0.15)', text: '#ffb74d', border: 'rgba(255, 152, 0, 0.3)' },
+                            };
+                            const colors = categoryColors[fact.category] || categoryColors.context;
+                            const isDeleting = deletingFact === fact.id;
+
+                            return (
+                              <div
+                                key={fact.id}
+                                className="memory-fact-row"
+                                style={{ opacity: isDeleting ? 0.4 : 1 }}
+                              >
+                                <span className="memory-fact-category" style={{
+                                  background: colors.bg,
+                                  color: colors.text,
+                                  border: `1px solid ${colors.border}`,
+                                }}>{fact.category}</span>
+                                <span className="memory-fact-content">{fact.content}</span>
+                                <span className="memory-fact-confidence">
+                                  {Math.round((fact.confidence || 0) * 100)}%
+                                </span>
+                                <button
+                                  type="button"
+                                  className="memory-fact-delete"
+                                  onClick={() => handleDeleteFact(fact.id)}
+                                  disabled={isDeleting}
+                                  title="Delete fact"
+                                >
+                                  {isDeleting ? '...' : '\u00d7'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </>
