@@ -10,6 +10,8 @@ import ConfirmationToast from './ConfirmationToast';
 import { addLog, addSelectedFile, removeSelectedFile } from '../lib/firestore';
 import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
+import { useModelSelection } from '../hooks/useModelSelection';
+import ModelPicker from './ModelPicker';
 
 const CHAT_BACKGROUNDS = [
   { value: '', label: 'Default' },
@@ -128,6 +130,7 @@ function InteractionPanel() {
   const { status: lgStatus, ready: lgReady } = useLangGraphStatus();
   const { provider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur } = useChatSettings();
   const { pendingConfirmation, confirmAction, cancelAction } = useTools();
+  const { models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus, loading: modelsLoading } = useModelSelection();
 
   const [inputValue, setInputValue] = useState('');
   const [collapsed, setCollapsed] = useState(false);
@@ -534,6 +537,18 @@ function InteractionPanel() {
 
       {/* Input Area */}
       <div className="chat-input-area">
+        {!modelsLoading && models.length > 0 && (
+          <div className="chat-input-toolbar" style={{ display: 'flex', alignItems: 'center', padding: '4px 8px 0', gap: '8px' }}>
+            <ModelPicker
+              models={models}
+              modelsByProvider={modelsByProvider}
+              selectedModel={selectedModel}
+              selectModel={selectModel}
+              isModelAvailable={isModelAvailable}
+              apiKeyStatus={apiKeyStatus}
+            />
+          </div>
+        )}
         <div className="chat-input-wrapper">
           <textarea
             ref={textareaRef}
