@@ -517,6 +517,18 @@ ipcMain.handle('health-check', async () => {
   };
 });
 
+// === Memory IPC Handlers (Phase 8) ===
+
+ipcMain.handle('memory-get-data', async () => {
+  const { fetchMemory } = require('./langgraph-process');
+  return await fetchMemory();
+});
+
+ipcMain.handle('memory-delete-fact', async (event, factId) => {
+  const { deleteFact } = require('./langgraph-process');
+  return await deleteFact(factId);
+});
+
 // === LangGraph Status API ===
 
 ipcMain.handle('langgraph-get-status', async () => langgraphProcess.getStatus());

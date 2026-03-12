@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('api', {
   memoryWriteAgentContext: (content) => ipcRenderer.invoke('memory-write-agent-context', content),
   memoryListChunks: () => ipcRenderer.invoke('memory-list-chunks'),
   memoryReadChunk: (filename) => ipcRenderer.invoke('memory-read-chunk', filename),
+  memoryGetData: () => ipcRenderer.invoke('memory-get-data'),
+  memoryDeleteFact: (factId) => ipcRenderer.invoke('memory-delete-fact', factId),
 
   // Logger API (fire-and-forget — logging must never block)
   logToTerminal: (payload) => ipcRenderer.send('log-to-terminal', payload),
