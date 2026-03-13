@@ -9,6 +9,15 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    watch: {
+      // Prevent backend virtualenv/package churn from triggering Vite full reloads.
+      ignored: [
+        '**/agent/.venv/**',
+        '**/agent/.langgraph_api/**',
+        '**/agent/.deer-flow/**',
+        '**/agent/**/__pycache__/**',
+      ],
+    },
   }
 });

@@ -1,0 +1,252 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">  <meta name='viewport' content='width=device-width, initial-scale=1'>
+
+  <title>Liquid Effect</title>
+
+
+  <title>Liquid Effect</title>
+
+  <style>
+    html { font-size: 15px; }
+    html, body { margin: 0; padding: 0; min-height: 100%; background:teal;}
+    body { height:100%; display: flex; flex-direction: column; }
+    /* Extra values we can use if we decide we need more control in the future */
+
+html,
+body {
+  perspective:100px;
+    background:black;
+  overflow: hidden;
+  height: 100%;
+}
+
+.fullpage {
+  padding-bottom: 0;
+  margin: 0;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -webkit-flex-direction: column;
+      -ms-flex-direction: column;
+          flex-direction: column;
+}
+.fullpage .main-header {
+  min-width: 0;
+}
+.fullpage .mobile-action-button {
+  display: block;
+  width: 48%;
+  float: left;
+  text-align: center;
+  margin: 0 4% 10px 0;
+}
+.fullpage .mobile-action-button:nth-child(even) {
+  margin-right: 0;
+}
+.fullpage .jump-view {
+  width: 48%;
+  margin: 0 4% 10px 0;
+  float: left;
+}
+.fullpage .jump-view:nth-child(even) {
+  margin-right: 0;
+}
+.fullpage .jump-view:nth-child(3) {
+  display: none;
+}
+.fullpage .jump-label {
+  display: block;
+}
+
+.oldie-header {
+  display: none;
+  padding: 5px;
+  background: var(--cp-color-20);
+  color: var(--cp-color-1);
+}
+html.oldie .oldie-header {
+  display: block;
+}
+
+html.oldie .main-header {
+  display: none;
+}
+
+#result-iframe-wrap {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 auto;
+      -ms-flex: 1 1 auto;
+          flex: 1 1 auto;
+  height: 100%;
+  position: relative;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+
+    transform-style: preserve-3d;
+    transform: rotateX(80deg)translateY(-60px);
+    opacity: 1;
+}
+html.oldie #result-iframe-wrap {
+  /* stylelint-disable-next-line declaration-block-no-duplicate-properties */
+  height: 100%;
+  height: calc(100% - 32px);
+}
+
+#result {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#pen-ad {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  -webkit-transform: translateX(-50%);
+          transform: translateX(-50%);
+  width: -webkit-fit-content;
+  width: -moz-fit-content;
+  width: fit-content;
+  z-index: 1;
+}
+#something {
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:9999;
+background:linear-gradient(to bottom, black 40%,transparent)}
+  </style>
+</head>
+
+<body class="">
+<div id="something"></div>
+  <div id="result-iframe-wrap" role="main">
+    <iframe
+      id="result"
+      srcdoc="<!DOCTYPE html>
+<html lang=&quot;en&quot; >
+
+<head>
+  <meta charset=&quot;UTF-8&quot;>
+  
+  
+
+
+  <title>Liquid Effect</title>
+
+  
+  
+  
+<style>
+body, html, #liquidapp {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  touch-action: none;
+}
+
+#liquidapp {
+  height: 100%;
+  font-family: &quot;Montserrat&quot;, serif;
+}
+
+#canvas {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  mix-blend-mode:darken;
+  opacity:1;filter:contrast(1.3);
+  overflow: hidden;
+}
+</style>
+
+  <script>
+  window.console = window.console || function(t) {};
+</script>
+
+  
+  
+</head>
+<body translate=&quot;no&quot;>
+  <div id=&quot;liquidapp&quot;>
+  <canvas id=&quot;canvas&quot;></canvas>
+</div>
+  
+    <script id=&quot;rendered-js&quot; type=&quot;module&quot;>
+import LiquidBackground from 'https://cdn.jsdelivr.net/npm/threejs-components@0.0.22/build/backgrounds/liquid1.min.js';
+
+const liquidapp = LiquidBackground(document.getElementById('canvas'));
+
+liquidapp.loadImage('https://i.imgur.com/UXFeYAC.jpeg');
+liquidapp.liquidPlane.material.metalness = 1;
+liquidapp.liquidPlane.material.roughness = 0;
+liquidapp.liquidPlane.uniforms.displacementScale.value = 20;
+liquidapp.setRain(true);
+liquidapp.setRainTime(0.04);
+
+let elapsed = 0;
+let accumulator = 0;
+const dropInterval = 0.09;
+let lastTime = performance.now();
+
+function addScriptedDrop() {
+  const x =
+    Math.sin(elapsed * 0.85) * 0.65 +
+    Math.sin(elapsed * 0.27) * 0.2;
+  const y =
+    Math.cos(elapsed * 1.1) * 0.55 +
+    Math.sin(elapsed * 0.5) * 0.25;
+  const radius = 0.013 + (Math.sin(elapsed * 2.3) + 1) * 0.004;
+  const strength = 0.0016 + (Math.cos(elapsed * 1.7) + 1) * 0.0011;
+
+  liquidapp.liquidPlane.addDrop(x, y, radius, strength);
+}
+
+function animate(now) {
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+  elapsed += dt;
+  accumulator += dt;
+
+  while (accumulator >= dropInterval) {
+    addScriptedDrop();
+    accumulator -= dropInterval;
+  }
+
+  requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+//# sourceURL=pen.js
+  </script>
+
+  
+</body>
+
+</html>
+"
+      sandbox="allow-downloads allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation" allow="accelerometer *; bluetooth *; camera *; clipboard-read *; clipboard-write *; display-capture *; encrypted-media *; geolocation *; gyroscope *; language-detector *; language-model *; microphone *; midi *; rewriter *; serial *; summarizer *; translator *; web-share *; writer *; xr-spatial-tracking *" allowTransparency="true"
+      allowpaymentrequest="true" allowfullscreen="true" class="result-iframe">
+      </iframe>
+  </div>
+
+</body>
+
+</html>

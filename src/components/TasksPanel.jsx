@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useRecorder } from '../hooks/useRecorder';
+import { useState } from 'react';
 import { useTasks } from '../hooks/useTasks';
 import { addLog } from '../lib/firestore';
 import logger from '../lib/logger';
+import PhantomSection from './PhantomSection';
 
 // Safe API access helper (still needed for studio IPC)
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
@@ -10,11 +10,6 @@ const hasApi = typeof window !== 'undefined' && window.api;
 
 function TasksPanel() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [showSessions, setShowSessions] = useState(false);
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [sessionDetails, setSessionDetails] = useState(null);
-  const [playbackIndex, setPlaybackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [addingSubtaskFor, setAddingSubtaskFor] = useState(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
@@ -32,17 +27,6 @@ function TasksPanel() {
     getSubtaskProgress
   } = useTasks();
 
-  const {
-    isRecording,
-    activeSession,
-    sessions,
-    toggleRecording,
-    recordEvent,
-    getSession,
-    deleteSession,
-    exportSession
-  } = useRecorder();
-
   // Add a new task
   const handleAddTask = async (e) => {
     e.preventDefault();
@@ -52,7 +36,6 @@ function TasksPanel() {
     try {
       await addTask(title);
       setNewTaskTitle('');
-      await recordEvent('task_created', { title });
     } catch (error) {
       logger.error('ui', 'Failed to add task', error?.message);
     }
@@ -68,33 +51,25 @@ function TasksPanel() {
       await addSubtask(parentId, title);
       setNewSubtaskTitle('');
       setAddingSubtaskFor(null);
-      await recordEvent('subtask_created', { parentId, title });
     } catch (error) {
       logger.error('ui', 'Failed to add subtask', error?.message);
     }
   };
 
   // Toggle task completion
-  const handleToggleTask = async (task, isSubtask = false) => {
+  const handleToggleTask = async (task) => {
     try {
-      const newStatus = await toggleTask(task);
-      await recordEvent('task_updated', {
-        taskId: task.id,
-        title: task.title,
-        status: newStatus,
-        isSubtask
-      });
+      await toggleTask(task);
     } catch (error) {
       logger.error('ui', 'Failed to update task', error?.message);
     }
   };
 
-  // Delete a task
-  const handleDeleteTask = async (e, task) => {
+  // Delete a task or action
+  const handleDeleteTask = async (e, task, parentId = null) => {
     e.stopPropagation();
     try {
-      await deleteTask(task.id);
-      await recordEvent('task_deleted', { taskId: task.id, title: task.title });
+      await deleteTask(task.id, parentId);
     } catch (error) {
       logger.error('ui', 'Failed to delete task', error?.message);
     }
@@ -107,7 +82,6 @@ function TasksPanel() {
       await breakdownTask(task.id);
       // Auto-expand the task to show new subtasks
       setExpandedTasks(prev => new Set([...prev, task.id]));
-      await recordEvent('task_breakdown', { taskId: task.id, title: task.title });
     } catch (error) {
       logger.error('ui', 'Failed to breakdown task', error?.message);
       await addLog('ai_breakdown_error', error.message);
@@ -139,170 +113,17 @@ function TasksPanel() {
   // Calculate progress
   const stats = getTaskStats();
 
-  // Studio buttons
-  const studioButtons = [
-    { id: 'video', label: 'Video' },
-    { id: 'website', label: 'Website' },
-    { id: 'replicate', label: 'Replicate' },
-    { id: 'suno', label: 'Suno' },
-    { id: 'dalle', label: 'DALLE' },
-    { id: 'ideogram', label: 'Ideogram' },
-    { id: 'myaudio', label: 'MyAudio' },
-    { id: 'briizclerk', label: 'Briiz-Clerk' }
-  ];
-
-  const handleStudioClick = async (toolId) => {
-    if (!hasApi) return;
-    try {
-      const result = await api.launchStudioTool(toolId);
-      await addLog(
-        'studio_launch',
-        result.success
-          ? `Launched ${toolId}: ${result.message}`
-          : `Failed to launch ${toolId}: ${result.message}`
-      );
-      await recordEvent('studio_tool_launched', { toolId, success: result.success });
-    } catch (error) {
-      logger.error('ui', 'Failed to launch studio tool', error?.message);
-      await addLog('studio_error', `Error launching ${toolId}: ${error.message}`);
-    }
-  };
-
-  // Recording handlers
-  const handleRecordClick = async () => {
-    try {
-      if (isRecording) {
-        await toggleRecording();
-        await addLog('recording_stopped', 'Recording session stopped');
-      } else {
-        const timestamp = new Date().toLocaleString();
-        await toggleRecording(`Session ${timestamp}`);
-        await addLog('recording_started', 'Recording session started');
-      }
-    } catch (error) {
-      logger.error('ui', 'Failed to toggle recording', error?.message);
-    }
-  };
-
-  // Session review handlers
-  const handleViewSessions = () => {
-    setShowSessions(true);
-    setSelectedSession(null);
-    setSessionDetails(null);
-  };
-
-  const handleSessionSelect = async (session) => {
-    try {
-      const details = await getSession(session.id);
-      setSelectedSession(session);
-      setSessionDetails(details);
-      setPlaybackIndex(0);
-      setIsPlaying(false);
-    } catch (error) {
-      logger.error('ui', 'Failed to load session', error?.message);
-    }
-  };
-
-  const handleDeleteSession = async (e, sessionId) => {
-    e.stopPropagation();
-    try {
-      await deleteSession(sessionId);
-      if (selectedSession?.id === sessionId) {
-        setSelectedSession(null);
-        setSessionDetails(null);
-      }
-    } catch (error) {
-      logger.error('ui', 'Failed to delete session', error?.message);
-    }
-  };
-
-  const handleExportSession = async (e, sessionId) => {
-    e.stopPropagation();
-    try {
-      const json = await exportSession(sessionId);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `session-${sessionId}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      logger.error('ui', 'Failed to export session', error?.message);
-    }
-  };
-
-  // Playback controls
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleStepForward = () => {
-    if (sessionDetails?.data?.events && playbackIndex < sessionDetails.data.events.length - 1) {
-      setPlaybackIndex(playbackIndex + 1);
-    }
-  };
-
-  const handleStepBack = () => {
-    if (playbackIndex > 0) {
-      setPlaybackIndex(playbackIndex - 1);
-    }
-  };
-
-  // Auto-advance playback
-  useEffect(() => {
-    let interval;
-    if (isPlaying && sessionDetails?.data?.events) {
-      interval = setInterval(() => {
-        setPlaybackIndex((prev) => {
-          if (prev < sessionDetails.data.events.length - 1) {
-            return prev + 1;
-          } else {
-            setIsPlaying(false);
-            return prev;
-          }
-        });
-      }, 1500);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, sessionDetails]);
-
-  // Format event for display
-  const formatEvent = (event) => {
-    const time = new Date(event.timestamp).toLocaleTimeString();
-    switch (event.type) {
-      case 'chat_message':
-        return `[${time}] ${event.data.role}: ${event.data.content?.substring(0, 50)}...`;
-      case 'task_created':
-        return `[${time}] Created task: ${event.data.title}`;
-      case 'task_updated':
-        return `[${time}] Updated task: ${event.data.title} -> ${event.data.status}`;
-      case 'task_deleted':
-        return `[${time}] Deleted task: ${event.data.title}`;
-      case 'subtask_created':
-        return `[${time}] Added subtask: ${event.data.title}`;
-      case 'task_breakdown':
-        return `[${time}] AI breakdown: ${event.data.title}`;
-      case 'file_selection':
-        return `[${time}] ${event.data.action} file: ${event.data.filePath}`;
-      case 'studio_tool_launched':
-        return `[${time}] Launched studio tool: ${event.data.toolId}`;
-      default:
-        return `[${time}] ${event.type}: ${JSON.stringify(event.data).substring(0, 40)}...`;
-    }
-  };
-
   // Render subtask item
   const renderSubtask = (subtask, parentId) => (
     <div
       key={subtask.id}
       className={`subtask-item ${subtask.status === 'completed' ? 'completed' : 'pending'}`}
-      onClick={() => handleToggleTask(subtask, true)}
+      onClick={() => handleToggleTask(subtask)}
     >
       <input
         type="checkbox"
         checked={subtask.status === 'completed'}
-        onChange={() => handleToggleTask(subtask, true)}
+        onChange={() => handleToggleTask(subtask)}
         onClick={(e) => e.stopPropagation()}
       />
       <span
@@ -315,7 +136,7 @@ function TasksPanel() {
       </span>
       <button
         className="task-delete-btn"
-        onClick={(e) => handleDeleteTask(e, subtask)}
+        onClick={(e) => handleDeleteTask(e, subtask, parentId)}
         title="Delete subtask"
       >
         &times;
@@ -451,112 +272,6 @@ function TasksPanel() {
     );
   };
 
-  // Session review UI
-  if (showSessions) {
-    return (
-      <div className="panel tasks-panel">
-        <div className="panel-header">
-          <span>Sessions</span>
-          <div className="panel-header-actions">
-            <button
-              className="panel-header-btn"
-              onClick={() => setShowSessions(false)}
-              title="Back to Tasks"
-            >
-              &larr;
-            </button>
-          </div>
-        </div>
-        <div className="panel-content">
-          {!selectedSession ? (
-            <div className="sessions-list">
-              {sessions.length === 0 ? (
-                <div className="task-item empty">No recorded sessions</div>
-              ) : (
-                sessions.map(session => (
-                  <div
-                    key={session.id}
-                    className="session-item"
-                    onClick={() => handleSessionSelect(session)}
-                  >
-                    <div className="session-info">
-                      <span className="session-name">{session.name}</span>
-                      <span className="session-time">
-                        {new Date(session.start_time).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="session-actions">
-                      <button
-                        className="session-action-btn"
-                        onClick={(e) => handleExportSession(e, session.id)}
-                        title="Export"
-                      >
-                        &#8595;
-                      </button>
-                      <button
-                        className="session-action-btn delete"
-                        onClick={(e) => handleDeleteSession(e, session.id)}
-                        title="Delete"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="session-playback">
-              <div className="session-playback-header">
-                <button
-                  className="back-btn"
-                  onClick={() => { setSelectedSession(null); setSessionDetails(null); }}
-                >
-                  &larr; Back
-                </button>
-                <span className="session-title">{selectedSession.name}</span>
-              </div>
-
-              <div className="playback-controls">
-                <button className="playback-btn" onClick={handleStepBack} disabled={playbackIndex === 0}>
-                  &#9664;&#9664;
-                </button>
-                <button className="playback-btn play" onClick={handlePlayPause}>
-                  {isPlaying ? '&#10074;&#10074;' : '&#9654;'}
-                </button>
-                <button
-                  className="playback-btn"
-                  onClick={handleStepForward}
-                  disabled={!sessionDetails?.data?.events || playbackIndex >= sessionDetails.data.events.length - 1}
-                >
-                  &#9654;&#9654;
-                </button>
-                <span className="playback-progress">
-                  {sessionDetails?.data?.events ? `${playbackIndex + 1}/${sessionDetails.data.events.length}` : '0/0'}
-                </span>
-              </div>
-
-              <div className="events-timeline">
-                {sessionDetails?.data?.events?.map((event, index) => (
-                  <div
-                    key={index}
-                    className={`event-item ${index === playbackIndex ? 'current' : ''} ${index < playbackIndex ? 'past' : ''}`}
-                    onClick={() => setPlaybackIndex(index)}
-                  >
-                    {formatEvent(event)}
-                  </div>
-                ))}
-                {(!sessionDetails?.data?.events || sessionDetails.data.events.length === 0) && (
-                  <div className="event-item empty">No events recorded</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // Main tasks panel UI
   return (
     <div className="panel tasks-panel">
@@ -609,47 +324,9 @@ function TasksPanel() {
             tasks.map(task => renderTask(task))
           )}
         </div>
-
-        {/* Studio Section */}
-        <div className="studio-section">
-          <div className="studio-header">Studio</div>
-          <div className="studio-grid">
-            {studioButtons.map(btn => (
-              <button
-                key={btn.id}
-                className="studio-btn"
-                onClick={() => handleStudioClick(btn.id)}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
-
-      {/* Record Button */}
-      <div className="record-section">
-        <button
-          className={`record-btn ${isRecording ? 'recording' : ''}`}
-          onClick={handleRecordClick}
-        >
-          <span className={`record-icon ${isRecording ? 'active' : ''}`}></span>
-          <span>{isRecording ? 'Stop Recording' : 'Record'}</span>
-        </button>
-        {sessions.length > 0 && (
-          <button
-            className="view-sessions-btn"
-            onClick={handleViewSessions}
-          >
-            View Sessions ({sessions.length})
-          </button>
-        )}
-        {isRecording && activeSession && (
-          <div className="recording-indicator">
-            Recording: {activeSession.name}
-          </div>
-        )}
-      </div>
+ 
+      <PhantomSection />
     </div>
   );
 }

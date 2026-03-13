@@ -1,0 +1,2529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Theme DNA Architect - Pro+</title>
+  <style>
+    :root {
+      --accent: #7aa2f7;
+      --bg-app: #0a0a0c;
+      --panel: #141417;
+      --panel-2: #1a1a1f;
+      --line: #27272d;
+      --text-soft: #8b92a9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg-app);
+      color: #d1d5db;
+    }
+
+    #sidebar {
+      width: 540px;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #1f2027;
+      background: linear-gradient(180deg, #141417 0%, #111216 100%);
+      padding: 20px;
+    }
+
+    #view {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background:
+        radial-gradient(circle, rgba(122,162,247,0.12) 1px, transparent 1px),
+        linear-gradient(180deg, #10131b 0%, #0a0a0c 100%);
+      background-size: 28px 28px, auto;
+      transition: background 0.2s ease;
+      overflow: auto;
+    }
+
+    .box {
+      margin-bottom: 18px;
+      padding: 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .box.ghost {
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px 0;
+      color: #fff;
+    }
+
+    h4 {
+      margin: 0 0 14px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    h4 small {
+      font-size: 10px;
+      letter-spacing: 0.3px;
+      text-transform: none;
+      color: #7c859e;
+      font-weight: 500;
+    }
+
+    p.help {
+      margin: 0 0 18px 0;
+      color: #8b92a9;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .micro-note {
+      margin: -4px 0 12px 0;
+      color: #8188a0;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    textarea,
+    input[type="text"],
+    select {
+      width: 100%;
+      border-radius: 7px;
+      border: 1px solid #30323a;
+      background: #09090c;
+      color: #f3f4f6;
+      padding: 10px 11px;
+      font-size: 11px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #80ffaa;
+      line-height: 1.45;
+    }
+
+    textarea[readonly] {
+      min-height: 240px;
+      color: #9cdcfe;
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    .control-group {
+      border-left: 2px solid #2d2d33;
+      padding-left: 12px;
+      margin-top: 8px;
+    }
+
+    .control {
+      display: grid;
+      grid-template-columns: 60px 1fr 48px;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .control.compact {
+      grid-template-columns: 1fr auto;
+    }
+
+    .control.single {
+      grid-template-columns: 1fr;
+    }
+
+    label {
+      font-size: 11px;
+      color: #a8b0c2;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
+    .val {
+      text-align: right;
+      font-size: 10px;
+      color: #8b92a9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .toggle-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #99a3b8;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .toggle-inline input {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .mapping-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mapping-row {
+      display: grid;
+      grid-template-columns: 1fr 26px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid #282a32;
+      border-radius: 8px;
+      background: #141419;
+    }
+
+    .mapping-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #e5e7eb;
+      margin-bottom: 6px;
+    }
+
+    .mapping-source {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #7c859e;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: #0f1116;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .selector-field {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .selector-field label {
+      color: #93a0b8;
+    }
+
+    .inspector-list {
+      max-height: 260px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+    }
+
+    .inspector-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: #141419;
+      border: 1px solid #272a33;
+    }
+
+    .inspector-chip {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.18);
+      margin-top: 2px;
+      background: #111;
+    }
+
+    .inspector-main {
+      min-width: 0;
+    }
+
+    .inspector-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .inspector-name {
+      font-size: 11px;
+      color: #f1f5f9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .inspector-value {
+      font-size: 10px;
+      color: #8b92a9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      padding: 3px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      line-height: 1;
+      letter-spacing: 0.3px;
+      font-weight: 700;
+      text-transform: lowercase;
+    }
+
+    .tone-panel   { color: #9ec2ff; background: rgba(122,162,247,0.14); }
+    .tone-text    { color: #8ef2c9; background: rgba(16,185,129,0.14); }
+    .tone-accent  { color: #f0abfc; background: rgba(217,70,239,0.14); }
+    .tone-button  { color: #fdba74; background: rgba(249,115,22,0.14); }
+    .tone-input   { color: #93c5fd; background: rgba(59,130,246,0.14); }
+    .tone-frame   { color: #fca5a5; background: rgba(239,68,68,0.14); }
+    .tone-kind    { color: #d1d5db; background: rgba(148,163,184,0.14); }
+    .tone-sem     { color: #f9a8d4; background: rgba(236,72,153,0.14); }
+    .tone-other   { color: #cbd5e1; background: rgba(148,163,184,0.14); }
+
+    .empty-note {
+      font-size: 11px;
+      color: #8b92a9;
+      padding: 8px 0;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      flex: 1;
+      border-radius: 8px;
+      border: 1px solid #3b3f4b;
+      background: #1c1e25;
+      color: #f3f4f6;
+      padding: 11px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    button:hover {
+      background: #252832;
+      border-color: var(--accent);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #081018;
+      border-color: transparent;
+    }
+
+    .preview-stage {
+      width: min(980px, calc(100vw - 620px));
+      max-width: 100%;
+      color: var(--dna-text, #e8ecff);
+      font-family: var(--dna-font-family, system-ui);
+    }
+
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+
+    .preview-panel {
+      background: var(--dna-surface, #1a1b26);
+      color: var(--dna-text, #e8ecff);
+      border: var(--dna-panel-border-width, 1px) solid var(--dna-border, #38415c);
+      border-radius: var(--dna-panel-radius, 16px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.38);
+    }
+
+    .eyebrow {
+      font-size: 10px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--dna-accent, #7aa2f7);
+      margin-bottom: 5px;
+      font-weight: 700;
+    }
+
+    .toolbar-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--dna-text, #fff);
+      line-height: 1.2;
+    }
+
+    .toolbar-sub {
+      font-size: 12px;
+      color: var(--dna-muted, #9aa3bd);
+      margin-top: 4px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1.12fr 0.88fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .preview-card {
+      min-height: 340px;
+      padding: 28px;
+    }
+
+    .preview-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 24px;
+      line-height: 1.15;
+      color: var(--dna-text, #fff);
+    }
+
+    .preview-card p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--dna-muted, #9aa3bd);
+    }
+
+    .preview-link {
+      color: var(--dna-accent, #7aa2f7);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .preview-link:hover {
+      text-decoration: underline;
+    }
+
+    .preview-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0 14px;
+    }
+
+    .preview-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--dna-accent-soft, rgba(122,162,247,0.16));
+      color: var(--dna-accent, #7aa2f7);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .preview-inline-panel {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px dashed rgba(255,255,255,0.08);
+      color: var(--dna-muted, #9aa3bd);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .preview-input {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--dna-text, #fff);
+      background: var(--dna-input-bg, #12151d);
+      border: var(--dna-input-border-width, 1px) solid var(--dna-input-border, #434b66);
+      border-radius: var(--dna-input-radius, 10px);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .preview-input::placeholder {
+      color: var(--dna-muted, #9aa3bd);
+    }
+
+    .preview-input:focus {
+      box-shadow: 0 0 0 3px rgba(122,162,247,0.12);
+      border-color: var(--dna-accent, #7aa2f7);
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .preview-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 16px;
+      border: var(--dna-button-border-width, 1px) solid var(--dna-btn-border, #5f83d7);
+      border-radius: var(--dna-button-radius, 9px);
+      background: var(--dna-btn-bg, #7aa2f7);
+      color: var(--dna-btn-text, #091018);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .preview-btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    .preview-btn.secondary {
+      background: transparent;
+      color: var(--dna-accent, #7aa2f7);
+      border-color: var(--dna-accent, #7aa2f7);
+    }
+
+    .preview-frame-wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 340px;
+      background: var(--dna-frame-bg, #0f1218);
+      border: var(--dna-frame-border-width, 2px) solid var(--dna-frame-border, #39405a);
+      border-radius: var(--dna-frame-radius, 14px);
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.38);
+    }
+
+    .preview-frame-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: var(--dna-muted, #9aa3bd);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .frame-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .frame-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--dna-accent, #7aa2f7);
+      opacity: 0.9;
+    }
+
+    .preview-embed {
+      flex: 1;
+      width: 100%;
+      min-height: 282px;
+      border: 0;
+      background: transparent;
+    }
+
+    @media (max-width: 1260px) {
+      #sidebar {
+        width: 500px;
+      }
+      .preview-stage {
+        width: min(920px, calc(100vw - 560px));
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+      .preview-card,
+      .preview-frame-wrap {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="box ghost">
+      <h3>DNA Architect Pro+</h3>
+      <p class="help">
+        This version analyzes CSS variables once, infers their likely semantic roles,
+        and then lets you retheme <strong>text / panels / buttons / inputs / frames</strong>
+        independently, live. Auto-detection is heuristic — you can override any mapping manually.
+      </p>
+    </div>
+
+    <div class="box">
+      <h4>1. Source DNA Dictionary</h4>
+      <textarea id="rawInput">:root {
+  --bg: #0f1118;
+  --surface: #171a24;
+  --panel-bg: #1b1f2b;
+  --text: #dbe3ff;
+  --text-muted: #8590b2;
+  --accent: #7aa2f7;
+  --primary: #7aa2f7;
+  --btn-bg: var(--primary);
+  --btn-text: #081018;
+  --border: #374159;
+  --input-bg: #121621;
+  --input-border: #424b67;
+  --iframe-bg: #0d1017;
+  --iframe-border: #323a53;
+}</textarea>
+    </div>
+
+    <div class="box">
+      <h4>2. Smart Semantic Mapping <small id="varSummary"></small></h4>
+      <p class="micro-note">
+        Auto mode favors repeated values, short foundational names, and “primary/accent/main/default”
+        style labels. Any slot can be manually redirected.
+      </p>
+      <div id="mappingGrid" class="mapping-grid"></div>
+    </div>
+
+    <div class="box">
+      <h4>3. Typography</h4>
+      <div class="control compact" style="margin-bottom: 12px;">
+        <input
+          type="text"
+          id="fontInput"
+          list="fontSuggestions"
+          value="system-ui"
+          placeholder="Type any CSS font-family"
+        />
+        <label class="toggle-inline">
+          <input type="checkbox" id="fontAutoLoad" checked />
+          auto-load web font
+        </label>
+      </div>
+
+      <datalist id="fontSuggestions">
+        <option value="system-ui"></option>
+        <option value="'Inter', sans-serif"></option>
+        <option value="'Space Grotesk', sans-serif"></option>
+        <option value="'Playfair Display', serif"></option>
+        <option value="'IBM Plex Sans', sans-serif"></option>
+        <option value="'Fira Code', monospace"></option>
+        <option value="'JetBrains Mono', monospace"></option>
+      </datalist>
+
+      <div class="control-group">
+        <div class="control">
+          <label>Hue</label>
+          <input type="range" data-group="text" data-prop="h" data-unit="°" min="-180" max="180" value="0" />
+          <span class="val">0°</span>
+        </div>
+        <div class="control">
+          <label>Sat</label>
+          <input type="range" data-group="text" data-prop="s" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+        <div class="control">
+          <label>Luma</label>
+          <input type="range" data-group="text" data-prop="l" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>4. Accent / Action Color</h4>
+      <div class="control-group">
+        <div class="control">
+          <label>Hue</label>
+          <input type="range" data-group="accent" data-prop="h" data-unit="°" min="-180" max="180" value="0" />
+          <span class="val">0°</span>
+        </div>
+        <div class="control">
+          <label>Sat</label>
+          <input type="range" data-group="accent" data-prop="s" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+        <div class="control">
+          <label>Luma</label>
+          <input type="range" data-group="accent" data-prop="l" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>5. Panels / Surfaces</h4>
+      <div class="control">
+        <label>Radius</label>
+        <input type="range" data-struct="panelRadius" data-unit="px" min="0" max="48" value="16" />
+        <span class="val">16px</span>
+      </div>
+      <div class="control">
+        <label>Border</label>
+        <input type="range" data-struct="panelBorderWidth" data-unit="px" min="0" max="8" value="1" />
+        <span class="val">1px</span>
+      </div>
+      <div class="control-group">
+        <div class="control">
+          <label>Hue</label>
+          <input type="range" data-group="panel" data-prop="h" data-unit="°" min="-180" max="180" value="0" />
+          <span class="val">0°</span>
+        </div>
+        <div class="control">
+          <label>Sat</label>
+          <input type="range" data-group="panel" data-prop="s" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+        <div class="control">
+          <label>Luma</label>
+          <input type="range" data-group="panel" data-prop="l" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>6. Buttons / .btn / Actions</h4>
+      <div class="control">
+        <label>Radius</label>
+        <input type="range" data-struct="buttonRadius" data-unit="px" min="0" max="48" value="9" />
+        <span class="val">9px</span>
+      </div>
+      <div class="control">
+        <label>Border</label>
+        <input type="range" data-struct="buttonBorderWidth" data-unit="px" min="0" max="8" value="1" />
+        <span class="val">1px</span>
+      </div>
+      <div class="control-group">
+        <div class="control">
+          <label>Hue</label>
+          <input type="range" data-group="button" data-prop="h" data-unit="°" min="-180" max="180" value="0" />
+          <span class="val">0°</span>
+        </div>
+        <div class="control">
+          <label>Sat</label>
+          <input type="range" data-group="button" data-prop="s" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+        <div class="control">
+          <label>Luma</label>
+          <input type="range" data-group="button" data-prop="l" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>7. Inputs / Fields</h4>
+      <div class="control">
+        <label>Radius</label>
+        <input type="range" data-struct="inputRadius" data-unit="px" min="0" max="48" value="10" />
+        <span class="val">10px</span>
+      </div>
+      <div class="control">
+        <label>Border</label>
+        <input type="range" data-struct="inputBorderWidth" data-unit="px" min="0" max="8" value="1" />
+        <span class="val">1px</span>
+      </div>
+      <div class="control-group">
+        <div class="control">
+          <label>Hue</label>
+          <input type="range" data-group="input" data-prop="h" data-unit="°" min="-180" max="180" value="0" />
+          <span class="val">0°</span>
+        </div>
+        <div class="control">
+          <label>Sat</label>
+          <input type="range" data-group="input" data-prop="s" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+        <div class="control">
+          <label>Luma</label>
+          <input type="range" data-group="input" data-prop="l" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>8. Frames / Iframes / Embeds</h4>
+      <div class="control">
+        <label>Radius</label>
+        <input type="range" data-struct="frameRadius" data-unit="px" min="0" max="48" value="14" />
+        <span class="val">14px</span>
+      </div>
+      <div class="control">
+        <label>Border</label>
+        <input type="range" data-struct="frameBorderWidth" data-unit="px" min="0" max="12" value="2" />
+        <span class="val">2px</span>
+      </div>
+      <div class="control-group">
+        <div class="control">
+          <label>Hue</label>
+          <input type="range" data-group="frame" data-prop="h" data-unit="°" min="-180" max="180" value="0" />
+          <span class="val">0°</span>
+        </div>
+        <div class="control">
+          <label>Sat</label>
+          <input type="range" data-group="frame" data-prop="s" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+        <div class="control">
+          <label>Luma</label>
+          <input type="range" data-group="frame" data-prop="l" data-unit="%" min="-100" max="100" value="0" />
+          <span class="val">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>9. CSS Modality Targets</h4>
+
+      <div class="selector-field">
+        <label>Text</label>
+        <input type="text" id="selText" value="body, p, li, h1, h2, h3, h4, h5, h6, label, .text, .copy" />
+      </div>
+
+      <div class="selector-field">
+        <label>Panels</label>
+        <input type="text" id="selPanel" value=".card, .panel, .surface, .modal, .dialog" />
+      </div>
+
+      <div class="selector-field">
+        <label>Buttons</label>
+        <input type="text" id="selButton" value="button, .btn, .button, [type=&quot;button&quot;], [type=&quot;submit&quot;]" />
+      </div>
+
+      <div class="selector-field">
+        <label>Inputs</label>
+        <input type="text" id="selInput" value="input, textarea, select" />
+      </div>
+
+      <div class="selector-field" style="margin-bottom: 0;">
+        <label>Frames</label>
+        <input type="text" id="selFrame" value="iframe, .frame, .embed" />
+      </div>
+    </div>
+
+    <div class="box">
+      <h4>10. Detected Variables</h4>
+      <div id="inspector" class="inspector-list"></div>
+    </div>
+
+    <div class="box">
+      <h4>11. Generated CSS Bundle</h4>
+      <textarea id="outputCSS" readonly></textarea>
+      <div class="btn-group">
+        <button id="resetControls">Reset Controls</button>
+        <button id="copyCSS" class="primary">Copy CSS Bundle</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view">
+    <div class="preview-stage" id="previewStage">
+      <div class="preview-toolbar preview-panel">
+        <div>
+          <div class="eyebrow">smart preview</div>
+          <div class="toolbar-title">DNA Architect Workspace</div>
+          <div class="toolbar-sub">Separate semantic channels for text, surfaces, controls, and embedded frames.</div>
+        </div>
+
+        <div class="toolbar-actions">
+          <span class="preview-badge">auto semantic inference</span>
+          <button class="preview-btn secondary" type="button">Ghost Action</button>
+        </div>
+      </div>
+
+      <div class="preview-grid">
+        <div class="preview-card preview-panel" id="card">
+          <h3>Intelligent Modalities</h3>
+          <p>
+            The engine tries to identify which variables likely define text, backgrounds,
+            borders, accents, and component classes. You can override its guesses,
+            and <a href="#" class="preview-link">links inherit the accent channel</a>.
+          </p>
+
+          <div class="preview-badges">
+            <span class="preview-badge">text track</span>
+            <span class="preview-badge">panel track</span>
+            <span class="preview-badge">button track</span>
+            <span class="preview-badge">frame track</span>
+          </div>
+
+          <div class="preview-inline-panel">
+            Buttons can stay sharp while cards remain soft. Inputs can be flatter than panels.
+            Frames can use their own border widths and corner language.
+          </div>
+
+          <input class="preview-input" type="text" placeholder="An input field on a rethemed surface..." />
+
+          <div class="preview-actions">
+            <button class="preview-btn" type="button">Primary Action</button>
+            <button class="preview-btn secondary" type="button">Secondary</button>
+          </div>
+        </div>
+
+        <div class="preview-frame-wrap" id="frameWrap">
+          <div class="preview-frame-head">
+            <div class="frame-dots">
+              <span class="frame-dot"></span>
+              <span class="frame-dot"></span>
+              <span class="frame-dot"></span>
+            </div>
+            <span>iframe / embed shell preview</span>
+          </div>
+          <iframe id="themeFrame" class="preview-embed" title="iframe preview"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ------------------------------------------------------------
+    // Theme DNA Architect Pro+ - semantic inference + live retheme
+    // ------------------------------------------------------------
+
+    const DEFAULT_SELECTORS = {
+      text: 'body, p, li, h1, h2, h3, h4, h5, h6, label, .text, .copy',
+      panel: '.card, .panel, .surface, .modal, .dialog',
+      button: 'button, .btn, .button, [type="button"], [type="submit"]',
+      input: 'input, textarea, select',
+      frame: 'iframe, .frame, .embed'
+    };
+
+    const DEFAULTS = {
+      bg: '#0f1118',
+      surface: '#171a24',
+      text: '#e3e9ff',
+      muted: '#8a94b5',
+      border: '#374159',
+      accent: '#7aa2f7',
+      inputBg: '#121621',
+      frameBg: '#0d1017'
+    };
+
+    const TOKEN_DEFS = [
+      { key: 'bg',          label: 'App background' },
+      { key: 'surface',     label: 'Panel / surface' },
+      { key: 'text',        label: 'Primary text' },
+      { key: 'muted',       label: 'Muted text' },
+      { key: 'border',      label: 'Border / divider' },
+      { key: 'accent',      label: 'Accent / primary' },
+      { key: 'btnBg',       label: 'Button background' },
+      { key: 'btnText',     label: 'Button text' },
+      { key: 'inputBg',     label: 'Input background' },
+      { key: 'inputBorder', label: 'Input border' },
+      { key: 'frameBg',     label: 'Frame / iframe bg' },
+      { key: 'frameBorder', label: 'Frame / iframe border' }
+    ];
+
+    const TOKEN_RULES = {
+      bg: {
+        exact: ['--bg', '--background', '--app-bg', '--root-bg'],
+        prefer: ['bg', 'background', 'app', 'root', 'canvas', 'base'],
+        avoid: ['panel', 'surface', 'card', 'modal', 'btn', 'button', 'input', 'field', 'frame', 'iframe', 'text', 'accent', 'primary', 'border'],
+        modality: ['panel'],
+        role: ['bg']
+      },
+      surface: {
+        exact: ['--surface', '--surface-bg', '--panel-bg', '--card-bg'],
+        prefer: ['surface', 'panel', 'card', 'modal', 'sheet', 'layer', 'bg'],
+        avoid: ['btn', 'button', 'input', 'field', 'frame', 'iframe', 'text', 'accent'],
+        modality: ['panel'],
+        role: ['bg']
+      },
+      text: {
+        exact: ['--text', '--fg', '--foreground'],
+        prefer: ['text', 'fg', 'foreground', 'copy', 'content', 'heading', 'title', 'label'],
+        avoid: ['muted', 'secondary', 'subtle', 'dim', 'button', 'btn', 'primary', 'accent'],
+        modality: ['text'],
+        role: ['text']
+      },
+      muted: {
+        exact: ['--muted', '--text-muted', '--text-secondary'],
+        prefer: ['muted', 'secondary', 'subtle', 'dim', 'weak', 'quiet', 'disabled'],
+        avoid: ['button', 'btn', 'border', 'bg', 'accent'],
+        modality: ['text'],
+        role: ['muted']
+      },
+      border: {
+        exact: ['--border', '--divider'],
+        prefer: ['border', 'divider', 'stroke', 'outline', 'line'],
+        avoid: ['btn', 'button', 'input', 'field', 'frame', 'iframe', 'accent'],
+        modality: ['panel'],
+        role: ['border']
+      },
+      accent: {
+        exact: ['--accent', '--primary', '--brand'],
+        prefer: ['accent', 'primary', 'brand', 'link', 'interactive', 'focus', 'selected', 'highlight'],
+        avoid: ['text', 'fg', 'foreground', 'border', 'muted'],
+        modality: ['accent', 'button'],
+        role: ['accent']
+      },
+      btnBg: {
+        exact: ['--btn-bg', '--button-bg', '--primary-bg'],
+        prefer: ['btn', 'button', 'cta', 'action', 'primary', 'accent'],
+        avoid: ['text', 'fg', 'foreground', 'border', 'input', 'field', 'frame'],
+        modality: ['button', 'accent'],
+        role: ['bg', 'accent']
+      },
+      btnText: {
+        exact: ['--btn-text', '--button-text', '--on-primary', '--on-accent', '--primary-foreground'],
+        prefer: ['btn-text', 'button-text', 'on-primary', 'on-accent', 'foreground', 'contrast'],
+        avoid: ['bg', 'background', 'border', 'input', 'field'],
+        modality: ['button', 'text'],
+        role: ['text']
+      },
+      inputBg: {
+        exact: ['--input-bg', '--field-bg', '--control-bg'],
+        prefer: ['input', 'field', 'control', 'form', 'select', 'textarea', 'surface', 'bg'],
+        avoid: ['text', 'fg', 'foreground', 'button', 'btn', 'frame'],
+        modality: ['input', 'panel'],
+        role: ['bg']
+      },
+      inputBorder: {
+        exact: ['--input-border', '--field-border', '--control-border'],
+        prefer: ['input', 'field', 'control', 'form', 'border', 'stroke', 'outline'],
+        avoid: ['button', 'btn', 'frame', 'text'],
+        modality: ['input', 'panel'],
+        role: ['border']
+      },
+      frameBg: {
+        exact: ['--frame-bg', '--iframe-bg', '--embed-bg'],
+        prefer: ['frame', 'iframe', 'embed', 'media', 'panel', 'surface', 'bg'],
+        avoid: ['text', 'fg', 'foreground', 'button', 'btn'],
+        modality: ['frame', 'panel'],
+        role: ['bg']
+      },
+      frameBorder: {
+        exact: ['--frame-border', '--iframe-border', '--embed-border'],
+        prefer: ['frame', 'iframe', 'embed', 'media', 'border', 'stroke', 'outline'],
+        avoid: ['button', 'btn', 'text'],
+        modality: ['frame', 'panel'],
+        role: ['border']
+      }
+    };
+
+    const dom = {
+      input: document.getElementById('rawInput'),
+      mappingGrid: document.getElementById('mappingGrid'),
+      varSummary: document.getElementById('varSummary'),
+      fontInput: document.getElementById('fontInput'),
+      fontAutoLoad: document.getElementById('fontAutoLoad'),
+      inspector: document.getElementById('inspector'),
+      outputCSS: document.getElementById('outputCSS'),
+      copyCSS: document.getElementById('copyCSS'),
+      resetControls: document.getElementById('resetControls'),
+      view: document.getElementById('view'),
+      previewStage: document.getElementById('previewStage'),
+      themeFrame: document.getElementById('themeFrame'),
+      selectors: {
+        text: document.getElementById('selText'),
+        panel: document.getElementById('selPanel'),
+        button: document.getElementById('selButton'),
+        input: document.getElementById('selInput'),
+        frame: document.getElementById('selFrame')
+      },
+      ranges: () => document.querySelectorAll('input[type="range"]')
+    };
+
+    const colorProbe = document.createElement('div');
+    colorProbe.style.position = 'absolute';
+    colorProbe.style.left = '-9999px';
+    colorProbe.style.top = '-9999px';
+    colorProbe.style.pointerEvents = 'none';
+    colorProbe.style.opacity = '0';
+    document.body.appendChild(colorProbe);
+
+    const state = {
+      model: emptyModel(),
+      mappingOverrides: {},
+      loadedFonts: new Set(),
+      lastFrameDoc: '',
+      frameRAF: 0
+    };
+
+    function emptyModel() {
+      return {
+        list: [],
+        byName: {},
+        autoMappings: {},
+        count: { total: 0, color: 0, radius: 0, borderWidth: 0 }
+      };
+    }
+
+    function clamp(n, min, max) {
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function includesAny(str, arr) {
+      return arr.some(part => str.includes(part));
+    }
+
+    function hasNonZeroMod(mod) {
+      return !!mod && (mod.h || mod.s || mod.l);
+    }
+
+    function scaleMod(mod, factor) {
+      return {
+        h: Math.round((mod?.h || 0) * factor),
+        s: Math.round((mod?.s || 0) * factor),
+        l: Math.round((mod?.l || 0) * factor)
+      };
+    }
+
+    function formatColor(r, g, b, a = 1) {
+      const rr = Math.round(r);
+      const gg = Math.round(g);
+      const bb = Math.round(b);
+      if (a < 1) {
+        const alpha = Math.round(a * 1000) / 1000;
+        return `rgba(${rr}, ${gg}, ${bb}, ${alpha})`;
+      }
+      return `rgb(${rr}, ${gg}, ${bb})`;
+    }
+
+    function extractVariables(cssText) {
+      const regex = /(--[\w-]+)\s*:\s*([^;]+);/g;
+      const vars = {};
+      let match;
+      while ((match = regex.exec(cssText)) !== null) {
+        vars[match[1]] = match[2].trim();
+      }
+      return vars;
+    }
+
+    function resolveVarValue(value, vars, stack = []) {
+      let out = String(value || '').trim();
+      let safety = 0;
+
+      while (out.includes('var(') && safety < 20) {
+        out = out.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)/g, (_, name, fallback) => {
+          if (stack.includes(name)) {
+            return fallback ? fallback.trim() : `var(${name})`;
+          }
+          const replacement = vars[name] != null ? vars[name] : fallback;
+          if (replacement == null) return `var(${name})`;
+          return resolveVarValue(String(replacement).trim(), vars, [...stack, name]);
+        });
+        safety++;
+      }
+
+      return out.trim();
+    }
+
+    function parseColor(value) {
+      if (!value || typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      colorProbe.style.color = '';
+      colorProbe.style.color = trimmed;
+      if (!colorProbe.style.color) return null;
+
+      const computed = getComputedStyle(colorProbe).color;
+      const match = computed.match(/rgba?\(([^)]+)\)/i);
+      if (!match) return null;
+
+      const parts = match[1].split(',').map(p => p.trim());
+      const r = parseFloat(parts[0]);
+      const g = parseFloat(parts[1]);
+      const b = parseFloat(parts[2]);
+      const a = parts[3] != null ? parseFloat(parts[3]) : 1;
+
+      if ([r, g, b].some(Number.isNaN)) return null;
+
+      return { r, g, b, a, css: formatColor(r, g, b, a) };
+    }
+
+    function rgbToHsl(r, g, b) {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h = 0, s = 0;
+      const l = (max + min) / 2;
+
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+
+        h *= 60;
+      }
+
+      return [h, s * 100, l * 100];
+    }
+
+    function hslToRgb(h, s, l) {
+      h = ((h % 360) + 360) % 360;
+      s = clamp(s, 0, 100) / 100;
+      l = clamp(l, 0, 100) / 100;
+
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+      const m = l - c / 2;
+
+      let r1 = 0, g1 = 0, b1 = 0;
+
+      if (h < 60)      [r1, g1, b1] = [c, x, 0];
+      else if (h < 120)[r1, g1, b1] = [x, c, 0];
+      else if (h < 180)[r1, g1, b1] = [0, c, x];
+      else if (h < 240)[r1, g1, b1] = [0, x, c];
+      else if (h < 300)[r1, g1, b1] = [x, 0, c];
+      else             [r1, g1, b1] = [c, 0, x];
+
+      return [
+        Math.round((r1 + m) * 255),
+        Math.round((g1 + m) * 255),
+        Math.round((b1 + m) * 255)
+      ];
+    }
+
+    function adjustColor(value, mod = { h: 0, s: 0, l: 0 }) {
+      const color = parseColor(value);
+      if (!color) return value;
+
+      let [h, s, l] = rgbToHsl(color.r, color.g, color.b);
+      h = ((h + (mod.h || 0)) % 360 + 360) % 360;
+      s = clamp(s + (mod.s || 0), 0, 100);
+      l = clamp(l + (mod.l || 0), 0, 100);
+
+      const [r, g, b] = hslToRgb(h, s, l);
+      return formatColor(r, g, b, color.a);
+    }
+
+    function withAlpha(value, alpha) {
+      const color = parseColor(value);
+      if (!color) return value;
+      return formatColor(color.r, color.g, color.b, clamp(alpha, 0, 1));
+    }
+
+    function relativeLuminance(value) {
+      const color = parseColor(value);
+      if (!color) return 0;
+
+      const channel = (c) => {
+        const v = c / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+
+      return (
+        0.2126 * channel(color.r) +
+        0.7152 * channel(color.g) +
+        0.0722 * channel(color.b)
+      );
+    }
+
+    function isDarkColor(value) {
+      return relativeLuminance(value) < 0.5;
+    }
+
+    function getContrastColor(value, dark = 'rgb(10, 12, 16)', light = 'rgb(248, 250, 255)') {
+      return relativeLuminance(value) > 0.55 ? dark : light;
+    }
+
+    function deriveSurface(value) {
+      return parseColor(value)
+        ? adjustColor(value, { l: isDarkColor(value) ? 4 : -4, s: 0, h: 0 })
+        : DEFAULTS.surface;
+    }
+
+    function deriveInputBg(value) {
+      return parseColor(value)
+        ? adjustColor(value, { l: isDarkColor(value) ? -4 : 4, s: 0, h: 0 })
+        : DEFAULTS.inputBg;
+    }
+
+    function deriveFrameBg(value) {
+      return parseColor(value)
+        ? adjustColor(value, { l: isDarkColor(value) ? -2 : 2, s: 0, h: 0 })
+        : DEFAULTS.frameBg;
+    }
+
+    function deriveMuted(value) {
+      if (!parseColor(value)) return DEFAULTS.muted;
+      return adjustColor(value, { s: -18, l: isDarkColor(value) ? -24 : 24 });
+    }
+
+    function deriveBorder(value) {
+      if (!parseColor(value)) return DEFAULTS.border;
+      return adjustColor(value, { s: -8, l: isDarkColor(value) ? 10 : -10 });
+    }
+
+    function isFontFamilyToken(lower) {
+      if (/(font-size|font-weight|font-style|line-height|letter-spacing|tracking|leading)/.test(lower)) {
+        return false;
+      }
+      return (
+        /font-family|typeface|font-stack/.test(lower) ||
+        /^--font$/.test(lower) ||
+        /^--font-(sans|serif|mono|body|display)$/.test(lower)
+      );
+    }
+
+    function computeImportance(lower) {
+      let score = 0;
+      if (/(primary|main|default|base|root)/.test(lower)) score += 4;
+      if (/^--(bg|text|accent|border|surface)$/.test(lower)) score += 6;
+      if (/^--[a-z-]{2,14}$/.test(lower)) score += 2;
+      return score;
+    }
+
+    function inferVarMeta(name, resolved) {
+      const lower = name.toLowerCase();
+      const color = parseColor(resolved);
+
+      let kind = 'other';
+      if (color) {
+        kind = 'color';
+      } else if (/(^|[-_])(radius|rounded)([-_]|$)/.test(lower)) {
+        kind = 'radius';
+      } else if (/border.*width|stroke.*width|outline.*width|ring.*width/.test(lower)) {
+        kind = 'borderWidth';
+      } else if (isFontFamilyToken(lower)) {
+        kind = 'font';
+      }
+
+      let modality = 'other';
+
+      if (includesAny(lower, ['btn', 'button', 'cta'])) {
+        modality = 'button';
+      } else if (includesAny(lower, ['input', 'field', 'control', 'select', 'textarea', 'form'])) {
+        modality = 'input';
+      } else if (includesAny(lower, ['iframe', 'frame', 'embed', 'media'])) {
+        modality = 'frame';
+      } else if (includesAny(lower, ['accent', 'primary', 'brand', 'interactive', 'link', 'focus', 'selected', 'highlight'])) {
+        modality = 'accent';
+      } else if (includesAny(lower, ['text', 'fg', 'foreground', 'copy', 'content', 'heading', 'title', 'label'])) {
+        modality = 'text';
+      } else if (includesAny(lower, ['surface', 'panel', 'card', 'modal', 'sheet', 'layer', 'canvas', 'bg', 'background', 'border', 'divider', 'stroke', 'outline'])) {
+        modality = 'panel';
+      }
+
+      let role = 'other';
+      if (includesAny(lower, ['muted', 'secondary', 'subtle', 'dim', 'weak', 'quiet', 'disabled'])) {
+        role = 'muted';
+      } else if (includesAny(lower, ['border', 'divider', 'stroke', 'outline', 'line'])) {
+        role = 'border';
+      } else if (includesAny(lower, ['bg', 'background', 'surface', 'panel', 'card', 'canvas'])) {
+        role = 'bg';
+      } else if (includesAny(lower, ['text', 'fg', 'foreground', 'copy', 'content', 'heading', 'title', 'label'])) {
+        role = 'text';
+      } else if (includesAny(lower, ['accent', 'primary', 'brand', 'link', 'focus', 'highlight'])) {
+        role = 'accent';
+      }
+
+      if (kind === 'font') modality = 'text';
+      if (role === 'muted' && modality === 'other') modality = 'text';
+      if (kind === 'radius' && modality === 'other' && (/-radius$/.test(lower) || /^--radius$/.test(lower))) modality = 'panel';
+      if (kind === 'borderWidth' && modality === 'other') modality = 'panel';
+
+      return {
+        kind,
+        modality,
+        role,
+        importance: computeImportance(lower),
+        color
+      };
+    }
+
+    function mapItemToSemanticToken(item) {
+      if (item.kind !== 'color') return null;
+
+      const lower = item.name.toLowerCase();
+      const isButton = includesAny(lower, ['btn', 'button', 'cta']);
+      const isInput  = includesAny(lower, ['input', 'field', 'control', 'select', 'textarea', 'form']);
+      const isFrame  = includesAny(lower, ['iframe', 'frame', 'embed', 'media']);
+      const isTextish = includesAny(lower, ['text', 'fg', 'foreground', 'copy', 'content', 'heading', 'title', 'label']);
+      const isBorderish = includesAny(lower, ['border', 'divider', 'stroke', 'outline', 'line']);
+      const isBgish = includesAny(lower, ['bg', 'background', 'surface', 'panel', 'card', 'modal', 'sheet', 'layer', 'canvas']);
+      const isMuted = includesAny(lower, ['muted', 'secondary', 'subtle', 'dim', 'weak', 'quiet', 'disabled']);
+      const isAccent = includesAny(lower, ['accent', 'primary', 'brand', 'interactive', 'link', 'focus', 'selected', 'highlight']);
+
+      if (/on-primary|on-accent|primary-foreground|accent-foreground/.test(lower)) return 'btnText';
+      if (isButton && isTextish) return 'btnText';
+      if (isButton && (isBgish || isAccent)) return 'btnBg';
+
+      if (isInput && isBorderish) return 'inputBorder';
+      if (isInput && isBgish) return 'inputBg';
+
+      if (isFrame && isBorderish) return 'frameBorder';
+      if (isFrame && isBgish) return 'frameBg';
+
+      if (isMuted && !isBgish && !isBorderish) return 'muted';
+      if (isBorderish && !isButton && !isInput && !isFrame) return 'border';
+
+      if (isAccent && isTextish) return 'btnText';
+      if (isAccent && !isTextish && !isBorderish) return 'accent';
+
+      if (isTextish && !isMuted && !isButton && !isAccent) return 'text';
+
+      if (includesAny(lower, ['surface', 'panel', 'card', 'modal', 'sheet', 'layer']) && !isBorderish) return 'surface';
+      if (/^--(bg|background)$/.test(lower)) return 'bg';
+      if ((/bg|background|canvas/.test(lower)) && !isButton && !isInput && !isFrame && !isTextish && !isAccent) return 'bg';
+      if (isBgish && item.modality === 'panel' && !isBorderish) return 'surface';
+
+      return null;
+    }
+
+    function analyzeVariables(rawVars) {
+      const list = [];
+      const byName = {};
+
+      for (const [name, raw] of Object.entries(rawVars)) {
+        const resolved = resolveVarValue(raw, rawVars);
+        const meta = inferVarMeta(name, resolved);
+        const item = {
+          name,
+          raw,
+          resolved,
+          ...meta
+        };
+        item.semanticToken = mapItemToSemanticToken(item);
+        list.push(item);
+        byName[name] = item;
+      }
+
+      const freq = {};
+      list.forEach(item => {
+        const key = item.color ? item.color.css : item.resolved;
+        freq[key] = (freq[key] || 0) + 1;
+      });
+
+      list.forEach(item => {
+        const key = item.color ? item.color.css : item.resolved;
+        item.frequency = freq[key] || 1;
+      });
+
+      const autoMappings = buildAutoMappings(list);
+
+      return {
+        list,
+        byName,
+        autoMappings,
+        count: {
+          total: list.length,
+          color: list.filter(v => v.kind === 'color').length,
+          radius: list.filter(v => v.kind === 'radius').length,
+          borderWidth: list.filter(v => v.kind === 'borderWidth').length
+        }
+      };
+    }
+
+    function scoreCandidate(item, tokenKey) {
+      if (item.kind !== 'color') return -Infinity;
+
+      const lower = item.name.toLowerCase();
+      const rule = TOKEN_RULES[tokenKey];
+      if (!rule) return -Infinity;
+
+      let score = 0;
+
+      if (item.semanticToken === tokenKey) score += 40;
+
+      (rule.exact || []).forEach(ex => {
+        if (lower === ex || lower.endsWith(ex)) score += 55;
+      });
+
+      (rule.prefer || []).forEach(word => {
+        if (lower.includes(word)) score += word.includes('-') ? 18 : 8;
+      });
+
+      (rule.avoid || []).forEach(word => {
+        if (lower.includes(word)) score -= word.includes('-') ? 16 : 10;
+      });
+
+      if ((rule.modality || []).includes(item.modality)) score += 12;
+      if ((rule.role || []).includes(item.role)) score += 10;
+
+      score += item.importance || 0;
+      if (item.frequency > 1) score += Math.min((item.frequency - 1) * 3, 9);
+
+      return score;
+    }
+
+    function rankCandidates(list, tokenKey, excludeNames = []) {
+      return list
+        .map(item => ({ item, score: scoreCandidate(item, tokenKey) }))
+        .filter(entry => entry.score > 0 && !excludeNames.includes(entry.item.name))
+        .sort((a, b) => b.score - a.score);
+    }
+
+    function buildAutoMappings(list) {
+      const mapping = {};
+
+      const pick = (token, exclude = []) => {
+        const ranked = rankCandidates(list, token, exclude);
+        return ranked.length ? ranked[0].item.name : null;
+      };
+
+      mapping.bg = pick('bg');
+      mapping.surface = pick('surface');
+      mapping.text = pick('text');
+      mapping.muted = pick('muted', [mapping.text].filter(Boolean));
+      mapping.border = pick('border', [mapping.surface].filter(Boolean));
+      mapping.accent = pick('accent');
+      mapping.btnBg = pick('btnBg');
+      mapping.btnText = pick('btnText', [mapping.btnBg].filter(Boolean));
+      mapping.inputBg = pick('inputBg');
+      mapping.inputBorder = pick('inputBorder', [mapping.inputBg].filter(Boolean));
+      mapping.frameBg = pick('frameBg');
+      mapping.frameBorder = pick('frameBorder', [mapping.frameBg].filter(Boolean));
+
+      return mapping;
+    }
+
+    function cleanupOverrides() {
+      for (const key of Object.keys(state.mappingOverrides)) {
+        const varName = state.mappingOverrides[key];
+        if (varName && !state.model.byName[varName]) {
+          delete state.mappingOverrides[key];
+        }
+      }
+    }
+
+    function createBadge(text, className = 'tone-other') {
+      const span = document.createElement('span');
+      span.className = `badge ${className}`;
+      span.textContent = text;
+      return span;
+    }
+
+    function rebuildMappingGrid() {
+      const vars = state.model.list
+        .filter(item => item.kind === 'color')
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      dom.mappingGrid.innerHTML = '';
+
+      TOKEN_DEFS.forEach(def => {
+        const row = document.createElement('div');
+        row.className = 'mapping-row';
+
+        const left = document.createElement('div');
+
+        const label = document.createElement('div');
+        label.className = 'mapping-label';
+        label.textContent = def.label;
+
+        const select = document.createElement('select');
+        select.dataset.token = def.key;
+
+        const autoOption = document.createElement('option');
+        autoOption.value = 'auto';
+        autoOption.textContent = state.model.autoMappings[def.key]
+          ? `Auto — ${state.model.autoMappings[def.key]}`
+          : 'Auto — fallback chain';
+        select.appendChild(autoOption);
+
+        vars.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.name;
+          opt.textContent = `${item.name} · ${item.modality}`;
+          select.appendChild(opt);
+        });
+
+        const current = state.mappingOverrides[def.key] && state.model.byName[state.mappingOverrides[def.key]]
+          ? state.mappingOverrides[def.key]
+          : 'auto';
+        select.value = current;
+
+        select.addEventListener('change', () => {
+          if (select.value === 'auto') delete state.mappingOverrides[def.key];
+          else state.mappingOverrides[def.key] = select.value;
+          recomputeTheme();
+        });
+
+        const source = document.createElement('div');
+        source.className = 'mapping-source';
+        source.dataset.sourceFor = def.key;
+
+        left.append(label, select, source);
+
+        const swatch = document.createElement('div');
+        swatch.className = 'swatch';
+        swatch.dataset.token = def.key;
+
+        row.append(left, swatch);
+        dom.mappingGrid.appendChild(row);
+      });
+    }
+
+    function rebuildInspector() {
+      const modalityOrder = {
+        panel: 0,
+        text: 1,
+        accent: 2,
+        button: 3,
+        input: 4,
+        frame: 5,
+        other: 6
+      };
+
+      const items = [...state.model.list].sort((a, b) => {
+        return (modalityOrder[a.modality] ?? 99) - (modalityOrder[b.modality] ?? 99)
+          || a.name.localeCompare(b.name);
+      });
+
+      dom.inspector.innerHTML = '';
+
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-note';
+        empty.textContent = 'No CSS variables detected in the source block.';
+        dom.inspector.appendChild(empty);
+        return;
+      }
+
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'inspector-item';
+
+        const chip = document.createElement('div');
+        chip.className = 'inspector-chip';
+        chip.style.background = item.color ? item.color.css : '#0f1116';
+
+        const main = document.createElement('div');
+        main.className = 'inspector-main';
+
+        const top = document.createElement('div');
+        top.className = 'inspector-top';
+
+        const name = document.createElement('span');
+        name.className = 'inspector-name';
+        name.textContent = item.name;
+        top.appendChild(name);
+
+        top.appendChild(createBadge(item.modality, `tone-${item.modality || 'other'}`));
+        top.appendChild(createBadge(item.kind, 'tone-kind'));
+        top.appendChild(createBadge(item.semanticToken || item.role || 'other', 'tone-sem'));
+
+        if (item.frequency > 1) {
+          top.appendChild(createBadge(`x${item.frequency}`, 'tone-other'));
+        }
+
+        const value = document.createElement('div');
+        value.className = 'inspector-value';
+        value.textContent = item.raw === item.resolved ? item.raw : `${item.raw} → ${item.resolved}`;
+
+        main.append(top, value);
+        row.append(chip, main);
+        dom.inspector.appendChild(row);
+      });
+    }
+
+    function updateSummary() {
+      const c = state.model.count;
+      dom.varSummary.textContent = `${c.total} vars · ${c.color} colors · ${c.radius} radius · ${c.borderWidth} widths`;
+    }
+
+    function updateRangeDisplays() {
+      dom.ranges().forEach(range => {
+        const unit = range.dataset.unit || '';
+        const span = range.nextElementSibling;
+        if (span && span.classList.contains('val')) {
+          span.textContent = `${range.value}${unit}`;
+        }
+      });
+    }
+
+    function collectControls() {
+      updateRangeDisplays();
+
+      const mods = {
+        text:   { h: 0, s: 0, l: 0 },
+        accent: { h: 0, s: 0, l: 0 },
+        panel:  { h: 0, s: 0, l: 0 },
+        button: { h: 0, s: 0, l: 0 },
+        input:  { h: 0, s: 0, l: 0 },
+        frame:  { h: 0, s: 0, l: 0 }
+      };
+
+      const struct = {
+        panelRadius: 16,
+        panelBorderWidth: 1,
+        buttonRadius: 9,
+        buttonBorderWidth: 1,
+        inputRadius: 10,
+        inputBorderWidth: 1,
+        frameRadius: 14,
+        frameBorderWidth: 2
+      };
+
+      dom.ranges().forEach(range => {
+        const v = parseInt(range.value, 10) || 0;
+
+        if (range.dataset.group) {
+          mods[range.dataset.group][range.dataset.prop] = v;
+        }
+
+        if (range.dataset.struct) {
+          struct[range.dataset.struct] = v;
+        }
+      });
+
+      return {
+        mods,
+        struct,
+        fontFamily: dom.fontInput.value.trim() || 'system-ui',
+        autoLoadFont: dom.fontAutoLoad.checked,
+        selectors: {
+          text: dom.selectors.text.value.trim(),
+          panel: dom.selectors.panel.value.trim(),
+          button: dom.selectors.button.value.trim(),
+          input: dom.selectors.input.value.trim(),
+          frame: dom.selectors.frame.value.trim()
+        }
+      };
+    }
+
+    function isManualMapping(tokenKey) {
+      return !!(state.mappingOverrides[tokenKey] && state.model.byName[state.mappingOverrides[tokenKey]]);
+    }
+
+    function pickFirstColor(predicate) {
+      const found = state.model.list.find(item => item.kind === 'color' && predicate(item));
+      return found ? found.resolved : null;
+    }
+
+    function getResolvedMapping() {
+      const mapping = {};
+      TOKEN_DEFS.forEach(def => {
+        const override = state.mappingOverrides[def.key];
+        mapping[def.key] = override && state.model.byName[override]
+          ? override
+          : (state.model.autoMappings[def.key] || null);
+      });
+      return mapping;
+    }
+
+    function getBaseTokenValue(tokenKey, mapping, cache = {}) {
+      if (cache[tokenKey] != null) return cache[tokenKey];
+
+      const chosen = mapping[tokenKey];
+      if (chosen && state.model.byName[chosen]) {
+        cache[tokenKey] = state.model.byName[chosen].resolved;
+        return cache[tokenKey];
+      }
+
+      let value = null;
+
+      switch (tokenKey) {
+        case 'bg':
+          value =
+            pickFirstColor(item => item.semanticToken === 'bg') ||
+            pickFirstColor(item => item.modality === 'panel' && item.role === 'bg') ||
+            pickFirstColor(item => item.modality === 'panel') ||
+            DEFAULTS.bg;
+          break;
+
+        case 'surface':
+          value =
+            pickFirstColor(item => item.semanticToken === 'surface') ||
+            deriveSurface(getBaseTokenValue('bg', mapping, cache));
+          break;
+
+        case 'text':
+          value =
+            pickFirstColor(item => item.semanticToken === 'text') ||
+            pickFirstColor(item => item.modality === 'text' && item.role === 'text') ||
+            getContrastColor(getBaseTokenValue('bg', mapping, cache));
+          break;
+
+        case 'muted':
+          value =
+            pickFirstColor(item => item.semanticToken === 'muted') ||
+            pickFirstColor(item => item.modality === 'text' && item.role === 'muted') ||
+            deriveMuted(getBaseTokenValue('text', mapping, cache));
+          break;
+
+        case 'border':
+          value =
+            pickFirstColor(item => item.semanticToken === 'border') ||
+            pickFirstColor(item => item.modality === 'panel' && item.role === 'border') ||
+            deriveBorder(getBaseTokenValue('surface', mapping, cache));
+          break;
+
+        case 'accent':
+          value =
+            pickFirstColor(item => item.semanticToken === 'accent') ||
+            pickFirstColor(item => item.modality === 'accent') ||
+            pickFirstColor(item => item.modality === 'button') ||
+            DEFAULTS.accent;
+          break;
+
+        case 'btnBg':
+          value =
+            pickFirstColor(item => item.semanticToken === 'btnBg') ||
+            pickFirstColor(item => item.modality === 'button' && item.role !== 'text') ||
+            getBaseTokenValue('accent', mapping, cache);
+          break;
+
+        case 'btnText':
+          value =
+            pickFirstColor(item => item.semanticToken === 'btnText') ||
+            pickFirstColor(item => item.modality === 'button' && item.role === 'text') ||
+            getContrastColor(getBaseTokenValue('btnBg', mapping, cache));
+          break;
+
+        case 'inputBg':
+          value =
+            pickFirstColor(item => item.semanticToken === 'inputBg') ||
+            pickFirstColor(item => item.modality === 'input' && item.role === 'bg') ||
+            deriveInputBg(getBaseTokenValue('surface', mapping, cache));
+          break;
+
+        case 'inputBorder':
+          value =
+            pickFirstColor(item => item.semanticToken === 'inputBorder') ||
+            pickFirstColor(item => item.modality === 'input' && item.role === 'border') ||
+            getBaseTokenValue('border', mapping, cache);
+          break;
+
+        case 'frameBg':
+          value =
+            pickFirstColor(item => item.semanticToken === 'frameBg') ||
+            pickFirstColor(item => item.modality === 'frame' && item.role === 'bg') ||
+            deriveFrameBg(getBaseTokenValue('surface', mapping, cache));
+          break;
+
+        case 'frameBorder':
+          value =
+            pickFirstColor(item => item.semanticToken === 'frameBorder') ||
+            pickFirstColor(item => item.modality === 'frame' && item.role === 'border') ||
+            getBaseTokenValue('border', mapping, cache);
+          break;
+
+        default:
+          value = null;
+      }
+
+      cache[tokenKey] = value;
+      return value;
+    }
+
+    function buildTheme(controls) {
+      const mapping = getResolvedMapping();
+      const cache = {};
+      const base = {};
+
+      TOKEN_DEFS.forEach(def => {
+        base[def.key] = getBaseTokenValue(def.key, mapping, cache);
+      });
+
+      const tokens = {};
+
+      tokens.bg = parseColor(base.bg)
+        ? adjustColor(base.bg, scaleMod(controls.mods.panel, 0.45))
+        : base.bg;
+
+      const useExplicitSurface =
+        mapping.surface &&
+        (isManualMapping('surface') || mapping.surface !== mapping.bg);
+
+      const surfaceSeed = useExplicitSurface
+        ? base.surface
+        : deriveSurface(base.bg);
+
+      tokens.surface = parseColor(surfaceSeed)
+        ? adjustColor(surfaceSeed, controls.mods.panel)
+        : surfaceSeed;
+
+      tokens.text = parseColor(base.text)
+        ? adjustColor(base.text, controls.mods.text)
+        : base.text;
+
+      const mutedSeed = (mapping.muted && (isManualMapping('muted') || mapping.muted !== mapping.text))
+        ? base.muted
+        : deriveMuted(tokens.text);
+
+      tokens.muted = parseColor(mutedSeed)
+        ? adjustColor(mutedSeed, {
+            h: controls.mods.text.h,
+            s: Math.round(controls.mods.text.s * 0.8),
+            l: controls.mods.text.l - 6
+          })
+        : deriveMuted(tokens.text);
+
+      const borderSeed = (mapping.border && (isManualMapping('border') || mapping.border !== mapping.surface))
+        ? base.border
+        : deriveBorder(tokens.surface);
+
+      tokens.border = parseColor(borderSeed)
+        ? adjustColor(borderSeed, {
+            h: Math.round(controls.mods.panel.h * 0.25),
+            s: Math.round(controls.mods.panel.s * 0.3),
+            l: Math.round(controls.mods.panel.l * 0.5)
+          })
+        : deriveBorder(tokens.surface);
+
+      tokens.accent = parseColor(base.accent)
+        ? adjustColor(base.accent, controls.mods.accent)
+        : base.accent;
+
+      const btnSeed = mapping.btnBg ? base.btnBg : tokens.accent;
+      tokens.btnBg = parseColor(btnSeed)
+        ? adjustColor(btnSeed, controls.mods.button)
+        : btnSeed;
+
+      tokens.btnBorder = deriveBorder(tokens.btnBg);
+
+      const btnTextSeed = mapping.btnText ? base.btnText : getContrastColor(tokens.btnBg);
+      tokens.btnText = parseColor(btnTextSeed)
+        ? adjustColor(btnTextSeed, controls.mods.text)
+        : getContrastColor(tokens.btnBg);
+
+      const useExplicitInputBg =
+        mapping.inputBg &&
+        (isManualMapping('inputBg') || mapping.inputBg !== mapping.surface);
+
+      const inputBgSeed = useExplicitInputBg
+        ? base.inputBg
+        : deriveInputBg(tokens.surface);
+
+      tokens.inputBg = parseColor(inputBgSeed)
+        ? adjustColor(inputBgSeed, controls.mods.input)
+        : inputBgSeed;
+
+      const inputBorderSeed =
+        mapping.inputBorder &&
+        (isManualMapping('inputBorder') || mapping.inputBorder !== mapping.border)
+          ? base.inputBorder
+          : tokens.border;
+
+      tokens.inputBorder = parseColor(inputBorderSeed)
+        ? adjustColor(inputBorderSeed, controls.mods.input)
+        : inputBorderSeed;
+
+      const useExplicitFrameBg =
+        mapping.frameBg &&
+        (isManualMapping('frameBg') || mapping.frameBg !== mapping.surface);
+
+      const frameBgSeed = useExplicitFrameBg
+        ? base.frameBg
+        : deriveFrameBg(tokens.surface);
+
+      tokens.frameBg = parseColor(frameBgSeed)
+        ? adjustColor(frameBgSeed, controls.mods.frame)
+        : frameBgSeed;
+
+      const frameBorderSeed =
+        mapping.frameBorder &&
+        (isManualMapping('frameBorder') || mapping.frameBorder !== mapping.border)
+          ? base.frameBorder
+          : tokens.border;
+
+      tokens.frameBorder = parseColor(frameBorderSeed)
+        ? adjustColor(frameBorderSeed, controls.mods.frame)
+        : frameBorderSeed;
+
+      tokens.accentSoft = withAlpha(tokens.accent, 0.16);
+      tokens.link = tokens.accent;
+
+      return { mapping, base, tokens };
+    }
+
+    function modifierForItem(item, mods) {
+      const lower = item.name.toLowerCase();
+
+      if (/(text|fg|foreground|copy|content|heading|title|label)/.test(lower)
+        && !/(btn|button|on-primary|on-accent|primary-foreground|accent-foreground)/.test(lower)) {
+        return mods.text;
+      }
+
+      if (item.modality === 'accent') return mods.accent;
+
+      if (item.modality === 'button') {
+        return /(text|fg|foreground|label)/.test(lower) ? mods.text : mods.button;
+      }
+
+      if (item.modality === 'input') {
+        return /(text|fg|foreground|label)/.test(lower) ? mods.text : mods.input;
+      }
+
+      if (item.modality === 'frame') {
+        return /(text|fg|foreground|label)/.test(lower) ? mods.text : mods.frame;
+      }
+
+      if (item.modality === 'panel') {
+        if (item.role === 'border') {
+          return {
+            h: Math.round(mods.panel.h * 0.25),
+            s: Math.round(mods.panel.s * 0.3),
+            l: Math.round(mods.panel.l * 0.5)
+          };
+        }
+        return mods.panel;
+      }
+
+      return null;
+    }
+
+    function structuralRadiusForItem(item, struct) {
+      const lower = item.name.toLowerCase();
+      if (item.kind !== 'radius') return null;
+
+      if (/(btn|button|cta)/.test(lower)) return `${struct.buttonRadius}px`;
+      if (/(input|field|control|select|textarea|form)/.test(lower)) return `${struct.inputRadius}px`;
+      if (/(iframe|frame|embed|media)/.test(lower)) return `${struct.frameRadius}px`;
+
+      if (
+        /(panel|card|surface|modal|sheet|dialog|container)/.test(lower) ||
+        /^--radius$/.test(lower) ||
+        /-radius$/.test(lower)
+      ) {
+        return `${struct.panelRadius}px`;
+      }
+
+      return null;
+    }
+
+    function structuralBorderWidthForItem(item, struct) {
+      const lower = item.name.toLowerCase();
+      if (item.kind !== 'borderWidth') return null;
+
+      if (/(btn|button|cta)/.test(lower)) return `${struct.buttonBorderWidth}px`;
+      if (/(input|field|control|select|textarea|form)/.test(lower)) return `${struct.inputBorderWidth}px`;
+      if (/(iframe|frame|embed|media)/.test(lower)) return `${struct.frameBorderWidth}px`;
+
+      if (
+        /^--(border-width|stroke-width|outline-width)$/.test(lower) ||
+        /(panel|card|surface|modal|sheet|dialog)/.test(lower)
+      ) {
+        return `${struct.panelBorderWidth}px`;
+      }
+
+      return null;
+    }
+
+    function deriveRootVars(theme, controls) {
+      const out = {};
+
+      for (const item of state.model.list) {
+        const semanticToken = mapItemToSemanticToken(item);
+
+        if (semanticToken && theme.tokens[semanticToken] != null) {
+          out[item.name] = theme.tokens[semanticToken];
+          continue;
+        }
+
+        if (item.kind === 'font') {
+          out[item.name] = controls.fontFamily;
+          continue;
+        }
+
+        if (item.kind === 'radius') {
+          out[item.name] = structuralRadiusForItem(item, controls.struct) || item.raw;
+          continue;
+        }
+
+        if (item.kind === 'borderWidth') {
+          out[item.name] = structuralBorderWidthForItem(item, controls.struct) || item.raw;
+          continue;
+        }
+
+        if (item.kind === 'color') {
+          const mod = modifierForItem(item, controls.mods);
+          if (mod && hasNonZeroMod(mod)) {
+            out[item.name] = adjustColor(item.resolved, mod);
+          } else {
+            out[item.name] = item.raw.includes('var(') ? item.raw : item.resolved;
+          }
+          continue;
+        }
+
+        out[item.name] = item.raw;
+      }
+
+      return out;
+    }
+
+    function emitRule(selector, lines) {
+      const clean = (selector || '').trim();
+      if (!clean) return '';
+      return `${clean} {\n${lines.map(line => `  ${line}`).join('\n')}\n}`;
+    }
+
+    function generateOutputCSS(theme, controls, derivedVars) {
+      const lines = [];
+
+      lines.push(':root {');
+
+      if (state.model.list.length) {
+        lines.push('  /* Original variable set, rethemed heuristically */');
+        state.model.list.forEach(item => {
+          lines.push(`  ${item.name}: ${derivedVars[item.name]};`);
+        });
+        lines.push('');
+      }
+
+      lines.push('  /* Semantic DNA aliases used by the modality patch below */');
+      lines.push(`  --dna-font-family: ${controls.fontFamily};`);
+      lines.push(`  --dna-bg: ${theme.tokens.bg};`);
+      lines.push(`  --dna-surface: ${theme.tokens.surface};`);
+      lines.push(`  --dna-text: ${theme.tokens.text};`);
+      lines.push(`  --dna-muted: ${theme.tokens.muted};`);
+      lines.push(`  --dna-border: ${theme.tokens.border};`);
+      lines.push(`  --dna-accent: ${theme.tokens.accent};`);
+      lines.push(`  --dna-accent-soft: ${theme.tokens.accentSoft};`);
+      lines.push(`  --dna-btn-bg: ${theme.tokens.btnBg};`);
+      lines.push(`  --dna-btn-text: ${theme.tokens.btnText};`);
+      lines.push(`  --dna-btn-border: ${theme.tokens.btnBorder};`);
+      lines.push(`  --dna-input-bg: ${theme.tokens.inputBg};`);
+      lines.push(`  --dna-input-border: ${theme.tokens.inputBorder};`);
+      lines.push(`  --dna-frame-bg: ${theme.tokens.frameBg};`);
+      lines.push(`  --dna-frame-border: ${theme.tokens.frameBorder};`);
+      lines.push(`  --dna-panel-radius: ${controls.struct.panelRadius}px;`);
+      lines.push(`  --dna-panel-border-width: ${controls.struct.panelBorderWidth}px;`);
+      lines.push(`  --dna-button-radius: ${controls.struct.buttonRadius}px;`);
+      lines.push(`  --dna-button-border-width: ${controls.struct.buttonBorderWidth}px;`);
+      lines.push(`  --dna-input-radius: ${controls.struct.inputRadius}px;`);
+      lines.push(`  --dna-input-border-width: ${controls.struct.inputBorderWidth}px;`);
+      lines.push(`  --dna-frame-radius: ${controls.struct.frameRadius}px;`);
+      lines.push(`  --dna-frame-border-width: ${controls.struct.frameBorderWidth}px;`);
+      lines.push('}');
+      lines.push('');
+
+      lines.push('/* Smart mapping used for preview + semantic aliases */');
+      TOKEN_DEFS.forEach(def => {
+        lines.push(`/* ${def.label}: ${theme.mapping[def.key] || 'fallback'} */`);
+      });
+      lines.push('');
+
+      lines.push(emitRule('html, body', [
+        'background: var(--dna-bg);',
+        'color: var(--dna-text);',
+        'font-family: var(--dna-font-family);'
+      ]));
+      lines.push('');
+
+      lines.push(emitRule(controls.selectors.text, [
+        'color: var(--dna-text);',
+        'font-family: var(--dna-font-family);'
+      ]));
+      lines.push('');
+
+      lines.push(emitRule('a, .link', [
+        'color: var(--dna-accent);'
+      ]));
+      lines.push('');
+
+      lines.push(emitRule(controls.selectors.panel, [
+        'background: var(--dna-surface);',
+        'color: var(--dna-text);',
+        'border: var(--dna-panel-border-width) solid var(--dna-border);',
+        'border-radius: var(--dna-panel-radius);'
+      ]));
+      lines.push('');
+
+      lines.push(emitRule(controls.selectors.button, [
+        'background: var(--dna-btn-bg);',
+        'color: var(--dna-btn-text);',
+        'border: var(--dna-button-border-width) solid var(--dna-btn-border);',
+        'border-radius: var(--dna-button-radius);',
+        'font-family: var(--dna-font-family);'
+      ]));
+      lines.push('');
+
+      lines.push(emitRule(controls.selectors.input, [
+        'background: var(--dna-input-bg);',
+        'color: var(--dna-text);',
+        'border: var(--dna-input-border-width) solid var(--dna-input-border);',
+        'border-radius: var(--dna-input-radius);',
+        'font-family: var(--dna-font-family);'
+      ]));
+      lines.push('');
+
+      lines.push(emitRule(controls.selectors.frame, [
+        'background: var(--dna-frame-bg);',
+        'border: var(--dna-frame-border-width) solid var(--dna-frame-border);',
+        'border-radius: var(--dna-frame-radius);',
+        'overflow: hidden;'
+      ]));
+
+      return lines.filter(Boolean).join('\n');
+    }
+
+    function primaryFamilyFromInput(fontValue) {
+      const first = String(fontValue || '')
+        .split(',')[0]
+        .trim()
+        .replace(/^['"]|['"]$/g, '');
+
+      if (!first) return null;
+
+      if (/^(system-ui|serif|sans-serif|monospace|cursive|fantasy|emoji|math|fangsong|ui-sans-serif|ui-serif|ui-monospace)$/i.test(first)) {
+        return null;
+      }
+
+      if (/[()]/.test(first)) return null;
+      return first;
+    }
+
+    function googleFontHref(fontValue) {
+      const family = primaryFamilyFromInput(fontValue);
+      if (!family) return '';
+      return `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:wght@400;500;600;700&display=swap`;
+    }
+
+    function tryLoadWebFont(fontValue) {
+      const href = googleFontHref(fontValue);
+      if (!href || state.loadedFonts.has(href)) return;
+
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+
+      state.loadedFonts.add(href);
+    }
+
+    function buildIframeDoc(theme, controls) {
+      const fontHref = controls.autoLoadFont ? googleFontHref(controls.fontFamily) : '';
+
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+${fontHref ? `<link rel="stylesheet" href="${fontHref}">` : ''}
+<style>
+  :root {
+    --bg: ${theme.tokens.bg};
+    --surface: ${theme.tokens.surface};
+    --text: ${theme.tokens.text};
+    --muted: ${theme.tokens.muted};
+    --border: ${theme.tokens.border};
+    --accent: ${theme.tokens.accent};
+    --accent-soft: ${theme.tokens.accentSoft};
+    --btn-bg: ${theme.tokens.btnBg};
+    --btn-text: ${theme.tokens.btnText};
+    --btn-border: ${theme.tokens.btnBorder};
+    --input-bg: ${theme.tokens.inputBg};
+    --input-border: ${theme.tokens.inputBorder};
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    padding: 14px;
+    font-family: ${controls.fontFamily};
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .panel {
+    width: 100%;
+    background: var(--surface);
+    color: var(--text);
+    border: ${controls.struct.panelBorderWidth}px solid var(--border);
+    border-radius: ${controls.struct.panelRadius}px;
+    padding: 16px;
+  }
+
+  .tag {
+    display: inline-flex;
+    padding: 5px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--accent-soft);
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 0 0 12px 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: ${controls.struct.inputBorderWidth}px solid var(--input-border);
+    border-radius: ${controls.struct.inputRadius}px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+  }
+
+  button {
+    padding: 10px 12px;
+    border: ${controls.struct.buttonBorderWidth}px solid var(--btn-border);
+    border-radius: ${controls.struct.buttonRadius}px;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <div class="tag">iframe content</div>
+    <h4>Embedded UI preview</h4>
+    <p>
+      The outer shell follows the frame/iframe controls,
+      while the UI inside still follows panel, input, and button modalities.
+    </p>
+    <input placeholder="Field inside the iframe" />
+    <button>Run Embedded Action</button>
+  </div>
+</body>
+</html>`;
+    }
+
+    function updateIframePreview(theme, controls) {
+      const doc = buildIframeDoc(theme, controls);
+      if (doc === state.lastFrameDoc) return;
+
+      state.lastFrameDoc = doc;
+      cancelAnimationFrame(state.frameRAF);
+      state.frameRAF = requestAnimationFrame(() => {
+        dom.themeFrame.srcdoc = doc;
+      });
+    }
+
+    function applyPreview(theme, controls) {
+      const vars = {
+        '--dna-font-family': controls.fontFamily,
+        '--dna-bg': theme.tokens.bg,
+        '--dna-surface': theme.tokens.surface,
+        '--dna-text': theme.tokens.text,
+        '--dna-muted': theme.tokens.muted,
+        '--dna-border': theme.tokens.border,
+        '--dna-accent': theme.tokens.accent,
+        '--dna-accent-soft': theme.tokens.accentSoft,
+        '--dna-btn-bg': theme.tokens.btnBg,
+        '--dna-btn-text': theme.tokens.btnText,
+        '--dna-btn-border': theme.tokens.btnBorder,
+        '--dna-input-bg': theme.tokens.inputBg,
+        '--dna-input-border': theme.tokens.inputBorder,
+        '--dna-frame-bg': theme.tokens.frameBg,
+        '--dna-frame-border': theme.tokens.frameBorder,
+        '--dna-panel-radius': `${controls.struct.panelRadius}px`,
+        '--dna-panel-border-width': `${controls.struct.panelBorderWidth}px`,
+        '--dna-button-radius': `${controls.struct.buttonRadius}px`,
+        '--dna-button-border-width': `${controls.struct.buttonBorderWidth}px`,
+        '--dna-input-radius': `${controls.struct.inputRadius}px`,
+        '--dna-input-border-width': `${controls.struct.inputBorderWidth}px`,
+        '--dna-frame-radius': `${controls.struct.frameRadius}px`,
+        '--dna-frame-border-width': `${controls.struct.frameBorderWidth}px`
+      };
+
+      Object.entries(vars).forEach(([name, value]) => {
+        dom.previewStage.style.setProperty(name, value);
+      });
+
+      const bgTop = parseColor(theme.tokens.bg) ? adjustColor(theme.tokens.bg, { l: 4 }) : theme.tokens.bg;
+      const dot = withAlpha(theme.tokens.accent, 0.12);
+      dom.view.style.background =
+        `radial-gradient(circle, ${dot} 1px, transparent 1px), linear-gradient(180deg, ${bgTop} 0%, ${theme.tokens.bg} 100%)`;
+      dom.view.style.backgroundSize = '28px 28px, auto';
+
+      updateIframePreview(theme, controls);
+      updateMappingDisplay(theme);
+    }
+
+    function updateMappingDisplay(theme) {
+      TOKEN_DEFS.forEach(def => {
+        const source = dom.mappingGrid.querySelector(`[data-source-for="${def.key}"]`);
+        const swatch = dom.mappingGrid.querySelector(`[data-token="${def.key}"]`);
+        const manual = isManualMapping(def.key);
+
+        if (source) {
+          source.textContent = `${manual ? 'Manual' : 'Auto'} → ${theme.mapping[def.key] || 'fallback chain'}`;
+        }
+
+        if (swatch) {
+          const value = theme.tokens[def.key];
+          swatch.style.background = parseColor(value) ? value : '#111';
+          swatch.title = `${def.label}: ${value}`;
+        }
+      });
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (err) {
+        try {
+          dom.outputCSS.focus();
+          dom.outputCSS.select();
+          document.execCommand('copy');
+          return true;
+        } catch (fallbackErr) {
+          return false;
+        }
+      }
+    }
+
+    function flashButton(button, label, ms = 1600) {
+      const prev = button.textContent;
+      button.textContent = label;
+      setTimeout(() => {
+        button.textContent = prev;
+      }, ms);
+    }
+
+    function recomputeTheme() {
+      const controls = collectControls();
+
+      if (controls.autoLoadFont) {
+        tryLoadWebFont(controls.fontFamily);
+      }
+
+      const theme = buildTheme(controls);
+      const derivedVars = deriveRootVars(theme, controls);
+      const css = generateOutputCSS(theme, controls, derivedVars);
+
+      applyPreview(theme, controls);
+
+      dom.outputCSS.value = css;
+      window.currentGeneratedCSS = css;
+      window.currentThemeModel = {
+        controls,
+        theme,
+        derivedVars,
+        model: state.model
+      };
+    }
+
+    function parseSource() {
+      const rawVars = extractVariables(dom.input.value);
+      state.model = analyzeVariables(rawVars);
+      cleanupOverrides();
+      updateSummary();
+      rebuildMappingGrid();
+      rebuildInspector();
+      recomputeTheme();
+    }
+
+    function resetControls() {
+      dom.ranges().forEach(range => {
+        range.value = range.defaultValue;
+      });
+
+      dom.fontInput.value = dom.fontInput.defaultValue;
+      dom.fontAutoLoad.checked = dom.fontAutoLoad.defaultChecked;
+
+      dom.selectors.text.value = DEFAULT_SELECTORS.text;
+      dom.selectors.panel.value = DEFAULT_SELECTORS.panel;
+      dom.selectors.button.value = DEFAULT_SELECTORS.button;
+      dom.selectors.input.value = DEFAULT_SELECTORS.input;
+      dom.selectors.frame.value = DEFAULT_SELECTORS.frame;
+
+      state.mappingOverrides = {};
+      rebuildMappingGrid();
+      recomputeTheme();
+    }
+
+    // ------------------------
+    // Event wiring
+    // ------------------------
+
+    let parseTimer = 0;
+
+    dom.input.addEventListener('input', () => {
+      clearTimeout(parseTimer);
+      parseTimer = setTimeout(parseSource, 80);
+    });
+
+    dom.fontInput.addEventListener('input', recomputeTheme);
+    dom.fontAutoLoad.addEventListener('change', recomputeTheme);
+
+    dom.ranges().forEach(range => {
+      range.addEventListener('input', recomputeTheme);
+    });
+
+    Object.values(dom.selectors).forEach(input => {
+      input.addEventListener('input', recomputeTheme);
+    });
+
+    dom.copyCSS.addEventListener('click', async () => {
+      const ok = await copyText(dom.outputCSS.value);
+      flashButton(dom.copyCSS, ok ? 'Copied!' : 'Copy Failed');
+    });
+
+    dom.resetControls.addEventListener('click', () => {
+      resetControls();
+      flashButton(dom.resetControls, 'Reset');
+    });
+
+    // ------------------------
+    // Init
+    // ------------------------
+    parseSource();
+  </script>
+</body>
+</html>

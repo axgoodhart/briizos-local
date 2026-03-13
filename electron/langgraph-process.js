@@ -19,7 +19,7 @@ const { logger } = require('./logger');
 
 const PORT = 2024;
 const GATEWAY_PORT = 8001;
-const BACKEND_DIR = path.resolve(__dirname, '../../deerflow/backend');
+const BACKEND_DIR = path.resolve(__dirname, '../agent');
 const BACKEND_URL = `http://127.0.0.1:${PORT}`;
 const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
 const SHUTDOWN_TIMEOUT_MS = 5000;
@@ -256,6 +256,12 @@ async function start() {
 
   state.stoppingIntentionally = false;
 
+  // Kill any lingering gateway process from a previous run to avoid port conflicts
+  if (state.gatewayProcess) {
+    try { state.gatewayProcess.kill('SIGTERM'); } catch { /* already gone */ }
+    state.gatewayProcess = null;
+  }
+
   // 1. Detect uv
   const uvPath = detectUv();
   if (!uvPath) {
@@ -293,7 +299,7 @@ async function start() {
       cwd: BACKEND_DIR,
       env: {
         ...process.env,
-        DEER_FLOW_CONFIG_PATH: path.resolve(__dirname, '../../deerflow/config.yaml'),
+        DEER_FLOW_CONFIG_PATH: path.resolve(__dirname, '../agent/config.yaml'),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
@@ -388,7 +394,7 @@ async function start() {
         cwd: BACKEND_DIR,
         env: {
           ...process.env,
-          DEER_FLOW_CONFIG_PATH: path.resolve(__dirname, '../../deerflow/config.yaml'),
+          DEER_FLOW_CONFIG_PATH: path.resolve(__dirname, '../agent/config.yaml'),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
@@ -628,6 +634,7 @@ async function sendMessage(threadId, message, config = {}) {
     },
     config: {
       configurable: {
+        thread_id: threadId,
         model_name: config.model || null,
         thinking_enabled: config.thinking !== false,
         subagent_enabled: true,
@@ -692,14 +699,17 @@ async function streamMessage(threadId, message, config = {}, onEvent) {
     },
     config: {
       configurable: {
+        thread_id: threadId,
         model_name: config.model || null,
         thinking_enabled: config.thinking !== false,
         is_plan_mode: config.plan_mode || false,
         subagent_enabled: true,
       },
     },
-    stream_mode: ['messages-tuple', 'values', 'custom_events'],
+    stream_mode: ['messages-tuple', 'values', 'custom'],
   };
+
+  logger.info('langgraph', 'Streaming message with body:', { body: JSON.stringify(body, null, 2) });
 
   try {
     const res = await fetch(`${BACKEND_URL}/threads/${threadId}/runs/stream`, {
@@ -851,7 +861,7 @@ function processSSEEvent(eventType, data, onEvent) {
         });
       }
     }
-  } else if (eventType === 'custom_events') {
+  } else if (eventType === 'custom') {
     // Custom events from DeerFlow sub-agent system (task_tool.py stream_writer)
     // Data payload is the dict written by get_stream_writer() — contains a `type` field.
     if (data && typeof data === 'object' && typeof data.type === 'string' && data.type.startsWith('task_')) {
@@ -914,7 +924,7 @@ async function resumeRun(threadId, response, config = {}, onEvent) {
  * @param {number} n - Number of suggestions (default 3)
  * @returns {Promise<string[]>} Array of suggestion strings
  */
-async function fetchSuggestions(recentMessages, n = 3) {
+async function fetchSuggestions(recentMessages, n = 3, config = {}) {
   try {
     // Format conversation for the prompt
     const conversation = recentMessages
@@ -964,6 +974,8 @@ async function fetchSuggestions(recentMessages, n = 3) {
         },
         config: {
           configurable: {
+            thread_id: tempThreadId,
+            model_name: config.model || null,
             thinking_enabled: false,
           },
         },

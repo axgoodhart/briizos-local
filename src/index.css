@@ -12,8 +12,8 @@ html, body, #root {
 
 body {
   font-family:Chillax, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  background-color: #0a1628;
-  color: #e0e0e0;
+  background-color: var(--ui-body-bg, #0a1628);
+  color: var(--palette-text-main, #e0e0e0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -37,9 +37,9 @@
   gap: 2px;
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid rgba(0, 200, 200, 0.12);
+  border: 1px solid var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk, rgba(0, 200, 200, 0.12));
   border-radius: 6px;
-  background: rgba(10, 20, 30, 0.5);
+  background: var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna, rgba(10, 20, 30, 0.5));
 }
 
 .dashboard-chunk-item {
@@ -49,7 +49,7 @@
   padding: 8px 12px;
   background: transparent;
   border: none;
-  color: #aaa;
+  color: var(--palette-text-soft);
   font-size: 12px;
   font-family: 'SF Mono', Monaco, monospace;
   cursor: pointer;
@@ -59,12 +59,12 @@
 }
 
 .dashboard-chunk-item:hover {
-  background: rgba(0, 200, 200, 0.06);
+  background: var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3, rgba(0, 200, 200, 0.06));
 }
 
 .dashboard-chunk-item.active {
-  background: rgba(0, 200, 200, 0.12);
-  color: #00e5e5;
+  background: var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk, rgba(0, 200, 200, 0.12));
+  color: var(--palette-accent-cyan);
 }
 
 .dashboard-chunk-name {
@@ -76,7 +76,7 @@
 
 .dashboard-chunk-size {
   flex-shrink: 0;
-  color: #666;
+  color: var(--palette-text-muted);
   font-size: 10px;
   margin-left: 12px;
 }
@@ -85,10 +85,10 @@
 .dashboard-chunk-preview {
   margin: 0;
   padding: 12px;
-  background: rgba(10, 20, 30, 0.6);
-  border: 1px solid rgba(0, 200, 200, 0.12);
+  background: var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01, rgba(10, 20, 30, 0.6));
+  border: 1px solid var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk, rgba(0, 200, 200, 0.12));
   border-radius: 6px;
-  color: #aaa;
+  color: var(--palette-text-soft);
   font-size: 11px;
   font-family: 'SF Mono', Monaco, monospace;
   line-height: 1.5;
@@ -113,8 +113,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: rgba(10, 20, 30, 0.5);
-  border: 1px solid rgba(0, 200, 200, 0.1);
+  background: var(--theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna, rgba(10, 20, 30, 0.5));
+  border: 1px solid var(--theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9, rgba(0, 200, 200, 0.1));
   border-radius: 4px;
 }
 
@@ -122,7 +122,7 @@
   flex: 1;
   font-size: 12px;
   font-family: 'SF Mono', Monaco, monospace;
-  color: #ccc;
+  color: var(--palette-text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -132,7 +132,7 @@
   flex-shrink: 0;
   background: none;
   border: none;
-  color: #666;
+  color: var(--palette-text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
@@ -141,5 +141,5 @@
 }
 
 .dashboard-blacklist-remove:hover {
-  color: #ff6b6b;
+  color: var(--palette-danger);
 }

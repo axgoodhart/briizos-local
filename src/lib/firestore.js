@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { db, ensureAuth, getCurrentUid } from './firebase';
 import logger from './logger';
+import { taskAdapter, organizerAdapter, calendarAdapter, noteAdapter } from './syncAdapters';
 
 // =====================
 // HELPER FUNCTIONS
@@ -53,7 +54,7 @@ function generateId() {
 }
 
 function generateTaskId() {
-  return `task-${Date.now()}`;
+  return `tasks-${Date.now()}`;
 }
 
 function generateOrgItemId() {
@@ -115,7 +116,30 @@ function getUserCollections(uid) {
     agentWorkersCol: collection(userDoc, 'desktopAgentWorkers'),
     agentToolOpsCol: collection(userDoc, 'desktopAgentToolOps'),
     agentEventsCol: collection(userDoc, 'desktopAgentEvents'),
+    // App singletons
+    minStackDoc: doc(userDoc, 'app', 'minStack'),
   };
+}
+
+/**
+ * Subscribe to app/minStack in real-time (SyncContract §5)
+ */
+export function subscribeMinStack(callback) {
+  const uid = getCurrentUid();
+  if (!uid) return () => {};
+
+  const { minStackDoc } = getUserCollections(uid);
+  return onSnapshot(minStackDoc, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      const arr = Array.isArray(data.value) ? data.value.map(String) : [];
+      callback(arr);
+    } else {
+      callback([]);
+    }
+  }, (error) => {
+    logger.error('firestore', 'minStack subscription error', error?.message);
+  });
 }
 
 // =====================
@@ -219,19 +243,20 @@ export function subscribeNotes(callback) {
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
       if (data.type !== 'note') return; // client-side filter
+      const n = noteAdapter.normalizeOnRead(docSnap.id, data);
       notes.push({
-        id: docSnap.id,
-        title: data.title || '',
-        content: data.content || '',
-        color: readCustomColor(data.customColor, data.color || '#fef08a'),
-        position_x: data.x ?? data.positionX ?? 100,
-        position_y: data.y ?? data.positionY ?? 100,
-        width: data.w ?? data.width ?? 250,
-        height: data.h ?? data.height ?? 200,
-        is_pinned: data.active ? 1 : 0,
-        is_docked: data.isDocked !== false ? 1 : 0,
-        created: toISO(data.createdAt),
-        updated: toISO(data.updatedAt),
+        id: n.id,
+        title: n.title,
+        content: n.body,
+        color: readCustomColor(n.customColor, data.color || '#fef08a'),
+        position_x: n.position_x,
+        position_y: n.position_y,
+        width: n.width,
+        height: n.height,
+        is_pinned: n.active ? 1 : 0,
+        is_docked: n.isDocked ? 1 : 0,
+        created: toISO(n.createdAt),
+        updated: toISO(n.updatedAt),
       });
     });
     // Sort client-side by updatedAt descending
@@ -256,19 +281,20 @@ export async function getNotes() {
   snapshot.forEach((docSnap) => {
     const data = docSnap.data();
     if (data.type !== 'note') return; // client-side filter
+    const n = noteAdapter.normalizeOnRead(docSnap.id, data);
     notes.push({
-      id: docSnap.id,
-      title: data.title || '',
-      content: data.content || '',
-      color: readCustomColor(data.customColor, data.color || '#fef08a'),
-      position_x: data.x ?? data.positionX ?? 100,
-      position_y: data.y ?? data.positionY ?? 100,
-      width: data.w ?? data.width ?? 250,
-      height: data.h ?? data.height ?? 200,
-      is_pinned: data.active ? 1 : 0,
-      is_docked: data.isDocked !== false ? 1 : 0,
-      created: toISO(data.createdAt),
-      updated: toISO(data.updatedAt),
+      id: n.id,
+      title: n.title,
+      content: n.body,
+      color: readCustomColor(n.customColor, data.color || '#fef08a'),
+      position_x: n.position_x,
+      position_y: n.position_y,
+      width: n.width,
+      height: n.height,
+      is_pinned: n.active ? 1 : 0,
+      is_docked: n.isDocked ? 1 : 0,
+      created: toISO(n.createdAt),
+      updated: toISO(n.updatedAt),
     });
   });
 
@@ -289,23 +315,23 @@ export async function upsertNote(noteData) {
   const isNew = !noteData.id;
   const now = Date.now();
 
-  const firestoreData = removeUndefined({
+  const firestoreData = noteAdapter.prepareForWrite(removeUndefined({
+    id: noteId,
     type: 'note',
     title: noteData.title,
-    content: noteData.content,
-    customColor: noteData.color || null,
-    x: noteData.position_x,
-    y: noteData.position_y,
-    w: noteData.width,
-    h: noteData.height,
+    body: noteData.content,
+    customColor: noteData.color ? hexToHsl(noteData.color) : null,
+    position_x: noteData.position_x,
+    position_y: noteData.position_y,
+    width: noteData.width,
+    height: noteData.height,
     active: noteData.is_pinned === 1,
     isDocked: noteData.is_docked === 1,
     tags: isNew ? [] : undefined,
     autoHeight: isNew ? true : undefined,
     expansionCount: isNew ? 0 : undefined,
     createdAt: isNew ? now : undefined,
-    updatedAt: serverTimestamp(),
-  });
+  }), isNew);
 
   await setDoc(doc(panelsCol, noteId), firestoreData, { merge: true });
   return noteId;
@@ -340,52 +366,46 @@ export function subscribeTasks(callback) {
   const { tasksCol } = getUserCollections(uid);
 
   return onSnapshot(tasksCol, (snapshot) => {
-    const allTasks = [];
+    const tasks = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      allTasks.push({
-        id: docSnap.id,
-        title: data.text || data.name || data.title || '',
-        status: (data.completed || data.completedAt) ? 'completed' : (data.status || 'pending'),
-        priority: data.priority || 'medium',
-        due_date: data.dueDate || data.due_date || null,
-        parent_id: data.parentId || null,
-        created: toISO(data.created || data.createdAt),
-        type: data.type || 'task',
-        position: data.position || null,
+      const t = taskAdapter.normalizeOnRead(docSnap.id, data);
+      const actions = t.actions;
+
+      // Sort actions oldest first
+      actions.sort((a, b) => (a.created || 0) - (b.created || 0));
+
+      tasks.push({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        due_date: t.dueDate,
+        parent_id: t.parentId,
+        created: toISO(t.createdAt),
+        type: t.type,
+        position: t.position,
+        subtasks: actions.map(a => ({
+          id: a.id,
+          title: a.title || '',
+          status: a.completed ? 'completed' : 'pending',
+          priority: a.priority || 'medium',
+          parent_id: t.id,
+          created: toISO(a.created),
+        })),
       });
     });
 
-    // Build tree: top-level tasks with nested subtasks
-    const topLevel = allTasks.filter(t => !t.parent_id);
-    const subtaskMap = {};
-    for (const t of allTasks) {
-      if (t.parent_id) {
-        if (!subtaskMap[t.parent_id]) subtaskMap[t.parent_id] = [];
-        subtaskMap[t.parent_id].push(t);
-      }
-    }
-
-    // Sort by priority then created
+    // Sort top-level: priority then newest first
     const priorityOrder = { high: 1, medium: 2, low: 3 };
-    const sortFn = (a, b) => {
+    tasks.sort((a, b) => {
       const pa = priorityOrder[a.priority] || 4;
       const pb = priorityOrder[b.priority] || 4;
       if (pa !== pb) return pa - pb;
       return (b.created || '').localeCompare(a.created || '');
-    };
+    });
 
-    topLevel.sort(sortFn);
-    for (const parentId of Object.keys(subtaskMap)) {
-      subtaskMap[parentId].sort(sortFn);
-    }
-
-    const result = topLevel.map(task => ({
-      ...task,
-      subtasks: subtaskMap[task.id] || [],
-    }));
-
-    callback(result);
+    callback(tasks);
   }, (error) => {
     logger.error('firestore', 'Tasks subscription error', error?.message);
   });
@@ -402,85 +422,113 @@ export async function addTask(title, options = {}) {
   const taskId = generateTaskId();
   const now = Date.now();
 
-  const firestoreData = removeUndefined({
-    type: 'task',
-    text: title,
-    name: title,
+  const firestoreData = taskAdapter.prepareForWrite(removeUndefined({
+    id: taskId,
+    type: 'jobPanel',
     title: title,
     completed: false,
     completedAt: null,
+    status: 'running',
     priority: options.priority || 'medium',
     dueDate: options.dueDate || null,
     parentId: options.parentId || null,
     position: options.position || { x: 0, y: 0 },
-    created: now,
     createdAt: now,
-    updatedAt: serverTimestamp(),
-  });
+  }), true);
 
   await setDoc(doc(tasksCol, taskId), firestoreData);
   return taskId;
 }
 
 /**
- * Add multiple subtasks at once
+ * Add multiple subtasks (actions) to a parent task document
+ * Stored as an embedded actions array on the parent doc
  */
 export async function addSubtasks(parentId, subtasks) {
   const user = await ensureAuth();
   if (!user) return [];
 
   const { tasksCol } = getUserCollections(user.uid);
-  const batch = writeBatch(db);
+  const parentRef = doc(tasksCol, parentId);
+  const parentSnap = await getDoc(parentRef);
+  if (!parentSnap.exists()) return [];
+
+  const parentData = parentSnap.data();
+  const existingActions = Array.isArray(parentData.actions) ? [...parentData.actions] : [];
   const ids = [];
 
   for (const subtask of subtasks) {
-    const taskId = generateTaskId();
-    ids.push(taskId);
+    const actionId = generateTaskId();
+    ids.push(actionId);
     const title = typeof subtask === 'string' ? subtask : subtask.title;
     const priority = typeof subtask === 'string' ? 'medium' : (subtask.priority || 'medium');
-    const now = Date.now();
 
-    const data = {
-      type: 'task',
-      text: title,
-      name: title,
+    existingActions.push({
+      id: actionId,
       title: title,
       completed: false,
       completedAt: null,
       priority: priority,
-      parentId: parentId,
-      position: { x: 0, y: 0 },
-      created: now,
-      createdAt: now,
-      updatedAt: serverTimestamp(),
-    };
-
-    batch.set(doc(tasksCol, taskId), data);
+      created: Date.now(),
+    });
   }
 
-  await batch.commit();
+  await setDoc(parentRef, {
+    actions: existingActions,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+
   return ids;
 }
 
 /**
- * Update a task
+ * Update a task or an action within a parent task
+ * If parentId is provided in updates, it updates an action inside the parent's actions array
  */
 export async function updateTask(id, updates) {
   const user = await ensureAuth();
   if (!user) return false;
 
   const { tasksCol } = getUserCollections(user.uid);
+
+  // If this is a subtask/action update, modify the parent's actions array
+  if (updates._parentId) {
+    const parentRef = doc(tasksCol, updates._parentId);
+    const parentSnap = await getDoc(parentRef);
+    if (!parentSnap.exists()) return false;
+
+    const parentData = parentSnap.data();
+    const actions = Array.isArray(parentData.actions) ? [...parentData.actions] : [];
+    const actionIdx = actions.findIndex(a => a.id === id);
+    if (actionIdx === -1) return false;
+
+    if (updates.status !== undefined) {
+      const isCompleted = updates.status === 'completed';
+      actions[actionIdx].completed = isCompleted;
+      actions[actionIdx].completedAt = isCompleted ? Date.now() : null;
+    }
+    if (updates.title !== undefined) {
+      actions[actionIdx].title = updates.title;
+    }
+    if (updates.priority !== undefined) {
+      actions[actionIdx].priority = updates.priority;
+    }
+
+    await setDoc(parentRef, { actions, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  }
+
+  // Top-level task update
   const firestoreUpdates = { updatedAt: serverTimestamp() };
 
   if (updates.status !== undefined) {
     const isCompleted = updates.status === 'completed';
     firestoreUpdates.completed = isCompleted;
     firestoreUpdates.completedAt = isCompleted ? Date.now() : null;
+    firestoreUpdates.status = isCompleted ? 'complete' : 'running';
   }
   if (updates.title !== undefined) {
-    firestoreUpdates.text = updates.title;
     firestoreUpdates.title = updates.title;
-    firestoreUpdates.name = updates.title;
   }
   if (updates.priority !== undefined) {
     firestoreUpdates.priority = updates.priority;
@@ -497,29 +545,34 @@ export async function updateTask(id, updates) {
 }
 
 /**
- * Delete a task and its subtasks
+ * Delete a task (actions are embedded, so they go with it)
+ * If _parentId is provided, deletes an action from the parent's actions array
  */
-export async function deleteTask(id) {
+export async function deleteTask(id, options = {}) {
   const user = await ensureAuth();
   if (!user) return false;
 
   const { tasksCol } = getUserCollections(user.uid);
 
-  // Delete subtasks first
-  const subtasksQuery = query(tasksCol, where('parentId', '==', id));
-  const subtasksSnap = await getDocs(subtasksQuery);
-  const batch = writeBatch(db);
-  subtasksSnap.forEach((docSnap) => {
-    batch.delete(docSnap.ref);
-  });
-  batch.delete(doc(tasksCol, id));
-  await batch.commit();
+  // If deleting an action within a parent
+  if (options._parentId) {
+    const parentRef = doc(tasksCol, options._parentId);
+    const parentSnap = await getDoc(parentRef);
+    if (!parentSnap.exists()) return false;
 
+    const parentData = parentSnap.data();
+    const actions = Array.isArray(parentData.actions) ? parentData.actions.filter(a => a.id !== id) : [];
+    await setDoc(parentRef, { actions, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  }
+
+  // Delete the whole task doc (actions embedded, go with it)
+  await deleteDoc(doc(tasksCol, id));
   return true;
 }
 
 /**
- * Get a single task with subtasks
+ * Get a single task with its embedded actions (subtasks)
  */
 export async function getTask(id) {
   const user = await ensureAuth();
@@ -530,33 +583,30 @@ export async function getTask(id) {
   if (!taskDoc.exists()) return null;
 
   const data = taskDoc.data();
-  const task = {
-    id: taskDoc.id,
-    title: data.text || data.name || data.title || '',
-    status: (data.completed || data.completedAt) ? 'completed' : (data.status || 'pending'),
-    priority: data.priority || 'medium',
-    due_date: data.dueDate || null,
-    parent_id: data.parentId || null,
-    created: toISO(data.created || data.createdAt),
-    position: data.position || null,
-  };
+  const t = taskAdapter.normalizeOnRead(taskDoc.id, data);
+  const actions = t.actions;
 
-  // Fetch subtasks
-  const subtasksQuery = query(tasksCol, where('parentId', '==', id));
-  const subtasksSnap = await getDocs(subtasksQuery);
-  task.subtasks = [];
-  subtasksSnap.forEach((docSnap) => {
-    const sd = docSnap.data();
-    task.subtasks.push({
-      id: docSnap.id,
-      title: sd.text || sd.name || sd.title || '',
-      status: (sd.completed || sd.completedAt) ? 'completed' : (sd.status || 'pending'),
-      priority: sd.priority || 'medium',
+  // Sort actions oldest first
+  actions.sort((a, b) => (a.created || 0) - (b.created || 0));
+
+  const task = {
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    due_date: t.dueDate,
+    parent_id: t.parentId,
+    created: toISO(t.createdAt),
+    position: t.position,
+    subtasks: actions.map(a => ({
+      id: a.id,
+      title: a.title || '',
+      status: a.completed ? 'completed' : 'pending',
+      priority: a.priority || 'medium',
       parent_id: id,
-      created: toISO(sd.created || sd.createdAt),
-      position: sd.position || null,
-    });
-  });
+      created: toISO(a.created),
+    })),
+  };
 
   return task;
 }
@@ -582,19 +632,20 @@ export function subscribeSchedule(dateStr, callback) {
     const items = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      const startMin = data.startMinute ?? data.start ?? 540;
-      const dur = data.durationMinutes ?? data.duration ?? 60;
+      const c = calendarAdapter.normalizeOnRead(docSnap.id, data);
+      const startMin = c.start ?? 540;
+      const dur = c.durationMinutes ?? 60;
       items.push({
-        id: docSnap.id,
-        title: data.text || data.name || data.title || '',
-        description: data.description || data.body || '',
-        date: data.scheduledDate || data.date || dateStr,
-        start_time: data.time || minutesToTime(startMin),
+        id: c.id,
+        title: c.title,
+        description: c.body,
+        date: c.scheduledDate || dateStr,
+        start_time: c.time || minutesToTime(startMin),
         end_time: data.endTime || minutesToTime(startMin + dur),
-        color: data.color || '#3b82f6',
-        completed: (data.completed || data.completedAt) ? 1 : 0,
+        color: c.color,
+        completed: c.completed ? 1 : 0,
         project_id: data.projectId || null,
-        all_day: data.allDay ? 1 : 0,
+        all_day: c.allDay ? 1 : 0,
       });
     });
     callback(items);
@@ -619,22 +670,23 @@ export function subscribeAllSchedule(callback) {
     const items = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      const date = normalizeDateStr(data.scheduledDate || data.date);
+      const c = calendarAdapter.normalizeOnRead(docSnap.id, data);
+      const date = normalizeDateStr(c.scheduledDate);
       if (!date) return;
 
-      const startMin = data.startMinute ?? data.start ?? 540;
-      const dur = data.durationMinutes ?? data.duration ?? 60;
+      const startMin = c.start ?? 540;
+      const dur = c.durationMinutes ?? 60;
       items.push({
-        id: docSnap.id,
-        title: data.text || data.name || data.title || '',
-        description: data.description || data.body || '',
+        id: c.id,
+        title: c.title,
+        description: c.body,
         date,
-        start_time: data.time || minutesToTime(startMin),
+        start_time: c.time || minutesToTime(startMin),
         end_time: data.endTime || minutesToTime(startMin + dur),
-        color: data.color || '#3b82f6',
-        completed: (data.completed || data.completedAt) ? 1 : 0,
+        color: c.color,
+        completed: c.completed ? 1 : 0,
         project_id: data.projectId || null,
-        all_day: data.allDay ? 1 : 0,
+        all_day: c.allDay ? 1 : 0,
       });
     });
     callback(items);
@@ -660,19 +712,20 @@ export async function getScheduleItems(options = {}) {
   const items = [];
   snapshot.forEach((docSnap) => {
     const data = docSnap.data();
-    const startMin = data.startMinute ?? data.start ?? 540;
-    const dur = data.durationMinutes ?? data.duration ?? 60;
+    const c = calendarAdapter.normalizeOnRead(docSnap.id, data);
+    const startMin = c.start ?? 540;
+    const dur = c.durationMinutes ?? 60;
     items.push({
-      id: docSnap.id,
-      title: data.text || data.name || data.title || '',
-      description: data.description || data.body || '',
-      date: data.scheduledDate || data.date || dateStr,
-      start_time: data.time || minutesToTime(startMin),
+      id: c.id,
+      title: c.title,
+      description: c.body,
+      date: c.scheduledDate || dateStr,
+      start_time: c.time || minutesToTime(startMin),
       end_time: data.endTime || minutesToTime(startMin + dur),
-      color: data.color || '#3b82f6',
-      completed: (data.completed || data.completedAt) ? 1 : 0,
+      color: c.color,
+      completed: c.completed ? 1 : 0,
       project_id: data.projectId || null,
-      all_day: data.allDay ? 1 : 0,
+      all_day: c.allDay ? 1 : 0,
     });
   });
 
@@ -693,23 +746,17 @@ export async function addScheduleItem(itemData) {
   const endMin = timeToMinutes(itemData.end_time);
   const dur = endMin - startMin;
 
-  const firestoreData = removeUndefined({
+  const firestoreData = calendarAdapter.prepareForWrite(removeUndefined({
+    id: itemId,
     type: 'event',
-    text: itemData.title,
-    name: itemData.title,
     title: itemData.title,
-    description: itemData.description || '',
     body: itemData.description || '',
     scheduledDate: itemData.date,
-    date: itemData.date,
-    dateValue: itemData.date,
     dateMode: 'event',
     time: itemData.start_time,
     endTime: itemData.end_time,
-    startMinute: startMin,
     start: startMin,
     durationMinutes: dur,
-    duration: dur,
     end: startMin + dur,
     color: itemData.color || '#3b82f6',
     completed: false,
@@ -719,8 +766,7 @@ export async function addScheduleItem(itemData) {
     projectId: itemData.project_id || null,
     source: { mode: 'manual' },
     createdAt: now,
-    updatedAt: serverTimestamp(),
-  });
+  }), true);
 
   await setDoc(doc(eventsCol, itemId), firestoreData);
   return itemId;
@@ -738,27 +784,19 @@ export async function updateScheduleItem(itemId, dateStr, updates) {
 
   if (updates.date !== undefined) {
     firestoreUpdates.scheduledDate = updates.date;
-    firestoreUpdates.date = updates.date;
-    firestoreUpdates.dateValue = updates.date;
   }
   if (updates.scheduledDate !== undefined) {
     firestoreUpdates.scheduledDate = updates.scheduledDate;
-    firestoreUpdates.date = updates.scheduledDate;
-    firestoreUpdates.dateValue = updates.scheduledDate;
   }
   if (updates.title !== undefined) {
-    firestoreUpdates.text = updates.title;
-    firestoreUpdates.name = updates.title;
     firestoreUpdates.title = updates.title;
   }
   if (updates.description !== undefined) {
-    firestoreUpdates.description = updates.description;
     firestoreUpdates.body = updates.description;
   }
   if (updates.start_time !== undefined) {
     const startMin = timeToMinutes(updates.start_time);
     firestoreUpdates.time = updates.start_time;
-    firestoreUpdates.startMinute = startMin;
     firestoreUpdates.start = startMin;
   }
   if (updates.end_time !== undefined) {
@@ -769,7 +807,6 @@ export async function updateScheduleItem(itemId, dateStr, updates) {
     const endMin = timeToMinutes(updates.end_time);
     const dur = endMin - startMin;
     firestoreUpdates.durationMinutes = dur;
-    firestoreUpdates.duration = dur;
     firestoreUpdates.end = startMin + dur;
   }
   if (updates.color !== undefined) firestoreUpdates.color = updates.color;
@@ -818,20 +855,21 @@ export function subscribeProjects(callback) {
       const data = docSnap.data();
       // Only include project-type items (v1 also stores notes, events, timers here)
       if (data.type && data.type !== 'project') return;
+      const o = organizerAdapter.normalizeOnRead(docSnap.id, data);
       projects.push({
-        id: docSnap.id,
-        name: data.name || '',
+        id: o.id,
+        name: o.title,
         path: null,
-        description: data.description || '',
-        color: getDomainColor(data.domain) || data.color || '#3b82f6',
-        status: data.completed ? 'completed' : (data.status === 'done' ? 'completed' : (data.status || 'active')),
-        created: toISO(data.createdAt),
-        updated: toISO(data.updatedAt),
-        domain: data.domain,
-        deadline: data.deadline,
-        importance: data.importance,
-        tasks: data.tasks || [],
-        milestones: data.milestones || [],
+        description: o.body,
+        color: getDomainColor(o.domain) || o.color || '#3b82f6',
+        status: o.completed ? 'completed' : (o.status === 'done' ? 'completed' : (o.status || 'active')),
+        created: toISO(o.createdAt),
+        updated: toISO(o.updatedAt),
+        domain: o.domain,
+        deadline: o.deadline,
+        importance: o.importance,
+        tasks: o.tasks,
+        milestones: o.milestones,
       });
     });
     callback(projects);
@@ -854,20 +892,21 @@ export async function getProjects() {
   snapshot.forEach((docSnap) => {
     const data = docSnap.data();
     if (data.type && data.type !== 'project') return;
+    const o = organizerAdapter.normalizeOnRead(docSnap.id, data);
     projects.push({
-      id: docSnap.id,
-      name: data.name || '',
+      id: o.id,
+      name: o.title,
       path: null,
-      description: data.description || '',
-      color: getDomainColor(data.domain) || data.color || '#3b82f6',
-      status: data.completed ? 'completed' : (data.status === 'done' ? 'completed' : (data.status || 'active')),
-      created: toISO(data.createdAt),
-      updated: toISO(data.updatedAt),
-      domain: data.domain,
-      deadline: data.deadline,
-      importance: data.importance,
-      tasks: data.tasks || [],
-      milestones: data.milestones || [],
+      description: o.body,
+      color: getDomainColor(o.domain) || o.color || '#3b82f6',
+      status: o.completed ? 'completed' : (o.status === 'done' ? 'completed' : (o.status || 'active')),
+      created: toISO(o.createdAt),
+      updated: toISO(o.updatedAt),
+      domain: o.domain,
+      deadline: o.deadline,
+      importance: o.importance,
+      tasks: o.tasks,
+      milestones: o.milestones,
     });
   });
 
@@ -887,12 +926,11 @@ export async function upsertProject(projectData) {
   const isNew = !projectData.id;
   const now = Date.now();
 
-  const firestoreData = removeUndefined({
+  const firestoreData = organizerAdapter.prepareForWrite(removeUndefined({
+    id: projectId,
     type: 'project',
-    name: projectData.name,
-    text: projectData.name,
+    title: projectData.name,
     body: projectData.description,
-    description: projectData.description,
     domain: projectData.domain,
     status: projectData.status === 'completed' ? 'done' : projectData.status,
     completedAt: projectData.status === 'completed' ? now : null,
@@ -917,9 +955,8 @@ export async function upsertProject(projectData) {
     visibility: isNew ? 'private' : undefined,
     syncSource: isNew ? 'briizos' : undefined,
     createdAt: isNew ? now : undefined,
-    updatedAt: now,
     lastModified: now,
-  });
+  }), isNew);
 
   await setDoc(doc(organizerCol, projectId), firestoreData, { merge: true });
   return projectId;
@@ -1383,36 +1420,17 @@ export function parseDateYMD(str) {
  * compatible with both v1 items and v2 projects.
  */
 function normalizeOrganizerItem(id, data) {
+  const o = organizerAdapter.normalizeOnRead(id, data);
   return {
-    id,
-    type: data.type || 'note',
-    name: data.name || data.title || '',
-    body: data.body || data.description || '',
-    status: data.completedAt ? 'done' : (data.status === 'done' ? 'done' : (data.status || 'todo')),
-    completedAt: data.completedAt || null,
-    createdAt: data.createdAt || data.updatedAt || Date.now(),
-    updatedAt: data.updatedAt || Date.now(),
-    scheduledDate: normalizeDateStr(data.scheduledDate),
-    start: data.start ?? data.startMinute ?? null,
-    end: data.end ?? null,
-    duration: data.duration ?? data.durationMinutes ?? null,
-    due: normalizeDateStr(data.due),
-    dateMode: data.dateMode || (data.type === 'event' ? 'event' : 'created'),
-    dateValue: normalizeDateStr(data.dateValue),
-    priority: data.priority || 'auto',
-    tags: Array.isArray(data.tags) ? data.tags : [],
-    source: data.source || { mode: 'manual' },
-    recurrence: data.recurrence || null,
-    // Project-specific fields
-    domain: data.domain || null,
-    color: getDomainColor(data.domain) || data.color || null,
-    deadline: data.deadline || null,
-    importance: data.importance || null,
-    tasks: data.tasks || [],
-    milestones: data.milestones || [],
-    // Chat/external-specific fields
-    chat: data.chat || null,
-    external: data.external || null,
+    ...o,
+    // Keep legacy 'name' field for internal Local UI compat (maps from canonical 'title')
+    name: o.title,
+    // Normalize dates through Local helpers
+    scheduledDate: normalizeDateStr(o.scheduledDate),
+    due: normalizeDateStr(o.due),
+    dateValue: normalizeDateStr(o.dateValue),
+    // Project-specific color from domain
+    color: getDomainColor(o.domain) || o.color || null,
   };
 }
 
@@ -1454,12 +1472,12 @@ export async function addOrganizerItem(itemData) {
   const itemId = itemData.id || `itm_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
   const now = Date.now();
 
-  const firestoreData = removeUndefined({
+  const firestoreData = organizerAdapter.prepareForWrite(removeUndefined({
+    id: itemId,
     type: itemData.type || 'note',
-    name: itemData.name,
+    title: itemData.name || itemData.title,
     body: itemData.body || '',
     createdAt: now,
-    updatedAt: now,
     scheduledDate: itemData.scheduledDate || null,
     start: itemData.start ?? null,
     end: itemData.end ?? null,
@@ -1488,7 +1506,7 @@ export async function addOrganizerItem(itemData) {
     syncSource: 'briizos',
     lastModified: now,
     history: [],
-  });
+  }), true);
 
   await setDoc(doc(organizerCol, itemId), firestoreData);
   return itemId;
@@ -1502,7 +1520,7 @@ export async function updateOrganizerItem(itemId, updates) {
   if (!user) return false;
 
   const { organizerCol } = getUserCollections(user.uid);
-  const firestoreUpdates = { ...updates, updatedAt: Date.now(), lastModified: Date.now() };
+  const firestoreUpdates = { ...updates, updatedAt: serverTimestamp(), lastModified: Date.now() };
   await setDoc(doc(organizerCol, itemId), firestoreUpdates, { merge: true });
   return true;
 }
@@ -1513,8 +1531,8 @@ export async function updateOrganizerItem(itemId, updates) {
 export async function toggleOrganizerItemDone(itemId, currentlyDone) {
   const now = Date.now();
   const updates = currentlyDone
-    ? { completedAt: null, status: 'todo', updatedAt: now, lastModified: now }
-    : { completedAt: now, status: 'done', updatedAt: now, lastModified: now };
+    ? { completedAt: null, status: 'todo', lastModified: now }
+    : { completedAt: now, status: 'done', lastModified: now };
   return updateOrganizerItem(itemId, updates);
 }
 
@@ -1544,28 +1562,30 @@ export function subscribeLegacyEvents(callback) {
     const items = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      const c = calendarAdapter.normalizeOnRead(docSnap.id, data);
       items.push({
-        id: docSnap.id,
+        id: c.id,
         type: 'event',
-        name: data.text || data.name || data.title || '',
-        body: data.body || data.description || '',
-        status: (data.completed || data.completedAt) ? 'done' : 'todo',
-        completedAt: data.completedAt || (data.completed ? (data.updatedAt || Date.now()) : null),
-        createdAt: data.createdAt || Date.now(),
-        updatedAt: data.updatedAt || Date.now(),
-        scheduledDate: normalizeDateStr(data.scheduledDate || data.date),
-        start: data.start ?? data.startMinute ?? (data.time ? timeToMinutes(data.time) : null),
-        end: data.end ?? null,
-        duration: data.duration ?? data.durationMinutes ?? null,
+        name: c.title,
+        title: c.title,
+        body: c.body,
+        status: c.status,
+        completedAt: c.completedAt,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        scheduledDate: normalizeDateStr(c.scheduledDate),
+        start: c.start ?? (c.time ? timeToMinutes(c.time) : null),
+        end: c.end ?? null,
+        duration: c.durationMinutes,
         due: null,
         dateMode: 'event',
-        dateValue: normalizeDateStr(data.dateValue || data.scheduledDate || data.date),
+        dateValue: normalizeDateStr(c.scheduledDate),
         priority: data.priority || 'auto',
         tags: Array.isArray(data.tags) ? data.tags : [],
         source: data.source || { mode: 'manual' },
         recurrence: data.recurrence || null,
         domain: null,
-        color: data.color || null,
+        color: c.color,
         _fromLegacyEvents: true,
       });
     });

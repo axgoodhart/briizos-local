@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import logger from '../lib/logger';
 import { getLayout, saveLayout as saveLayoutFirestore } from '../lib/firestore';
-import { getCurrentUid } from '../lib/firebase';
+import { ensureAuth } from '../lib/firebase';
 import {
   migrateFlatToColumns,
   simplifyLayout,
@@ -42,8 +42,8 @@ export function useLayout() {
 
   // Load layout from Firestore
   const loadLayout = useCallback(async () => {
-    const uid = getCurrentUid();
-    if (!uid) {
+    const user = await ensureAuth();
+    if (!user) {
       setLayoutRow(DEFAULT_LAYOUT_V2);
       setIsLoading(false);
       hasLoadedRef.current = true;
@@ -361,6 +361,17 @@ export function useLayout() {
     });
   }, []);
 
+  /**
+   * Merge partial workspace state (overlay visibility, drawer position, etc.).
+   * Only updates keys provided — other workspace keys are preserved.
+   */
+  const updateWorkspace = useCallback((partial) => {
+    setLayoutRow(prev => ({
+      ...prev,
+      workspace: { ...(prev.workspace || {}), ...partial }
+    }));
+  }, []);
+
   const forceSave = useCallback(async () => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -375,6 +386,7 @@ export function useLayout() {
     updateColumnSizes,
     updateStackSizes,
     movePanel,
+    updateWorkspace,
 
     // Legacy API (backward compat)
     panels,

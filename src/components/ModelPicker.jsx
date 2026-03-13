@@ -35,11 +35,11 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
         onClick={() => setOpen(!open)}
         className="model-picker-trigger"
         style={{
-          background: 'transparent',
+          background: 'rgba(0,100,100,.42)',
           border: '1px solid var(--border-color, #333)',
-          borderRadius: '6px',
+          borderRadius: '16px',
           padding: '4px 10px',
-          fontSize: '12px',
+          fontSize: '11px',
           color: 'var(--text-secondary, #aaa)',
           cursor: 'pointer',
           display: 'flex',

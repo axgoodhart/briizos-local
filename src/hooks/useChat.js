@@ -11,11 +11,12 @@ import {
   markRemoteChatRead,
 } from '../lib/firestore';
 import { getCurrentUid } from '../lib/firebase';
-import { useChatSettings } from '../context/ChatSettingsContext';
 import { useAppContext } from './useAppContext';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 const hasApi = typeof window !== 'undefined' && window.api;
+
+const MODEL_STORAGE_KEY = 'briizos-selected-model';
 
 const MODALITY_SKILL_MAP = {
   chat: null,
@@ -25,7 +26,7 @@ const MODALITY_SKILL_MAP = {
   plan: null,
 };
 
-export function useChat() {
+export function useChat({ selectedModel } = {}) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfigured, setIsConfigured] = useState(true);
@@ -53,18 +54,17 @@ export function useChat() {
   const isRemoteResponseRef = useRef(false);
   const messagesRef = useRef([]);
   const suggestionsEnabledRef = useRef(suggestionsEnabled);
+  const selectedModelRef = useRef(selectedModel || null);
 
   // Contexts
-  const { currentSettings } = useChatSettings();
   const appContext = useAppContext();
 
   // Keep refs for values used inside IPC listeners (avoids effect re-runs)
   const appContextRef = useRef(appContext);
-  const currentSettingsRef = useRef(currentSettings);
   useEffect(() => { appContextRef.current = appContext; }, [appContext]);
-  useEffect(() => { currentSettingsRef.current = currentSettings; }, [currentSettings]);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { suggestionsEnabledRef.current = suggestionsEnabled; }, [suggestionsEnabled]);
+  useEffect(() => { selectedModelRef.current = selectedModel || null; }, [selectedModel]);
 
   // Persist suggestionsEnabled to localStorage
   useEffect(() => {
@@ -96,6 +96,11 @@ export function useChat() {
   const checkConfig = useCallback(async () => {
     if (!hasApi) return;
     try {
+      if (typeof api.isAIConfigured !== 'function') {
+        // Older preload builds may not expose this; avoid noisy errors.
+        setIsConfigured(true);
+        return;
+      }
       const configured = await api.isAIConfigured();
       setIsConfigured(configured);
     } catch (error) {
@@ -126,6 +131,17 @@ export function useChat() {
     threadIdRef.current = tid;
     logger.debug('chat', 'Created LangGraph thread', tid);
     return tid;
+  }, []);
+
+  const getModelForRun = useCallback(() => {
+    if (!hasApi) return null;
+    const fromProp = selectedModelRef.current;
+    if (fromProp) return fromProp;
+    try {
+      return localStorage.getItem(MODEL_STORAGE_KEY) || null;
+    } catch {
+      return null;
+    }
   }, []);
 
   // Set up LangGraph stream event listener — register once, use refs for latest values
@@ -302,7 +318,11 @@ export function useChat() {
       if (fullContent) {
         lastMessages.push({ role: 'assistant', content: fullContent.slice(0, 2000) });
       }
-      api.langgraphGetSuggestions(lastMessages, 3)
+      let suggestionModel = null;
+      try {
+        suggestionModel = selectedModelRef.current || localStorage.getItem(MODEL_STORAGE_KEY) || null;
+      } catch {}
+      api.langgraphGetSuggestions(lastMessages, 3, { model: suggestionModel })
         .then(results => setSuggestions(results || []))
         .catch(() => setSuggestions([]));
     }
@@ -361,7 +381,7 @@ export function useChat() {
     // Ensure LangGraph thread exists
     try {
       const threadId = await ensureThread();
-      const model = currentSettingsRef.current?.model;
+      const model = getModelForRun();
 
       // Generate stream ID
       const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
@@ -372,10 +392,15 @@ export function useChat() {
       setStreamingContent('');
       setToolCalls([]);
 
-      await api.langgraphStreamMessage(threadId, `[Remote message] ${remoteMsg.content}`, {
+      const result = await api.langgraphStreamMessage(threadId, `[Remote message] ${remoteMsg.content}`, {
         model,
         thinking: true,
+        streamId,
       });
+      if (result?.streamId && result.streamId !== streamIdRef.current) {
+        streamIdRef.current = result.streamId;
+        setCurrentStreamId(result.streamId);
+      }
     } catch (error) {
       logger.error('chat', 'Remote response stream error', error?.message);
       await addChatMessage('assistant', `Error: ${error.message}`, true);
@@ -384,7 +409,7 @@ export function useChat() {
       streamIdRef.current = null;
       setCurrentStreamId(null);
     }
-  }, [ensureThread]);
+  }, [ensureThread, getModelForRun]);
 
   useEffect(() => {
     if (!uid) return;
@@ -426,7 +451,7 @@ export function useChat() {
     // Ensure LangGraph thread exists
     try {
       const threadId = await ensureThread();
-      const model = currentSettingsRef.current?.model;
+      const model = getModelForRun();
 
       // Generate stream ID
       const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
@@ -447,11 +472,16 @@ export function useChat() {
       }
 
       // Stream via LangGraph IPC bridge
-      await api.langgraphStreamMessage(threadId, actualMessage, {
+      const result = await api.langgraphStreamMessage(threadId, actualMessage, {
         model,
         thinking: true,
         plan_mode: modality === 'plan',
+        streamId,
       });
+      if (result?.streamId && result.streamId !== streamIdRef.current) {
+        streamIdRef.current = result.streamId;
+        setCurrentStreamId(result.streamId);
+      }
     } catch (error) {
       logger.error('chat', 'Stream initiation error', error?.message);
       await addChatMessage('assistant', `Error: ${error.message}`, true);
@@ -461,7 +491,7 @@ export function useChat() {
     }
 
     return null;
-  }, [isLoading, modality, loadSelectedFiles, ensureThread]);
+  }, [isLoading, modality, loadSelectedFiles, ensureThread, getModelForRun]);
 
   // Clear chat history
   const clearHistory = useCallback(async () => {
@@ -498,7 +528,7 @@ export function useChat() {
         return;
       }
 
-      const model = currentSettingsRef.current?.model;
+      const model = getModelForRun();
 
       // Generate new stream ID for the resumed run
       const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
@@ -509,10 +539,14 @@ export function useChat() {
       setStreamingContent('');
       setToolCalls([]);
 
-      await api.langgraphResumeRun(threadId, {
+      const result = await api.langgraphResumeRun(threadId, {
         approved: true,
         summary: confirmation.summary,
-      }, { model, thinking: true });
+      }, { model, thinking: true, streamId });
+      if (result?.streamId && result.streamId !== streamIdRef.current) {
+        streamIdRef.current = result.streamId;
+        setCurrentStreamId(result.streamId);
+      }
     } catch (error) {
       logger.error('chat', 'Failed to approve tool', error?.message);
       await addChatMessage('assistant', `Error resuming after approval: ${error.message}`, true);
@@ -520,7 +554,7 @@ export function useChat() {
       streamIdRef.current = null;
       setCurrentStreamId(null);
     }
-  }, [pendingToolConfirmation]);
+  }, [pendingToolConfirmation, getModelForRun]);
 
   // Reject a pending destructive tool confirmation
   const rejectToolConfirmation = useCallback(async () => {
@@ -537,7 +571,7 @@ export function useChat() {
         return;
       }
 
-      const model = currentSettingsRef.current?.model;
+      const model = getModelForRun();
 
       // Generate new stream ID for the resumed run
       const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
@@ -548,10 +582,14 @@ export function useChat() {
       setStreamingContent('');
       setToolCalls([]);
 
-      await api.langgraphResumeRun(threadId, {
+      const result = await api.langgraphResumeRun(threadId, {
         approved: false,
         summary: confirmation.summary,
-      }, { model, thinking: true });
+      }, { model, thinking: true, streamId });
+      if (result?.streamId && result.streamId !== streamIdRef.current) {
+        streamIdRef.current = result.streamId;
+        setCurrentStreamId(result.streamId);
+      }
     } catch (error) {
       logger.error('chat', 'Failed to reject tool', error?.message);
       await addChatMessage('assistant', `Error resuming after rejection: ${error.message}`, true);
@@ -559,7 +597,7 @@ export function useChat() {
       streamIdRef.current = null;
       setCurrentStreamId(null);
     }
-  }, [pendingToolConfirmation]);
+  }, [pendingToolConfirmation, getModelForRun]);
 
   // Refresh files in context
   const refreshFilesInContext = useCallback(async () => {

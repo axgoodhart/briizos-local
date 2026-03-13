@@ -1,0 +1,210 @@
+{
+  "project": "briizOS.Local",
+  "branchName": "ralph/panel-column-stacking",
+  "description": "Panel Column Stacking - Enable panels to be full-height or stacked vertically within columns",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Define LayoutColumn type and new layout data structure",
+      "description": "As a developer, I need a data model that represents the row/column/stack layout so panels can be grouped vertically.",
+      "acceptanceCriteria": [
+        "Define a LayoutColumn type: either a single panel reference ({ panelId, type, size }) or a stack ({ panels: [{ panelId, type, size }], size })",
+        "Define a LayoutRow type: { columns: LayoutColumn[], version: number }",
+        "Column 'size' is horizontal width percentage within the row (all columns sum to ~100)",
+        "Panel 'size' within a stack is vertical height percentage within that column (all panels in stack sum to ~100)",
+        "Export types from a new file src/types/layout.js or add to existing useLayout.js",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Write migration function from flat panels array to row/column structure",
+      "description": "As a developer, I need to convert the existing flat panels[] array into the new LayoutRow structure so old saved layouts still work.",
+      "acceptanceCriteria": [
+        "Create a migrateFlatToColumns(panels) function that converts the flat array into a LayoutRow",
+        "Each panel in the flat array becomes a single-panel column with its existing size and order",
+        "Columns are ordered by the panel's 'order' field",
+        "Only visible panels become columns; hidden panels are preserved separately",
+        "Default layout converts correctly: sources(20), interaction(60), tasks(20) becomes 3 single-panel columns",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Update useLayout hook to use row/column/stack model",
+      "description": "As a developer, I need useLayout to manage the new LayoutRow state instead of the flat panels array.",
+      "acceptanceCriteria": [
+        "useLayout stores state as LayoutRow instead of panels[]",
+        "On load: if Firestore data is v1 (flat array), run migration function to convert to v2 (LayoutRow)",
+        "On load: if Firestore data is v2, use directly",
+        "getVisiblePanels() still works by flattening columns/stacks into a panel list for backward compatibility",
+        "updateColumnSizes(sizeMap) updates horizontal column widths",
+        "updateStackSizes(columnIndex, sizeMap) updates vertical panel heights within a stack",
+        "Saving writes the LayoutRow to Firestore with version: 2",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Render single-panel columns and stacked columns",
+      "description": "As a user, I want to see the layout render correctly with both full-height panels and vertically stacked panels.",
+      "acceptanceCriteria": [
+        "TileLayout renders one horizontal react-resizable-panels Group for the row",
+        "Single-panel columns render the panel at full height inside a Panel component",
+        "Stack columns render a nested vertical react-resizable-panels Group containing each stacked panel",
+        "Each panel renders its content via the existing renderPanel callback",
+        "Stacked panels share height based on their size values",
+        "Horizontal resize handles (col-resize) appear between columns",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Add vertical resize handles between stacked panels",
+      "description": "As a user, I want to drag resize handles between stacked panels to adjust their heights.",
+      "acceptanceCriteria": [
+        "Vertical resize handles (row-resize cursor) appear between panels in a stack",
+        "Dragging a vertical handle updates the size of the two adjacent panels within the stack",
+        "Minimum panel size enforced (5% or 40px, whichever is larger)",
+        "Resize handles match existing 8px styling with cyan hover indicator",
+        "Resize changes persist to Firestore via existing debounced save",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add stack simplification after layout mutations",
+      "description": "As a developer, I need automatic cleanup so stacks with one panel become plain columns and empty columns are removed.",
+      "acceptanceCriteria": [
+        "Create a simplifyLayout(layout) pure function",
+        "If a stack has only one panel, convert it to a single-panel column (promote the panel up)",
+        "If a column has no panels, remove it entirely",
+        "Column sizes are renormalized to sum to ~100 after a column is added or removed",
+        "Panel sizes within a stack are renormalized after a panel is added or removed",
+        "Function is called after every layout mutation before saving",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Implement drop-zone detection (center vs edges)",
+      "description": "As a user, I want the system to detect whether I'm dropping in the center (stack) or at the edge (reorder) of a panel.",
+      "acceptanceCriteria": [
+        "Create a determineDropZone(cursorPos, targetRect) function returning: 'center', 'top', 'bottom', 'left', or 'right'",
+        "Center zone is the middle ~60% area of the panel",
+        "Edge zones are the outer ~20% on each side (top, bottom, left, right)",
+        "Function uses cursor position relative to the target panel's bounding rect",
+        "Reference waveterm's determineDropDirection in /Users/alex/Documents/Cufolio/waveterm-main/frontend/layout/lib/utils.ts",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Add visual drop-zone overlay during drag",
+      "description": "As a user, I want to see a visual highlight showing where my panel will land when I drop it.",
+      "acceptanceCriteria": [
+        "When dragging a panel over a target, a semi-transparent overlay appears on the active drop zone",
+        "Center zone: full panel highlight with cyan tint",
+        "Top/bottom edge: top-half or bottom-half highlight showing where panel will insert",
+        "Left/right edge: left-half or right-half highlight showing new column position",
+        "Overlay disappears when cursor leaves the target or drag ends",
+        "Uses existing cyan accent palette (--layout-accent-cyan)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Execute stack operation on center drop",
+      "description": "As a user, when I drop a panel on the center of another panel, they should form a vertical stack.",
+      "acceptanceCriteria": [
+        "Dropping on center of a single-panel column converts it to a stack with the original and dragged panel",
+        "Dropping on center of an existing stack adds the dragged panel to that stack",
+        "The dragged panel is removed from its original column/stack",
+        "New stack defaults to equal size distribution among panels",
+        "simplifyLayout is called after the operation (single-panel stacks promoted, empty columns removed)",
+        "Layout persists after stacking",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Execute move/reorder on edge drop",
+      "description": "As a user, when I drop a panel on the edge of another panel, it should reorder or create a new column.",
+      "acceptanceCriteria": [
+        "Dropping on top/bottom edge of a panel in a stack inserts the dragged panel above/below the target in that stack",
+        "Dropping on left/right edge of any panel places the dragged panel as a new column before/after the target's column",
+        "The dragged panel is removed from its original position",
+        "simplifyLayout is called after the operation",
+        "Layout persists after move",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Unstack a panel by dragging it to a column edge",
+      "description": "As a user, I want to drag a panel out of a stack to make it its own full-height column.",
+      "acceptanceCriteria": [
+        "Dragging a panel from a stack to the left/right edge of any panel creates a new column for it",
+        "The unstacked panel becomes full-height in its new column position",
+        "If the source stack has only one panel remaining, it is simplified to a single-panel column",
+        "Column sizes renormalize after the new column is added",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Persist and load row/column/stack layout from Firestore",
+      "description": "As a user, I want my stacked panel layout to persist across sessions.",
+      "acceptanceCriteria": [
+        "Firestore saveLayout writes the LayoutRow structure with version: 2",
+        "Firestore getLayout reads and returns the structure",
+        "On load: v1 flat arrays are migrated to v2 automatically",
+        "On load: v2 structures render correctly with stacks intact",
+        "Debounced auto-save (500ms) works for all layout mutations (resize, stack, move, unstack)",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

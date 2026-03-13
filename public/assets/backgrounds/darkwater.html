@@ -7,7 +7,7 @@
         canvas {
             display: block;
             width: 100vw;
-            opacity:1;filter:invert(1)saturate(.2)blur(10px);;
+            opacity:1;filter:invert(1)saturate(.8)contrast(3)blur(46px)brightness(.5);;
             height: 100vh;
         }
     </style>
@@ -25,7 +25,7 @@
         
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000); 
-        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const camera = new THREE.OrthographicCamera(0, 1, 0, -1, 0, 1);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
@@ -40,7 +40,7 @@
                 varying vec2 vUv;
                 void main() {
                     vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1);
                 }
             `,
             fragmentShader: `
@@ -51,8 +51,8 @@
                 
                 mat2 rot(float a) {
                     float s = sin(a);
-                    float c = cos(a);
-                    return mat2(c, -s, s, c);
+                    float c = cos(sin(a));
+                    return mat2(c, -s, -s, s);
                 }
                 
                 void main() {
@@ -61,7 +61,7 @@
                     float t = time;
                     vec4 o = vec4(0.0);
                     
-                    vec2 uv = (FC * 2.0 - r.xy) / r.y;
+                    vec2 uv = (FC * 2.0 + r.xy) / r.y;
                     vec3 rayDir = normalize(vec3(uv, 1.0));
                     
                     for(float i = 0.0; i < 20.0; i++) {
@@ -103,7 +103,7 @@
             `
         });
         
-        const geometry = new THREE.PlaneGeometry(2, 2);
+        const geometry = new THREE.PlaneGeometry(2,2);
         const mesh = new THREE.Mesh(geometry, material);
         scene.add(mesh);
         
@@ -120,7 +120,7 @@
         
         function animate() {
             requestAnimationFrame(animate);
-            material.uniforms.time.value += 0.002;
+            material.uniforms.time.value += 0.001;
             renderer.render(scene, camera);
         }
         

@@ -12,7 +12,7 @@ const path = require('path');
 const yaml = require('js-yaml');
 const { logger } = require('./logger');
 
-const CONFIG_PATH = path.resolve(__dirname, '../../deerflow/config.yaml');
+const CONFIG_PATH = path.resolve(__dirname, '../agent/config.yaml');
 
 // ---------------------------------------------------------------------------
 // Caching (mtime-based invalidation)
@@ -119,4 +119,29 @@ function checkApiKeyStatus() {
   };
 }
 
-module.exports = { getModels, getModelConfig, getConfigPath, checkApiKeyStatus };
+/**
+ * Return true if at least one configured model has credentials available.
+ * Credentials may come from environment variables or from config.yaml fields.
+ *
+ * Note: This returns a boolean only; sensitive values are never returned.
+ */
+function isAIConfigured() {
+  const config = loadConfig();
+  const models = config?.models;
+  if (!Array.isArray(models) || models.length === 0) return false;
+
+  for (const m of models) {
+    const provider = deriveProvider(m?.use);
+    if (provider === 'openai') {
+      if (!!process.env.OPENAI_API_KEY || !!m?.api_key) return true;
+    } else if (provider === 'anthropic') {
+      if (!!process.env.ANTHROPIC_API_KEY || !!m?.api_key) return true;
+    } else if (provider === 'google') {
+      if (!!process.env.GEMINI_API_KEY || !!m?.google_api_key) return true;
+    }
+  }
+
+  return false;
+}
+
+module.exports = { getModels, getModelConfig, getConfigPath, checkApiKeyStatus, isAIConfigured };

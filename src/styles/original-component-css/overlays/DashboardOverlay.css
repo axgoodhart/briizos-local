@@ -1,0 +1,145 @@
+/* =====================
+   DashboardOverlay
+   Extends the existing modal-* / settings-* classes from App.css
+   ===================== */
+
+/* Wider container for dashboard content */
+.dashboard-modal-container {
+  max-width: 600px;
+}
+
+/* ── Memory Tab ── */
+
+.dashboard-agent-context {
+  min-height: 200px;
+  resize: vertical;
+  font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.dashboard-chunks-input {
+  max-width: 100px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.dashboard-chunks-input::-webkit-inner-spin-button,
+.dashboard-chunks-input::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+/* Chunk list */
+.dashboard-chunk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 200, 200, 0.12);
+  border-radius: 6px;
+  background: rgba(10, 20, 30, 0.5);
+}
+
+.dashboard-chunk-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--palette-text-soft);
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, monospace;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.dashboard-chunk-item:hover {
+  background: rgba(0, 200, 200, 0.06);
+}
+
+.dashboard-chunk-item.active {
+  background: rgba(0, 200, 200, 0.12);
+  color: var(--palette-accent-cyan);
+}
+
+.dashboard-chunk-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-chunk-size {
+  flex-shrink: 0;
+  color: var(--palette-text-muted);
+  font-size: 10px;
+  margin-left: 12px;
+}
+
+/* Chunk content preview */
+.dashboard-chunk-preview {
+  margin: 0;
+  padding: 12px;
+  background: rgba(10, 20, 30, 0.6);
+  border: 1px solid rgba(0, 200, 200, 0.12);
+  border-radius: 6px;
+  color: var(--palette-text-soft);
+  font-size: 11px;
+  font-family: 'SF Mono', Monaco, monospace;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ── Permissions Tab ── */
+
+/* Blacklist table */
+.dashboard-blacklist-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.dashboard-blacklist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(10, 20, 30, 0.5);
+  border: 1px solid rgba(0, 200, 200, 0.1);
+  border-radius: 4px;
+}
+
+.dashboard-blacklist-value {
+  flex: 1;
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, monospace;
+  color: var(--palette-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-blacklist-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--palette-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.dashboard-blacklist-remove:hover {
+  color: var(--palette-danger);
+}

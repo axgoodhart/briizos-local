@@ -83,6 +83,7 @@ contextBridge.exposeInMainWorld('api', {
   getModels: () => ipcRenderer.invoke('models-get-list'),
   getModelConfig: (name) => ipcRenderer.invoke('models-get-config', name),
   checkApiKeys: () => ipcRenderer.invoke('models-check-api-keys'),
+  isAIConfigured: () => ipcRenderer.invoke('ai-is-configured'),
 
   // LangGraph Status API
   langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
@@ -98,8 +99,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   langgraphResumeRun: (threadId, response, config) =>
     ipcRenderer.invoke('langgraph-resume-run', threadId, response, config),
-  langgraphGetSuggestions: (recentMessages, n) =>
-    ipcRenderer.invoke('langgraph-get-suggestions', recentMessages, n),
+  langgraphGetSuggestions: (recentMessages, n, config) =>
+    ipcRenderer.invoke('langgraph-get-suggestions', recentMessages, n, config),
 
   // Tool Bridge API (relay tool execution requests from main process)
   onToolBridgeExecute: (callback) => {

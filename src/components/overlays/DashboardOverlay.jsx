@@ -204,7 +204,7 @@ function ModelTab({ isOpen }) {
       <div className="settings-divider" />
 
       <p className="settings-hint" style={{ fontStyle: 'normal' }}>
-        Model selection is available in the chat toolbar. Edit deerflow/config.yaml to add or modify models.
+        Model selection is available in the chat toolbar. Edit agent/config.yaml to add or modify models.
       </p>
     </div>
   );
@@ -914,6 +914,24 @@ function AppearanceTab({ settings, handleThemeChange }) {
           <span className="radio-label">Default Neon</span>
           <span className="radio-desc">Current dark neon interface.</span>
         </label>
+
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="neon-orbi"
+    checked={currentTheme === 'neon-orbi'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Neon Orb</span>
+  <span className="radio-desc">Richer neon interface.</span>
+</label>
+
+
+
+
 
         <label className="settings-radio">
           <input

@@ -10,7 +10,7 @@ import './NotesWidget.css';
  * - Floating mode: Notes can be torn off and dragged around
  * Connected to Firebase Firestore for sync with briizOS-Dev
  */
-function NotesWidget({ isOpen, onClose }) {
+function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDrawerChange }) {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggingId, setDraggingId] = useState(null);
@@ -18,9 +18,11 @@ function NotesWidget({ isOpen, onClose }) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ mouseX: 0, mouseY: 0, width: 250, height: 200 });
 
-  // Drawer drag & resize state
-  const [drawerPos, setDrawerPos] = useState(null); // null = use CSS default
-  const [drawerSize, setDrawerSize] = useState({ width: 300, height: 520 });
+  // Drawer drag & resize state — initialize from persisted values
+  const [drawerPos, setDrawerPos] = useState(drawerPosition || null);
+  const [drawerSize, setDrawerSize] = useState(
+    drawerDimensions || { width: 300, height: 520 }
+  );
   const [draggingDrawer, setDraggingDrawer] = useState(false);
   const [resizingDrawer, setResizingDrawer] = useState(false);
   const [drawerDragOffset, setDrawerDragOffset] = useState({ x: 0, y: 0 });
@@ -262,10 +264,12 @@ function NotesWidget({ isOpen, onClose }) {
   const handleMouseUp = useCallback(() => {
     if (draggingDrawer) {
       setDraggingDrawer(false);
+      if (onDrawerChange) onDrawerChange(drawerPos, drawerSize);
       return;
     }
     if (resizingDrawer) {
       setResizingDrawer(false);
+      if (onDrawerChange) onDrawerChange(drawerPos, drawerSize);
       return;
     }
 
@@ -293,7 +297,7 @@ function NotesWidget({ isOpen, onClose }) {
 
     setDraggingId(null);
     setResizingId(null);
-  }, [draggingId, resizingId, notes, draggingDrawer, resizingDrawer]);
+  }, [draggingId, resizingId, notes, draggingDrawer, resizingDrawer, onDrawerChange, drawerPos, drawerSize]);
 
   useEffect(() => {
     if (draggingId || resizingId || draggingDrawer || resizingDrawer) {

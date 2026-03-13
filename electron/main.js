@@ -481,7 +481,7 @@ ipcMain.handle('memory-delete-fact', async (event, factId) => {
 
 ipcMain.handle('skills-get-list', async () => {
   const fs = require('fs');
-  const configPath = path.resolve(__dirname, '../../deerflow/extensions_config.json');
+  const configPath = path.resolve(__dirname, '../agent/extensions_config.json');
   try {
     const raw = fs.readFileSync(configPath, 'utf8');
     const data = JSON.parse(raw);
@@ -498,7 +498,7 @@ ipcMain.handle('skills-get-list', async () => {
 
 ipcMain.handle('skills-toggle', async (event, skillName, enabled) => {
   const fs = require('fs');
-  const configPath = path.resolve(__dirname, '../../deerflow/extensions_config.json');
+  const configPath = path.resolve(__dirname, '../agent/extensions_config.json');
   try {
     const raw = fs.readFileSync(configPath, 'utf8');
     const data = JSON.parse(raw);
@@ -524,16 +524,16 @@ ipcMain.handle('langgraph-create-thread', async () => {
 });
 
 ipcMain.handle('langgraph-stream-message', async (event, threadId, message, config) => {
-  const streamId = `lg-stream-${Date.now()}`;
+  const streamId = config?.streamId || `lg-stream-${Date.now()}`;
   const sender = event.sender;
 
   langgraphProcess.streamMessage(threadId, message, config || {}, (type, payload) => {
     if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type, ...payload });
+      sender.send('langgraph-stream-event', { streamId, type, payload: payload || {} });
     }
   }).catch(err => {
     if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type: 'error', message: err?.message || 'Stream failed' });
+      sender.send('langgraph-stream-event', { streamId, type: 'error', payload: { message: err?.message || 'Stream failed' } });
     }
   });
 
@@ -543,16 +543,16 @@ ipcMain.handle('langgraph-stream-message', async (event, threadId, message, conf
 // === LangGraph Resume Run (Tool Confirmation) ===
 
 ipcMain.handle('langgraph-resume-run', async (event, threadId, response, config) => {
-  const streamId = `lg-resume-${Date.now()}`;
+  const streamId = config?.streamId || `lg-resume-${Date.now()}`;
   const sender = event.sender;
 
   langgraphProcess.resumeRun(threadId, response, config || {}, (type, payload) => {
     if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type, ...payload });
+      sender.send('langgraph-stream-event', { streamId, type, payload: payload || {} });
     }
   }).catch(err => {
     if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type: 'error', message: err?.message || 'Resume failed' });
+      sender.send('langgraph-stream-event', { streamId, type: 'error', payload: { message: err?.message || 'Resume failed' } });
     }
   });
 
@@ -561,8 +561,8 @@ ipcMain.handle('langgraph-resume-run', async (event, threadId, response, config)
 
 // === LangGraph Suggestions API ===
 
-ipcMain.handle('langgraph-get-suggestions', async (event, recentMessages, n) => {
-  return langgraphProcess.fetchSuggestions(recentMessages, n || 3);
+ipcMain.handle('langgraph-get-suggestions', async (event, recentMessages, n, config) => {
+  return langgraphProcess.fetchSuggestions(recentMessages, n || 3, config || {});
 });
 
 // === Model Config IPC Handlers ===
@@ -570,6 +570,7 @@ ipcMain.handle('langgraph-get-suggestions', async (event, recentMessages, n) => 
 ipcMain.handle('models-get-list', async () => modelConfig.getModels());
 ipcMain.handle('models-get-config', async (_, name) => modelConfig.getModelConfig(name));
 ipcMain.handle('models-check-api-keys', async () => modelConfig.checkApiKeyStatus());
+ipcMain.handle('ai-is-configured', async () => modelConfig.isAIConfigured());
 
 // === App Lifecycle ===
 

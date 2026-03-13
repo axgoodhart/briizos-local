@@ -370,6 +370,44 @@ const tools = {
     },
   },
 
+  // === AGENT LOOP CONTROL SIGNALS ===
+
+  taskComplete: {
+    requiresConfirmation: false,
+    description: 'Signal that the requested task has been fully and successfully completed. You MUST call this when the goal is achieved — the loop will not stop otherwise.',
+    parameters: {
+      summary: { type: 'string', description: 'One or two sentences describing what was accomplished' },
+    },
+    handler: async (params) => {
+      return { success: true, completed: true, summary: params.summary };
+    },
+  },
+
+  taskFailed: {
+    requiresConfirmation: false,
+    description: 'Signal that the task cannot be completed. Call this when you have exhausted all options or hit a hard blocker. Never silently stop.',
+    parameters: {
+      reason: { type: 'string', description: 'Why the task failed' },
+      lastAction: { type: 'string', description: 'The last thing you tried', optional: true },
+    },
+    handler: async (params) => {
+      return { success: false, failed: true, reason: params.reason };
+    },
+  },
+
+  updateScratchpad: {
+    requiresConfirmation: false,
+    description: 'Update your working scratchpad (visible as a live iframe). Call at the start of each step with: current goal, steps completed so far, last result, and what you plan to do next.',
+    parameters: {
+      html: { type: 'string', description: 'Full HTML for the scratchpad. Include: goal, iteration count, action log, last result, next planned action.' },
+    },
+    handler: async () => {
+      // Canvas dispatch is handled by the agent loop in useChat (it has session context).
+      // This handler exists so the AI can call the tool — the loop intercepts it.
+      return { success: true, message: 'Scratchpad updated.' };
+    },
+  },
+
   // === MEMORY TOOL ===
 
   updateAgentMemory: {

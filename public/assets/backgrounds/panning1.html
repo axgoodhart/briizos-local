@@ -10,14 +10,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
     :root {
-        --paper: #E6E2D6;
+        --paper: #1c012c;
         --paper-shadow: #D1CDBF;
-        --charcoal: #1A1A1A;
-        --charcoal-light: #3A3A3A;
-        --ink-faint: rgba(26, 26, 26, 0.1);
-        --ink-med: rgba(26, 26, 26, 0.4);
+        --charcoal: #854141;
+        --charcoal-light: #bb6060;
+        --ink-faint: rgba(228, 44, 44);
+        --ink-med: rgba(26, 26, 26); 
         --ink-heavy: rgba(26, 26, 26, 0.95);
-        --accent: #8C2F2F; /* Dried blood/Burnt Sienna */
+        --accent: #e47272; /* Dried blood/Burnt Sienna */
         --font-display: 'Cormorant Garamond', serif;
         --font-mono: 'Space Mono', monospace;
     }
@@ -32,12 +32,12 @@
         width: 100vw;
         height: 100vh;
         overflow: hidden;
-        background-color: var(--paper);
+        background:radial-gradient(circle at top right, white 0%, rgb(255, 0, 234) 5%,transparent 40%, transparent), linear-gradient(to bottom, black, rgb(13, 0, 47) 80%,  rgb(152, 5, 120), black 120%);;
+        background-color:black;
         color: var(--charcoal);
         font-family: var(--font-display);
         cursor: crosshair;
     }
-
     /* --- Texture & Filters --- */
     
     .vellum-overlay {
@@ -139,7 +139,7 @@
     }
 
     .controls {
-        display: flex;
+        display: none;
         gap: 2rem;
         align-items: flex-end;
     }
@@ -246,14 +246,6 @@
     </div>
 
     <div class="ui-layer">
-        <header>
-            <h1>Sylva<br>Obscura</h1>
-            <div class="meta">
-                <span>LAT: 45.92° N</span>
-                <span>LON: 12.33° E</span>
-                <span>ELEV: <span id="elev-disp">1204</span>M</span>
-            </div>
-        </header>
 
         <div class="loader" id="sector-display">01</div>
 

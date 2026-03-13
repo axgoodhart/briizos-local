@@ -68,18 +68,19 @@ from { transform: translateX(-100%); opacity: 0; }
 body {
     background: var(--ui-body-bg);
     color: var(--ui-text-primary);
+    border-radius:0px;
 }
 
 .app {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: var(--ui-app-bg);
+    background: linear-gradient(violet, var(--ui-app-bg));
     color: var(--ui-text-primary);
     font-family: Chillax, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
     border: var(--ui-app-border);
-    border-radius: 0px;
+    border-radius: var(--ui-app-border-radius);
     box-shadow: var(--ui-app-shadow);
 }
 
@@ -270,7 +271,7 @@ body {
 
 .source-header.local {
     background: linear-gradient(90deg, rgba(0, 80, 80, 0.4) 0%, rgba(0, 60, 80, 0.2) 100%);
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     border: 1px solid rgba(0, 200, 200, 0.3);
 }
 
@@ -325,13 +326,13 @@ body {
 
 .source-item:hover {
     background: rgba(0, 200, 200, 0.1);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .source-item input[type="checkbox"] {
     width: 12px;
     height: 12px;
-    accent-color: var(--palette-accent-cyan);
+    accent-color: var(--palette-accent-primary);
     cursor: pointer;
 }
 
@@ -358,7 +359,7 @@ body {
     padding: 4px 8px;
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
     font-size: 9px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     max-height: 120px;
     overflow-y: auto;
 }
@@ -370,11 +371,11 @@ body {
 }
 
 .log-date {
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .log-message {
-    color: var(--palette-neon-green);
+    color: var(--palette-neon-accent);
     margin-left: 4px;
 }
 
@@ -463,7 +464,7 @@ body {
 .chat-bg-option.active {
     background: rgba(0, 229, 229, 0.2);
     border-color: rgba(0, 229, 229, 0.4);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .chat-bg-blur-slider {
@@ -486,32 +487,39 @@ body {
 .chat-bg-blur-slider input[type="range"] {
     flex: 1;
     height: 3px;
-    accent-color: var(--palette-accent-cyan);
+    accent-color: var(--palette-accent-primary);
 }
 
 .briiz-logo {
-    font-size: 10vw;
+    font-size: 500%;
     position: absolute;
-    font-weight: 300;
+    font-weight: 400;
     width: 100%;
-    padding:auto;
+    padding:0;
+    top:30%;
+    letter-spacing:4px;
     transform: scale(.9);
     border-radius: 10px;
-    color: transparent;
+    color: black;
     text-align: center;
     padding-bottom: 40%;
-    text-shadow: 0 0 8px white,
-    0 0 40px rgba(0, 200, 200, 0.4),
-    0 0 80px rgba(0, 200, 200, 0.2);
+    text-shadow: 0 0 8px var(--palette-accent-briizlogo, white), 0 0 2px var(--palette-accent-briizlogo, black);
     margin-bottom: -70px;
-    transition: all .61s ease-in-out;
+    transition: top 1s cubic-bezier(0.4, 0, 0.45, 1.5), font-size 1s cubic-bezier(0.4, 0, 0.62, 1), color 1.6s cubic-bezier(0.4, 0, 0.45, 1.5), text-shadow 1s cubic-bezier(0.74, 0, 0.2, 1), letter-spacing 3s cubic-bezier(0.7, 0, 0.1, 1.1);
+}
+.briiz-logo:hover {
+    font-size:1200%;
+        letter-spacing:-15px;
+color:white;
 }
 
-.briiz-logo:hover {
-    color: white;
-    text-shadow: 0 0 8px white,
-    0 0 0px rgba(250, 250, 250, 1),
-    0 0 0px rgba(0, 0,0, 1);
+ .briiz-logo .on-startup {
+    font-size:1200%;
+    opacity:1;
+    top:20%;
+    letter-spacing:-15px;
+    color: var(--palette-accent-briizlogo, white);
+    text-shadow: 0 0 8px white, 0 0 14px var(--palette-accent-briizlogo, black);
 }
 
 .action-buttons {
@@ -531,7 +539,7 @@ body {
     background: rgba(0, 80, 100, 0.4);
     border: 1.5px solid rgba(255,255,255,.41) !important;
     border-radius: 96px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     font-size: 1vw !important;
     font-weight: 500;
     cursor: pointer;
@@ -549,7 +557,7 @@ body {
 .action-btn.active {
     border-color: rgba(0, 200, 200, 0.6);
     background: rgba(0, 200, 200, 0.15) !important;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     opacity: 1;
 }
 
@@ -579,13 +587,15 @@ body {
 .suggestion-chip:hover {
     border-color: rgba(0, 200, 200, 0.5);
     background: rgba(0, 200, 200, 0.1);
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
 }
 
 .chat-input-area {
     width: 100%;
     position:absolute;
     bottom:5%;
+    display:flex;
+    
     background: linear-gradient(180deg, transparent 0%, rgba(10, 22, 40, 0.8) 100%);
 }
 
@@ -595,25 +605,26 @@ body {
     position: absolute;
     width: 50%;
     overflow:hidden;
-    background: rgba(0,0,0,0.2);
+background:linear-gradient(cyan,black 20%, rgb(0, 255, 0,.2) 180%);
     justify-content: center;
     border: .5px solid teal;
     border-radius: 150px;
     bottom: 10%;
     left: 25%;
     backdrop-filter: blur(4px);
-    opacity: 1;
-    z-index: 9999999;
+    opacity: .5;
+    z-index: 50;
     transition: all .42s ease;
     padding: 0;
+    margin-bottom:20px;
 }
 
 .chat-input-wrapper:focus-within {
     bottom: 5%;
     width:90%;
-    border:2px solid teal;
+    border:1px solid teal;
     left:5%;
-background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
+background:linear-gradient(cyan,black 20%, rgb(0, 255, 0,.2) 180%);
     opacity: 1;
 }
 
@@ -697,14 +708,14 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .task-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--palette-accent-cyan), var(--palette-neon-green));
+    background: linear-gradient(90deg, var(--palette-accent-primary), var(--palette-neon-accent));
     border-radius: 2px;
     transition: width 0.3s ease;
 }
 
 .task-percent {
     font-size: 10px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     min-width: 35px;
     text-align: right;
 }
@@ -738,7 +749,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 80, 100, 0.3);
     border: 1px solid rgba(0, 200, 200, 0.2);
     border-radius: 4px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     font-size: 10px;
     font-weight: 500;
     cursor: pointer;
@@ -773,7 +784,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: linear-gradient(90deg, rgba(0, 80, 100, 0.4) 0%, rgba(0, 100, 120, 0.4) 100%);
     border: 1px solid rgba(0, 200, 200, 0.3);
     border-radius: 6px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -863,12 +874,12 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     margin-bottom: 6px;
 }
 
 .chat-message.user .message-role {
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
 }
 
 .chat-message .message-content {
@@ -935,7 +946,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 }
 
 .typing-indicator {
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     animation: pulse 1s infinite;
 }
 
@@ -954,15 +965,18 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     width: 15%;
     background: rgba(0, 180, 200, 0.25);
     border: 1px solid rgba(0, 200, 200, 0.35);
-    color: var(--palette-accent-cyan);
-    font-size: 16px;
+    color: var(--palette-accent-primary);
+    font-size: 26px;
+    opacity:.5;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .chat-send-btn:hover:not(:disabled) {
-    background: rgba(0, 255, 100, 0.86);
-    color:black;
+    box-shadow:inset 0 0 8px lime;
+    background: rgba(108, 153, 100, 0.86);
+    color:lime;
+    opacity:1;
 }
 
 .chat-send-btn:disabled {
@@ -1000,7 +1014,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 150, 180, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.3);
     border-radius: 4px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1035,14 +1049,14 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--palette-accent-cyan), var(--palette-neon-green));
+    background: linear-gradient(90deg, var(--palette-accent-primary), var(--palette-neon-accent));
     border-radius: 3px;
     transition: width 0.3s ease;
 }
 
 .progress-percent {
     font-size: 11px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     font-weight: 600;
     min-width: 35px;
     text-align: right;
@@ -1056,7 +1070,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .task-item input[type="checkbox"] {
     width: 14px;
     height: 14px;
-    accent-color: var(--palette-accent-cyan);
+    accent-color: var(--palette-accent-primary);
     cursor: pointer;
 }
 
@@ -1094,7 +1108,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .task-progress-label {
     font-size: 10px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     font-weight: 600;
 }
 
@@ -1170,7 +1184,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .file-tree-item:hover {
     background: rgba(0, 200, 200, 0.1);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .file-tree-item.selected {
@@ -1209,7 +1223,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .file-checkbox {
     width: 12px;
     height: 12px;
-    accent-color: var(--palette-accent-cyan);
+    accent-color: var(--palette-accent-primary);
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -1258,7 +1272,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .selected-count {
     font-size: 10px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     margin-right: 8px;
 }
 
@@ -1570,7 +1584,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 60, 80, 0.3);
     border: 1px solid rgba(0, 200, 200, 0.2);
     border-radius: 4px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     font-size: 11px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1632,7 +1646,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 80, 100, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.2);
     border-radius: 4px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     font-size: 14px;
     cursor: pointer;
     display: flex;
@@ -1672,7 +1686,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 60, 80, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.2);
     border-radius: 4px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     font-size: 11px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1705,7 +1719,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 80, 100, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.3);
     border-radius: 50%;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     font-size: 12px;
     cursor: pointer;
     display: flex;
@@ -1771,7 +1785,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .event-item.current {
     background: rgba(0, 100, 120, 0.4);
     border-color: rgba(0, 200, 200, 0.4);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     box-shadow: 0 0 10px rgba(0, 200, 200, 0.15);
 }
 
@@ -1788,7 +1802,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .token-usage {
     font-size: 10px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     background: rgba(0, 100, 120, 0.3);
     padding: 3px 8px;
     border-radius: 10px;
@@ -1823,7 +1837,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .context-file {
     font-size: 10px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     background: rgba(0, 100, 120, 0.3);
     padding: 3px 8px;
     border-radius: 4px;
@@ -1882,7 +1896,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 }
 
 .drop-overlay-text {
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     font-size: 14px;
     font-weight: 500;
     padding: 12px 24px;
@@ -1900,7 +1914,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .settings-section-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     margin-bottom: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2012,7 +2026,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 }
 
 .settings-link {
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     text-decoration: none;
 }
 
@@ -2456,7 +2470,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 }
 
 .task-expand-btn:hover {
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .priority-dot {
@@ -2468,7 +2482,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .subtask-progress-badge {
     font-size: 9px;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     background: rgba(0, 150, 180, 0.3);
     padding: 2px 6px;
     border-radius: 8px;
@@ -2490,7 +2504,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     background: rgba(0, 80, 100, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.2);
     border-radius: 4px;
-    color: var(--palette-accent-cyan-soft);
+    color: var(--palette-accent-primary-soft);
     font-size: 10px;
     cursor: pointer;
     padding: 2px 6px;
@@ -2557,7 +2571,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .subtask-item input[type="checkbox"] {
     width: 12px;
     height: 12px;
-    accent-color: var(--palette-accent-cyan);
+    accent-color: var(--palette-accent-primary);
     cursor: pointer;
 }
 
@@ -2608,7 +2622,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .subtask-add-btn {
     background: rgba(0, 150, 180, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.3);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .subtask-add-btn:hover:not(:disabled) {
@@ -2730,7 +2744,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, var(--palette-accent-cyan), transparent);
+    background: linear-gradient(90deg, transparent, var(--palette-accent-primary), transparent);
     animation: streamPulse 1.5s ease-in-out infinite;
 }
 
@@ -2798,7 +2812,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {
     margin: 8px 0 4px 0;
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
 }
 
 .markdown-body h1 {
@@ -2821,7 +2835,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 }
 
 .markdown-body a {
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     text-decoration: none;
 }
 
@@ -2844,7 +2858,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     padding: 2px 6px;
     border-radius: 4px;
     background: rgba(0, 229, 229, 0.15);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     letter-spacing: 0.5px;
 }
 
@@ -2939,7 +2953,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     animation: slideInFromLeft 0.3s ease-out;
     backdrop-filter: blur(10px);
 }
-
+.model-picker-dropdown {background:rgba(0, 0, 0, 0.84) !important}
 .result-toast.success {
     background: linear-gradient(135deg, rgba(0, 255, 155, 0.95), rgba(0, 200, 120, 0.95));
     border: 2px solid #00ff9b;
@@ -2968,7 +2982,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 .tooltip-btn {
     background: rgba(0, 229, 229, 0.1);
     border: 1px solid rgba(0, 229, 229, 0.2);
-    color: var(--palette-accent-cyan);
+    color: var(--palette-accent-primary);
     padding: 4px 10px;
     border-radius: 4px;
     font-size: 11px;
@@ -3001,7 +3015,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 }
 
 .chat-nav-dot.active {
-    background: var(--palette-accent-cyan);
+    background: var(--palette-accent-primary);
     box-shadow: 0 0 6px rgba(0, 229, 229, 0.5);
 }
 
@@ -3073,12 +3087,28 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     font-family: inherit;
     line-height: 1.4;
 }
-
+.chat-input-toolbar {
+    position:absolute;
+    top:0px;
+    left:0;
+    border-top:1px solid transparent;
+    opacity:.5;
+backdrop-filter:blur(10px);
+border-radius:20px 20px 0 0;
+    z-index:51;
+    transition:all .3s;
+    width:100%;
+}
+.chat-input-toolbar:hover {
+    opacity:1;
+    border-top:1px solid teal;
+}
 :root {
     --chat-input-text-color: lime;
-        --palette-accent-cyan: #00e5e5;
-    --palette-accent-cyan-soft: #00d4d4;
-    --palette-neon-green: #00ff88;
+    --palette-accent-briizlogo: rgb(191, 234, 191);
+        --palette-accent-primary: #00e5e5;
+    --palette-accent-primary-soft: #00d4d4;
+    --palette-neon-accent: #00ff88;
     --palette-success: #4caf50;
     --palette-warning: #ffd54f;
     --palette-danger: #ff6b6b;
@@ -3096,8 +3126,8 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-text-primary: var(--palette-text-main);
     --ui-header-text: var(--palette-white);
     --ui-header-bg: linear-gradient(to bottom, black 80%, deeppink);
-    --ui-title-icon: var(--palette-accent-cyan);
-    --ui-title-icon-glow: 0 0 8px var(--palette-accent-cyan);
+    --ui-title-icon: var(--palette-accent-primary);
+    --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
     --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
     --ui-title-stroke: 0.1px var(--palette-white);
     --ui-button-ghost-bg: transparent;
@@ -3108,7 +3138,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-button-ghost-bg-hover: rgba(255, 255, 255, 0.05);
     --ui-panel-header-text: var(--palette-text-subtle);
     --ui-panel-btn: var(--palette-text-muted);
-    --ui-panel-btn-hover: var(--palette-accent-cyan);
+    --ui-panel-btn-hover: var(--palette-accent-primary);
     --ui-chat-header-text: pink;
     --ui-chat-header-bg: rgba(255, 20, 145, 0.41);
     --ui-chat-header-border: deeppink;
@@ -3120,14 +3150,14 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-modal-border: rgba(0, 200, 200, 0.3);
     --ui-modal-header-bg: rgba(0, 50, 80, 0.2);
     --ui-modal-header-border: rgba(0, 200, 200, 0.15);
-    --ui-modal-title: var(--palette-accent-cyan);
+    --ui-modal-title: var(--palette-accent-primary);
     --ui-modal-close: var(--palette-text-muted);
     --ui-modal-tabs-bg: rgba(0, 30, 50, 0.3);
     --ui-modal-tabs-border: rgba(0, 200, 200, 0.1);
     --ui-modal-tab-text: var(--palette-text-muted);
     --ui-modal-tab-hover-text: var(--palette-text-soft);
     --ui-modal-tab-hover-bg: rgba(0, 200, 200, 0.05);
-    --ui-modal-tab-active-text: var(--palette-accent-cyan);
+    --ui-modal-tab-active-text: var(--palette-accent-primary);
     --ui-modal-tab-active-bg: rgba(0, 200, 200, 0.08);
     --ui-settings-section-desc: var(--palette-text-subtle);
     --ui-settings-label: var(--palette-text-soft);
@@ -3140,7 +3170,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-settings-input-focus-shadow: 0 0 10px rgba(0, 200, 200, 0.1);
     --ui-settings-toggle-bg: rgba(0, 80, 100, 0.3);
     --ui-settings-toggle-border: rgba(0, 200, 200, 0.2);
-    --ui-settings-toggle-text: var(--palette-accent-cyan);
+    --ui-settings-toggle-text: var(--palette-accent-primary);
     --ui-settings-toggle-bg-hover: rgba(0, 100, 120, 0.4);
     --ui-settings-toggle-border-hover: rgba(0, 200, 200, 0.4);
     --ui-settings-radio-bg: rgba(20, 40, 60, 0.4);
@@ -3151,12 +3181,12 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-settings-radio-border-active: rgba(0, 200, 200, 0.5);
     --ui-settings-radio-shadow-active: 0 0 15px rgba(0, 200, 200, 0.1);
     --ui-settings-radio-label: var(--palette-text-main);
-    --ui-settings-radio-label-active: var(--palette-accent-cyan);
+    --ui-settings-radio-label-active: var(--palette-accent-primary);
     --ui-modal-footer-bg: rgba(0, 30, 50, 0.3);
     --ui-modal-footer-border: rgba(0, 200, 200, 0.1);
     --ui-modal-save-bg: rgba(0, 150, 180, 0.5);
     --ui-modal-save-border: rgba(0, 200, 200, 0.4);
-    --ui-modal-save-text: var(--palette-accent-cyan);
+    --ui-modal-save-text: var(--palette-accent-primary);
     --ui-modal-save-bg-hover: rgba(0, 180, 200, 0.6);
     --ui-modal-save-shadow-hover: 0 0 15px rgba(0, 200, 200, 0.2);
     --ui-provider-tab-bg: rgba(255, 255, 255, 0.03);
@@ -3166,11 +3196,11 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-provider-tab-text-hover: var(--palette-text-faint);
     --ui-provider-tab-bg-active: rgba(0, 229, 229, 0.15);
     --ui-provider-tab-border-active: rgba(0, 229, 229, 0.3);
-    --ui-provider-tab-text-active: var(--palette-accent-cyan);
-    --ui-slider-thumb-bg: var(--palette-accent-cyan);
+    --ui-provider-tab-text-active: var(--palette-accent-primary);
+    --ui-slider-thumb-bg: var(--palette-accent-primary);
     --ui-slider-thumb-shadow: 0 0 6px rgba(0, 229, 229, 0.5);
     --ui-markdown-code-bg: rgba(0, 229, 229, 0.1);
-    --ui-markdown-code-color: var(--palette-accent-cyan);
+    --ui-markdown-code-color: var(--palette-accent-primary);
     --ui-markdown-th-bg: rgba(0, 229, 229, 0.1);
     --ui-controlbar-bg: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
     --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
@@ -3180,7 +3210,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --layout-bg-secondary: black;
     --layout-bg-panel: black;
     --layout-bg-panel-header: black;
-    --layout-accent-cyan: var(--palette-accent-cyan);
+    --layout-accent-cyan: var(--palette-accent-primary);
     --layout-accent-cyan-dim: rgba(0, 200, 200, 0.3);
     --layout-accent-cyan-glow: rgba(0, 200, 200, 0.5);
     --layout-accent-orange: #ff6b35;
@@ -3207,7 +3237,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
   --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
   --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #ff4da6;
   --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #00ffcc;
-  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #00ffcc, #ff4da6, var(--palette-accent-cyan));
+  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #00ffcc, #ff4da6, var(--palette-accent-primary));
   --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(255, 77, 166, 0.2);
   --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(0, 255, 204, 0.4);
   --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #00ffcc, #ff4da6);
@@ -3417,353 +3447,706 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
   --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(0, 200, 200, 0.2);
   --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0,0,0,0.2);
 }
-:root[data-theme='sherbert-sakura'] {
-  /* Core palette (flower petals, soft grass, cloudy sky, golden hour) */
-  --chat-input-text-color: lightgreen;
-  --palette-accent-cyan: blue;          /* petals: pinkish-cyan vibe from petals glow */
-  --palette-accent-cyan-soft: orange;     /* petals lighter glow */
-  --palette-neon-green: goldenrod;           /* soft grass green */
-  --palette-success: green;
-  --palette-warning: red;
+
+:root[data-theme='neon-orbi']{
+  /* Original variable set, rethemed heuristically */
+  --chat-input-text-color: rgb(236, 237, 232);
+  --palletet-accent-primary: rgb(206, 95, 161);
+  --palletet-accent-primary-soft: rgb(206, 95, 161);
+  --palette-neon-accent: rgb(243, 243, 243);
+  --palette-success: #4caf50;
+  --palette-warning: #ffd54f;
   --palette-danger: #ff6b6b;
-  --palette-text-main: black;
-  --palette-text-faint: #5a5a5a;
-  --palette-text-soft: #7a7a7a;
-  --palette-text-subtle: #8e8e8e;
-  --palette-text-muted: #b3b3b3;
-  --palette-text-dim: #a0a0a0;
-  --palette-white: pink;
-
-  /* UI chrome: surfaces with airy meadow feel */
-  --ui-body-bg: deeppink;
-  --ui-app-bg: deeppink;
-  --ui-app-border: 7px solid rgba(255,100,100);;
-  --ui-app-shadow: inset 0 0 12px rgba(0, 0, 0, 0.05), inset 0 0 40px rgba(255, 214, 120, 0.25);
-  --ui-text-primary: var(--palette-text-main);
-  --ui-header-text: purple;
-  --ui-header-bg: linear-gradient(to bottom, deeppink 60%, red 100%);
-  --ui-title-icon: white;
-  --ui-title-icon-glow: 0 0 5px white;
-  --ui-title-gradient: linear-gradient(250deg, pink, red, transparent, purple, #d9e6ff, #ffd8bd);
-  --ui-title-stroke: .1px var(--palette-white);
-
-  /* Button ghost styling (soft, glassy) */
-  --ui-button-ghost-bg: transparent;
-  --ui-button-ghost-border: rgba(0, 0, 0, 0.15);
-  --ui-button-ghost-border-strong: rgba(0, 0, 0, 0.25);
-  --ui-button-ghost-text: var(--palette-text-subtle);
-  --ui-button-ghost-text-hover: var(--palette-text-soft);
-  --ui-button-ghost-bg-hover: rgba(0, 0, 0, 0.04);
-
-  /* Panel header and controls */
-  --ui-panel-header-text: var(--palette-text-subtle);
-  --ui-panel-btn: var(--palette-text-muted);
-  --ui-panel-btn-hover: var(--palette-accent-cyan);
-
-  /* Chat header and input area */
-  --ui-chat-header-text: #e26aa3;
-  --ui-chat-header-bg: linear-gradient(to bottom, pink, goldenrod 80%, red);
-  --ui-chat-header-border: #f0cbd8;
-  --ui-chat-input-bg: linear-gradient(#ffffff, #f9f3ea);
-  --ui-chat-input-border: rgba(0, 120, 140, 0.25);
-  --ui-chat-input-text: var(--palette-white);
-  --ui-chat-placeholder: rgba(120, 120, 120, 0.6);
-
-  /* Modals */
-  --ui-modal-bg: linear-gradient(135deg, rgba(255, 245, 210, 0.98), rgba(230, 240, 255, 0.92));
-  --ui-modal-border: rgba(0, 120, 140, 0.25);
-  --ui-modal-header-bg: rgba(255, 210, 170, 0.7);
-  --ui-modal-header-border: rgba(0, 120, 140, 0.25);
-  --ui-modal-title: var(--palette-accent-cyan);
-  --ui-modal-close: var(--palette-text-muted);
-  --ui-modal-tabs-bg: rgba(0, 0, 0, 0.04);
-  --ui-modal-tabs-border: rgba(0, 120, 120, 0.15);
-  --ui-modal-tab-text: var(--palette-text-muted);
-  --ui-modal-tab-hover-text: var(--palette-text-soft);
-  --ui-modal-tab-hover-bg: rgba(0, 120, 120, 0.08);
-  --ui-modal-tab-active-text: var(--palette-accent-cyan);
-  --ui-modal-tab-active-bg: rgba(0, 120, 120, 0.14);
-
-  /* Settings system */
+  --palette-text-main: rgb(236, 237, 232);
+  --palette-text-faint: rgb(236, 237, 232);
+  --palette-text-soft: rgb(236, 237, 232);
+  --palette-text-subtle: rgb(255, 255, 255);
+  --palette-text-muted: rgb(255, 255, 255);
+  --palette-text-dim: rgb(255, 255, 255);
+  --palette-white: #fff;
+  --ui-body-bg: rgb(25, 21, 21);
+  --ui-app-bg: rgb(25, 21, 21);
+  --ui-app-border: 3px solid #000;
+  --ui-app-shadow: inset 0 0 10px rgba(0, 40, 70);
+  --ui-text-primary: rgb(243, 243, 243);
+  --ui-header-text: rgb(236, 237, 232);
+  --ui-header-bg: linear-gradient(to bottom, black 80%, deeppink);
+  --ui-title-icon: rgb(236, 237, 232);
+  --ui-title-icon-glow: 0 0 8px var(--palletet-accent-primary);
+  --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-title-stroke: 0.1px var(--palette-white);
+  --ui-button-ghost-bg: rgb(26, 26, 26);
+  --ui-button-ghost-border: rgba(179, 179, 179, 0.1);
+  --ui-button-ghost-border-strong: rgba(179, 179, 179, 0.15);
+  --ui-button-ghost-text: rgb(243, 243, 243);
+  --ui-button-ghost-text-hover: rgb(243, 243, 243);
+  --ui-button-ghost-bg-hover: rgb(26, 26, 26);
+  --ui-panel-header-text: rgb(236, 237, 232);
+  --ui-panel-btn: rgb(26, 26, 26);
+  --ui-panel-btn-hover: rgb(26, 26, 26);
+  --ui-chat-header-text: rgb(236, 237, 232);
+  --ui-chat-header-bg: rgb(25, 21, 21);
+  --ui-chat-header-border: rgba(1, 247, 255, 0.3);
+  --ui-chat-input-bg: linear-gradient(rgba(22, 135, 131, 0.6), rgba(0, 43, 54, 0.447));
+  --ui-chat-input-border: rgba(126, 6, 255, 0.2);
+  --ui-chat-input-text: rgb(236, 237, 232);
+  --ui-chat-placeholder: rgba(0, 255, 136, 0.5);
+  --ui-modal-bg: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --ui-modal-border: rgba(1, 247, 255, 0.3);
+  --ui-modal-header-bg: rgb(66, 44, 41);
+  --ui-modal-header-border: rgba(1, 247, 255, 0.3);
+  --ui-modal-title: rgb(236, 237, 232);
+  --ui-modal-close: rgb(66, 44, 41);
+  --ui-modal-tabs-bg: rgb(66, 44, 41);
+  --ui-modal-tabs-border: rgba(1, 247, 255, 0.3);
+  --ui-modal-tab-text: rgb(236, 237, 232);
+  --ui-modal-tab-hover-text: rgb(236, 237, 232);
+  --ui-modal-tab-hover-bg: rgb(66, 44, 41);
+  --ui-modal-tab-active-text: rgb(236, 237, 232);
+  --ui-modal-tab-active-bg: rgb(66, 44, 41);
   --ui-settings-section-desc: var(--palette-text-subtle);
-  --ui-settings-label: var(--palette-text-soft);
+  --ui-settings-label: rgb(236, 237, 232);
   --ui-settings-hint: var(--palette-text-muted);
-  --ui-settings-input-bg: rgba(20, 40, 60, 0.6);
-  --ui-settings-input-border: rgba(0, 120, 120, 0.25);
-  --ui-settings-input-text: var(--palette-text-main);
-  --ui-settings-input-placeholder: var(--palette-text-dim);
-  --ui-settings-input-focus-border: rgba(0, 120, 120, 0.6);
-  --ui-settings-input-focus-shadow: 0 0 10px rgba(0, 120, 120, 0.25);
-  --ui-settings-toggle-bg: rgba(0, 60, 60, 0.3);
-  --ui-settings-toggle-border: rgba(0, 120, 120, 0.25);
-  --ui-settings-toggle-text: var(--palette-accent-cyan);
-  --ui-settings-toggle-bg-hover: rgba(0, 80, 90, 0.4);
-  --ui-settings-toggle-border-hover: rgba(0, 120, 120, 0.4);
-  --ui-settings-radio-bg: rgba(20, 40, 60, 0.4);
-  --ui-settings-radio-border: rgba(0, 120, 120, 0.15);
-  --ui-settings-radio-bg-hover: rgba(0, 80, 100, 0.3);
-  --ui-settings-radio-border-hover: rgba(0, 120, 120, 0.3);
-  --ui-settings-radio-bg-active: rgba(0, 100, 120, 0.3);
-  --ui-settings-radio-border-active: rgba(0, 120, 120, 0.5);
-  --ui-settings-radio-shadow-active: 0 0 15px rgba(0, 120, 120, 0.1);
-  --ui-settings-radio-label: var(--palette-text-main);
-  --ui-settings-radio-label-active: var(--palette-accent-cyan);
-  --ui-modal-footer-bg: rgba(0, 30, 50, 0.3);
-  --ui-modal-footer-border: rgba(0, 120, 120, 0.1);
-  --ui-modal-save-bg: rgba(0, 120, 120, 0.5);
-  --ui-modal-save-border: rgba(0, 120, 120, 0.4);
-  --ui-modal-save-text: var(--palette-accent-cyan);
-  --ui-modal-save-bg-hover: rgba(0, 120, 120, 0.6);
-  --ui-modal-save-shadow-hover: 0 0 15px rgba(0, 120, 120, 0.2);
-
-  --ui-provider-tab-bg: rgba(255, 255, 255, 0.03);
-  --ui-provider-tab-border: rgba(255, 255, 255, 0.1);
-  --ui-provider-tab-text: var(--palette-text-subtle);
-  --ui-provider-tab-bg-hover: rgba(255, 255, 255, 0.05);
-  --ui-provider-tab-text-hover: var(--palette-text-faint);
-  --ui-provider-tab-bg-active: rgba(0, 205, 205, 0.15);
-  --ui-provider-tab-border-active: rgba(0, 205, 205, 0.3);
-  --ui-provider-tab-text-active: var(--palette-accent-cyan);
-
-  --ui-slider-thumb-bg: var(--palette-accent-cyan);
-  --ui-slider-thumb-shadow: 0 0 6px rgba(0, 200, 200, 0.5);
-
-  --ui-markdown-code-bg: rgba(0, 200, 200, 0.1);
-  --ui-markdown-code-color: var(--palette-accent-cyan);
-  --ui-markdown-th-bg: rgba(0, 200, 200, 0.1);
-
-  --ui-controlbar-bg:  linear-gradient(110deg, pink, palegoldenrod, goldenrod, deeppink, rgba(255, 184, 190, 0.55));
-
-  --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px rgba(255, 214, 120, 0.25);
-  --ui-controlbar-filter: blur(0px) brightness(1) saturate(0.95);
-  --ui-controlbar-filter-hover: blur(0px) brightness(1.25) saturate(1);
-
-  /* Layout surfaces and accents */
-  --layout-bg-primary: #f7f7f7;
-  --layout-bg-secondary: black;
-  --layout-bg-panel: linear-gradient(300deg, pink 20%, rgba(255,90,90,.02), deeppink 24%, violet 28%, lightblue);
-  --layout-bg-panel-header: purple;
-  --layout-accent-cyan: var(--palette-accent-cyan);
-  --layout-accent-cyan-dim: rgba(0, 200, 200, 0.25);
-  --layout-accent-cyan-glow: rgba(0, 200, 200, 0.4);
-  --layout-accent-orange: #f3b35b;
-  --layout-accent-orange-dim: rgba(243, 179, 91, 0.3);
-  --layout-border-color: rgba(0, 0, 0, 0.08);
-  --layout-border-color-hover: rgba(0, 0, 0, 0.2);
-  --layout-border-color-active: rgba(0, 0, 0, 0.28);
-  --layout-gap: 2px;
-  --layout-panel-radius: 8px;
-  --layout-header-height: 40px;
+  --ui-settings-input-bg: rgba(126, 13, 128, 0.6);
+  --ui-settings-input-border: rgba(126, 6, 255, 0.2);
+  --ui-settings-input-text: rgb(236, 237, 232);
+  --ui-settings-input-placeholder: rgb(117, 151, 80);
+  --ui-settings-input-focus-border: rgba(126, 6, 255, 0.2);
+  --ui-settings-input-focus-shadow: 0 0 10px rgba(0, 200, 200, 0.1);
+  --ui-settings-toggle-bg: rgb(25, 21, 21);
+  --ui-settings-toggle-border: rgba(1, 247, 255, 0.3);
+  --ui-settings-toggle-text: rgb(236, 237, 232);
+  --ui-settings-toggle-bg-hover: rgb(25, 21, 21);
+  --ui-settings-toggle-border-hover: rgba(1, 247, 255, 0.3);
+  --ui-settings-radio-bg: rgb(25, 21, 21);
+  --ui-settings-radio-border: rgba(1, 247, 255, 0.3);
+  --ui-settings-radio-bg-hover: rgb(25, 21, 21);
+  --ui-settings-radio-border-hover: rgba(1, 247, 255, 0.3);
+  --ui-settings-radio-bg-active: rgb(25, 21, 21);
+  --ui-settings-radio-border-active: rgba(1, 247, 255, 0.3);
+  --ui-settings-radio-shadow-active: 0 0 15px rgba(0, 200, 200, 0.1);
+  --ui-settings-radio-label: rgb(236, 237, 232);
+  --ui-settings-radio-label-active: rgb(236, 237, 232);
+  --ui-modal-footer-bg: rgb(66, 44, 41);
+  --ui-modal-footer-border: rgba(1, 247, 255, 0.3);
+  --ui-modal-save-bg: rgb(66, 44, 41);
+  --ui-modal-save-border: rgba(1, 247, 255, 0.3);
+  --ui-modal-save-text: rgb(236, 237, 232);
+  --ui-modal-save-bg-hover: rgb(66, 44, 41);
+  --ui-modal-save-shadow-hover: 0 0 15px rgba(0, 200, 200, 0.2);
+  --ui-provider-tab-bg: rgb(25, 21, 21);
+  --ui-provider-tab-border: rgba(1, 247, 255, 0.3);
+  --ui-provider-tab-text: rgb(236, 237, 232);
+  --ui-provider-tab-bg-hover: rgb(25, 21, 21);
+  --ui-provider-tab-text-hover: rgb(236, 237, 232);
+  --ui-provider-tab-bg-active: rgb(25, 21, 21);
+  --ui-provider-tab-border-active: rgba(1, 247, 255, 0.3);
+  --ui-provider-tab-text-active: rgb(236, 237, 232);
+  --ui-slider-thumb-bg: rgb(25, 21, 21);
+  --ui-slider-thumb-shadow: 0 0 6px rgba(0, 229, 229, 0.5);
+  --ui-markdown-code-bg: rgb(25, 21, 21);
+  --ui-markdown-code-color: var(--palletet-accent-primary);
+  --ui-markdown-th-bg: rgb(25, 21, 21);
+  --ui-controlbar-bg: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
+  --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+  --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+  --layout-bg-primary: rgb(206, 95, 161);
+  --layout-bg-secondary: rgb(25, 21, 21);
+  --layout-bg-panel: rgb(66, 44, 41);
+  --layout-bg-panel-header: rgb(66, 44, 41);
+  --layout-accent-cyan: rgb(206, 95, 161);
+  --layout-accent-cyan-dim: rgb(255, 255, 255);
+  --layout-accent-cyan-glow: rgb(206, 95, 161);
+  --layout-accent-orange: rgb(206, 95, 161);
+  --layout-accent-orange-dim: rgb(255, 255, 255);
+  --layout-border-color: rgba(1, 247, 255, 0.3);
+  --layout-border-color-hover: rgba(1, 247, 255, 0.3);
+  --layout-border-color-active: rgba(1, 247, 255, 0.3);
+  --layout-gap: 1px;
+  --layout-panel-radius: 7px;
+  --layout-header-height: 36px;
   --layout-resize-handle-size: 8px;
   --layout-transition-fast: 0.15s ease;
-  --layout-transition-normal: 0.25s ease;
-
-  /* Login overlay (flower-lights) */
-  --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #ffb6d9, #fff0c2);
-  --theme-components-loginoverlay-login-btn-color-1q77m: #000;
-  --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgba(255, 153, 204, 0.6);
-  --theme-components-loginoverlay-login-error-background-1iva2: rgba(255, 107, 107, 0.1);
-  --theme-components-loginoverlay-login-error-border-9dbrq: rgba(255, 107, 107, 0.3);
+  --layout-transition-normal: 0.2s ease;
+  --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #00ffcc, #ff4da6);
+  --theme-components-loginoverlay-login-btn-color-1q77m: rgb(0, 0, 0);
+  --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgb(255, 255, 255);
+  --theme-components-loginoverlay-login-error-background-1iva2: rgb(25, 21, 21);
+  --theme-components-loginoverlay-login-error-border-9dbrq: rgba(1, 247, 255, 0.3);
   --theme-components-loginoverlay-login-info-color-1tcs7: rgba(255, 255, 255, 0.5);
-  --theme-components-loginoverlay-login-input-background-ypdc9: rgba(0, 0, 0, 0.3);
-  --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(0, 255, 204, 0.2);
-  --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgba(255, 77, 166, 0.4);
+  --theme-components-loginoverlay-login-input-background-ypdc9: rgba(126, 13, 128, 0.6);
+  --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(116, 61, 255, 0.2);
+  --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgb(206, 95, 161);
   --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
-  --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #ff4da6;
-  --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #00ffcc;
-  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #00ffcc, #ff4da6, var(--palette-accent-cyan));
+  --theme-components-loginoverlay-login-logo-circle-background-1mpnj: rgb(25, 21, 21);
+  --theme-components-loginoverlay-login-logo-circle-background-1pjs9: rgb(25, 21, 21);
+  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #00ffcc, #ff4da6, var(--palletet-accent-primary));
   --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(255, 77, 166, 0.2);
   --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(0, 255, 204, 0.4);
   --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #00ffcc, #ff4da6);
-  --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgba(0, 255, 204, 0.3);
+  --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgb(236, 237, 232);
   --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(106, 58, 90, 0.95), rgba(26, 10, 74, 0.95));
-  --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgba(255, 255, 255, 0.8);
-  --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgba(255, 255, 255, 0.6);
-
-  /* Phantom sections (soft lighting) */
-  --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(248, 113, 113, 0.2);
-  --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(248, 113, 113, 0.12);
-  --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(0, 255, 136, 0.2);
-  --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(0, 255, 136, 0.12);
-  --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(0, 255, 136, 0.25);
-  --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(0, 255, 136, 0.14);
-  --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
+  --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgb(236, 237, 232);
+  --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgb(206, 95, 161);
+  --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(135, 38, 170, 0.2);
+  --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(68, 88, 14, 0.25);
+  --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-drawer-background-1q77m: rgb(25, 21, 21);
   --theme-components-phantomsection-phantom-event-row-color-1gv4y: #3a3a3a;
-  --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(255, 255, 255, 0.015);
-  --theme-components-phantomsection-phantom-events-background-1eqtm: #020202;
-  --theme-components-phantomsection-phantom-events-border-top-1u83g: #0f0f0f;
+  --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-events-background-1eqtm: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-events-border-top-1u83g: rgba(1, 247, 255, 0.3);
   --theme-components-phantomsection-phantom-record-hint-color-39knf: #222;
-  --theme-components-phantomsection-phantom-run-opts-input-border-h3919: #1e1e1e;
-  --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(0, 255, 136, 0.3);
-  --theme-components-phantomsection-phantom-status-background-16ah5: rgba(0, 255, 136, 0.03);
-  --theme-components-phantomsection-phantom-status-border-bottom-1of2t: #111;
-  --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #333;
-  --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #f87171;
-  --theme-components-phantomsection-phantom-status-text-color-fs5n5: #777;
-  --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #facc15;
+  --theme-components-phantomsection-phantom-run-opts-input-border-h3919: rgba(126, 6, 255, 0.2);
+  --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(126, 6, 255, 0.2);
+  --theme-components-phantomsection-phantom-status-background-16ah5: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-status-border-bottom-1of2t: rgba(1, 247, 255, 0.3);
+  --theme-components-phantomsection-phantom-status-dot-background-1uyf8: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-status-text-color-fs5n5: rgb(236, 237, 232);
+  --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: rgb(25, 21, 21);
   --theme-components-phantomsection-phantom-tab-color-161cz: #444;
-  --theme-components-phantomsection-phantom-tabs-background-yq5ln: #050505;
-  --theme-components-phantomsection-phantom-toggle-background-afq8i: #0a0a0a;
-  --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: #1a1a1a;
-  --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #2a2a2a;
-  --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(0, 255, 136, 0.4);
+  --theme-components-phantomsection-phantom-tabs-background-yq5ln: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-toggle-background-afq8i: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: rgba(1, 247, 255, 0.3);
+  --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(1, 247, 255, 0.3);
   --theme-components-phantomsection-phantom-wf-del-color-13fl3: #2a1010;
-  --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(248, 113, 113, 0.06);
-  --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(255, 255, 255, 0.04);
+  --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgb(25, 21, 21);
   --theme-components-phantomsection-phantom-wf-name-color-rnz45: #bbb;
-  --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgba(255, 255, 255, 0.025);
-  --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(0, 255, 136, 0.05);
-  --theme-components-phantomsection-phantom-wf-run-border-p8yj7: #132a1e;
+  --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgb(25, 21, 21);
+  --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(126, 13, 128, 0.6);
+  --theme-components-phantomsection-phantom-wf-run-border-p8yj7: rgba(1, 247, 255, 0.3);
   --theme-components-phantomsection-phantom-wf-run-color-13c30: #1a4a2e;
-  --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(0, 255, 136, 0.06);
+  --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgb(25, 21, 21);
   --theme-components-phantomsection-root-app-1jpsf: #00e5ff;
   --theme-components-phantomsection-root-app-b5mm4: green;
   --theme-components-phantomsection-root-app-o0md2: black;
-
-  /* Note: The full set would continue with the rest of the original root template (ControlBar.css, NotesWidget.css, Overlays, and additional Phantom/Calendar/Live sections)
-     In a complete pass, you would mirror every variable presented in your original :root block and apply the meadow palette consistently across all components. */
-
-  /* Example additional entries (to illustrate completion across modules): */
-
-  /* src/components/controlbar/ControlBar.css */
-  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: deepskyblue;
-  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 53, 161);
-  --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: pink;
-  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: red;
-  --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(255, 161, 102);
-  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgba(255, 255, 255, 0.8);
-  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgba(0, 150, 180, 0.5);
-  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: rgba(0, 255, 255, 0.7);
-  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgba(0, 200, 200, 0.1);
-  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: #00ffff;
-  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: rgba(0, 255, 255, 0.5);
-  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: rgba(0, 0, 0, 0.4);
-  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: rgba(0, 200, 200, 0.3);
-  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgba(0, 100, 120, 0.5);
-  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: rgba(0, 200, 200, 0.6);
-  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(0, 200, 200, 0.2);
-  --theme-components-controlbar-controlbar-notes-icon-color-qo8di: palegoldenrod;
-  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: black;
-  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: lime;
-  --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: green;
-
-  /* NotesWidget.css (examples) */
-  --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(251, 228, 111, 0.485);
+  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: rgb(204, 61, 255);
+  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 248, 114);
+  --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: rgb(161, 255, 61);
+  --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgb(236, 237, 232);
+  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgba(126, 13, 128, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgba(126, 6, 255, 0.1);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: rgb(236, 237, 232);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: rgb(236, 237, 232);
+  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: rgba(126, 13, 128, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgba(126, 13, 128, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-notes-icon-color-qo8di: rgb(215, 255, 230);
+  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: rgb(61, 161, 255);
+  --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: rgba(126, 6, 255, 0.2);
+  --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(175, 34, 95, 0.486);
   --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
   --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
   --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
   --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgba(0, 0, 0, 0.5);
-  --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
-  --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(0, 0, 0, 0.8);
-  --theme-components-notes-noteswidget-note-btn-color-26sfj: lime;
-  --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.1);
-  --theme-components-notes-noteswidget-note-card-background-48988: rgb(14, 68, 68);
-  --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(0, 200, 200, 0.15);
-  --theme-components-notes-noteswidget-note-card-border-top-12gea: #ffc107;
-  --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgba(0,0,0,0.571);
-  --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(0, 200, 200, 0.63);
-  --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgba(0, 0, 0, 0.3);
-  --theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 0, 0, 0.2);
-  --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(0, 200, 200, 0.1);
+  --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(126, 13, 128, 0.6);
+  --theme-components-notes-noteswidget-note-btn-color-26sfj: rgb(88, 68, 14);
+  --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgb(26, 26, 26);
+  --theme-components-notes-noteswidget-note-card-background-48988: rgb(66, 44, 41);
+  --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(1, 247, 255, 0.3);
+  --theme-components-notes-noteswidget-note-card-border-top-12gea: rgba(1, 247, 255, 0.3);
+  --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgb(66, 44, 41);
+  --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(1, 247, 255, 0.3);
+  --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgb(66, 44, 41);
+  --theme-components-notes-noteswidget-note-header-background-qxrmc: rgb(25, 21, 21);
+  --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(1, 247, 255, 0.3);
   --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(180, 220, 235, 0.8) 45%, rgba(180, 220, 235, 0.8) 55%, transparent 55%);
-  --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: white;
-  --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: red;
-  --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: pink;
-  --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgba(250, 30, 30, 0.5);
-  --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(255, 100, 100, 0.5);
+  --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: rgb(179, 179, 179);
+  --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: rgb(26, 26, 26);
+  --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: rgb(156, 68, 226);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgb(26, 26, 26);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(135, 27, 175, 0.5);
   --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0));
-  --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(0, 0, 0, 0.31);
-  --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: black;
-
-  /* Overlays ActionDeckColumn (partial) */
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(0, 60, 60, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(110, 10, 10, 0.7);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(170, 30, 30, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(150, 30, 30, 0.7);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(255, 100, 100, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #ffb1b1;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #b5d9d9;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(0, 90, 90, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(0, 229, 229, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: white;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(20, 170, 0, 0.5);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(5, 250, 160, 0.45);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #ffd18a;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: black;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(0, 200, 200, 0.35);
+  --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(0, 0, 0, .31);
+  --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgb(236, 237, 232);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(28, 13, 34, 0.6);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(135, 27, 175, 0.6);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: rgb(179, 55, 224);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: rgb(120, 129, 116);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(25, 66, 10, 0.65);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: rgb(179, 179, 179);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(60, 86, 16, 0.45);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: rgb(208, 32, 148);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: rgb(25, 21, 21);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(1, 247, 255, 0.3);
   --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(0, 0, 0, 0.65);
   --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(0, 0, 0, 0.8);
   --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(103, 255, 166, 0.5));
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(0, 255, 0, 0.584);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(1, 247, 255, 0.3);
   --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
   --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #ffc107;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: lime;
-
-  /* Overlays BriiztormOverlay (partial) */
-  --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
-  --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.2);
-  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(150, 30, 30, 0.6);
-  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(255, 100, 100, 0.5);
-  --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(0, 100, 120, 0.5);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: rgb(236, 237, 232);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgb(26, 26, 26);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(179, 179, 179, 0.2);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgb(26, 26, 26);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(135, 27, 175, 0.5);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgb(26, 26, 26);
   --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(0, 50, 70, 0.9) 0%, rgba(0, 30, 50, 0.9) 100%);
-  --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(0, 200, 200, 0.3);
-  --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: #0a0a0a;
-  --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgba(0, 200, 200, 0.5);
-
-  /* Overlays CalendarModal (more tokens would follow in a complete pass) */
-
-  /* src/components/overlays/DashboardOverlay.css */
-  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(0, 200, 200, 0.1);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(0, 200, 200, 0.06);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(10, 20, 30, 0.5);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(0, 200, 200, 0.12);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(10, 20, 30, 0.6);
-
-  /* src/components/overlays/LiveCanvas.css */
-  --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
-  --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.06);
-  --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #111;
-  --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(255, 255, 255, 0.1);
-  --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
-
-  /* src/components/overlays/OrganizerModal.css */
-  --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgba(3, 95, 42, 0.771);
-  --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgba(0, 200, 100, 0.912);
-  --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgba(0, 0, 0, 0.52);
-  --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgba(255, 255, 255, 0.08);
-  --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #777;
-  --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #bbb;
-  --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(255, 255, 255, 0.2);
-  --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(76, 175, 80, 0.1);
-  --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #a855f7;
-  --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(30, 50, 70, 0.3);
-  --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(0, 100, 120, 0.2);
-  --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgba(0, 150, 180, 0.5);
-  --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(0, 200, 200, 0.4);
-  --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgba(0, 180, 200, 0.6);
-  --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(20, 40, 60, 0.6);
-  --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(0, 200, 200, 0.5);
-  --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(0, 200, 200, 0.3);
-  --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgba(0, 0, 0, 0.2);
-  --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(255, 255, 255, 0.1);
-  --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(0, 50, 80, 0.2);
-  --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(0, 200, 200, 0.12);
-  --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgba(0, 0, 0, 0.15);
-  --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(255, 255, 255, 0.05);
-  --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgba(255, 255, 255, 0.15);
-  --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(0, 200, 200, 0.15);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: rgb(25, 21, 21);
+  --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgb(236, 237, 232);
+  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(126, 13, 128, 0.6);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(126, 13, 128, 0.6);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgb(66, 44, 41);
+  --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(126, 13, 128, 0.6);
+  --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(126, 6, 255, 0.2);
+  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgb(25, 21, 21);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgb(25, 21, 21);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgb(25, 21, 21);
+  --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgb(25, 21, 21);
+  --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: rgb(66, 44, 41);
+  --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(1, 247, 255, 0.3);
   --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
-  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(0, 200, 200, 0.7);
-  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(0, 100, 100, 0.6);
-  --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(0, 255, 255, 0.1);
-  --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(0, 200, 200, 0.08);
-  --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: lime;
-  --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: white;
-  --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(0, 200, 200, 0.05);
-  --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(0, 30, 50, 0.3);
-  --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(0, 200, 200, 0.1);
-  --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(0, 200, 200, 0.2);
-  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0,0,0,0.2);
+  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(1, 247, 255, 0.3);
+  --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgb(66, 44, 41);
+  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgb(66, 44, 41);
+  /* Semantic DNA aliases used by the modality patch below */
+  --dna-font-family: Afacad Flux;
+  --dna-bg: rgb(25, 21, 21);
+  --dna-surface: rgb(66, 44, 41);
+  --dna-text: rgb(236, 237, 232);
+  --dna-muted: rgb(255, 255, 255);
+  --dna-border: rgba(1, 247, 255, 0.3);
+  --dna-accent: rgb(206, 95, 161);
+  --dna-accent-soft: rgba(206, 95, 161, 0.16);
+  --dna-btn-bg: rgb(26, 26, 26);
+  --dna-btn-text: rgb(243, 243, 243);
+  --dna-btn-border: rgb(52, 52, 52);
+  --dna-input-bg: rgba(126, 13, 128, 0.6);
+  --dna-input-border: rgba(126, 6, 255, 0.2);
+  --dna-frame-bg: rgb(74, 31, 8);
+  --dna-frame-border: rgba(0, 181, 241, 0.3);
+  --dna-panel-radius: 7px;
+  --dna-panel-border-width: 1px;
+  --dna-button-radius: 4px;
+  --dna-button-border-width: 4px;
+  --dna-input-radius: 0px;
+  --dna-input-border-width: 0px;
+  --dna-frame-radius: 2px;
+  --dna-frame-border-width: 1px;
+}
+
+
+:root[data-theme='sherbert-sakura'] {
+    --ui-app-border-radius: 20px;
+  --chat-input-text-color: rgb(255, 48, 20);
+  --palletet-accent-primary: rgb(241, 255, 117);
+  --palletet-accent-primary-soft: rgb(241, 255, 117);
+  --palette-neon-accent: rgb(122, 115, 178);
+  --palette-success: #4caf50;
+  --palette-warning: #ffd54f;
+  --palette-danger: #ff6b6b;
+  --palette-text-main: rgb(255, 48, 20);
+  --palette-text-faint: rgb(255, 48, 20);
+  --palette-text-soft: rgb(255, 48, 20);
+  --palette-text-subtle: rgb(189, 186, 212);
+  --palette-text-muted: rgb(189, 186, 212);
+  --palette-text-dim: rgb(189, 186, 212);
+  --palette-white: #fff;
+  --ui-body-bg: rgb(12, 12, 8);  font-family:Nokie !important;
+
+  --ui-app-bg: orange,yellow;
+  --ui-app-border: 3px solid yellow;
+  --ui-app-shadow: inset 0 0 10px rgba(0, 40, 70);
+  --ui-text-primary: rgb(122, 115, 178);
+  --ui-header-text: rgb(255, 255, 0,1);
+  --ui-header-bg: linear-gradient(to bottom, black,purple, deeppink);
+  --ui-title-icon: rgb(255, 48, 20);
+  --ui-title-icon-glow: 0 0 8px var(--palletet-accent-primary);
+  --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-title-stroke: 0.1px var(--palette-white);
+  --ui-button-ghost-bg: rgb(26, 26, 26);
+  --ui-button-ghost-border: rgba(179, 179, 179, 0.1);
+  --ui-button-ghost-border-strong: rgba(179, 179, 179, 0.15);
+  --ui-button-ghost-text: rgb(122, 115, 178);
+  --ui-button-ghost-text-hover: rgb(122, 115, 178);
+  --ui-button-ghost-bg-hover: rgb(26, 26, 26);
+  --ui-panel-header-text: yellow; font-weight:600;
+  --ui-panel-btn: rgb(26, 26, 26);
+  --ui-panel-btn-hover: rgb(26, 26, 26);
+  --ui-chat-header-text: rgb(255, 48, 20);
+  --ui-chat-header-bg: rgb(12, 12, 8);
+  --ui-chat-header-border: rgba(0, 83, 226, 0.3);
+  --ui-chat-input-bg: linear-gradient(rgba(22, 135, 131, 0.6), rgba(0, 43, 54, 0.447));
+  --ui-chat-input-border: rgba(126, 6, 255, 0.2);
+  --ui-chat-input-text: rgb(255, 48, 20);
+  --ui-chat-placeholder: rgba(0, 255, 136, 0.5);
+  --ui-modal-bg: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --ui-modal-border: rgba(0, 83, 226, 0.3);
+  --ui-modal-header-bg: rgb(12, 34, 24);
+  --ui-modal-header-border: rgba(0, 83, 226, 0.3);
+  --ui-modal-title: rgb(255, 48, 20);
+  --ui-modal-close: rgb(12, 34, 24);
+  --ui-modal-tabs-bg: rgb(12, 34, 24);
+  --ui-modal-tabs-border: rgba(0, 83, 226, 0.3);
+  --ui-modal-tab-text: rgb(255, 48, 20);
+  --ui-modal-tab-hover-text: rgb(255, 48, 20);
+  --ui-modal-tab-hover-bg: rgb(12, 34, 24);
+  --ui-modal-tab-active-text: rgb(255, 48, 20);
+  --ui-modal-tab-active-bg: rgb(12, 34, 24);
+  --ui-settings-section-desc: var(--palette-text-subtle);
+  --ui-settings-label: rgb(255, 48, 20);
+  --ui-settings-hint: var(--palette-text-muted);
+  --ui-settings-input-bg: rgba(126, 13, 128, 0.6);
+  --ui-settings-input-border: rgba(126, 6, 255, 0.2);
+  --ui-settings-input-text: rgb(255, 48, 20);
+  --ui-settings-input-placeholder: rgb(117, 151, 80);
+  --ui-settings-input-focus-border: rgba(126, 6, 255, 0.2);
+  --ui-settings-input-focus-shadow: 0 0 10px rgba(0, 200, 200, 0.1);
+  --ui-settings-toggle-bg: rgb(12, 12, 8);
+  --ui-settings-toggle-border: rgba(0, 83, 226, 0.3);
+  --ui-settings-toggle-text: rgb(255, 48, 20);
+  --ui-settings-toggle-bg-hover: rgb(12, 12, 8);
+  --ui-settings-toggle-border-hover: rgba(0, 83, 226, 0.3);
+  --ui-settings-radio-bg: rgb(12, 12, 8);
+  --ui-settings-radio-border: rgba(0, 83, 226, 0.3);
+  --ui-settings-radio-bg-hover: rgb(12, 12, 8);
+  --ui-settings-radio-border-hover: rgba(0, 83, 226, 0.3);
+  --ui-settings-radio-bg-active: rgb(12, 12, 8);
+  --ui-settings-radio-border-active: rgba(0, 83, 226, 0.3);
+  --ui-settings-radio-shadow-active: 0 0 15px rgba(0, 200, 200, 0.1);
+  --ui-settings-radio-label: rgb(255, 48, 20);
+  --ui-settings-radio-label-active: rgb(255, 48, 20);
+  --ui-modal-footer-bg: rgb(12, 34, 24);
+  --ui-modal-footer-border: rgba(0, 83, 226, 0.3);
+  --ui-modal-save-bg: rgb(12, 34, 24);
+  --ui-modal-save-border: rgba(0, 83, 226, 0.3);
+  --ui-modal-save-text: rgb(255, 48, 20);
+  --ui-modal-save-bg-hover: rgb(12, 34, 24);
+  --ui-modal-save-shadow-hover: 0 0 15px rgba(0, 200, 200, 0.2);
+  --ui-provider-tab-bg: rgb(12, 12, 8);
+  --ui-provider-tab-border: rgba(0, 83, 226, 0.3);
+  --ui-provider-tab-text: rgb(255, 48, 20);
+  --ui-provider-tab-bg-hover: rgb(12, 12, 8);
+  --ui-provider-tab-text-hover: rgb(255, 48, 20);
+  --ui-provider-tab-bg-active: rgb(12, 12, 8);
+  --ui-provider-tab-border-active: rgba(0, 83, 226, 0.3);
+  --ui-provider-tab-text-active: rgb(255, 48, 20);
+  --ui-slider-thumb-bg: rgb(12, 12, 8);
+  --ui-slider-thumb-shadow: 0 0 6px rgba(0, 229, 229, 0.5);
+  --ui-markdown-code-bg: rgb(12, 12, 8);
+  --ui-markdown-code-color: var(--palletet-accent-primary);
+  --ui-markdown-th-bg: rgb(12, 12, 8);
+  --ui-controlbar-bg: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
+  --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+  --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+  --layout-bg-primary: rgb(241, 255, 117);
+  --layout-bg-secondary: rgb(12, 12, 8);
+  --layout-bg-panel: rgb(12, 34, 24);
+  --layout-bg-panel-header: rgb(12, 34, 24);
+  --layout-accent-cyan: rgb(241, 255, 117);
+  --layout-accent-cyan-dim: rgb(189, 186, 212);
+  --layout-accent-cyan-glow: rgb(241, 255, 117);
+  --layout-accent-orange: rgb(241, 255, 117);
+  --layout-accent-orange-dim: rgb(189, 186, 212);
+  --layout-border-color: rgba(0, 83, 226, 0.3);
+  --layout-border-color-hover: rgba(0, 83, 226, 0.3);
+  --layout-border-color-active: rgba(0, 83, 226, 0.3);
+  --layout-gap: 1px;
+  --layout-panel-radius: 26px;
+  --layout-header-height: 36px;
+  --layout-resize-handle-size: 8px;
+  --layout-transition-fast: 0.15s ease;
+  --layout-transition-normal: 0.2s ease;
+  --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #00ffcc, #ff4da6);
+  --theme-components-loginoverlay-login-btn-color-1q77m: rgb(0, 0, 0);
+  --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgb(189, 186, 212);
+  --theme-components-loginoverlay-login-error-background-1iva2: rgb(12, 12, 8);
+  --theme-components-loginoverlay-login-error-border-9dbrq: rgba(0, 83, 226, 0.3);
+  --theme-components-loginoverlay-login-info-color-1tcs7: rgba(255, 255, 255, 0.5);
+  --theme-components-loginoverlay-login-input-background-ypdc9: rgba(126, 13, 128, 0.6);
+  --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(116, 61, 255, 0.2);
+  --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgb(241, 255, 117);
+  --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
+  --theme-components-loginoverlay-login-logo-circle-background-1mpnj: rgb(12, 12, 8);
+  --theme-components-loginoverlay-login-logo-circle-background-1pjs9: rgb(12, 12, 8);
+  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #00ffcc, #ff4da6, var(--palletet-accent-primary));
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(255, 77, 166, 0.2);
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(0, 255, 204, 0.4);
+  --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #00ffcc, #ff4da6);
+  --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgb(255, 48, 20);
+  --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(106, 58, 90, 0.95), rgba(26, 10, 74, 0.95));
+  --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgb(255, 48, 20);
+  --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgb(241, 255, 117);
+  --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(135, 38, 170, 0.2);
+  --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(68, 88, 14, 0.25);
+  --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgb(26, 26, 26);
+  --theme-components-phantomsection-phantom-drawer-background-1q77m: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-event-row-color-1gv4y: #3a3a3a;
+  --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-events-background-1eqtm: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-events-border-top-1u83g: rgba(0, 83, 226, 0.3);
+  --theme-components-phantomsection-phantom-record-hint-color-39knf: #222;
+  --theme-components-phantomsection-phantom-run-opts-input-border-h3919: rgba(126, 6, 255, 0.2);
+  --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(126, 6, 255, 0.2);
+  --theme-components-phantomsection-phantom-status-background-16ah5: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-status-border-bottom-1of2t: rgba(0, 83, 226, 0.3);
+  --theme-components-phantomsection-phantom-status-dot-background-1uyf8: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-status-text-color-fs5n5: rgb(255, 48, 20);
+  --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-tab-color-161cz: #444;
+  --theme-components-phantomsection-phantom-tabs-background-yq5ln: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-toggle-background-afq8i: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: rgba(0, 83, 226, 0.3);
+  --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(0, 83, 226, 0.3);
+  --theme-components-phantomsection-phantom-wf-del-color-13fl3: #2a1010;
+  --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-wf-name-color-rnz45: #bbb;
+  --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgb(12, 12, 8);
+  --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(126, 13, 128, 0.6);
+  --theme-components-phantomsection-phantom-wf-run-border-p8yj7: rgba(0, 83, 226, 0.3);
+  --theme-components-phantomsection-phantom-wf-run-color-13c30: #1a4a2e;
+  --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgb(12, 12, 8);
+  --theme-components-phantomsection-root-app-1jpsf: #00e5ff;
+  --theme-components-phantomsection-root-app-b5mm4: green;
+  --theme-components-phantomsection-root-app-o0md2: black;
+  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: rgb(204, 61, 255);
+  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 248, 114);
+  --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: rgb(161, 255, 61);
+  --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgb(255, 48, 20);
+  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgba(126, 13, 128, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgba(126, 6, 255, 0.1);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: rgb(255, 48, 20);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: rgb(255, 48, 20);
+  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: rgba(126, 13, 128, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgba(126, 13, 128, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-notes-icon-color-qo8di: rgb(215, 255, 230);
+  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: rgba(126, 6, 255, 0.2);
+  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: rgb(61, 161, 255);
+  --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: rgba(126, 6, 255, 0.2);
+  --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(175, 34, 95, 0.486);
+  --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
+  --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+  --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
+  --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgba(0, 0, 0, 0.5);
+  --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(126, 13, 128, 0.6);
+  --theme-components-notes-noteswidget-note-btn-color-26sfj: rgb(88, 68, 14);
+  --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgb(26, 26, 26);
+  --theme-components-notes-noteswidget-note-card-background-48988: rgb(12, 34, 24);
+  --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(0, 83, 226, 0.3);
+  --theme-components-notes-noteswidget-note-card-border-top-12gea: rgba(0, 83, 226, 0.3);
+  --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgb(12, 34, 24);
+  --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(0, 83, 226, 0.3);
+  --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgb(12, 34, 24);
+  --theme-components-notes-noteswidget-note-header-background-qxrmc: rgb(12, 12, 8);
+  --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(0, 83, 226, 0.3);
+  --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(180, 220, 235, 0.8) 45%, rgba(180, 220, 235, 0.8) 55%, transparent 55%);
+  --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: rgb(179, 179, 179);
+  --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: rgb(26, 26, 26);
+  --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: rgb(156, 68, 226);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgb(26, 26, 26);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(135, 27, 175, 0.5);
+  --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0));
+  --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(0, 0, 0, .31);
+  --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgb(255, 48, 20);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(28, 13, 34, 0.6);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(135, 27, 175, 0.6);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: rgb(179, 55, 224);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: rgb(120, 129, 116);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(25, 66, 10, 0.65);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: rgb(179, 179, 179);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgb(26, 26, 26);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(60, 86, 16, 0.45);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: rgb(208, 32, 148);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: rgb(12, 12, 8);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(0, 0, 0, 0.65);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(0, 0, 0, 0.8);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(103, 255, 166, 0.5));
+  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
+  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #ffc107;
+  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: rgb(255, 48, 20);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgb(26, 26, 26);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(179, 179, 179, 0.2);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgb(26, 26, 26);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(135, 27, 175, 0.5);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgb(26, 26, 26);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(0, 50, 70, 0.9) 0%, rgba(0, 30, 50, 0.9) 100%);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: rgb(12, 12, 8);
+  --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgb(255, 48, 20);
+  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(126, 13, 128, 0.6);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(126, 13, 128, 0.6);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(126, 13, 128, 0.6);
+  --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(126, 6, 255, 0.2);
+  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgb(12, 12, 8);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgb(12, 12, 8);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgb(12, 12, 8);
+  --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgb(12, 12, 8);
+  --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: rgb(12, 34, 24);
+  --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgb(26, 26, 26);
+  --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(0, 83, 226, 0.3);
+  --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgb(12, 34, 24);
+  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgb(12, 34, 24);
+
+
+
+
+
 }
 
 
@@ -4146,9 +4529,9 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 :root[data-theme='great-wave'] {
     --chat-input-text-color: lightgray;
-    --palette-accent-cyan: #4aa3a0;
-    --palette-accent-cyan-soft: #3e938f;
-    --palette-neon-green: #7bbf9e;
+    --palette-accent-primary: #4aa3a0;
+    --palette-accent-primary-soft: #3e938f;
+    --palette-neon-accent: #7bbf9e;
     --palette-success: #6a9f7a;
     --palette-warning: #d3b36a;
     --palette-danger: #c27063;
@@ -4193,7 +4576,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-panel-header-text: var(--palette-text-subtle);
     --ui-panel-btn: var(--palette-text-muted);
-    --ui-panel-btn-hover: var(--palette-accent-cyan);
+    --ui-panel-btn-hover: var(--palette-accent-primary);
 
     --ui-chat-header-text: #f1caa2;
     --ui-chat-header-bg: #2a3b41;
@@ -4208,7 +4591,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-modal-border: #4aa3a03d;
     --ui-modal-header-bg: #0f1c22;
     --ui-modal-header-border: #4aa3a024;
-    --ui-modal-title: var(--palette-accent-cyan);
+    --ui-modal-title: var(--palette-accent-primary);
     --ui-modal-close: var(--palette-text-muted);
 
     --ui-modal-tabs-bg: #0f1a20;
@@ -4216,7 +4599,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-modal-tab-text: var(--palette-text-muted);
     --ui-modal-tab-hover-text: var(--palette-text-soft);
     --ui-modal-tab-hover-bg: #4aa3a012;
-    --ui-modal-tab-active-text: var(--palette-accent-cyan);
+    --ui-modal-tab-active-text: var(--palette-accent-primary);
     --ui-modal-tab-active-bg: #4aa3a01a;
 
     --ui-settings-section-desc: var(--palette-text-subtle);
@@ -4232,7 +4615,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-settings-toggle-bg: #16252c;
     --ui-settings-toggle-border: #4aa3a038;
-    --ui-settings-toggle-text: var(--palette-accent-cyan);
+    --ui-settings-toggle-text: var(--palette-accent-primary);
     --ui-settings-toggle-bg-hover: #1b2e36;
     --ui-settings-toggle-border-hover: #4aa3a05c;
 
@@ -4244,7 +4627,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-settings-radio-border-active: #4aa3a080;
     --ui-settings-radio-shadow-active: 0 0 15px #4aa3a01a;
     --ui-settings-radio-label: var(--palette-text-main);
-    --ui-settings-radio-label-active: var(--palette-accent-cyan);
+    --ui-settings-radio-label-active: var(--palette-accent-primary);
 
     --ui-modal-footer-bg: #0f1a20;
     --ui-modal-footer-border: #4aa3a01f;
@@ -4262,13 +4645,13 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-provider-tab-text-hover: var(--palette-text-faint);
     --ui-provider-tab-bg-active: #4aa3a026;
     --ui-provider-tab-border-active: #4aa3a04d;
-    --ui-provider-tab-text-active: var(--palette-accent-cyan);
+    --ui-provider-tab-text-active: var(--palette-accent-primary);
 
-    --ui-slider-thumb-bg: var(--palette-accent-cyan);
+    --ui-slider-thumb-bg: var(--palette-accent-primary);
     --ui-slider-thumb-shadow: 0 0 6px #4aa3a066;
 
     --ui-markdown-code-bg: #4aa3a01a;
-    --ui-markdown-code-color: var(--palette-accent-cyan);
+    --ui-markdown-code-color: var(--palette-accent-primary);
     --ui-markdown-th-bg: #4aa3a01a;
 
     --ui-controlbar-bg: linear-gradient(
@@ -4290,7 +4673,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --layout-bg-panel: #0a1117;
     --layout-bg-panel-header: #081015;
 
-    --layout-accent-cyan: var(--palette-accent-cyan);
+    --layout-accent-cyan: var(--palette-accent-primary);
     --layout-accent-cyan-dim: #4aa3a033;
     --layout-accent-cyan-glow: #4aa3a066;
 
@@ -4311,9 +4694,9 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
 :root[data-theme='space-glass'] {
     --chat-input-text-color: deepskyblue;
-    --palette-accent-cyan: #3fe6ff;
-    --palette-accent-cyan-soft: #22c7dd;
-    --palette-neon-green: #4dffb3;
+    --palette-accent-primary: #3fe6ff;
+    --palette-accent-primary-soft: #22c7dd;
+    --palette-neon-accent: #4dffb3;
     --palette-success: #42d392;
     --palette-warning: #ffd27a;
     --palette-danger: #ff5b8a;
@@ -4335,7 +4718,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-header-text: var(--palette-white);
     --ui-header-bg: linear-gradient(to bottom, rgba(255, 255, 255, 0.18) 0%, rgba(90, 130, 190, 0.14) 18%, rgba(12, 16, 32, 0.96) 55%, rgba(70, 34, 120, 0.78) 100%);
 
-    --ui-title-icon: var(--palette-accent-cyan);
+    --ui-title-icon: var(--palette-accent-primary);
     --ui-title-icon-glow: 0 0 12px rgba(63, 230, 255, 0.70), 0 0 22px rgba(185, 135, 255, 0.28);
     --ui-title-gradient: linear-gradient(120deg, #f3f6ff 0%, #8feeff 12%, #0b1020 32%, #b987ff 50%, #ff4fd8 66%, #0b1020 82%, #d6deff 100%);
     --ui-title-stroke: 0.35px rgba(255, 255, 255, 0.75);
@@ -4349,7 +4732,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-panel-header-text: var(--palette-text-subtle);
     --ui-panel-btn: var(--palette-text-muted);
-    --ui-panel-btn-hover: var(--palette-accent-cyan);
+    --ui-panel-btn-hover: var(--palette-accent-primary);
 
     --ui-chat-header-text: #f2e9ff;
     --ui-chat-header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(140, 110, 255, 0.22) 35%, rgba(65, 25, 110, 0.55) 100%);
@@ -4365,7 +4748,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-modal-header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(25, 34, 66, 0.35) 100%);
     --ui-modal-header-border: rgba(220, 230, 255, 0.12);
-    --ui-modal-title: var(--palette-accent-cyan);
+    --ui-modal-title: var(--palette-accent-primary);
     --ui-modal-close: var(--palette-text-muted);
 
     --ui-modal-tabs-bg: rgba(12, 16, 32, 0.55);
@@ -4374,7 +4757,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-modal-tab-text: var(--palette-text-muted);
     --ui-modal-tab-hover-text: var(--palette-text-soft);
     --ui-modal-tab-hover-bg: rgba(255, 255, 255, 0.05);
-    --ui-modal-tab-active-text: var(--palette-accent-cyan);
+    --ui-modal-tab-active-text: var(--palette-accent-primary);
     --ui-modal-tab-active-bg: rgba(63, 230, 255, 0.12);
 
     --ui-settings-section-desc: var(--palette-text-subtle);
@@ -4390,7 +4773,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-settings-toggle-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(18, 26, 48, 0.55) 100%);
     --ui-settings-toggle-border: rgba(220, 230, 255, 0.14);
-    --ui-settings-toggle-text: var(--palette-accent-cyan);
+    --ui-settings-toggle-text: var(--palette-accent-primary);
     --ui-settings-toggle-bg-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(28, 40, 70, 0.55) 100%);
     --ui-settings-toggle-border-hover: rgba(63, 230, 255, 0.35);
 
@@ -4402,14 +4785,14 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-settings-radio-border-active: rgba(63, 230, 255, 0.55);
     --ui-settings-radio-shadow-active: 0 0 0 1px rgba(63, 230, 255, 0.20), 0 0 20px rgba(63, 230, 255, 0.12);
     --ui-settings-radio-label: var(--palette-text-main);
-    --ui-settings-radio-label-active: var(--palette-accent-cyan);
+    --ui-settings-radio-label-active: var(--palette-accent-primary);
 
     --ui-modal-footer-bg: linear-gradient(180deg, rgba(25, 34, 66, 0.40) 0%, rgba(7, 9, 19, 0.60) 100%);
     --ui-modal-footer-border: rgba(220, 230, 255, 0.10);
 
     --ui-modal-save-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(63, 230, 255, 0.22) 35%, rgba(70, 34, 120, 0.18) 100%);
     --ui-modal-save-border: rgba(63, 230, 255, 0.45);
-    --ui-modal-save-text: var(--palette-accent-cyan);
+    --ui-modal-save-text: var(--palette-accent-primary);
     --ui-modal-save-bg-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(63, 230, 255, 0.30) 35%, rgba(255, 79, 216, 0.16) 100%);
     --ui-modal-save-shadow-hover: 0 0 0 1px rgba(63, 230, 255, 0.20), 0 0 22px rgba(63, 230, 255, 0.18);
 
@@ -4420,13 +4803,13 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-provider-tab-text-hover: var(--palette-text-faint);
     --ui-provider-tab-bg-active: linear-gradient(180deg, rgba(63, 230, 255, 0.20) 0%, rgba(185, 135, 255, 0.10) 100%);
     --ui-provider-tab-border-active: rgba(63, 230, 255, 0.35);
-    --ui-provider-tab-text-active: var(--palette-accent-cyan);
+    --ui-provider-tab-text-active: var(--palette-accent-primary);
 
-    --ui-slider-thumb-bg: var(--palette-accent-cyan);
+    --ui-slider-thumb-bg: var(--palette-accent-primary);
     --ui-slider-thumb-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 12px rgba(63, 230, 255, 0.55);
 
     --ui-markdown-code-bg: rgba(63, 230, 255, 0.10);
-    --ui-markdown-code-color: var(--palette-accent-cyan);
+    --ui-markdown-code-color: var(--palette-accent-primary);
     --ui-markdown-th-bg: rgba(220, 230, 255, 0.06);
 
     --ui-controlbar-bg: linear-gradient(120deg, rgba(255, 255, 255, 0.14) 0%, rgba(143, 238, 255, 0.10) 10%, rgba(10, 14, 28, 0.96) 34%, rgba(70, 34, 120, 0.70) 54%, rgba(255, 79, 216, 0.18) 72%, rgba(10, 14, 28, 0.96) 90%, rgba(255, 255, 255, 0.10) 100%);
@@ -4439,7 +4822,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --layout-bg-panel: #090d1a;
     --layout-bg-panel-header: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(16, 22, 44, 0.92) 100%);
 
-    --layout-accent-cyan: var(--palette-accent-cyan);
+    --layout-accent-cyan: var(--palette-accent-primary);
     --layout-accent-cyan-dim: rgba(63, 230, 255, 0.25);
     --layout-accent-cyan-glow: rgba(63, 230, 255, 0.55);
 
@@ -4461,9 +4844,9 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 :root[data-theme='mint-icecube'] {
 
     --chat-input-text-color: lightgreen;
-    --palette-accent-cyan: #7fffe8;
-    --palette-accent-cyan-soft: #4fe3cc;
-    --palette-neon-green: #a6fff2;
+    --palette-accent-primary: #7fffe8;
+    --palette-accent-primary-soft: #4fe3cc;
+    --palette-neon-accent: #a6fff2;
     --palette-success: #66ffe6;
     --palette-warning: #cafff7;
     --palette-danger: #21bba7;
@@ -4485,7 +4868,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-header-text: var(--palette-white);
     --ui-header-bg: linear-gradient(to bottom, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 18%, rgba(12, 16, 15, 0.94) 62%, rgba(5, 7, 7, 0.98) 100%);
 
-    --ui-title-icon: var(--palette-accent-cyan);
+    --ui-title-icon: var(--palette-accent-primary);
     --ui-title-icon-glow: 0 0 12px rgba(127, 255, 232, 0.65), 0 0 22px rgba(127, 255, 232, 0.28);
     --ui-title-gradient: linear-gradient(120deg, #ffffff 0%, #dffdf7 22%, #7fffe8 45%, #cfd6d4 62%, #ffffff 100%);
     --ui-title-stroke: 0.35px rgba(255, 255, 255, 0.75);
@@ -4499,7 +4882,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-panel-header-text: var(--palette-text-subtle);
     --ui-panel-btn: var(--palette-text-muted);
-    --ui-panel-btn-hover: var(--palette-accent-cyan);
+    --ui-panel-btn-hover: var(--palette-accent-primary);
 
     --ui-chat-header-text: #f2fffc;
     --ui-chat-header-bg: linear-gradient(180deg, rgba(55, 255, 205, 0.4) 0%, rgba(127, 255, 232, 0.4) 38%, rgba(10, 134, 13, 0.86) 100%);
@@ -4515,7 +4898,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-modal-header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(12, 16, 15, 0.55) 100%);
     --ui-modal-header-border: rgba(255, 255, 255, 0.10);
-    --ui-modal-title: var(--palette-accent-cyan);
+    --ui-modal-title: var(--palette-accent-primary);
     --ui-modal-close: var(--palette-text-muted);
 
     --ui-modal-tabs-bg: rgba(10, 14, 13, 0.55);
@@ -4523,7 +4906,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-modal-tab-text: var(--palette-text-muted);
     --ui-modal-tab-hover-text: var(--palette-text-soft);
     --ui-modal-tab-hover-bg: rgba(255, 255, 255, 0.04);
-    --ui-modal-tab-active-text: var(--palette-accent-cyan);
+    --ui-modal-tab-active-text: var(--palette-accent-primary);
     --ui-modal-tab-active-bg: rgba(127, 255, 232, 0.10);
 
     --ui-settings-section-desc: var(--palette-text-subtle);
@@ -4539,7 +4922,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 
     --ui-settings-toggle-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(16, 20, 20, 0.55) 100%);
     --ui-settings-toggle-border: rgba(255, 255, 255, 0.12);
-    --ui-settings-toggle-text: var(--palette-accent-cyan);
+    --ui-settings-toggle-text: var(--palette-accent-primary);
     --ui-settings-toggle-bg-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(20, 26, 25, 0.55) 100%);
     --ui-settings-toggle-border-hover: rgba(127, 255, 232, 0.35);
 
@@ -4551,14 +4934,14 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-settings-radio-border-active: rgba(127, 255, 232, 0.55);
     --ui-settings-radio-shadow-active: 0 0 0 1px rgba(127, 255, 232, 0.18), 0 0 20px rgba(127, 255, 232, 0.10);
     --ui-settings-radio-label: var(--palette-text-main);
-    --ui-settings-radio-label-active: var(--palette-accent-cyan);
+    --ui-settings-radio-label-active: var(--palette-accent-primary);
 
     --ui-modal-footer-bg: linear-gradient(180deg, rgba(16, 20, 20, 0.42) 0%, rgba(5, 7, 7, 0.68) 100%);
     --ui-modal-footer-border: rgba(255, 255, 255, 0.08);
 
     --ui-modal-save-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(127, 255, 232, 0.20) 45%, rgba(255, 255, 255, 0.06) 100%);
     --ui-modal-save-border: rgba(127, 255, 232, 0.45);
-    --ui-modal-save-text: var(--palette-accent-cyan);
+    --ui-modal-save-text: var(--palette-accent-primary);
     --ui-modal-save-bg-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(127, 255, 232, 0.28) 45%, rgba(255, 255, 255, 0.08) 100%);
     --ui-modal-save-shadow-hover: 0 0 0 1px rgba(127, 255, 232, 0.22), 0 0 22px rgba(127, 255, 232, 0.16);
 
@@ -4569,13 +4952,13 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --ui-provider-tab-text-hover: var(--palette-text-faint);
     --ui-provider-tab-bg-active: linear-gradient(180deg, rgba(127, 255, 232, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
     --ui-provider-tab-border-active: rgba(127, 255, 232, 0.28);
-    --ui-provider-tab-text-active: var(--palette-accent-cyan);
+    --ui-provider-tab-text-active: var(--palette-accent-primary);
 
-    --ui-slider-thumb-bg: var(--palette-accent-cyan);
+    --ui-slider-thumb-bg: var(--palette-accent-primary);
     --ui-slider-thumb-shadow: 0 0 0 1px rgba(255, 255, 255, 0.20), 0 0 12px rgba(127, 255, 232, 0.55);
 
     --ui-markdown-code-bg: rgba(127, 255, 232, 0.10);
-    --ui-markdown-code-color: var(--palette-accent-cyan);
+    --ui-markdown-code-color: var(--palette-accent-primary);
     --ui-markdown-th-bg: rgba(255, 255, 255, 0.06);
 
     --ui-controlbar-bg: linear-gradient(120deg, rgba(255, 255, 255, 0.16) 0%, rgba(210, 220, 218, 0.06) 16%, rgba(10, 14, 13, 0.96) 50%, rgba(127, 255, 232, 0.10) 72%, rgba(10, 14, 13, 0.96) 100%);
@@ -4588,7 +4971,7 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
     --layout-bg-panel: #070a0a;
     --layout-bg-panel-header: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(10, 14, 13, 0.96) 100%);
 
-    --layout-accent-cyan: var(--palette-accent-cyan);
+    --layout-accent-cyan: var(--palette-accent-primary);
     --layout-accent-cyan-dim: rgba(127, 255, 232, 0.22);
     --layout-accent-cyan-glow: rgba(127, 255, 232, 0.52);
     --layout-accent-orange: #cfd6d4;
@@ -4610,9 +4993,9 @@ background:linear-gradient(black 50%, rgb(0, 255, 0,.2) 180%);
 :root[data-theme='verdigris'] {
 
     --chat-input-text-color: gold;
-    --palette-accent-cyan: #3a9f9a;                 /* muted verdigris (patina) */
-    --palette-accent-cyan-soft: #2f8e89;
-    --palette-neon-green: #4fbf91;                  /* oxidized-copper green */
+    --palette-accent-primary: #3a9f9a;                 /* muted verdigris (patina) */
+    --palette-accent-primary-soft: #2f8e89;
+    --palette-neon-accent: #4fbf91;                  /* oxidized-copper green */
     --palette-success: #5a9b63;                     /* subdued, matte */
     --palette-warning: #c9a24a;                     /* antique gold */
     --palette-danger: #b45a4f;                      /* oxidized red-brown */

@@ -521,7 +521,7 @@ function SettingsModal({ isOpen, onClose }) {
                     <div className="settings-loading">Loading models...</div>
                   ) : modelList.length === 0 ? (
                     <div className="settings-field">
-                      <p className="settings-hint">No models configured. Check deerflow/config.yaml.</p>
+                      <p className="settings-hint">No models configured. Check agent/config.yaml.</p>
                     </div>
                   ) : (
                     <>
@@ -614,7 +614,7 @@ function SettingsModal({ isOpen, onClose }) {
                   <div className="settings-divider" />
 
                   <p className="settings-hint" style={{ fontStyle: 'normal' }}>
-                    Model selection is available in the chat toolbar. Edit deerflow/config.yaml to add or modify models.
+                    Model selection is available in the chat toolbar. Edit agent/config.yaml to add or modify models.
                   </p>
                 </div>
               )}
@@ -647,7 +647,7 @@ function SettingsModal({ isOpen, onClose }) {
                     <div className="settings-loading">Loading skills...</div>
                   ) : skillsData.length === 0 ? (
                     <div className="memory-empty">
-                      No skills found. Check deerflow/extensions_config.json.
+                      No skills found. Check agent/extensions_config.json.
                     </div>
                   ) : (
                     <>

@@ -216,7 +216,7 @@ function InteractionPanel() {
     if (!message || isLoading) return;
 
     setInputValue('');
-    if (textareaRef.current) textareaRef.current.style.height = '44px';
+    if (textareaRef.current) textareaRef.current.style.height = '24px';
     await sendMessage(message);
   };
 

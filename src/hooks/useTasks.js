@@ -79,17 +79,21 @@ export function useTasks() {
     }
   }, []);
 
-  // Toggle task completion
+  // Toggle task completion (supports actions via parent_id)
   const toggleTask = useCallback(async (task) => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await updateTask(task.id, { status: newStatus });
+    const updates = { status: newStatus };
+    if (task.parent_id) {
+      updates._parentId = task.parent_id;
+    }
+    await updateTask(task.id, updates);
     return newStatus;
   }, [updateTask]);
 
-  // Delete a task (and its subtasks)
-  const deleteTask = useCallback(async (id) => {
+  // Delete a task or action (actions need parent ID)
+  const deleteTask = useCallback(async (id, parentId = null) => {
     try {
-      await deleteTaskFirestore(id);
+      await deleteTaskFirestore(id, parentId ? { _parentId: parentId } : {});
     } catch (error) {
       logger.error('ui', 'Failed to delete task', error?.message);
       throw error;
