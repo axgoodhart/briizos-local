@@ -6,6 +6,12 @@ The frontend receives the interruption, displays a confirmation UI, and either
 resumes execution (approved) or sends a rejection message (denied).
 
 Follows the same wrap_tool_call pattern as ClarificationMiddleware.
+
+The middleware respects the tool_confirmation_mode configurable passed in the
+LangGraph run config:
+  - "ask-always"     (default) — intercept all destructive tools
+  - "ask-destructive" — same as ask-always (destructive = always ask)
+  - "no-asking"      — bypass all confirmation; execute destructive tools directly
 """
 
 import json
@@ -66,6 +72,26 @@ def _format_tool_summary(tool_call: dict) -> str:
         return f"{name}({key_args})" if key_args else name
 
 
+def _get_confirmation_mode(request: ToolCallRequest) -> str:
+    """Extract tool_confirmation_mode from the LangGraph runtime config embedded in request.
+
+    The ToolCallRequest carries a ToolRuntime with a .config (RunnableConfig) field.
+    tool_confirmation_mode is set under config["configurable"]["tool_confirmation_mode"].
+
+    Returns one of: "ask-always", "ask-destructive", "no-asking".
+    Defaults to "ask-always" if not set (safest default).
+    """
+    try:
+        tool_runtime = getattr(request, "runtime", None)
+        runnable_config = getattr(tool_runtime, "config", None) or {}
+        mode = (runnable_config.get("configurable") or {}).get("tool_confirmation_mode")
+        if mode in ("ask-always", "ask-destructive", "no-asking"):
+            return mode
+    except Exception:
+        pass
+    return "ask-always"
+
+
 class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
     """Intercepts destructive tool calls and interrupts execution for user confirmation.
 
@@ -78,6 +104,10 @@ class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
     6. On rejection, the user sends a denial message
 
     Non-destructive tools pass through unchanged.
+
+    Respects the tool_confirmation_mode configurable from the run config:
+    - "no-asking": all destructive tools execute without confirmation (bypass this middleware)
+    - "ask-always" / "ask-destructive" (default): intercept and require confirmation
     """
 
     state_schema = AgentState
@@ -127,6 +157,15 @@ class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
         if tool_name not in DESTRUCTIVE_TOOLS:
             return handler(request)
 
+        # Check if user has disabled confirmation prompts via tool_confirmation_mode
+        mode = _get_confirmation_mode(request)
+        if mode == "no-asking":
+            logger.info(
+                "[ToolConfirmationMiddleware] tool_confirmation_mode=no-asking; bypassing confirmation for %s",
+                tool_name,
+            )
+            return handler(request)
+
         return self._handle_destructive_call(request)
 
     @override
@@ -138,6 +177,15 @@ class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
         """Intercept destructive tool calls (async version)."""
         tool_name = request.tool_call.get("name")
         if tool_name not in DESTRUCTIVE_TOOLS:
+            return await handler(request)
+
+        # Check if user has disabled confirmation prompts via tool_confirmation_mode
+        mode = _get_confirmation_mode(request)
+        if mode == "no-asking":
+            logger.info(
+                "[ToolConfirmationMiddleware] tool_confirmation_mode=no-asking; bypassing confirmation for %s",
+                tool_name,
+            )
             return await handler(request)
 
         return self._handle_destructive_call(request)

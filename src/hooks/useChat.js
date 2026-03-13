@@ -36,6 +36,7 @@ export function useChat({ selectedModel } = {}) {
   const [currentStreamId, setCurrentStreamId] = useState(null);
   const [toolCalls, setToolCalls] = useState([]);
   const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
+  const [threadTitle, setThreadTitle] = useState(null);
   const [modality, setModality] = useState('chat');
   const [subAgentTasks, setSubAgentTasks] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -167,26 +168,40 @@ export function useChat({ selectedModel } = {}) {
           };
           toolCallsRef.current = [...toolCallsRef.current, tc];
           setToolCalls([...toolCallsRef.current]);
+          // Log tool call to activity log so LogPanel captures it
+          addLog('tool_call', `${tc.name}(${JSON.stringify(tc.args).slice(0, 200)})`)
+            .catch(err => logger.debug('chat', 'Failed to write tool_call log', err?.message));
           break;
         }
         case 'tool_result': {
           const callId = data.payload?.tool_call_id || data.payload?.id;
+          const resultContent = data.payload?.content || data.payload?.result;
           toolCallsRef.current = toolCallsRef.current.map((tc) =>
             tc.id === callId
-              ? { ...tc, status: 'done', result: data.payload?.content || data.payload?.result }
+              ? { ...tc, status: 'done', result: resultContent }
               : tc
           );
           setToolCalls([...toolCallsRef.current]);
+          // Log tool result to activity log so LogPanel captures it
+          const resultStr = typeof resultContent === 'string'
+            ? resultContent.slice(0, 400)
+            : JSON.stringify(resultContent).slice(0, 400);
+          addLog('tool_result', resultStr)
+            .catch(err => logger.debug('chat', 'Failed to write tool_result log', err?.message));
           break;
         }
         case 'tool_confirmation': {
           // Destructive tool intercepted -- show confirmation UI
+          const confirmSummary = data.payload?.summary || data.summary || 'Tool operation';
           setPendingToolConfirmation({
             tool_name: data.payload?.tool_name || data.tool_name,
             tool_call_id: data.payload?.tool_call_id || data.tool_call_id,
             args: data.payload?.args || data.args || {},
-            summary: data.payload?.summary || data.summary || 'Tool operation',
+            summary: confirmSummary,
           });
+          // Log confirmation request to activity log
+          addLog('tool_call', `[CONFIRM REQUIRED] ${confirmSummary}`)
+            .catch(err => logger.debug('chat', 'Failed to write tool_confirmation log', err?.message));
           // Don't call handleStreamEnd -- keep loading state so user knows action is needed
           break;
         }
@@ -199,6 +214,9 @@ export function useChat({ selectedModel } = {}) {
           };
           subAgentTasksRef.current = [...subAgentTasksRef.current, task];
           setSubAgentTasks([...subAgentTasksRef.current]);
+          // Log sub-agent task start
+          addLog('agent_step', `Sub-agent started: ${task.description}`)
+            .catch(err => logger.debug('chat', 'Failed to write task_started log', err?.message));
           break;
         }
         case 'task_running': {
@@ -213,32 +231,53 @@ export function useChat({ selectedModel } = {}) {
         }
         case 'task_completed': {
           const taskId = data.task_id || data.payload?.task_id;
+          const completedTask = subAgentTasksRef.current.find(t => t.id === taskId);
           subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
             t.id === taskId
               ? { ...t, status: 'completed', result: data.result || data.payload?.result }
               : t
           );
           setSubAgentTasks([...subAgentTasksRef.current]);
+          // Log sub-agent task completion
+          if (completedTask) {
+            addLog('agent_complete', `Sub-agent done: ${completedTask.description}`)
+              .catch(err => logger.debug('chat', 'Failed to write task_completed log', err?.message));
+          }
           break;
         }
         case 'task_failed': {
           const taskId = data.task_id || data.payload?.task_id;
+          const failedTask = subAgentTasksRef.current.find(t => t.id === taskId);
+          const failError = data.error || data.payload?.error || 'Task failed';
           subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
             t.id === taskId
-              ? { ...t, status: 'failed', error: data.error || data.payload?.error || 'Task failed' }
+              ? { ...t, status: 'failed', error: failError }
               : t
           );
           setSubAgentTasks([...subAgentTasksRef.current]);
+          // Log sub-agent task failure
+          addLog('agent_failed', `Sub-agent failed: ${failedTask?.description || taskId} — ${failError}`)
+            .catch(err => logger.debug('chat', 'Failed to write task_failed log', err?.message));
           break;
         }
         case 'task_timed_out': {
           const taskId = data.task_id || data.payload?.task_id;
+          const timedOutTask = subAgentTasksRef.current.find(t => t.id === taskId);
           subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
             t.id === taskId
               ? { ...t, status: 'timed_out', error: data.error || data.payload?.error || 'Task timed out' }
               : t
           );
           setSubAgentTasks([...subAgentTasksRef.current]);
+          // Log sub-agent timeout
+          addLog('agent_cutoff', `Sub-agent timed out: ${timedOutTask?.description || taskId}`)
+            .catch(err => logger.debug('chat', 'Failed to write task_timed_out log', err?.message));
+          break;
+        }
+        case 'thread_title': {
+          if (data.payload?.title) {
+            setThreadTitle(data.payload.title);
+          }
           break;
         }
         case 'end': {
@@ -508,6 +547,8 @@ export function useChat({ selectedModel } = {}) {
       setModality('chat');
       // Clear suggestions
       setSuggestions([]);
+      // Clear thread title
+      setThreadTitle(null);
     } catch (error) {
       logger.error('chat', 'Failed to clear history', error?.message);
     }
@@ -620,6 +661,7 @@ export function useChat({ selectedModel } = {}) {
     suggestions,
     suggestionsEnabled,
     setSuggestionsEnabled,
+    threadTitle,
     sendMessage,
     clearHistory,
     loadHistory: () => {},

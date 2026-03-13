@@ -704,6 +704,9 @@ async function streamMessage(threadId, message, config = {}, onEvent) {
         thinking_enabled: config.thinking !== false,
         is_plan_mode: config.plan_mode || false,
         subagent_enabled: true,
+        // Pass tool_confirmation_mode so ToolConfirmationMiddleware can
+        // bypass confirmation when the user has set "no-asking".
+        tool_confirmation_mode: config.tool_confirmation_mode || 'ask-always',
       },
     },
     stream_mode: ['messages-tuple', 'values', 'custom'],
@@ -869,6 +872,9 @@ function processSSEEvent(eventType, data, onEvent) {
     }
   } else if (eventType === 'values') {
     onEvent('values', { messages: data?.messages || [] });
+    if (data?.title) {
+      onEvent('thread_title', { title: data.title });
+    }
   } else if (eventType === 'end') {
     // Stream end is handled after the read loop completes
   } else if (eventType === 'error') {

@@ -527,7 +527,20 @@ ipcMain.handle('langgraph-stream-message', async (event, threadId, message, conf
   const streamId = config?.streamId || `lg-stream-${Date.now()}`;
   const sender = event.sender;
 
-  langgraphProcess.streamMessage(threadId, message, config || {}, (type, payload) => {
+  // Resolve tool_confirmation_mode from agent config when not explicitly set by caller.
+  // Maps terminal.mode ("ask-always" | "ask-destructive" | "no-asking") to the same
+  // value expected by ToolConfirmationMiddleware on the Python side.
+  const resolvedConfig = { ...(config || {}) };
+  if (!resolvedConfig.tool_confirmation_mode) {
+    try {
+      const agentCfg = agentConfig.readConfig();
+      resolvedConfig.tool_confirmation_mode = agentCfg?.terminal?.mode || 'ask-always';
+    } catch {
+      resolvedConfig.tool_confirmation_mode = 'ask-always';
+    }
+  }
+
+  langgraphProcess.streamMessage(threadId, message, resolvedConfig, (type, payload) => {
     if (!sender.isDestroyed()) {
       sender.send('langgraph-stream-event', { streamId, type, payload: payload || {} });
     }

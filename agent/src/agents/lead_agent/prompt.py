@@ -350,9 +350,11 @@ def get_agent_soul(agent_name: str | None) -> str:
     return ""
 
 
-def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagents: int = 3, *, agent_name: str | None = None, available_skills: set[str] | None = None) -> str:
-    # Get memory context
-    memory_context = _get_memory_context(agent_name)
+def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagents: int = 3, *, agent_name: str | None = None, available_skills: set[str] | None = None, inject_memory: bool = True) -> str:
+    # Get memory context — can be disabled via inject_memory=False (e.g. when the
+    # caller only wants the current session's visible messages in context, not the
+    # global long-term memory facts from memory.json).
+    memory_context = _get_memory_context(agent_name) if inject_memory else ""
 
     # Include subagent section only if enabled (from runtime parameter)
     n = max_concurrent_subagents
