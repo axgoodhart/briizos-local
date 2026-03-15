@@ -110,24 +110,13 @@ export function useTasks() {
     }
   }, []);
 
-  // AI-powered task breakdown (still uses Electron IPC for OpenAI)
+  // AI-powered task breakdown via LangGraph
   const breakdownTask = useCallback(async (taskId) => {
     if (!hasApi) return null;
     setIsBreakingDown(true);
     try {
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) {
-        throw new Error('Task not found');
-      }
-
-      // Ask AI to break down the task (needs Electron main for OpenAI)
-      const result = await api.breakdownTask(taskId, task.title);
-
-      if (result.subtasks && result.subtasks.length > 0) {
-        await addSubtasks(taskId, result.subtasks);
-        await addLog('ai_task_breakdown', `AI broke down task "${task.title}" into ${result.subtasks.length} subtasks`);
-      }
-
+      const { automateTask } = await import('../lib/taskAutomation');
+      const result = await automateTask(taskId);
       return result;
     } catch (error) {
       logger.error('ui', 'Failed to breakdown task', error?.message);
@@ -135,36 +124,38 @@ export function useTasks() {
     } finally {
       setIsBreakingDown(false);
     }
-  }, [tasks, addSubtasks]);
+  }, []);
 
   // Calculate completion stats
+  // Each top-level task has equal weight. Subtasks split their parent's weight evenly.
+  // e.g. 3 tasks (33% each): t1 has 2 subtasks (16.5% each), t2 has none, t3 has 4 (8.25% each)
   const getTaskStats = useCallback(() => {
-    let totalTasks = 0;
-    let completedTasks = 0;
+    const total = tasks.length;
+    if (total === 0) return { total: 0, completed: 0, pending: 0, progressPercent: 0 };
+
+    const taskWeight = 100 / total;
+    let percent = 0;
+    let completed = 0;
 
     for (const task of tasks) {
-      totalTasks++;
       if (task.status === 'completed') {
-        completedTasks++;
-      }
-
-      if (task.subtasks) {
-        for (const subtask of task.subtasks) {
-          totalTasks++;
-          if (subtask.status === 'completed') {
-            completedTasks++;
+        completed++;
+        percent += taskWeight;
+      } else if (task.subtasks && task.subtasks.length > 0) {
+        const subtaskWeight = taskWeight / task.subtasks.length;
+        for (const sub of task.subtasks) {
+          if (sub.status === 'completed') {
+            percent += subtaskWeight;
           }
         }
       }
     }
 
-    const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
     return {
-      total: totalTasks,
-      completed: completedTasks,
-      pending: totalTasks - completedTasks,
-      progressPercent
+      total,
+      completed,
+      pending: total - completed,
+      progressPercent: Math.round(percent)
     };
   }, [tasks]);
 

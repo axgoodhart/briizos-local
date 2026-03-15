@@ -138,6 +138,7 @@ function InteractionPanel() {
     suggestions,
     suggestionsEnabled,
     setSuggestionsEnabled,
+    threadTitle,
     sendMessage,
     clearHistory,
     refreshFilesInContext,
@@ -765,6 +766,9 @@ function InteractionPanel() {
               ))}
             </div>
           </div>
+        )}
+        {threadTitle && (
+          <div className="chat-thread-title">{threadTitle}</div>
         )}
         <div className="chat-input-wrapper">
           <textarea

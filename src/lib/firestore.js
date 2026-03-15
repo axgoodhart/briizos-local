@@ -385,6 +385,9 @@ export function subscribeTasks(callback) {
         created: toISO(t.createdAt),
         type: t.type,
         position: t.position,
+        automated: data.automated || false,
+        ignored: data.ignored || false,
+        taskLog: data.taskLog || [],
         subtasks: actions.map(a => ({
           id: a.id,
           title: a.title || '',
@@ -408,6 +411,71 @@ export function subscribeTasks(callback) {
     callback(tasks);
   }, (error) => {
     logger.error('firestore', 'Tasks subscription error', error?.message);
+  });
+}
+
+/**
+ * Subscribe to automated tasks that need processing.
+ * Fires onNewAutomated(task) when a task with automated:true
+ * transitions to status:'active' (new or changed).
+ *
+ * Uses a per-task cooldown to avoid re-firing from our own writes
+ * (appendTaskLog, updateTask, etc. all mutate the doc and trigger onSnapshot).
+ */
+export function subscribeAutomatedTasks(onNewAutomated) {
+  const uid = getCurrentUid();
+  if (!uid) return () => {};
+
+  const { tasksCol } = getUserCollections(uid);
+  // Single-field query to avoid composite index requirement; filter status in JS
+  const q = query(tasksCol, where('automated', '==', true));
+  let initialIds = null;
+  // Track last-fired time per task to suppress re-fires from our own writes
+  const lastFiredAt = new Map();
+  const COOLDOWN_MS = 5000;
+
+  return onSnapshot(q, (snapshot) => {
+    if (initialIds === null) {
+      // First snapshot — record existing active automated tasks, don't fire
+      initialIds = new Set();
+      snapshot.forEach(d => initialIds.add(d.id));
+      return;
+    }
+
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === 'added' || change.type === 'modified') {
+        const id = change.doc.id;
+        const data = change.doc.data();
+        // Filter for active status in JS
+        if (data.status !== 'active') return;
+
+        // Suppress re-fires within the cooldown window (our own writes echo back)
+        const now = Date.now();
+        const lastTime = lastFiredAt.get(id) || 0;
+        if (now - lastTime < COOLDOWN_MS) return;
+
+        if (!initialIds.has(id) || change.type === 'modified') {
+          initialIds.add(id);
+          lastFiredAt.set(id, now);
+          const t = taskAdapter.normalizeOnRead(id, data);
+          const actions = Array.isArray(data.actions) ? data.actions : [];
+          onNewAutomated({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            automated: data.automated,
+            taskLog: data.taskLog || [],
+            subtasks: actions.map(a => ({
+              id: a.id,
+              title: a.title || '',
+              status: a.completed ? 'completed' : 'pending',
+            })),
+          });
+        }
+      }
+    });
+  }, (error) => {
+    logger.error('firestore', 'Automated tasks subscription error', error?.message);
   });
 }
 
@@ -525,7 +593,8 @@ export async function updateTask(id, updates) {
     const isCompleted = updates.status === 'completed';
     firestoreUpdates.completed = isCompleted;
     firestoreUpdates.completedAt = isCompleted ? Date.now() : null;
-    firestoreUpdates.status = isCompleted ? 'complete' : 'running';
+    // Preserve the actual status value — callers may pass 'active', 'waiting', etc.
+    firestoreUpdates.status = updates.status;
   }
   if (updates.title !== undefined) {
     firestoreUpdates.title = updates.title;
@@ -538,6 +607,21 @@ export async function updateTask(id, updates) {
   }
   if (updates.position !== undefined) {
     firestoreUpdates.position = updates.position;
+  }
+  if (updates.automated !== undefined) {
+    firestoreUpdates.automated = updates.automated;
+  }
+  if (updates.ignored !== undefined) {
+    firestoreUpdates.ignored = updates.ignored;
+  }
+  if (updates.taskLog !== undefined) {
+    firestoreUpdates.taskLog = updates.taskLog;
+  }
+  if (updates.completed !== undefined) {
+    firestoreUpdates.completed = updates.completed;
+  }
+  if (updates.completedAt !== undefined) {
+    firestoreUpdates.completedAt = updates.completedAt;
   }
 
   await setDoc(doc(tasksCol, id), firestoreUpdates, { merge: true });
@@ -596,8 +680,12 @@ export async function getTask(id) {
     priority: t.priority,
     due_date: t.dueDate,
     parent_id: t.parentId,
+    type: t.type,
     created: toISO(t.createdAt),
     position: t.position,
+    automated: data.automated || false,
+    ignored: data.ignored || false,
+    taskLog: data.taskLog || [],
     subtasks: actions.map(a => ({
       id: a.id,
       title: a.title || '',

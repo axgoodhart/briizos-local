@@ -1,11 +1,11 @@
 # AI Tool Catalog
 
-Generated: `2026-02-19T18:43:22.160Z`
+Generated: `2026-03-13T10:20:23.421Z`
 Source: `src/lib/tools.js`
 
 ## Summary
-- Total tools: **40**
-- Implemented: **30**
+- Total tools: **43**
+- Implemented: **33**
 - Limited: **8**
 - Stub: **2**
 
@@ -80,6 +80,13 @@ Source: `src/lib/tools.js`
 | Tool | Confirm | Purpose | Status |
 |---|---|---|---|
 | `startTimer` | Yes | Start a timer | Stub |
+
+## Uncategorized
+| Tool | Confirm | Purpose | Status |
+|---|---|---|---|
+| `taskComplete` | No | Signal that the requested task has been fully and successfully completed. You MUST call this when the goal is achieved — the loop will not stop otherwise. | Implemented |
+| `taskFailed` | No | Signal that the task cannot be completed. Call this when you have exhausted all options or hit a hard blocker. Never silently stop. | Implemented |
+| `updateScratchpad` | No | Update your working scratchpad (visible as a live iframe). Call at the start of each step with: current goal, steps completed so far, last result, and what you plan to do next. | Implemented |
 
 ## Notes
 - `runCommand` confirmation is dynamic: terminal mode can change behavior (`ask-always`, `ask-destructive`, `no-asking`) in `src/context/ToolContext.jsx`.

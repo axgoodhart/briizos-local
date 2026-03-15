@@ -523,6 +523,10 @@ ipcMain.handle('langgraph-create-thread', async () => {
   return langgraphProcess.createThread();
 });
 
+ipcMain.handle('langgraph-send-message', async (event, threadId, message, config) => {
+  return langgraphProcess.sendMessage(threadId, message, config || {});
+});
+
 ipcMain.handle('langgraph-stream-message', async (event, threadId, message, config) => {
   const streamId = config?.streamId || `lg-stream-${Date.now()}`;
   const sender = event.sender;
@@ -559,7 +563,19 @@ ipcMain.handle('langgraph-resume-run', async (event, threadId, response, config)
   const streamId = config?.streamId || `lg-resume-${Date.now()}`;
   const sender = event.sender;
 
-  langgraphProcess.resumeRun(threadId, response, config || {}, (type, payload) => {
+  // Carry tool_confirmation_mode through to resumed run so the middleware
+  // doesn't revert to ask-always and re-fire the confirmation dialog.
+  const resolvedResumeConfig = { ...(config || {}) };
+  if (!resolvedResumeConfig.tool_confirmation_mode) {
+    try {
+      const agentCfg = agentConfig.readConfig();
+      resolvedResumeConfig.tool_confirmation_mode = agentCfg?.terminal?.mode || 'ask-always';
+    } catch {
+      resolvedResumeConfig.tool_confirmation_mode = 'ask-always';
+    }
+  }
+
+  langgraphProcess.resumeRun(threadId, response, resolvedResumeConfig, (type, payload) => {
     if (!sender.isDestroyed()) {
       sender.send('langgraph-stream-event', { streamId, type, payload: payload || {} });
     }

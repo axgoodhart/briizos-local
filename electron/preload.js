@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // LangGraph Agent API
   langgraphCreateThread: () => ipcRenderer.invoke('langgraph-create-thread'),
+  langgraphSendMessage: (threadId, message, config) =>
+    ipcRenderer.invoke('langgraph-send-message', threadId, message, config),
   langgraphStreamMessage: (threadId, message, config) =>
     ipcRenderer.invoke('langgraph-stream-message', threadId, message, config),
   onLanggraphStreamEvent: (callback) => {

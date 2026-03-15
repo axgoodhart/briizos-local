@@ -638,6 +638,7 @@ async function sendMessage(threadId, message, config = {}) {
         model_name: config.model || null,
         thinking_enabled: config.thinking !== false,
         subagent_enabled: true,
+        tool_confirmation_mode: config.tool_confirmation_mode || 'ask-always',
       },
     },
   };

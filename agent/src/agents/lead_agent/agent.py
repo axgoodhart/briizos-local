@@ -274,7 +274,7 @@ def make_lead_agent(config: RunnableConfig):
     # inject_memory: when False, global long-term memory facts are NOT added to the
     # system prompt. Callers that want only the current session's visible messages
     # in context should pass inject_memory=False. Defaults to True (existing behaviour).
-    inject_memory: bool = cfg.get("inject_memory", True)
+    inject_memory: bool = cfg.get("inject_memory", False)
 
     agent_config = load_agent_config(agent_name) if not is_bootstrap else None
     # Custom agent model or fallback to global/default model resolution

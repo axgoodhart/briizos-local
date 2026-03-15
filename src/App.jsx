@@ -16,6 +16,7 @@ import { ToolProvider, useTools } from './context/ToolContext';
 import { useAppContext } from './hooks/useAppContext';
 import { useAgentWorkers } from './hooks/useAgentWorkers';
 import { useToolBridge } from './hooks/useToolBridge';
+import { useTaskAutomation } from './hooks/useTaskAutomation';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
@@ -182,6 +183,7 @@ function AppContent({ layout }) {
   const appContext = useAppContext();
   useAgentWorkers(executeTool, appContext);
   useToolBridge(executeTool, appContext);
+  useTaskAutomation();
   appRenderCount++;
   logger.debug('ui', `App render #${appRenderCount}`);
 

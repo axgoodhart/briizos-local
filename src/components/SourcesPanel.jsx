@@ -380,6 +380,30 @@ function SourcesPanel() {
         </div>
       </div>
       <div className="panel-content">
+
+        {/*Logs Section */}
+
+        {/* Log Section */}
+        <div className="log-section">
+          <div className="log-header">Log</div>
+          <div className="log-entries" ref={logContainerRef}>
+            {logs.length === 0 ? (
+              <div className="log-entry">
+                <span className="log-message">No activity yet...</span>
+              </div>
+            ) : (
+              logs.map(log => (
+                <div key={log.id} className="log-entry">
+                  <span className="log-date">{formatLogDate(log.timestamp)}</span>
+                  <span className="log-time">{formatLogTime(log.timestamp)}</span>
+                  <span className="log-action">[{log.action}]</span>
+                  {log.message && <span className="log-message">{log.message}</span>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+     
         {/* LOCAL Section */}
         <div className="source-section">
           <div
@@ -603,26 +627,6 @@ function SourcesPanel() {
           )}
         </div>
 
-        {/* Log Section */}
-        <div className="log-section">
-          <div className="log-header">Log</div>
-          <div className="log-entries" ref={logContainerRef}>
-            {logs.length === 0 ? (
-              <div className="log-entry">
-                <span className="log-message">No activity yet...</span>
-              </div>
-            ) : (
-              logs.map(log => (
-                <div key={log.id} className="log-entry">
-                  <span className="log-date">{formatLogDate(log.timestamp)}</span>
-                  <span className="log-time">{formatLogTime(log.timestamp)}</span>
-                  <span className="log-action">[{log.action}]</span>
-                  {log.message && <span className="log-message">{log.message}</span>}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
