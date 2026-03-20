@@ -921,12 +921,51 @@ function AppearanceTab({ settings, handleThemeChange }) {
   <input
     type="radio"
     name="ui-theme"
+    value="antarctic-teafog"
+    checked={currentTheme === 'antarctic-teafog'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Antarctic Teafog</span>
+  <span className="radio-desc">Muted warmth with cool earth tones..</span>
+</label>
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="postlinear-glassos"
+    checked={currentTheme === 'postlinear-glassos'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Postlinear Glassos</span>
+  <span className="radio-desc">Splashing gold with rosy dry warmth..</span>
+</label>
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
     value="neon-orbi"
     checked={currentTheme === 'neon-orbi'}
     onChange={(e) => handleThemeChange(e.target.value)}
   />
   <span className="radio-label">Neon Orb</span>
-  <span className="radio-desc">Richer neon interface.</span>
+  <span className="radio-desc">Flatter, soft hue multicolor interface.</span>
+</label>
+
+
+<label className="settings-radio">
+  <input
+    type="radio"
+    name="ui-theme"
+    value="winterbloom"
+    checked={currentTheme === 'winterbloom'}
+    onChange={(e) => handleThemeChange(e.target.value)}
+  />
+  <span className="radio-label">Winterbloom</span>
+  <span className="radio-desc">A lush, wintry night theme: midnight navy foundations with delicate cherry-blossom pink highlights, moonlit cyan accents, frosted glass textures and soft glows</span>
 </label>
 
 

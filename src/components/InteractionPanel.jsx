@@ -413,17 +413,6 @@ function InteractionPanel() {
         {showWelcome ? (
           <>
             <div className="briiz-logo">briizOS</div>
-            <div className="action-buttons">
-              {MODALITIES.map(m => (
-                <button
-                  key={m.id}
-                  className={`action-btn ${modality === m.id ? 'active' : ''}`}
-                  onClick={() => setModality(m.id)}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
             {!isConfigured && (
               <div className="config-warning">
                 No AI provider configured. Add API keys in Settings.

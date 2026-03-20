@@ -10,24 +10,25 @@ perspective:400px;
   right: 22%;
   height:520px;
 top:28%;
-background:var(--theme-components-notes-noteswidget-notes-drawer-background-gradient, linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0)));
+background:var(--theme-components-notes-noteswidget-notes-drawer-background-gradient);
 width:300px;
 overflow:hidden;
   border-radius:32px 32px 100px 100px;
-  backdrop-filter:blur(4px);
+  backdrop-filter:blur(5px);
   z-index: 300;
+  box-shadow:inset 0 0 20px black;
   display: flex;
   visibility: hidden;
   flex-direction: column;
   transform-origin: bottom right;
   transform: rotateY(90deg)rotateX(-10deg)translateX(20px);
 transition: visibility 2s, transform 1s;
-border:1px solid yellow;
+border:1px solid  var(--notes-title,palegoldenrod);
 }
 
 .notes-drawer.open {
   visibility: visible;
-  box-shadow:10px 16px 20px var(--theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038, rgba(0, 0, 0, .31));
+  box-shadow: 6px 10px 12px var(--theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038) inset;
   transform: rotateY(-30deg)rotateX(4deg);
 }
 
@@ -66,7 +67,7 @@ border:1px solid yellow;
 user-select:none;
   font-weight:400;
   text-shadow: 2px 0px .1px var(--theme-components-notes-noteswidget-notes-title-text-shadow-o0md2, black), 12px 0px 10px var(--theme-components-notes-noteswidget-notes-title-text-shadow-o0md2, black);
-color:transparent;}
+color:var(--notes-title, yellow);}
 
 .notes-actions {
   display: flex;
@@ -153,9 +154,11 @@ display:none;
 .create-note-btn:hover {
   color:yellow;
 }
-
+.note-card * {user-select:none}
+.floating-note * {user-select:auto}
 /* Note Card */
 .note-card {
+  user-select:none;
   background: var(--theme-components-notes-noteswidget-note-card-background-48988, rgb(14, 68, 68));
   border: 1px solid var(--theme-components-notes-noteswidget-note-card-border-9zuog, rgba(0, 200, 200, 0.15));
   border-top: 3px solid var(--theme-components-notes-noteswidget-note-card-border-top-12gea, #ffc107);
@@ -342,6 +345,7 @@ backdrop-filter:blur(10px);  color:var(--theme-components-notes-noteswidget-note
 }
 
 .floating-note .note-card {
+  user-select:auto;
 background:var(--theme-components-notes-noteswidget-floating-note-note-card-background-gradient, linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)); 
 border:1px solid var(--theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92, pink); 
 backdrop-filter: blur(8px)brightness(.4);

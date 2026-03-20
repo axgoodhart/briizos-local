@@ -58,10 +58,10 @@ const CSP = [
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1000,
-    minHeight: 700,
+    width: 1500,
+    height: 700,
+    minWidth: 200,
+    minHeight: 200,
     backgroundColor: '#0a1628',
     titleBarStyle: 'customButtonsOnHover',
     trafficLightPosition: { x: 4, y: 4 },
