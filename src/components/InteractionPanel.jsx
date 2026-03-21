@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,6 +12,122 @@ import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
+
+const REACTBITS_BACKGROUNDS = [
+  { value: 'reactbits:Aurora', label: 'Aurora' },
+  { value: 'reactbits:Balatro', label: 'Balatro' },
+  { value: 'reactbits:Ballpit', label: 'Ballpit' },
+  { value: 'reactbits:Beams', label: 'Beams' },
+  { value: 'reactbits:ColorBends', label: 'Color Bends' },
+  { value: 'reactbits:DarkVeil', label: 'Dark Veil' },
+  { value: 'reactbits:Dither', label: 'Dither' },
+  { value: 'reactbits:DotGrid', label: 'Dot Grid' },
+  { value: 'reactbits:EvilEye', label: 'Evil Eye' },
+  { value: 'reactbits:FaultyTerminal', label: 'Faulty Terminal' },
+  { value: 'reactbits:FloatingLines', label: 'Floating Lines' },
+  { value: 'reactbits:Galaxy', label: 'Galaxy' },
+  { value: 'reactbits:GradientBlinds', label: 'Gradient Blinds' },
+  { value: 'reactbits:Grainient', label: 'Grainient' },
+  { value: 'reactbits:GridDistortion', label: 'Grid Distortion' },
+  { value: 'reactbits:GridMotion', label: 'Grid Motion' },
+  { value: 'reactbits:GridScan', label: 'Grid Scan' },
+  { value: 'reactbits:Hyperspeed', label: 'Hyperspeed' },
+  { value: 'reactbits:Iridescence', label: 'Iridescence' },
+  { value: 'reactbits:LetterGlitch', label: 'Letter Glitch' },
+  { value: 'reactbits:Lightning', label: 'Lightning' },
+  { value: 'reactbits:LightPillar', label: 'Light Pillar' },
+  { value: 'reactbits:LightRays', label: 'Light Rays' },
+  { value: 'reactbits:LineWaves', label: 'Line Waves' },
+  { value: 'reactbits:LiquidChrome', label: 'Liquid Chrome' },
+  { value: 'reactbits:LiquidEther', label: 'Liquid Ether' },
+  { value: 'reactbits:Mycelium', label: 'Mycelium' },
+  { value: 'reactbits:Orb', label: 'Orb' },
+  { value: 'reactbits:Particles', label: 'Particles' },
+  { value: 'reactbits:PixelBlast', label: 'Pixel Blast' },
+  { value: 'reactbits:PixelSnow', label: 'Pixel Snow' },
+  { value: 'reactbits:Plasma', label: 'Plasma' },
+  { value: 'reactbits:Prism', label: 'Prism' },
+  { value: 'reactbits:PrismaticBurst', label: 'Prismatic Burst' },
+  { value: 'reactbits:Radar', label: 'Radar' },
+  { value: 'reactbits:RippleGrid', label: 'Ripple Grid' },
+  { value: 'reactbits:ShapeGrid', label: 'Shape Grid' },
+  { value: 'reactbits:Silk', label: 'Silk' },
+  { value: 'reactbits:SoftAurora', label: 'Soft Aurora' },
+  { value: 'reactbits:Spores', label: 'Spores' },
+  { value: 'reactbits:Threads', label: 'Threads' },
+  { value: 'reactbits:Tide', label: 'Tide' },
+  { value: 'reactbits:Waves', label: 'Waves' },
+];
+
+const reactBitsImportMap = {
+  Aurora: () => import('@reactbits/Aurora/Aurora.tsx'),
+  Balatro: () => import('@reactbits/Balatro/Balatro.tsx'),
+  Ballpit: () => import('@reactbits/Ballpit/Ballpit.tsx'),
+  Beams: () => import('@reactbits/Beams/Beams.tsx'),
+  ColorBends: () => import('@reactbits/ColorBends/ColorBends.tsx'),
+  DarkVeil: () => import('@reactbits/DarkVeil/DarkVeil.tsx'),
+  Dither: () => import('@reactbits/Dither/Dither.tsx'),
+  DotGrid: () => import('@reactbits/DotGrid/DotGrid.tsx'),
+  EvilEye: () => import('@reactbits/EvilEye/EvilEye.tsx'),
+  FaultyTerminal: () => import('@reactbits/FaultyTerminal/FaultyTerminal.tsx'),
+  FloatingLines: () => import('@reactbits/FloatingLines/FloatingLines.tsx'),
+  Galaxy: () => import('@reactbits/Galaxy/Galaxy.tsx'),
+  GradientBlinds: () => import('@reactbits/GradientBlinds/GradientBlinds.tsx'),
+  Grainient: () => import('@reactbits/Grainient/Grainient.tsx'),
+  GridDistortion: () => import('@reactbits/GridDistortion/GridDistortion.tsx'),
+  GridMotion: () => import('@reactbits/GridMotion/GridMotion.tsx'),
+  GridScan: () => import('@reactbits/GridScan/GridScan.tsx'),
+  Hyperspeed: () => import('@reactbits/Hyperspeed/Hyperspeed.tsx'),
+  Iridescence: () => import('@reactbits/Iridescence/Iridescence.tsx'),
+  LetterGlitch: () => import('@reactbits/LetterGlitch/LetterGlitch.tsx'),
+  Lightning: () => import('@reactbits/Lightning/Lightning.tsx'),
+  LightPillar: () => import('@reactbits/LightPillar/LightPillar.tsx'),
+  LightRays: () => import('@reactbits/LightRays/LightRays.tsx'),
+  LineWaves: () => import('@reactbits/LineWaves/LineWaves.tsx'),
+  LiquidChrome: () => import('@reactbits/LiquidChrome/LiquidChrome.tsx'),
+  LiquidEther: () => import('@reactbits/LiquidEther/LiquidEther.tsx'),
+  Mycelium: () => import('@reactbits/Mycelium/Mycelium.tsx'),
+  Orb: () => import('@reactbits/Orb/Orb.tsx'),
+  Particles: () => import('@reactbits/Particles/Particles.tsx'),
+  PixelBlast: () => import('@reactbits/PixelBlast/PixelBlast.tsx'),
+  PixelSnow: () => import('@reactbits/PixelSnow/PixelSnow.tsx'),
+  Plasma: () => import('@reactbits/Plasma/Plasma.tsx'),
+  Prism: () => import('@reactbits/Prism/Prism.tsx'),
+  PrismaticBurst: () => import('@reactbits/PrismaticBurst/PrismaticBurst.tsx'),
+  Radar: () => import('@reactbits/Radar/Radar.tsx'),
+  RippleGrid: () => import('@reactbits/RippleGrid/RippleGrid.tsx'),
+  ShapeGrid: () => import('@reactbits/ShapeGrid/ShapeGrid.tsx'),
+  Silk: () => import('@reactbits/Silk/Silk.tsx'),
+  SoftAurora: () => import('@reactbits/SoftAurora/SoftAurora.tsx'),
+  Spores: () => import('@reactbits/Spores/Spores.tsx'),
+  Threads: () => import('@reactbits/Threads/Threads.tsx'),
+  Tide: () => import('@reactbits/Tide/Tide.tsx'),
+  Waves: () => import('@reactbits/Waves/Waves.tsx'),
+};
+
+const reactBitsComponentCache = {};
+function getReactBitsComponent(name) {
+  if (!reactBitsComponentCache[name]) {
+    const importFn = reactBitsImportMap[name];
+    if (!importFn) {
+      console.error(`ReactBits background "${name}" not found in import map`);
+      return () => null;
+    }
+    reactBitsComponentCache[name] = lazy(importFn);
+  }
+  return reactBitsComponentCache[name];
+}
+
+function ReactBitsBackground({ name, blur }) {
+  const Component = getReactBitsComponent(name);
+  return (
+    <div className="chat-bg-frame-container reactbits-bg" style={blur ? { filter: `blur(${blur}px)` } : undefined}>
+      <Suspense fallback={null}>
+        <Component />
+      </Suspense>
+    </div>
+  );
+}
 
 const CHAT_BACKGROUNDS = [
   { value: '', label: 'Default' },
@@ -139,6 +255,7 @@ function InteractionPanel() {
     suggestionsEnabled,
     setSuggestionsEnabled,
     threadTitle,
+    threadTitleRef,
     sendMessage,
     clearHistory,
     refreshFilesInContext,
@@ -311,6 +428,11 @@ function InteractionPanel() {
           Chat
         </span>
 
+                {threadTitle && (
+          <div ref={threadTitleRef} className="chat-thread-title">{threadTitle}</div>
+        )}
+
+
         <div className="panel-header-actions">
           <span className="provider-indicator" title={`${providerLabel} / ${currentSettings.model}`}>
             {providerLabel}
@@ -373,7 +495,9 @@ function InteractionPanel() {
       )}
 
       <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${chatBackground ? 'has-custom-bg' : ''}`}>
-        {chatBackground && (
+        {chatBackground && chatBackground.startsWith('reactbits:') ? (
+          <ReactBitsBackground name={chatBackground.replace('reactbits:', '')} blur={chatBgBlur} />
+        ) : chatBackground ? (
           <div className="chat-bg-frame-container" style={chatBgBlur ? { filter: `blur(${chatBgBlur}px)` } : undefined}>
             <iframe
               className="chat-bg-frame"
@@ -382,11 +506,25 @@ function InteractionPanel() {
               loading="lazy"
             />
           </div>
-        )}
+        ) : null}
 
         {showBgPicker && (
           <div className="chat-bg-picker">
+            <div className="chat-bg-section-label">HTML Backgrounds</div>
             {CHAT_BACKGROUNDS.map((bg) => (
+              <button
+                key={bg.value}
+                className={`chat-bg-option ${chatBackground === bg.value ? 'active' : ''}`}
+                onClick={() => {
+                  setChatBackground(bg.value);
+                  setShowBgPicker(false);
+                }}
+              >
+                {bg.label}
+              </button>
+            ))}
+            <div className="chat-bg-section-label">React Bits</div>
+            {REACTBITS_BACKGROUNDS.map((bg) => (
               <button
                 key={bg.value}
                 className={`chat-bg-option ${chatBackground === bg.value ? 'active' : ''}`}
@@ -755,9 +893,6 @@ function InteractionPanel() {
               ))}
             </div>
           </div>
-        )}
-        {threadTitle && (
-          <div className="chat-thread-title">{threadTitle}</div>
         )}
         <div className="chat-input-wrapper">
           <textarea

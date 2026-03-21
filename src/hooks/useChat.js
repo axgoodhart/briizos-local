@@ -52,6 +52,7 @@ export function useChat({ selectedModel } = {}) {
   const toolCallsRef = useRef([]);
   const subAgentTasksRef = useRef([]);
   const threadIdRef = useRef(null);
+  const threadTitleRef = useRef(null);
   const isRemoteResponseRef = useRef(false);
   const messagesRef = useRef([]);
   const suggestionsEnabledRef = useRef(suggestionsEnabled);
@@ -276,7 +277,12 @@ export function useChat({ selectedModel } = {}) {
         }
         case 'thread_title': {
           if (data.payload?.title) {
-            setThreadTitle(data.payload.title);
+setThreadTitle(data.payload.title);
+            // Add active class to title for animation
+            if (threadTitleRef.current) {
+              threadTitleRef.current.classList.add('active');
+            }             
+
           }
           break;
         }
@@ -662,6 +668,7 @@ export function useChat({ selectedModel } = {}) {
     suggestionsEnabled,
     setSuggestionsEnabled,
     threadTitle,
+    threadTitleRef,
     sendMessage,
     clearHistory,
     loadHistory: () => {},
