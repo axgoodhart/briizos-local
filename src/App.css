@@ -54,11 +54,12 @@ body {
     height: 100vh;
     background: linear-gradient(violet, var(--ui-app-bg));
     color: var(--ui-text-primary);
-    font-family: Chillax, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+    font-family: BC Alphapipe,Jost,AWeber,Ashemore,Chillax,Aisha Latin,Afacad Flux,'Forma DJR Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
     border: var(--ui-app-border);
     border-radius: var(--ui-app-border-radius);
-    box-shadow: var(--ui-app-shadow);}
+    box-shadow: var(--ui-app-shadow);
+font-family:var(--ui-font-main, Chillax);}
 .app-header {
     display: flex;
     justify-content: space-between;
@@ -93,7 +94,7 @@ body {
     align-items: center;
     gap: 10px;
     margin-left: auto;
-    margin-right: 12px;
+    margin-right: 52px;
     font-size: 12px;
     letter-spacing: 1px;
     opacity: 0.85;
@@ -106,25 +107,48 @@ body {
     font-weight: 800;}
 .header-weather {
     font-weight: 600;}
-.settings-btn {
+#settings-btn {
     display: flex;
+    user-select:none;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: var(--ui-button-ghost-bg);
-    border: 1px solid var(--ui-button-ghost-border);
-    border-radius: 4px;
+    position:absolute;;
+    right:10px;
+    background-image:url(/public/assets/images/sd.png);
+    width:50px;
+    background-size:cover;
+    height:50px;
+    border:none;
+    padding: 0px 0px;
+    background-color:transparent;
+    border-radius: 0px;
     color: var(--ui-button-ghost-text);
     font-size: 11px;
+    opacity:.5;
     cursor: pointer;
     -webkit-app-region: no-drag;
-    transition: all 0.2s ease;
-    font-weight: 500;}
-.settings-btn:hover {
-    background: var(--ui-button-ghost-bg-hover);
-    color: var(--ui-button-ghost-text-hover);}
+    transform:scale(.5);
+    pointer-events:all;
+    transition: all 1.2s cubic-bezier(0.5, .01, 0.7, 1);
+    border:none !important;
+    outline: none !important;
+    font-weight: 500;
+}
+#settings-btn:hover {
+transform:scale(1)rotate(1800deg);
+opacity:1;filter:brightness(1.5)invert(0);;
+border:none;
+}
+
+#settings-btn:active {
+
+    transition:all .3s ease;
+    transform:scale(.7)rotate(1800deg);
+    outline:none;
+    background-origin: padding-box;
+}
+
 .settings-icon {
-    font-size: 18px;}
+    font-size: 0px;}
 .app-main {
     display: flex;
     flex: 1;
@@ -195,6 +219,8 @@ padding:0;
 background:var(--palette-accent-primary-soft);
 border-radius:4px;
 }
+
+
 .source-section {
     margin-bottom: 8px;overflow-y:scroll;}
 .source-header {
@@ -271,6 +297,17 @@ border-radius:4px;
     border:2px solid var(--log-section-border);
     background: var(--log-section-bg);
     box-shadow:inset 0 0 18px black;}
+
+.log-section ::-webkit-scrollbar {
+width:2px;
+padding:0;
+}
+.log-section::-webkit-scrollbar-thumb {
+background:var(--palette-accent-primary-soft);
+border-radius:4px;
+}
+
+
 .log-header {
     padding: 8px 10px;
     font-size: 11px;
@@ -279,21 +316,147 @@ border-radius:4px;
     text-shadow:2px 1px 1px black;
     text-transform: uppercase;
     letter-spacing: 0.5px;}
-.log-entries {
+/* ---- Unified Log Panel ---- */
+.log-counts {
+    display: flex;
+    gap: 3px;
+    align-items: center;}
+.log-count {
+    font-size: 8px;
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 3px;
+    line-height: 14px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;}
+.log-count-error {
+    background: rgba(255, 82, 82, 0.2);
+    color: #ff5252;}
+.log-count-warn {
+    background: rgba(255, 171, 64, 0.2);
+    color: #ffab40;}
+.log-header-btn {
+    background: none;
+    border: 1px solid rgba(0, 200, 200, 0.15);
+    color: var(--palette-accent-primary, #00e5ff);
+    font-size: 9px;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s;}
+.log-header-btn:hover {
+    opacity: 1;
+    background: rgba(0, 200, 200, 0.08);}
+.log-btn-active {
+    opacity: 1;
+    background: rgba(255, 171, 64, 0.15);
+    border-color: rgba(255, 171, 64, 0.3);
+    color: #ffab40;}
+.log-paused-bar {
+    text-align: center;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 2px 0;
+    background: rgba(255, 171, 64, 0.1);
+    color: #ffab40;
+    border-bottom: 1px solid rgba(255, 171, 64, 0.15);}
+.log-filters {
+    display: flex;
+    gap: 4px;
     padding: 4px 8px;
+    border-bottom: 1px solid rgba(0, 200, 200, 0.08);}
+.log-filter-select {
+    background: rgba(0,0,0,0.3);
+    color: var(--palette-accent-primary, #00e5ff);
+    border: 1px solid rgba(0, 200, 200, 0.15);
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    padding: 2px 4px;
+    outline: none;
+    cursor: pointer;}
+.log-filter-select:hover {
+    border-color: rgba(0, 200, 200, 0.3);}
+.log-search {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    color: var(--palette-accent-primary, #00e5ff);
+    border: 1px solid rgba(0, 200, 200, 0.15);
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    padding: 2px 6px;
+    outline: none;
+    min-width: 0;}
+.log-search::placeholder {
+    color: rgba(0, 200, 200, 0.3);}
+.log-entries {
+    padding: 2px 8px;
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
     font-size: 9px;
     color: var(--palette-accent-primary);
     overflow-y: auto;}
 .log-entry {
-    padding: 3px 0;
-    border-bottom: 1px solid rgba(0, 200, 200, 0.05);
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(0, 200, 200, 0.04);
     line-height: 1.4;}
-.log-date {
-    color: var(--palette-accent-primary);}
+.log-entry:hover {
+    background: rgba(0, 200, 200, 0.03);}
+.log-row {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    min-width: 0;}
+.log-time {
+    color: rgba(0, 200, 200, 0.35);
+    flex-shrink: 0;
+    font-size: 8px;}
+.log-source {
+    flex-shrink: 0;
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    opacity: 0.8;}
+.log-type {
+    flex-shrink: 0;
+    font-weight: 500;
+    font-size: 8px;}
 .log-message {
     color: var(--palette-neon-accent);
-    margin-left: 4px;}
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;}
+.log-expand {
+    flex-shrink: 0;
+    font-size: 7px;
+    opacity: 0.4;}
+.log-data {
+    margin: 2px 0 4px 40px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 3px;
+    color: rgba(0, 200, 200, 0.5);
+    font-size: 8px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 120px;
+    overflow-y: auto;}
+.log-empty .log-message {
+    opacity: 0.4;}
+.log-level-error .log-message { color: #ff5252; }
+.log-level-error .log-type { color: #ff5252 !important; }
+.log-level-warn .log-message { color: #ffab40; }
+.log-level-warn .log-type { color: #ffab40 !important; }
+.log-level-debug .log-message { opacity: 0.5; }
+.log-level-debug .log-type { opacity: 0.5; }
 .interaction-panel {
     display: flex;
     flex-direction: column;
@@ -304,12 +467,14 @@ border-radius:4px;
     flex: 1;
     width: 100%;
     display: flex;
+    height:100%;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     position: relative;
     background: linear-gradient(to bottom,rgb(255, 72, 0), rgb(195, 18, 121));
     overflow: hidden;
+    padding-bottom:9vh;
     box-shadow: inset 0 0 100px black;
     min-height: 0;}
 .chat-container.has-custom-bg {
@@ -377,6 +542,8 @@ border-radius:4px;
     margin-top: 0;}
 .reactbits-bg {
     position: absolute;
+    width:100%;
+    height:100%;
     inset: 0;
     z-index: 0;
     pointer-events: none;
@@ -386,7 +553,8 @@ border-radius:4px;
     width: 100%;
     height: 100%;}
 .reactbits-bg canvas {
-    display: block;}
+    display: block;
+width:100vw;height:100vh;}
 .chat-bg-blur-slider {
     width: 100%;
     display: flex;
@@ -500,52 +668,66 @@ border-radius:4px;
 .chat-input-area {
     width: 100%;
     position:absolute;
-    bottom:5%;
+    bottom:0%;
     display:flex;
-    
-    background: linear-gradient(180deg, transparent 0%, rgba(10, 22, 40, 0.8) 100%);}
+    height:15vh;
+    z-index:5;
+    backdrop-filter:blur(2px);;
+}
 .chat-input-wrapper{
     display: flex;
     flex-direction: row;
     position: absolute;
     width: 50%;
     overflow:hidden;
-background:var(--ui-chat-input-bg);
     justify-content: center;
-    border: .5px solid teal;
+    border: .5px solid  var(--chat-input-border-color, teal);
     border-radius: 150px;
-    bottom: 10%;
+    bottom: 25%;
     left: 25%;
-    backdrop-filter: blur(4px);
     opacity: .5;
     z-index: 50;
     transition: all .42s ease;
-    padding: 0;
-    margin-bottom:20px;}
+    padding: 0;;}
 .chat-input-wrapper:focus-within {
-    bottom: 5%;
-    width:90%;
+    bottom: 0%;
+    width:100%;
+    border-radius:40px 40px 0 0 ;
     border:1px solid teal;
-    left:5%;
-background:var(--ui-chat-input-bg), linear-gradient(to top, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 1) 100%);
+   border-bottom-color:transparent; left:0;
+
     opacity: 1;}
 
 
 
-.chat-thread-title {
+.chat-thread {
     position: relative;
     font-size: 1rem;
     color: rgba(255, 255, 255, 0.55);
     pointer-events: none;
     z-index: 51;
     text-transform:none;
-    font-weight:500;
+    font-weight: 800;
+    text-align:center;
+    height:100%;
+    border-bottom:2px solid var(--palette-accent-primary-soft, whitesmoke);
+    border-radius:10px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    align-items:center;
+    justify-content:center;
+    flex:1;
+    transform:translateY(50%);
+    background-color:inherit;
+    text-indent:4px;
     text-shadow: 2px 2px 3px rgb(51, 1, 1);
-    transition: bottom 0.42s ease, left 0.42s ease;
+    transition: all 1s ease;
 opacity:0;
 letter-spacing:-7px;}
 
 .chat-thread-title.active {
+    transition:1s ease;
     opacity:1;
     letter-spacing: -1px;
 }
@@ -561,6 +743,10 @@ letter-spacing:-7px;}
     align-items: center;
     align-content: center;
     font-family: inherit;
+        border: none;
+border-bottom:none;
+border-left:none;
+border-right:none;
     }
 .chat-input::placeholder {
     color: var(--ui-chat-placeholder);}
@@ -706,18 +892,20 @@ letter-spacing:-7px;}
     flex-direction: column;
     gap: 12px;}
 .chat-message {
+    position: relative;
     backdrop-filter: blur(10px);
     max-width: 85%;
     padding: 12px 16px;
     border-radius: 12px;
+    transition:all .1s ease;
     animation: fadeIn 0.2s ease;}
 .chat-message.user {
     align-self: flex-end;
-    background: linear-gradient(135deg, rgba(0, 100, 120, 0.6) 0%, rgba(0, 80, 100, 0.4) 100%);
+    background: var(--chatmsg-usr, rgba(30, 50, 70, 0.6));
     border: 1px solid rgba(0, 200, 200, 0.3);}
 .chat-message.assistant {
     align-self: flex-start;
-    background: rgba(30, 50, 70, 0.6);
+    background: var(--chatmsg-bot, rgba(30, 50, 70, 0.6));
     border: 1px solid rgba(100, 150, 180, 0.2);}
 .chat-message.error {
     border-color: rgba(255, 100, 100, 0.4);
@@ -790,20 +978,21 @@ letter-spacing:-7px;}
     text-align: center;}
 .chat-send-btn {
     width: 15%;
-    background: rgba(0, 180, 200, 0.25);
+    background: var(--ui-chat-header-bg, rgba(0, 180, 100, 0.25));
     border: 1px solid rgba(0, 200, 200, 0.35);
     color: var(--palette-accent-primary);
-    font-size: 26px;
+    font-size: 36px;
     opacity:.5;
     cursor: pointer;
-    transition: all 0.2s ease;}
+    transition: all 0.2s ease, font-size .6s;}
 .chat-send-btn:hover:not(:disabled) {
-    box-shadow:inset 0 0 8px lime;
-    background: rgba(108, 153, 100, 0.86);
-    color:lime;
+    box-shadow: inset 5px 0 8px var(--palette-accent-primary-soft);
+    filter:brightness(1.3)saturate(1.2)contrast(1.1);
     opacity:1;}
 .chat-send-btn:disabled {
-    opacity: 0.73;
+    opacity: 0.2;
+    font-size:16px;
+    background:var(--ui-chat-header-bg);
     cursor: not-allowed;}
 .task-input-form {
     display: flex;
@@ -902,31 +1091,7 @@ letter-spacing:-7px;}
     color: #00b8d4;
     margin-left: 4px;
     font-weight: 500;}
-/* Log panel — assistant messages & tool call visibility */
-.log-entry.log-assistant .log-level {
-    color: #b388ff;}
-.log-entry.log-assistant .log-message {
-    color: #ce93d8;}
-.log-entry.log-tool-call .log-level {
-    color: #ffab40;}
-.log-entry.log-tool-call .log-message {
-    color: #ffcc80;}
-.log-entry.log-tool-result .log-level {
-    color: #69f0ae;}
-.log-entry.log-tool-result .log-message {
-    color: #a5d6a7;}
-.log-entry.log-agent-step .log-level {
-    color: #60a5fa;}
-.log-entry.log-agent-step .log-message {
-    color: #93c5fd;}
-.log-entry.log-agent-complete .log-level {
-    color: #34d399;}
-.log-entry.log-agent-complete .log-message {
-    color: #6ee7b7;}
-.log-entry.log-error .log-level {
-    color: #ff5252;}
-.log-entry.log-error .log-message {
-    color: #ef9a9a;}
+/* (Log panel level colors now in unified .log-level-* rules above) */
 .file-tree {
     padding: 4px 0;}
 .file-tree-item-container {
@@ -1017,7 +1182,7 @@ letter-spacing:-7px;}
     animation: fadeIn 0.2s ease;}
 .modal-container {
     width: 90%;
-    max-width: 520px;
+    max-width: 70vw;
     max-height: 80vh;
     background: var(--ui-modal-bg);
     border: 1px solid var(--ui-modal-border);
@@ -1052,13 +1217,22 @@ letter-spacing:-7px;}
     color: var(--palette-danger);}
 .modal-tabs {
     display: flex;
+    flex-shrink:0 !important;
+    overflow:scroll;
+    height:fit-content;
     gap: 0;
+        height:40px !important;
+
     border-bottom: 1px solid var(--ui-modal-tabs-border);
     background: var(--ui-modal-tabs-bg);}
+
+
+.modal-tabs::-webkit-scrollbar {
+  display: none;
+}
 .modal-tab {
-    flex: 1;
-    padding: 12px 16px;
     background: transparent;
+    padding: 2px 13px;
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--ui-modal-tab-text);
@@ -1066,6 +1240,7 @@ letter-spacing:-7px;}
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    height:40px !important;
     cursor: pointer;
     transition: all 0.2s ease;}
 .modal-tab:hover {
@@ -2009,23 +2184,18 @@ letter-spacing:-7px;}
             box-shadow: 0 8px 32px 0 rgba(0, 242, 254, 0.1);
             margin-bottom: 25px;
             position: relative;
-            overflow: scroll;
+            overflow-y:auto;
             z-index:1;
     animation: cardSlideIn 0.25s ease-out;}
-.task-card::before{             content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.05) 50%, transparent 55%);
-            transform: rotate(30deg);
-            animation: reflection 1s 2 forwards linear;
-        }
-        @keyframes reflection {
-            0% { transform: scale(1.6)translateX(-100%) rotate(30deg); }
-            100% { transform: scale(1.6)translateX(100%) rotate(30deg); }
-        }
+    
+
+.task-card.active {
+    animation: pulse 1.5s infinite linear;
+}
+
+@keyframes pulse {
+    0% { filter:invert(.06)brightness(1) }
+}
 
 @keyframes cardSlideIn {
     from { opacity: 0; height:0.1px; }
@@ -2305,7 +2475,7 @@ position:absolute;left:2.5%;bottom:1.5%;width:95%}
     background: var(--ui-controlbar-bg);
     box-shadow: var(--ui-controlbar-shadow);
     gap: 20px;
-    background-size: 400% 400%;
+    background-size: var(--ui-controlbar-bg-size,400% 400%);
     justify-content: center;
     height: 75px;
     animation: backflow 200s linear infinite;
@@ -2318,29 +2488,33 @@ position:absolute;left:2.5%;bottom:1.5%;width:95%}
     height: 0;
     pointer-events: none;
     filter: blur(100px);}
+
 #controlBarBtn {
     border: none;
-    height: 70px;
-    opacity: .61;
+    height: 40px;
     position: fixed;
     left: 45%;
+    transform-origin:center center;
     top: 0px;
-    width: 70px;
+    width: 40px;
     background-size: cover;
-    filter: saturate(.3) hue-rotate(210deg) brightness(1.2);
+    filter: saturate(.3) hue-rotate(20deg) brightness(1.2)drop-shadow(0 0 50px pink);
     background-image: url(https://i.ibb.co/pBHtkJcD/brii.png) !important;
     -webkit-user-drag: none;
     app-region: no-drag;
     transition: all 1s, opacity .2s;
     animation: porygon 20s linear infinite;}
+
 #controlBarBtn:hover {
     top: -10px;
+    left:40%;
     height: 80px;
     width: 80px;
     opacity: 1;
-    filter: saturate(.3) hue-rotate(20deg) brightness(1.2)drop-shadow(0 0 50px pink);}
+    filter: saturate(1) hue-rotate(20deg) brightness(1.2)drop-shadow(0 0 50px pink);
+}
 #controlBarBtn:active {
-    opacity: 0;}
+        filter:saturate(4) hue-rotate(20deg) brightness(3.2)drop-shadow(0 0 30px teal);}
 .chat-textarea {
     flex: 1;
     text-align:center;
@@ -2533,17 +2707,40 @@ font-size:10px;    transition: all 0.3s ease !important;}
     border: 2px solid #ff5050;
     color: #ffcccc;
     box-shadow: 0 8px 32px rgba(255, 80, 80, 0.3);}
-.message-tooltip {
-    background: rgba(0, 20, 40, 0.95);
+.message-tooltip-assistant {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    transform: translateX(10%)translateY(60%);
     border: 1px solid rgba(0, 229, 229, 0.3);
     border-radius: 8px;
     padding: 4px;
     display: flex;
     gap: 4px;
     backdrop-filter: blur(10px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);}
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    width: fit-content;
+    z-index: 100;}
+
+.message-tooltip-user {
+    position: absolute;
+    right: 50%;
+    bottom: 90%;
+    transform: translateX(10%)translateY(60%);
+    border: 1px solid rgba(0, 229, 229, 0.3);
+    border-radius: 8px;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    width: fit-content;
+    z-index: 100;}
+
+
+
 .tooltip-btn {
-    background: rgba(0, 229, 229, 0.1);
+    background: linear-gradient(transparent 70%, var(--ui-chat-header-bg));
     border: 1px solid rgba(0, 229, 229, 0.2);
     color: var(--palette-accent-primary);
     padding: 4px 10px;
@@ -2625,27 +2822,32 @@ font-size:10px;    transition: all 0.3s ease !important;}
     line-height: 1.4;}
 .chat-input-toolbar {
     position:absolute;
-    top:0px;
+    bottom:0px;
     left:0;
-    border-top:1px solid transparent;
+    border-top:1px solid rgba(255,255,255,.2);
     opacity:.5;
 backdrop-filter:blur(10px);
 border-radius:20px 20px 0 0;
     z-index:51;
+    width:100px;
     transition:all .3s;
-    width:100%;}
-.chat-input-toolbar:hover {
+    overflow:hidden;}
+.chat-input-toolbar:hover, .chat-input-toolbar:focus-within {
     opacity:1;
+    height:30px;
+    width:100%;
+    overflow:visible;
     border-top:1px solid teal;}
 
 
 /*Themes*/
 
 :root {
+    --chat-input-border-color:lime;
             --holo-bg-dark: #0a0e17;
             --glass-bg: linear-gradient(to bottom, gray, rgba(255, 255, 255, 0.083) 20%);
                         --glass-bg-light: linear-gradient(to bottom, gray, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255,255,255,.4) 130%);
-
+            --ui-font-main: Chillax;
             --glass-border: rgba(255, 255, 255, 0.08);
             --holo-blue: #00f1fe3d;
             --holo-pink: #f5576c;
@@ -2662,7 +2864,7 @@ border-radius:20px 20px 0 0;
     --chat-input-text-color: lime;
     --palette-accent-briizlogo: rgb(191, 234, 191);
         --palette-accent-primary: #00e5e5;
-    --palette-accent-primary-soft: #00d4d4;
+    --palette-accent-primary-soft: #a4ac8d;
     --palette-neon-accent: #00ff88;
     --palette-success: #4caf50;
     --palette-warning: #ffd54f;
@@ -2674,7 +2876,7 @@ border-radius:20px 20px 0 0;
     --palette-text-muted: #666;
     --palette-text-dim: #555;
     --palette-white: #fff;
-    --ui-body-bg: #0a1628;
+    --ui-body-bg: black;
     --ui-app-bg: black;
     --ui-app-border: 3px solid #000;
     --ui-app-shadow: inset 0 0 10px rgba(0, 40, 70);
@@ -2695,8 +2897,8 @@ border-radius:20px 20px 0 0;
     --ui-panel-btn: var(--palette-text-muted);
     --ui-panel-btn-hover: var(--palette-accent-primary);
     --ui-chat-header-text: pink;
-    --ui-chat-header-bg: rgba(255, 20, 145, 0.41);
-    --ui-chat-header-border: deeppink;
+    --ui-chat-header-bg: linear-gradient(teal, transparent 50%,  lime);;
+    --ui-chat-header-border: lime;
     --ui-chat-input-bg: linear-gradient(rgba(22, 135, 131, 0.6), rgba(0, 43, 54, 0.447));
     --ui-chat-input-border: rgba(0, 200, 200, 0.2);
     --ui-chat-input-text: var(--palette-white);
@@ -2843,7 +3045,7 @@ border-radius:20px 20px 0 0;
   --theme-components-phantomsection-root-app-b5mm4: green;
   --theme-components-phantomsection-root-app-o0md2: black;
   /* src/components/controlbar/ControlBar.css */
-  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: deepskyblue;
+
   --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 53, 161);
   --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: pink;
   --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: red;
@@ -2890,29 +3092,6 @@ border-radius:20px 20px 0 0;
   --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0));
   --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(200, 180, 60, .1);
   --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: black;
-  /* src/components/overlays/ActionDeckColumn.css */
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(0, 60, 60, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(110, 10, 10, 0.7);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(170, 30, 30, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(150, 30, 30, 0.7);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(255, 100, 100, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #ffb1b1;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #b5d9d9;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(0, 90, 90, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(0, 229, 229, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: white;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(20, 170, 0, 0.5);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(5, 250, 160, 0.45);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #ffd18a;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: black;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(0, 200, 200, 0.35);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(0, 0, 0, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(0, 0, 0, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(103, 255, 166, 0.5));
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(0, 255, 0, 0.584);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #ffc107;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: lime;
   /* src/components/overlays/BriiztormOverlay.css */
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.2);
@@ -2954,12 +3133,6 @@ border-radius:20px 20px 0 0;
   --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(0, 180, 200, 0.6);
   --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(20, 40, 60, 0.6);
   --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(0, 200, 200, 0.5);
-  /* src/components/overlays/DashboardOverlay.css */
-  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(0, 200, 200, 0.1);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(0, 200, 200, 0.06);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(10, 20, 30, 0.5);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(0, 200, 200, 0.12);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(10, 20, 30, 0.6);
   /* src/components/overlays/LiveCanvas.css */
   --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
   --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.06);
@@ -3008,6 +3181,8 @@ border-radius:20px 20px 0 0;
 
 
 :root[data-theme='winterbloom']{
+--chat-input-border-color:blue;
+    --ui-font-main:Adso;
 --holo-bg-dark: #020205;
 --glass-bg: linear-gradient(165deg, rgba(10, 10, 20, 0.85) 0%, rgba(25, 15, 50, 0.6) 40%, rgba(5, 5, 15, 0.9) 100%);
 --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01) 50%, rgba(138, 43, 226, 0.1) 100%);
@@ -3211,7 +3386,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-phantomsection-root-app-1jpsf: #7b2cbf;
 --theme-components-phantomsection-root-app-b5mm4: #9d4edd;
 --theme-components-phantomsection-root-app-o0md2: #020205;
---theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: #ff00e5;
 --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: #00f7ff;
 --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: transparent;
 --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #ffbe0b;
@@ -3257,28 +3431,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom, #0a0a1a, #010103);
 --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: -10px 0 30px rgba(0, 0, 0, 0.5);
 --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: 0 0 10px rgba(123, 44, 191, 0.8);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(20, 20, 40, 0.6);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(255, 0, 84, 0.2);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(255, 0, 84, 0.4);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(255, 0, 84, 0.4);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: #ff0054;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #b1a7b9;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(123, 44, 191, 0.3);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: #00f7ff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(0, 255, 163, 0.15);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: #00ff9d;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: rgba(5, 5, 10, 0.95);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(123, 44, 191, 0.5);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: 0 15px 50px rgba(0, 0, 0, 0.8);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: 0 25px 80px rgba(0, 0, 0, 0.9);
---theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to right, rgba(123, 44, 191, 0.2), transparent);
---theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(123, 44, 191, 0.4);
---theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #05050a 0%, #1a0a2e 100%);
---theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #5a5260;
---theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: #00f7ff;
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(123, 44, 191, 0.1);
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(123, 44, 191, 0.3);
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(255, 0, 84, 0.4);
@@ -3318,11 +3470,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #9d4edd;
 --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(0, 0, 0, 0.6);
 --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: #00f7ff;
---theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(123, 44, 191, 0.15);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(0, 247, 255, 0.08);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(5, 5, 10, 0.5);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(123, 44, 191, 0.2);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(10, 10, 20, 0.6);
 --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(123, 44, 191, 0.1);
 --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(123, 44, 191, 0.2);
 --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #020205;
@@ -3369,6 +3516,8 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 
 
 :root[data-theme='antarctic-teafog']{
+    --ui-font-main: Warbler Variable;;
+    --chat-input-border-color:palegoldenrod;
 --holo-bg-dark: #0f1716;
 --glass-bg: linear-gradient(135deg, rgba(224, 255, 247, 0.12) 0%, rgba(200, 215, 210, 0.05) 50%, rgba(142, 84, 49, 0.08) 100%);
 --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(224, 255, 247, 0.08) 30%, transparent 60%, rgba(212, 163, 115, 0.1) 130%);
@@ -3385,13 +3534,14 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --text-glow: 0 0 4px rgba(240, 253, 250, 0.3);
 --card-glass: rgba(15, 23, 22, 0.65);
 --chat-input-text-color: #98ffd9;
+--chat-send-btn-bg: rgba(0,210,240,.8);
 --palette-accent-briizlogo: #e0fff7;
---palette-accent-primary: #4fd1c5;
---palette-accent-primary-soft: #81e6d9;
---palette-neon-accent: #00f5d4;
---palette-success: #a7f3d0;
---palette-warning: #fde68a;
---palette-danger: #fda4af;
+--palette-accent-primary: gold;
+--palette-accent-primary-soft: palegoldenrod;;
+--palette-neon-accent: violet;
+--palette-success: white;
+--palette-warning: orange;
+--palette-danger: magenta;
 --palette-text-main: #e6fffa;
 --palette-text-faint: #94a3b8;
 --palette-text-soft: #cbd5e1;
@@ -3401,7 +3551,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --palette-white: #ffffff;
 --ui-body-bg: #0b1211;
 --ui-app-bg:linear-gradient(to right, #0f1716 0%, #1a2e2b 50%, #17100b 100%);;
---ui-app-border: linear-gradient(to right, #0f1716 0%, #1a2e2b 50%, #17100b 100%);
+--ui-app-border: 2px solid rgba(152, 255, 217, 0.2);
 --ui-app-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(212, 163, 115, 0.05);
 --ui-text-primary: var(--palette-text-main);
 --ui-header-text: #f0fdfa;
@@ -3484,9 +3634,10 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --ui-markdown-code-bg: rgba(15, 23, 22, 0.8);
 --ui-markdown-code-color: #81e6d9;
 --ui-markdown-th-bg: rgba(212, 163, 115, 0.08);
---ui-controlbar-bg: repeating-linear-gradient(-222deg, purple, rgb(140,90,0), rgb(80,60,0), orange, purple),repeating-linear-gradient(222deg, purple, rgb(140,90,0), rgb(80,60,0), orange, purple);
+--ui-controlbar-bg: linear-gradient(45deg, rgba(255,255,0,0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(-45deg, rgba(255,255,0,0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(45deg, transparent 75%, rgba(255,255,0,0.02) 75%) 0 0 / 20px 20px, linear-gradient(-45deg, transparent 75%, rgba(255,255,0,0.02) 75%) 0 0 / 20px 20px, #2c2c2c;
+--ui-controlbar-bg-size: 120px 120px;
 --ui-controlbar-shadow:inset 0 0 8px black,inset 0 0 20px goldenrod;
---ui-controlbar-filter: contrast(1)brightness(1);
+--ui-controlbar-filter: blur(0px) brightness(1) saturate(0.2);
 --ui-controlbar-filter-hover: blur(0px) brightness(1.2) saturate(1.1);
 --layout-bg-primary: #0b1211;
 --layout-bg-secondary: #050808;
@@ -3569,7 +3720,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-phantomsection-root-app-1jpsf: black;
 --theme-components-phantomsection-root-app-b5mm4: black;
 --theme-components-phantomsection-root-app-o0md2: #050808;
---theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: #d4a373;
 --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: #98ffd9;
 --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgba(255, 255, 255, 0.1);
 --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #81e6d9;
@@ -3591,7 +3741,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: #1a2e2b;
 --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(212, 163, 115, 0.4);
 --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, #d4a373 40%, #d4a373 50%, transparent 50%);
---theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: 0 10px 30px rgba(0, 0, 0, 0.5);
+--theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: 0 0 10px white,0 0px 30px rgba(0, 220, 250, 0.5);
 --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, #1a2e2b, #0b1211);
 --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: 0 4px 20px rgba(0, 0, 0, 0.4);
 --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(26, 46, 43, 0.5), transparent);
@@ -3599,12 +3749,12 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-notes-noteswidget-note-btn-color-26sfj: #98ffd9;
 --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.05);
 --theme-components-notes-noteswidget-note-card-background-48988: #111a19;
---theme-components-notes-noteswidget-note-card-border-9zuog: rgba(152, 255, 217, 0.1);
+--theme-components-notes-noteswidget-note-card-border-9zuog: rgba(152, 255, 217, 0.2);
 --theme-components-notes-noteswidget-note-card-border-top-12gea: #d4a373;
 --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: 0 4px 12px rgba(0, 0, 0, 0.3);
 --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: #4fd1c5;
 --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: 0 8px 24px rgba(0, 0, 0, 0.4);
---theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 0, 0, 0.15);
+--theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 140, 120, 0.15);
 --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(255, 255, 255, 0.03);
 --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, #81e6d9 45%, #81e6d9 55%, transparent 55%);
 --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: #f0fdfa;
@@ -3615,28 +3765,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, #0b1211, #17100b);
 --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: -10px 0 30px rgba(0, 0, 0, 0.3);
 --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: 0 2px 4px rgba(0,0,0,0.5);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(26, 46, 43, 0.6);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(142, 84, 49, 0.3);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(142, 84, 49, 0.5);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: #8e5431;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: #d4a373;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #f0fdfa;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #cbd5e1;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(79, 209, 197, 0.2);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: #98ffd9;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(212, 163, 115, 0.2);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: #d4a373;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #fde68a;
---theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: #050808;
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(79, 209, 197, 0.3);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: 0 20px 40px rgba(0, 0, 0, 0.6);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: 0 30px 60px rgba(0, 0, 0, 0.8);
---theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to right, rgba(79, 209, 197, 0.15), transparent);
---theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(152, 255, 217, 0.2);
---theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #0b1211 0%, #050808 100%);
---theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #334155;
---theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: #98ffd9;
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.3);
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.05);
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: #8e5431;
@@ -3676,11 +3804,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #81e6d9;
 --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(0, 0, 0, 0.4);
 --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: #4fd1c5;
---theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(255, 255, 255, 0.03);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(79, 209, 197, 0.05);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(0, 0, 0, 0.2);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(152, 255, 217, 0.05);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(15, 23, 22, 0.5);
 --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(26, 46, 43, 0.5);
 --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(152, 255, 217, 0.1);
 --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #0b1211;
@@ -3728,6 +3851,8 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 
 
 :root[data-theme='postlinear-glassos'] {
+--ui-font-main: BC Alphapipe;
+--chat-inut-border-color:gray;
 --holo-bg-dark: #050505;
 --glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(0,0,0,1) 100%);
 --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05) 20%, transparent 50%, rgba(255,255,255,0.08) 130%);
@@ -3744,6 +3869,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --text-glow: 0 0 2px rgba(255, 255, 255, 0.2);
         --card-glass: rgba(255, 255, 255, 0.03);
 --chat-input-text-color: #ffffff;
+--chat-send-btn-bg:rgb(0,0,0);
 --palette-accent-briizlogo: #ffffff;
 --palette-accent-primary: #ffffff;
 --palette-accent-primary-soft: #cccccc;
@@ -3841,10 +3967,10 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --ui-markdown-code-bg: rgba(255, 255, 255, 0.05);
 --ui-markdown-code-color: #f0f0f0;
 --ui-markdown-th-bg: rgba(255, 255, 255, 0.05);
---ui-controlbar-bg: linear-gradient(180deg, rgba(20, 20, 20, 0.8), rgba(0, 0, 0, 0.9));
+--ui-controlbar-bg: radial-gradient(rgb(20,20,20)  2px, black 4px);
+--ui-controlbar-bg-size: 45px 45px;
 --ui-controlbar-shadow: 0 -1px 0 rgba(255, 255, 255, 0.1);
---ui-controlbar-filter: blur(15px)brightness(.5)grayscale(1)contrast(1)invert(0);
---ui-controlbar-filter-hover: blur(0px) brightness(.9) grayscale(1)contrast(1)invert(1);
+--ui-controlbar-filter-hover: blur(0px) brightness(.9) grayscale(1)contrast(1);
 --layout-bg-primary: gray;
 --layout-bg-secondary: black;
 --layout-bg-panel:linear-gradient(to bottom, transparent, rgba(255,255,255,.1)),radial-gradient(rgba(0,0,0,.7) 3px, rgba(0,40,40.8) .4px) 10px 10px / 5px 5px black;;
@@ -3925,7 +4051,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-phantomsection-root-app-1jpsf: #ffffff;
 --theme-components-phantomsection-root-app-b5mm4: #888888;
 --theme-components-phantomsection-root-app-o0md2: #000000;
---theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: #ffffff;
 --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: #ffffff;
 --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: transparent;
 --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #cccccc;
@@ -3968,31 +4093,9 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: none;
 --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: #444444;
 --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: #666666;
---theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom, #050505, #111111);
---theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: none;
+--theme-components-notes-noteswidget-notes-drawer-background-gradient:  repeating-linear-gradient(45deg, #333, #333 1px, #111 1px, #111 3px) ;
+--theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: inset 0 0 3px cyan;;
 --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: none;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(255, 255, 255, 0.03);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(255, 255, 255, 0.02);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(255, 255, 255, 0.05);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(255, 255, 255, 0.05);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(255, 255, 255, 0.1);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #888888;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(255, 255, 255, 0.08);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(255, 255, 255, 0.1);
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #ffffff;
---theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: #000000;
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(255, 255, 255, 0.1);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: 0 30px 60px rgba(0, 0, 0, 0.8);
---theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: 0 40px 80px rgba(0, 0, 0, 0.9);
---theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent);
---theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(255, 255, 255, 0.1);
---theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #111111 0%, #000000 100%);
---theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #444444;
---theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: #ffffff;
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(255, 255, 255, 0.03);
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.1);
 --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(255, 255, 255, 0.1);
@@ -4032,11 +4135,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(255, 255, 255, 0.2);
 --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(0, 0, 0, 0.3);
 --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(255, 255, 255, 0.4);
---theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(255, 255, 255, 0.05);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(255, 255, 255, 0.04);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: #050505;
---theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(255, 255, 255, 0.05);
---theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: #0a0a0a;
 --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
 --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.08);
 --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #050505;
@@ -4283,7 +4381,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --theme-components-phantomsection-root-app-1jpsf: #FFCFE6;
     --theme-components-phantomsection-root-app-b5mm4: #CFF0E1;
     --theme-components-phantomsection-root-app-o0md2: #041023;
-    --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: #AEE9FF;
     --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255,95,155);
     --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: #FF7DA6;
     --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #FFB5A7;
@@ -4330,28 +4427,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(4,8,18,.8);
     --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgba(4,8,18,0.8);
     --notes-title: violet;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(8,16,26,0.6);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(150,30,30,0.6);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(255,90,90,0.5);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(255,90,90,0.58);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(255,90,90,0.5);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #FFD0D8;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #DDEFF7;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(12,18,28,0.65);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(174,233,255,0.28);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: #FFF0F6;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(255,140,185,0.12);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(255,140,185,0.28);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #FFD6E0;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: #041022;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(174,233,255,0.14);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(3,8,16,0.6);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(3,8,16,0.8);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(255,140,185,0.14));
-    --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(255,140,185,0.2);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #06102a 0%, #071225 100%);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #FFD6A5;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: #FFD6E0;
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(8,12,20,0.44);
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255,240,246,0.06);
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(255,90,90,0.14);
@@ -4391,11 +4466,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(255,140,185,0.16);
     --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(8,14,28,0.6);
     --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(174,233,255,0.18);
-    --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(255,200,215,0.06);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(255,240,245,0.03);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(8,14,26,0.5);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(174,233,255,0.06);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(8,14,26,0.64);
     --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255,244,248,0.04);
     --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255,241,246,0.06);
     --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #071225;
@@ -4621,7 +4691,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-phantomsection-root-app-1jpsf: #00e5ff;
   --theme-components-phantomsection-root-app-b5mm4: green;
   --theme-components-phantomsection-root-app-o0md2: black;
-  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: rgb(204, 61, 255);
   --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 248, 114);
   --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgba(126, 6, 255, 0.2);
   --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: rgb(161, 255, 61);
@@ -4667,28 +4736,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0));
   --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(0, 0, 0, .31);
   --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgb(236, 237, 232);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(28, 13, 34, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(135, 27, 175, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: rgb(179, 55, 224);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: rgb(120, 129, 116);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(25, 66, 10, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: rgb(179, 179, 179);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(60, 86, 16, 0.45);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: rgb(208, 32, 148);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: rgb(25, 21, 21);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(1, 247, 255, 0.3);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(0, 0, 0, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(0, 0, 0, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(103, 255, 166, 0.5));
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(1, 247, 255, 0.3);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #ffc107;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: rgb(236, 237, 232);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgb(26, 26, 26);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(179, 179, 179, 0.2);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgb(26, 26, 26);
@@ -4728,11 +4775,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(26, 26, 26);
   --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(126, 13, 128, 0.6);
   --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(126, 6, 255, 0.2);
-  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(1, 247, 255, 0.3);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgb(25, 21, 21);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgb(25, 21, 21);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(1, 247, 255, 0.3);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgb(25, 21, 21);
   --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgb(25, 21, 21);
   --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(1, 247, 255, 0.3);
   --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: rgb(66, 44, 41);
@@ -4800,8 +4842,967 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --dna-frame-radius: 2px;
   --dna-frame-border-width: 1px;}
 
-:root[data-theme='sherbert-sakura'] {
-    --ui-app-border-radius: 20px;
+:root[data-theme='transparent'] {
+        --ui-app-border-radius:10px;
+  --chat-input-text-color: transparent;
+  --palletet-accent-primary: transparent;
+  --palletet-accent-primary-soft: transparent;
+  --palette-neon-accent: transparent;
+  --palette-success: transparent;
+  --palette-warning: transparent;
+  --palette-danger: transparent;
+  --palette-text-main: transparent;
+  --palette-text-faint: transparent;
+  --palette-text-soft: transparent;
+  --palette-text-subtle: transparent;
+  --palette-text-muted: transparent;
+  --palette-text-dim: transparent;
+  --palette-white: transparent;
+  --ui-body-bg: transparent;  font-family:Nokie !important;
+  --ui-app-bg: orange,yellow;
+  --ui-app-border: 10px solid transparent;
+  --ui-app-shadow: inset 0 0 40px white;
+  --ui-text-primary: transparent;
+  --ui-header-text: transparent;
+  --ui-header-bg: linear-gradient(to bottom,transparent,darkred, violet);
+  --ui-title-icon: transparent;
+  --ui-title-icon-glow: 0 0 8px var(--palletet-accent-primary);
+  --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, transparent, purple, black, teal);
+  --ui-title-stroke: 2px white;
+  --ui-button-ghost-bg: transparent;
+  --ui-button-ghost-border: transparent;
+  --ui-button-ghost-border-strong: transparent;
+  --ui-button-ghost-text: transparent;
+  --ui-button-ghost-text-hover: transparent;
+  --ui-button-ghost-bg-hover: transparent;
+  --ui-panel-header-text: yellow; font-weight:800;
+  --ui-panel-btn: transparent;
+  --ui-panel-btn-hover: transparent;
+  --ui-chat-header-text: transparent;
+  --ui-chat-header-bg: transparent;
+  --ui-chat-header-border: transparent;
+  --ui-chat-input-bg: linear-gradient(transparent, transparent);
+  --ui-chat-input-border: transparent;
+  --ui-chat-input-text: transparent;
+  --ui-chat-placeholder: transparent;
+  --ui-modal-bg: linear-gradient(135deg, transparent 0%, transparent 100%);
+  --ui-modal-border: transparent;
+  --ui-modal-header-bg: transparent;
+  --ui-modal-header-border: transparent;
+  --ui-modal-title: transparent;
+  --ui-modal-close: transparent;
+  --ui-modal-tabs-bg: transparent;
+  --ui-modal-tabs-border: transparent;
+  --ui-modal-tab-text: transparent;
+  --ui-modal-tab-hover-text: transparent;
+  --ui-modal-tab-hover-bg: transparent;
+  --ui-modal-tab-active-text: transparent;
+  --ui-modal-tab-active-bg: transparent;
+  --ui-settings-section-desc: var(--palette-text-subtle);
+  --ui-settings-label: transparent;
+  --ui-settings-hint: var(--palette-text-muted);
+  --ui-settings-input-bg: transparent;
+  --ui-settings-input-border: transparent;
+  --ui-settings-input-text: transparent;
+  --ui-settings-input-placeholder: transparent;
+  --ui-settings-input-focus-border: transparent;
+  --ui-settings-input-focus-shadow: 0 0 10px transparent;
+  --ui-settings-toggle-bg: transparent;
+  --ui-settings-toggle-border: transparent;
+  --ui-settings-toggle-text: transparent;
+  --ui-settings-toggle-bg-hover: transparent;
+  --ui-settings-toggle-border-hover: transparent;
+  --ui-settings-radio-bg: transparent;
+  --ui-settings-radio-border: transparent;
+  --ui-settings-radio-bg-hover: transparent;
+  --ui-settings-radio-border-hover: transparent;
+  --ui-settings-radio-bg-active: transparent;
+  --ui-settings-radio-border-active: transparent;
+  --ui-settings-radio-shadow-active: 0 0 15px transparent;
+  --ui-settings-radio-label: transparent;
+  --ui-settings-radio-label-active: transparent;
+  --ui-modal-footer-bg: transparent;
+  --ui-modal-footer-border: transparent;
+  --ui-modal-save-bg: transparent;
+  --ui-modal-save-border: transparent;
+  --ui-modal-save-text: transparent;
+  --ui-modal-save-bg-hover: transparent;
+  --ui-modal-save-shadow-hover: 0 0 15px transparent;
+  --ui-provider-tab-bg: transparent;
+  --ui-provider-tab-border: transparent;
+  --ui-provider-tab-text: transparent;
+  --ui-provider-tab-bg-hover: transparent;
+  --ui-provider-tab-text-hover: transparent;
+  --ui-provider-tab-bg-active: transparent;
+  --ui-provider-tab-border-active: transparent;
+  --ui-provider-tab-text-active: transparent;
+  --ui-slider-thumb-bg: transparent;
+  --ui-slider-thumb-shadow: 0 0 6px transparent;
+  --ui-markdown-code-bg: transparent;
+  --ui-markdown-code-color: var(--palletet-accent-primary);
+  --ui-markdown-th-bg: transparent;
+  --ui-controlbar-bg: linear-gradient(240deg, lime, teal, cyan,yellow,magenta);
+  --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
+  --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+  --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+  --layout-bg-primary: transparent;
+  --layout-bg-secondary: transparent;
+  --layout-bg-panel: transparent;
+  --layout-bg-panel-header: transparent;
+  --layout-accent-cyan: transparent;
+  --layout-accent-cyan-dim: transparent;
+  --layout-accent-cyan-glow: transparent;
+  --layout-accent-orange: transparent;
+  --layout-accent-orange-dim: transparent;
+  --layout-border-color: transparent;
+  --layout-border-color-hover: transparent;
+  --layout-border-color-active: transparent;
+  --layout-gap: 1px;
+  --layout-panel-radius: 26px;
+  --layout-header-height: 36px;
+  --layout-resize-handle-size: 8px;
+  --layout-transition-fast: 0.15s ease;
+  --layout-transition-normal: 0.2s ease;
+  --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, transparent, transparent);
+  --theme-components-loginoverlay-login-btn-color-1q77m: transparent;
+  --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: transparent;
+  --theme-components-loginoverlay-login-error-background-1iva2: transparent;
+  --theme-components-loginoverlay-login-error-border-9dbrq: transparent;
+  --theme-components-loginoverlay-login-info-color-1tcs7: transparent;
+  --theme-components-loginoverlay-login-input-background-ypdc9: transparent;
+  --theme-components-loginoverlay-login-input-box-shadow-u3asw: transparent;
+  --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: transparent;
+  --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: transparent;
+  --theme-components-loginoverlay-login-logo-circle-background-1mpnj: transparent;
+  --theme-components-loginoverlay-login-logo-circle-background-1pjs9: transparent;
+  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, transparent, transparent, var(--palletet-accent-primary));
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: transparent;
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: transparent;
+  --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, transparent, transparent);
+  --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: transparent;
+  --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, transparent, transparent);
+  --theme-components-loginoverlay-login-subtitle-color-sqqmz: transparent;
+  --theme-components-loginoverlay-login-toggle-link-color-tuiqr: transparent;
+  --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: transparent;
+  --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: transparent;
+  --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: transparent;
+  --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: transparent;
+  --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: transparent;
+  --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: transparent;
+  --theme-components-phantomsection-phantom-drawer-background-1q77m: transparent;
+  --theme-components-phantomsection-phantom-event-row-color-1gv4y: transparent;
+  --theme-components-phantomsection-phantom-event-row-hover-background-i129j: transparent;
+  --theme-components-phantomsection-phantom-events-background-1eqtm: transparent;
+  --theme-components-phantomsection-phantom-events-border-top-1u83g: transparent;
+  --theme-components-phantomsection-phantom-record-hint-color-39knf: transparent;
+  --theme-components-phantomsection-phantom-run-opts-input-border-h3919: transparent;
+  --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: transparent;
+  --theme-components-phantomsection-phantom-status-background-16ah5: transparent;
+  --theme-components-phantomsection-phantom-status-border-bottom-1of2t: transparent;
+  --theme-components-phantomsection-phantom-status-dot-background-1uyf8: transparent;
+  --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: transparent;
+  --theme-components-phantomsection-phantom-status-text-color-fs5n5: transparent;
+  --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: transparent;
+  --theme-components-phantomsection-phantom-tab-color-161cz: transparent;
+  --theme-components-phantomsection-phantom-tabs-background-yq5ln: transparent;
+  --theme-components-phantomsection-phantom-toggle-background-afq8i: transparent;
+  --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: transparent;
+  --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: transparent;
+  --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: transparent;
+  --theme-components-phantomsection-phantom-wf-del-color-13fl3: transparent;
+  --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: transparent;
+  --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: transparent;
+  --theme-components-phantomsection-phantom-wf-name-color-rnz45: transparent;
+  --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: transparent;
+  --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: transparent;
+  --theme-components-phantomsection-phantom-wf-run-border-p8yj7: transparent;
+  --theme-components-phantomsection-phantom-wf-run-color-13c30: transparent;
+  --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: transparent;
+  --theme-components-phantomsection-root-app-1jpsf: transparent;
+  --theme-components-phantomsection-root-app-b5mm4: green;
+  --theme-components-phantomsection-root-app-o0md2: black;
+  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: white;
+  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: white;
+  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: pink;
+  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: transparent;
+  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: yellow;
+  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: transparent;
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: white;
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: white, 0px 0px 1px white, 1.5px 1.5px 3px red;
+  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: darkred;
+  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: chocolate;
+  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: transparent;
+  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: lime;
+  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: transparent, inset 0px 0px 11px lime;
+  --theme-components-controlbar-controlbar-notes-icon-color-qo8di:white;
+  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: none;
+  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: white;
+  --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: transparent;
+  --theme-components-notes-noteswidget-create-note-btn-border-1efjr: transparent;
+  --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, transparent 40%, transparent 50%, transparent 50%), linear-gradient(135deg, transparent 60%, transparent 60%, transparent 70%, transparent 70%), linear-gradient(135deg, transparent 80%, transparent 80%, transparent 90%, transparent 90%);
+  --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: transparent;
+  --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
+  --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: transparent;
+  --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, transparent, transparent);
+  --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: transparent;
+  --theme-components-notes-noteswidget-note-btn-color-26sfj: transparent;
+  --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: transparent;
+  --theme-components-notes-noteswidget-note-card-background-48988: transparent;
+  --theme-components-notes-noteswidget-note-card-border-9zuog: transparent;
+  --theme-components-notes-noteswidget-note-card-border-top-12gea: transparent;
+  --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: transparent;
+  --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: transparent;
+  --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: transparent;
+  --theme-components-notes-noteswidget-note-header-background-qxrmc: transparent;
+  --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: transparent;
+  --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, transparent 45%, transparent 55%, transparent 55%);
+  --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: transparent;
+  --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: transparent;
+  --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: transparent;
+  --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: transparent;
+  --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: transparent;
+  --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, transparent, transparent, transparent);
+  --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: transparent;
+  --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, transparent 0%, transparent 100%);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: transparent;
+  --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: transparent;
+  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: transparent;
+  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: transparent;
+  --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: transparent;
+  --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: transparent;
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y:pink;
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: transparent;
+  --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: transparent;
+  --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: transparent;
+  --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: transparent;
+  --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: transparent;
+  --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: transparent;
+  --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: transparent;
+  --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: transparent;
+  --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: transparent;
+  --theme-components-overlays-calendarmodal-calendar-header-background-1oise: transparent;
+  --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: transparent;
+  --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, transparent 0%, transparent 100%);
+  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: transparent;
+  --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: transparent;
+  --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: transparent;
+  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: transparent;
+  --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: transparent;
+  --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: transparent;
+  --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: transparent;
+  --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: transparent;
+  --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: transparent;
+  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: transparent;
+  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: transparent;
+  --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: transparent;
+  --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: transparent;
+  --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: transparent;
+  --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: transparent;
+  --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: transparent;
+  --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: transparent;
+  --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: transparent;
+  --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: transparent;
+  --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: transparent;
+  --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: transparent;
+  --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: transparent;
+  --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: transparent;
+  --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: transparent;
+  --theme-components-overlays-organizermodal-org-item-check-border-1i94y: transparent;
+  --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: transparent;
+  --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: transparent;
+  --theme-components-overlays-organizermodal-org-item-row-background-1d738: transparent;
+  --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: transparent;
+  --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: transparent;
+  --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: transparent;
+  --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: transparent;
+  --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: transparent;
+  --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: transparent;
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: transparent;
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: transparent;
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: transparent;
+  --theme-components-overlays-organizermodal-org-quick-add-background-1oise: transparent;
+  --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: transparent;
+  --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: transparent;
+  --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: transparent;
+  --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: transparent;
+  --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: transparent;
+  --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, transparent 0%, transparent 100%);
+  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: transparent;
+  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: transparent;
+  --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: transparent;
+  --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: transparent;
+  --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: transparent;
+  --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: transparent;
+  --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: transparent;
+  --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: transparent;
+  --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: transparent;
+  --theme-components-overlays-organizermodal-tab-count-background-1bm8l: transparent;
+  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: transparent;}
+
+
+:root[data-theme='peppermint-foil'] {
+  --holo-bg-dark: rgb(219 226 240);
+  --glass-bg: linear-gradient(to bottom, rgb(127 127 127), rgb(26 26 26 / 0.083) 20%);
+  --glass-bg-light: linear-gradient(to bottom, rgb(127 127 127), rgb(26 26 26 / 0.083) 20%, transparent 50%, rgb(26 26 26 / 0.4) 130%);
+  --ui-font-main: Chillax;
+  --glass-border: rgb(26 26 26 / 0.08);
+  --holo-blue: rgb(1 242 255 / 0.24);
+  --holo-pink: rgb(168 10 31);
+  --holo-purple: rgb(161 17 190);
+  --holo-green: rgb(22 188 78);
+  --holo-glow-blue: 0 0 1.5px rgb(1 243 255 / 0.6);
+  --holo-glow-pink: 0 0 1.5px rgb(168 10 31 / 0.6);
+  --holo-glow-purple: 0 0 2px rgb(161 17 190 / 0.6);
+  --holo-glow-green: 0 0 2.5px rgb(22 188 78 / 0.6);
+  --text-primary: rgb(17 24 34);
+  --text-glow: 0 0 2px rgb(17 24 34 / 0.4);
+  --card-glass: rgb(26 26 26 / 0.07);
+  --chat-input-text-color: rgb(0 255 0);
+  --palette-accent-briizlogo: rgb(25 77 25);
+  --palette-accent-primary: rgb(26 255 255);
+  --palette-accent-primary-soft: rgb(106 114 83);
+  --palette-neon-accent: rgb(0 255 136);
+  --palette-success: rgb(80 179 84);
+  --palette-warning: rgb(176 134 0);
+  --palette-danger: rgb(148 0 0);
+  --palette-text-main: rgb(0 255 0);
+  --palette-text-faint: rgb(51 51 51);
+  --palette-text-soft: rgb(85 85 85);
+  --palette-text-subtle: rgb(119 119 119);
+  --palette-text-muted: rgb(153 153 153);
+  --palette-text-dim: rgb(170 170 170);
+  --palette-white: rgb(26 26 26);
+  --ui-body-bg: rgb(230 230 230);
+  --ui-app-bg: rgb(30, 130,30);
+  --ui-app-border: 9px solid rgb(30 20 60);
+  --ui-app-shadow: inset 0 0 10px rgba(0, 40, 70);
+  --ui-text-primary: var(--palette-text-main);
+  --ui-header-text: var(--palette-rgb(26 26 26));
+  --ui-header-bg: linear-gradient(to bottom, rgb(230 230 230) 30%, cyan, teal);
+  --ui-title-icon: var(--palette-accent-primary);
+  --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
+  --ui-title-gradient: linear-gradient(120deg, rgb(127 255 255), rgb(230 230 230), rgb(255 0 255), rgba(90, 6, 6), rgb(255 127 255), rgb(230 230 230), rgb(127 255 255));
+  --ui-title-stroke: 0.1px var(--palette-rgb(26 26 26));
+  --ui-button-ghost-bg: transparent;
+  --ui-button-ghost-border: rgb(26 26 26 / 0.1);
+  --ui-button-ghost-border-strong: rgb(26 26 26 / 0.15);
+  --ui-button-ghost-text: var(--palette-text-subtle);
+  --ui-button-ghost-text-hover: var(--palette-text-soft);
+  --ui-button-ghost-bg-hover: rgb(26 26 26 / 0.05);
+  --ui-panel-header-text: white;
+  --ui-panel-btn: var(--palette-text-muted);
+  --ui-panel-btn-hover: var(--palette-accent-primary);
+  --ui-chat-header-text:whitesmoke;
+  --ui-chat-header-bg: rgb(100,20,40);;
+  --ui-chat-header-border: rgb(235 0 127);
+  --ui-chat-input-bg: linear-gradient(rgb(120 233 229 / 0.6), rgb(153 234 255 / 0.447));
+  --ui-chat-input-border: rgb(55 255 255 / 0.2);
+  --ui-chat-input-text: var(--palette-rgb(26 26 26));
+  --ui-chat-placeholder: rgb(0 255 136 / 0.5);
+  --ui-modal-bg: linear-gradient(135deg, rgb(45 127 68 / 0.18) 0%, rgb(155 193 253 / 0.23) 100%);
+  --ui-modal-border: rgb(55 255 255 / 0.3);
+  --ui-modal-header-bg: rgb(153 217 255 / 0.2);
+  --ui-modal-header-border: rgb(55 255 255 / 0.15);
+  --ui-modal-title: var(--palette-accent-primary);
+  --ui-modal-close: var(--palette-text-muted);
+  --ui-modal-tabs-bg: rgb(204 235 255 / 0.3);
+  --ui-modal-tabs-border: rgb(55 255 255 / 0.1);
+  --ui-modal-tab-text: var(--palette-text-muted);
+  --ui-modal-tab-hover-text: var(--palette-text-soft);
+  --ui-modal-tab-hover-bg: rgb(55 255 255 / 0.05);
+  --ui-modal-tab-active-text: var(--palette-accent-primary);
+  --ui-modal-tab-active-bg: rgb(55 255 255 / 0.08);
+  --ui-settings-section-desc: var(--palette-text-subtle);
+  --ui-settings-label: var(--palette-text-soft);
+  --ui-settings-hint: var(--palette-text-muted);
+  --ui-settings-input-bg: rgb(179 204 230 / 0.6);
+  --ui-settings-input-border: rgb(55 255 255 / 0.2);
+  --ui-settings-input-text: var(--palette-text-main);
+  --ui-settings-input-placeholder: var(--palette-text-dim);
+  --ui-settings-input-focus-border: rgb(55 255 255 / 0.5);
+  --ui-settings-input-focus-shadow: 0 0 10px rgb(55 255 255 / 0.1);
+  --ui-settings-toggle-bg: rgb(153 235 255 / 0.3);
+  --ui-settings-toggle-border: rgb(55 255 255 / 0.2);
+  --ui-settings-toggle-text: var(--palette-accent-primary);
+  --ui-settings-toggle-bg-hover: rgb(135 235 255 / 0.4);
+  --ui-settings-toggle-border-hover: rgb(55 255 255 / 0.4);
+  --ui-settings-radio-bg: rgb(179 204 230 / 0.4);
+  --ui-settings-radio-border: rgb(55 255 255 / 0.15);
+  --ui-settings-radio-bg-hover: rgb(153 235 255 / 0.3);
+  --ui-settings-radio-border-hover: rgb(55 255 255 / 0.3);
+  --ui-settings-radio-bg-active: rgb(135 235 255 / 0.3);
+  --ui-settings-radio-border-active: rgb(55 255 255 / 0.5);
+  --ui-settings-radio-shadow-active: 0 0 15px rgb(55 255 255 / 0.1);
+  --ui-settings-radio-label: var(--palette-text-main);
+  --ui-settings-radio-label-active: var(--palette-accent-primary);
+  --ui-modal-footer-bg: rgb(204 235 255 / 0.3);
+  --ui-modal-footer-border: rgb(55 255 255 / 0.1);
+  --ui-modal-save-bg: rgb(75 225 255 / 0.5);
+  --ui-modal-save-border: rgb(55 255 255 / 0.4);
+  --ui-modal-save-text: var(--palette-accent-primary);
+  --ui-modal-save-bg-hover: rgb(55 235 255 / 0.6);
+  --ui-modal-save-shadow-hover: 0 0 15px rgb(55 255 255 / 0.2);
+  --ui-provider-tab-bg: rgb(26 26 26 / 0.03);
+  --ui-provider-tab-border: rgb(26 26 26 / 0.1);
+  --ui-provider-tab-text: var(--palette-text-subtle);
+  --ui-provider-tab-bg-hover: rgb(26 26 26 / 0.05);
+  --ui-provider-tab-text-hover: var(--palette-text-faint);
+  --ui-provider-tab-bg-active: rgb(26 255 255 / 0.15);
+  --ui-provider-tab-border-active: rgb(26 255 255 / 0.3);
+  --ui-provider-tab-text-active: var(--palette-accent-primary);
+  --ui-slider-thumb-bg: var(--palette-accent-primary);
+  --ui-slider-thumb-shadow: 0 0 6px rgb(26 255 255 / 0.5);
+  --ui-markdown-code-bg: rgb(26 255 255 / 0.1);
+  --ui-markdown-code-color: var(--palette-accent-primary);
+  --ui-markdown-th-bg: rgb(26 255 255 / 0.1);
+  --ui-controlbar-bg: linear-gradient(30deg, darkblue, darkslategray, gray, darkred);
+  --ui-controlbar-shadow: inset 0 0 8px var(--palette-rgb(26 26 26)), inset 0 0 20px rgb(255 0 0);
+  --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+  --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+  --layout-bg-primary: rgb(230 230 230);
+  --layout-bg-secondary: rgb(230 230 230);
+  --layout-bg-panel: rgb(60 60 80);
+  --layout-bg-panel-header: linear-gradient(to bottom, teal, darkslategray);
+  --layout-accent-cyan: var(--palette-accent-primary);
+  --layout-accent-cyan-dim: rgb(55 255 255 / 0.3);
+  --layout-accent-cyan-glow: rgb(55 255 255 / 0.5);
+  --layout-accent-orange: rgb(202 54 0);
+  --layout-accent-orange-dim: rgb(202 54 0 / 0.3);
+  --layout-border-color: rgb(230 230 230 / 0.15);
+  --layout-border-color-hover: rgb(255 55 162 / 0.4);
+  --layout-border-color-active: rgb(255 55 208 / 0.6);
+  --layout-gap: 1px;
+  --layout-panel-radius: 6px;
+  --layout-header-height: 36px;
+  --layout-resize-handle-size: 8px;
+  --layout-transition-fast: 0.15s ease;
+  --layout-transition-normal: 0.2s ease;
+  --log-section-bg: rgb(100,20,40);
+  --log-section-border: rgb(0 230 30 / 0.23);
+  --log-section-header-color: rgb(0 191 255);
+  --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, rgb(0 255 204), rgb(178 0 89));
+  --theme-components-loginoverlay-login-btn-color-1q77m: rgb(230 230 230);
+  --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgb(0 255 204 / 0.6);
+  --theme-components-loginoverlay-login-error-background-1iva2: rgb(148 0 0 / 0.1);
+  --theme-components-loginoverlay-login-error-border-9dbrq: rgb(148 0 0 / 0.3);
+  --theme-components-loginoverlay-login-info-color-1tcs7: rgb(26 26 26 / 0.5);
+  --theme-components-loginoverlay-login-input-background-ypdc9: rgb(230 230 230 / 0.3);
+  --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgb(0 255 204 / 0.2);
+  --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgb(178 0 89 / 0.4);
+  --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgb(26 26 26 / 0.4);
+  --theme-components-loginoverlay-login-logo-circle-background-1mpnj: rgb(178 0 89);
+  --theme-components-loginoverlay-login-logo-circle-background-1pjs9: rgb(0 255 204);
+  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, rgb(0 255 204), rgb(178 0 89), var(--palette-accent-primary));
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgb(178 0 89 / 0.2);
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgb(0 255 204 / 0.4);
+  --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, rgb(0 255 204), rgb(178 0 89));
+  --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgb(0 255 204 / 0.3);
+  --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgb(197 149 181 / 0.95), rgb(185 165 243 / 0.95));
+  --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgb(26 26 26 / 0.8);
+  --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgb(26 26 26 / 0.6);
+  --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgb(142 7 7 / 0.2);
+  --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgb(142 7 7 / 0.12);
+  --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgb(0 255 136 / 0.2);
+  --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgb(0 255 136 / 0.12);
+  --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgb(0 255 136 / 0.25);
+  --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgb(0 255 136 / 0.14);
+  --theme-components-phantomsection-phantom-drawer-background-1q77m: rgb(100,20,40);
+  --theme-components-phantomsection-phantom-event-row-color-1gv4y: rgb(197 197 197);
+  --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgb(26 26 26 / 0.015);
+  --theme-components-phantomsection-phantom-events-background-1eqtm: black;
+  --theme-components-phantomsection-phantom-events-border-top-1u83g: rgb(230 230 230);
+  --theme-components-phantomsection-phantom-record-hint-color-39knf: rgb(204 204 204);
+  --theme-components-phantomsection-phantom-run-opts-input-border-h3919: rgb(204 204 204);
+  --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgb(0 255 136 / 0.3);
+  --theme-components-phantomsection-phantom-status-background-16ah5: rgb(0 255 136 / 0.03);
+  --theme-components-phantomsection-phantom-status-border-bottom-1of2t: rgb(230 230 230);
+  --theme-components-phantomsection-phantom-status-dot-background-1uyf8: rgb(204 204 204);
+  --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: rgb(142 7 7);
+  --theme-components-phantomsection-phantom-status-text-color-fs5n5: rgb(136 136 136);
+  --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: rgb(234 188 5);
+  --theme-components-phantomsection-phantom-tab-color-161cz: rgb(187 187 187);
+  --theme-components-phantomsection-phantom-tabs-background-yq5ln: darkslategray;
+  --theme-components-phantomsection-phantom-toggle-background-afq8i: rgb(20,40,30);
+  --theme-components-phantomsection-phantom-toggle-border-top-2mdx5:lime;
+  --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: rgb(204 204 204);
+  --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgb(0 255 136 / 0.4);
+  --theme-components-phantomsection-phantom-wf-del-color-13fl3: rgb(227 181 181);
+  --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgb(142 7 7 / 0.06);
+  --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgb(26 26 26 / 0.04);
+  --theme-components-phantomsection-phantom-wf-name-color-rnz45: rgb(68 68 68);
+  --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgb(26 26 26 / 0.025);
+  --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgb(0 255 136 / 0.05);
+  --theme-components-phantomsection-phantom-wf-run-border-p8yj7: rgb(185 223 203);
+  --theme-components-phantomsection-phantom-wf-run-color-13c30: rgb(180 228 200);
+  --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgb(0 255 136 / 0.06);
+  --theme-components-phantomsection-root-app-1jpsf: darkslateblue;
+  --theme-components-phantomsection-root-app-b5mm4:rgb(30,30,30);
+  --theme-components-phantomsection-root-app-o0md2: rgb(30,30,30);
+  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(202 0 108);
+  --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgb(102 0 18);
+  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: rgb(255 0 0);
+  --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(153 59 0);
+  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgb(26 26 26 / 0.8);
+  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgb(75 225 255 / 0.5);
+  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: rgb(0 255 255 / 0.7);
+  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgb(55 255 255 / 0.1);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: rgb(0 255 255);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: rgb(0 255 255 / 0.5);
+  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: rgb(230 230 230 / 0.4);
+  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: rgb(55 255 255 / 0.3);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgb(135 235 255 / 0.5);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: rgb(55 255 255 / 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgb(55 255 255 / 0.2);
+  --theme-components-controlbar-controlbar-notes-icon-color-qo8di: rgb(85 79 17);
+  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: rgb(230 230 230);
+  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: rgb(0 255 0);
+  --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: rgb(127 255 127);
+  --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgb(144 121 4 / 0.485);
+  --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgb(26 26 26 / 0.5) 40%, rgb(26 26 26 / 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgb(26 26 26 / 0.5) 60%, rgb(26 26 26 / 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgb(26 26 26 / 0.5) 80%, rgb(26 26 26 / 0.5) 90%, transparent 90%);
+  --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgb(230 230 230 / 0.6);
+  --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, rgb(230 230 230), transparent);
+  --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgb(230 230 230 / 0.5);
+  --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgb(230 230 230 / 0.5), transparent);
+  --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgb(230 230 230 / 0.8);
+  --theme-components-notes-noteswidget-note-btn-color-26sfj: rgb(0 255 0);
+  --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgb(26 26 26 / 0.1);
+  --theme-components-notes-noteswidget-note-card-background-48988: rgb(170 238 238);
+  --theme-components-notes-noteswidget-note-card-border-9zuog: rgb(55 255 255 / 0.15);
+  --theme-components-notes-noteswidget-note-card-border-top-12gea: rgb(248 186 0);
+  --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgb(230 230 230 / 0.571);
+  --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgb(55 255 255 / 0.63);
+  --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgb(230 230 230 / 0.3);
+  --theme-components-notes-noteswidget-note-header-background-qxrmc: rgb(230 230 230 / 0.2);
+  --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgb(55 255 255 / 0.1);
+  --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgb(21 64 81 / 0.8) 45%, rgb(21 64 81 / 0.8) 55%, transparent 55%);
+  --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: rgb(26 26 26);
+  --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: rgb(255 0 0);
+  --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: rgb(102 0 18);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgb(225 5 5 / 0.5);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgb(155 0 0 / 0.5);
+  --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgb(200 100 0 / 0.1), rgb(95 77 42 / 0.51), rgb(255 145 55));
+  --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgb(195 175 55 / 0.1);
+  --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgb(230 230 230);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgb(230 230 230 / 0.4);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgb(26 26 26 / 0.2);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgb(225 105 105 / 0.6);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgb(155 0 0 / 0.5);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgb(135 235 255 / 0.5);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgb(153 226 255 / 0.9) 0%, rgb(204 235 255 / 0.9) 100%);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgb(55 255 255 / 0.3);
+  --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: rgb(230 230 230);
+  --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgb(55 255 255 / 0.5);
+  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgb(230 230 230 / 0.12);
+  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgb(135 235 255 / 0.25);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgb(26 255 255 / 0.1);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgb(26 255 255 / 0.15);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgb(26 26 26 / 0.2);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgb(80 179 84 / 0.1);
+  --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgb(184 204 224 / 0.3);
+  --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgb(55 255 255 / 0.08);
+  --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgb(135 235 255 / 0.2);
+  --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: rgb(91 8 170);
+  --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: rgb(230 230 230);
+  --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: rgb(51 51 51);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgb(26 26 26 / 0.15);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgb(26 26 26 / 0.05);
+  --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgb(153 217 255 / 0.2);
+  --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgb(55 255 255 / 0.15);
+  --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, rgb(45 127 68 / 0.18) 0%, rgb(155 193 253 / 0.23) 100%);
+  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgb(55 255 255 / 0.3);
+  --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgb(204 235 255 / 0.3);
+  --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgb(55 255 255 / 0.1);
+  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgb(230 230 230 / 0.25);
+  --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgb(153 235 255 / 0.3);
+  --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgb(55 255 255 / 0.2);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgb(135 235 255 / 0.4);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgb(55 255 255 / 0.4);
+  --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgb(75 225 255 / 0.4);
+  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgb(75 225 255 / 0.5);
+  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(55 235 255 / 0.6);
+  --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgb(179 204 230 / 0.6);
+  --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgb(55 255 255 / 0.5);
+  --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgb(26 26 26 / 0.03);
+  --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgb(26 26 26 / 0.06);
+  --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: rgb(230 230 230);
+  --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgb(26 26 26 / 0.1);
+  --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgb(230 230 230 / 0.6);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgb(156 252 197 / 0.771);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgb(55 255 155 / 0.912);
+  --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgb(230 230 230 / 0.52);
+  --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgb(26 26 26 / 0.08);
+  --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: rgb(136 136 136);
+  --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: rgb(68 68 68);
+  --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgb(26 26 26 / 0.2);
+  --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgb(80 179 84 / 0.1);
+  --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: rgb(91 8 170);
+  --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgb(184 204 224 / 0.3);
+  --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgb(135 235 255 / 0.2);
+  --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgb(75 225 255 / 0.5);
+  --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgb(55 255 255 / 0.4);
+  --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgb(55 235 255 / 0.6);
+  --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgb(179 204 230 / 0.6);
+  --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgb(55 255 255 / 0.5);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgb(55 255 255 / 0.3);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgb(230 230 230 / 0.2);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgb(26 26 26 / 0.1);
+  --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgb(153 217 255 / 0.2);
+  --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgb(55 255 255 / 0.12);
+  --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgb(230 230 230 / 0.15);
+  --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgb(26 26 26 / 0.05);
+  --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgb(26 26 26 / 0.15);
+  --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgb(55 255 255 / 0.15);
+  --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, rgb(45 127 68 / 0.18) 0%, rgb(155 193 253 / 0.23) 100%);
+  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgb(55 255 255 / 0.7);
+  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgb(153 255 255 / 0.6);
+  --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgb(0 255 255 / 0.1);
+  --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgb(55 255 255 / 0.08);
+  --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: rgb(0 255 0);
+  --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: rgb(26 26 26);
+  --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgb(55 255 255 / 0.05);
+  --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgb(204 235 255 / 0.3);
+  --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgb(55 255 255 / 0.1);
+  --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgb(55 255 255 / 0.2);
+  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgb(230 230 230 / 0.2);
+}
+
+.dark {
+  --holo-bg-dark: #0a0e17;
+  --glass-bg: linear-gradient(to bottom, gray, rgba(255, 255, 255, 0.083) 20%);
+  --glass-bg-light: linear-gradient(to bottom, gray, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255,255,255,.4) 130%);
+  --ui-font-main: Chillax;
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --holo-blue: #00f1fe3d;
+  --holo-pink: #f5576c;
+  --holo-purple: #d141ee;
+  --holo-green: #43e97b;
+  --holo-glow-blue: 0 0 1.5px rgba(0, 242, 254, 0.6);
+  --holo-glow-pink: 0 0 1.5px rgba(245, 87, 108, 0.6);
+  --holo-glow-purple: 0 0 2px rgba(209, 65, 238, 0.6);
+  --holo-glow-green: 0 0 2.5px rgba(67, 233, 123, 0.6);
+  --text-primary: #e2e8f0;
+  --text-glow: 0 0 2px rgba(226, 232, 240, 0.4);
+  --card-glass: rgba(255, 255, 255, 0.07);
+  --chat-input-text-color: lime;
+  --palette-accent-briizlogo: rgb(191, 234, 191);
+  --palette-accent-primary: #00e5e5;
+  --palette-accent-primary-soft: #a4ac8d;
+  --palette-neon-accent: #00ff88;
+  --palette-success: #4caf50;
+  --palette-warning: #ffd54f;
+  --palette-danger: #ff6b6b;
+  --palette-text-main: lime;
+  --palette-text-faint: #ccc;
+  --palette-text-soft: #aaa;
+  --palette-text-subtle: #888;
+  --palette-text-muted: #666;
+  --palette-text-dim: #555;
+  --palette-white: #fff;
+  --ui-body-bg: black;
+  --ui-app-bg: black;
+  --ui-app-border: 3px solid #000;
+  --ui-app-shadow: inset 0 0 10px rgba(0, 40, 70);
+  --ui-text-primary: var(--palette-text-main);
+  --ui-header-text: var(--palette-white);
+  --ui-header-bg: linear-gradient(to bottom, black 80%, deeppink);
+  --ui-title-icon: var(--palette-accent-primary);
+  --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
+  --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-title-stroke: 0.1px var(--palette-white);
+  --ui-button-ghost-bg: transparent;
+  --ui-button-ghost-border: rgba(255, 255, 255, 0.1);
+  --ui-button-ghost-border-strong: rgba(255, 255, 255, 0.15);
+  --ui-button-ghost-text: var(--palette-text-subtle);
+  --ui-button-ghost-text-hover: var(--palette-text-soft);
+  --ui-button-ghost-bg-hover: rgba(255, 255, 255, 0.05);
+  --ui-panel-header-text: var(--palette-text-subtle);
+  --ui-panel-btn: var(--palette-text-muted);
+  --ui-panel-btn-hover: var(--palette-accent-primary);
+  --ui-chat-header-text: pink;
+  --ui-chat-header-bg: none;
+  --ui-chat-header-border: deeppink;
+  --ui-chat-input-bg: linear-gradient(rgba(22, 135, 131, 0.6), rgba(0, 43, 54, 0.447));
+  --ui-chat-input-border: rgba(0, 200, 200, 0.2);
+  --ui-chat-input-text: var(--palette-white);
+  --ui-chat-placeholder: rgba(0, 255, 136, 0.5);
+  --ui-modal-bg: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --ui-modal-border: rgba(0, 200, 200, 0.3);
+  --ui-modal-header-bg: rgba(0, 50, 80, 0.2);
+  --ui-modal-header-border: rgba(0, 200, 200, 0.15);
+  --ui-modal-title: var(--palette-accent-primary);
+  --ui-modal-close: var(--palette-text-muted);
+  --ui-modal-tabs-bg: rgba(0, 30, 50, 0.3);
+  --ui-modal-tabs-border: rgba(0, 200, 200, 0.1);
+  --ui-modal-tab-text: var(--palette-text-muted);
+  --ui-modal-tab-hover-text: var(--palette-text-soft);
+  --ui-modal-tab-hover-bg: rgba(0, 200, 200, 0.05);
+  --ui-modal-tab-active-text: var(--palette-accent-primary);
+  --ui-modal-tab-active-bg: rgba(0, 200, 200, 0.08);
+  --ui-settings-section-desc: var(--palette-text-subtle);
+  --ui-settings-label: var(--palette-text-soft);
+  --ui-settings-hint: var(--palette-text-muted);
+  --ui-settings-input-bg: rgba(20, 40, 60, 0.6);
+  --ui-settings-input-border: rgba(0, 200, 200, 0.2);
+  --ui-settings-input-text: var(--palette-text-main);
+  --ui-settings-input-placeholder: var(--palette-text-dim);
+  --ui-settings-input-focus-border: rgba(0, 200, 200, 0.5);
+  --ui-settings-input-focus-shadow: 0 0 10px rgba(0, 200, 200, 0.1);
+  --ui-settings-toggle-bg: rgba(0, 80, 100, 0.3);
+  --ui-settings-toggle-border: rgba(0, 200, 200, 0.2);
+  --ui-settings-toggle-text: var(--palette-accent-primary);
+  --ui-settings-toggle-bg-hover: rgba(0, 100, 120, 0.4);
+  --ui-settings-toggle-border-hover: rgba(0, 200, 200, 0.4);
+  --ui-settings-radio-bg: rgba(20, 40, 60, 0.4);
+  --ui-settings-radio-border: rgba(0, 200, 200, 0.15);
+  --ui-settings-radio-bg-hover: rgba(0, 80, 100, 0.3);
+  --ui-settings-radio-border-hover: rgba(0, 200, 200, 0.3);
+  --ui-settings-radio-bg-active: rgba(0, 100, 120, 0.3);
+  --ui-settings-radio-border-active: rgba(0, 200, 200, 0.5);
+  --ui-settings-radio-shadow-active: 0 0 15px rgba(0, 200, 200, 0.1);
+  --ui-settings-radio-label: var(--palette-text-main);
+  --ui-settings-radio-label-active: var(--palette-accent-primary);
+  --ui-modal-footer-bg: rgba(0, 30, 50, 0.3);
+  --ui-modal-footer-border: rgba(0, 200, 200, 0.1);
+  --ui-modal-save-bg: rgba(0, 150, 180, 0.5);
+  --ui-modal-save-border: rgba(0, 200, 200, 0.4);
+  --ui-modal-save-text: var(--palette-accent-primary);
+  --ui-modal-save-bg-hover: rgba(0, 180, 200, 0.6);
+  --ui-modal-save-shadow-hover: 0 0 15px rgba(0, 200, 200, 0.2);
+  --ui-provider-tab-bg: rgba(255, 255, 255, 0.03);
+  --ui-provider-tab-border: rgba(255, 255, 255, 0.1);
+  --ui-provider-tab-text: var(--palette-text-subtle);
+  --ui-provider-tab-bg-hover: rgba(255, 255, 255, 0.05);
+  --ui-provider-tab-text-hover: var(--palette-text-faint);
+  --ui-provider-tab-bg-active: rgba(0, 229, 229, 0.15);
+  --ui-provider-tab-border-active: rgba(0, 229, 229, 0.3);
+  --ui-provider-tab-text-active: var(--palette-accent-primary);
+  --ui-slider-thumb-bg: var(--palette-accent-primary);
+  --ui-slider-thumb-shadow: 0 0 6px rgba(0, 229, 229, 0.5);
+  --ui-markdown-code-bg: rgba(0, 229, 229, 0.1);
+  --ui-markdown-code-color: var(--palette-accent-primary);
+  --ui-markdown-th-bg: rgba(0, 229, 229, 0.1);
+  --ui-controlbar-bg: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
+  --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+  --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+  --layout-bg-primary: black;
+  --layout-bg-secondary: black;
+  --layout-bg-panel: black;
+  --layout-bg-panel-header: black;
+  --layout-accent-cyan: var(--palette-accent-primary);
+  --layout-accent-cyan-dim: rgba(0, 200, 200, 0.3);
+  --layout-accent-cyan-glow: rgba(0, 200, 200, 0.5);
+  --layout-accent-orange: #ff6b35;
+  --layout-accent-orange-dim: rgba(255, 107, 53, 0.3);
+  --layout-border-color: rgba(0, 0, 0, 0.15);
+  --layout-border-color-hover: rgba(200, 0, 107, 0.4);
+  --layout-border-color-active: rgba(200, 0, 153, 0.6);
+  --layout-gap: 1px;
+  --layout-panel-radius: 6px;
+  --layout-header-height: 36px;
+  --layout-resize-handle-size: 8px;
+  --layout-transition-fast: 0.15s ease;
+  --layout-transition-normal: 0.2s ease;
+  --log-section-bg: #0a0a0a;
+  --log-section-border: rgba(25, 255, 55, 0.23);
+  --log-section-header-color: deepskyblue;
+  --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #00ffcc, #ff4da6);
+  --theme-components-loginoverlay-login-btn-color-1q77m: #000;
+  --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgba(0, 255, 204, 0.6);
+  --theme-components-loginoverlay-login-error-background-1iva2: rgba(255, 107, 107, 0.1);
+  --theme-components-loginoverlay-login-error-border-9dbrq: rgba(255, 107, 107, 0.3);
+  --theme-components-loginoverlay-login-info-color-1tcs7: rgba(255, 255, 255, 0.5);
+  --theme-components-loginoverlay-login-input-background-ypdc9: rgba(0, 0, 0, 0.3);
+  --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(0, 255, 204, 0.2);
+  --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgba(255, 77, 166, 0.4);
+  --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
+  --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #ff4da6;
+  --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #00ffcc;
+  --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #00ffcc, #ff4da6, var(--palette-accent-primary));
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(255, 77, 166, 0.2);
+  --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(0, 255, 204, 0.4);
+  --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #00ffcc, #ff4da6);
+  --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgba(0, 255, 204, 0.3);
+  --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(106, 58, 90, 0.95), rgba(26, 10, 74, 0.95));
+  --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgba(255, 255, 255, 0.8);
+  --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgba(255, 255, 255, 0.6);
+  --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(248, 113, 113, 0.2);
+  --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(248, 113, 113, 0.12);
+  --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(0, 255, 136, 0.2);
+  --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(0, 255, 136, 0.12);
+  --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(0, 255, 136, 0.25);
+  --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(0, 255, 136, 0.14);
+  --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
+  --theme-components-phantomsection-phantom-event-row-color-1gv4y: #3a3a3a;
+  --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(255, 255, 255, 0.015);
+  --theme-components-phantomsection-phantom-events-background-1eqtm: #020202;
+  --theme-components-phantomsection-phantom-events-border-top-1u83g: #0f0f0f;
+  --theme-components-phantomsection-phantom-record-hint-color-39knf: #222;
+  --theme-components-phantomsection-phantom-run-opts-input-border-h3919: #1e1e1e;
+  --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(0, 255, 136, 0.3);
+  --theme-components-phantomsection-phantom-status-background-16ah5: rgba(0, 255, 136, 0.03);
+  --theme-components-phantomsection-phantom-status-border-bottom-1of2t: #111;
+  --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #333;
+  --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #f87171;
+  --theme-components-phantomsection-phantom-status-text-color-fs5n5: #777;
+  --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #facc15;
+  --theme-components-phantomsection-phantom-tab-color-161cz: #444;
+  --theme-components-phantomsection-phantom-tabs-background-yq5ln: #050505;
+  --theme-components-phantomsection-phantom-toggle-background-afq8i: #0a0a0a;
+  --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: #1a1a1a;
+  --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #2a2a2a;
+  --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(0, 255, 136, 0.4);
+  --theme-components-phantomsection-phantom-wf-del-color-13fl3: #2a1010;
+  --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(248, 113, 113, 0.06);
+  --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(255, 255, 255, 0.04);
+  --theme-components-phantomsection-phantom-wf-name-color-rnz45: #bbb;
+  --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgba(255, 255, 255, 0.025);
+  --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(0, 255, 136, 0.05);
+  --theme-components-phantomsection-phantom-wf-run-border-p8yj7: #132a1e;
+  --theme-components-phantomsection-phantom-wf-run-color-13c30: #1a4a2e;
+  --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(0, 255, 136, 0.06);
+  --theme-components-phantomsection-root-app-1jpsf: #00e5ff;
+  --theme-components-phantomsection-root-app-b5mm4: green;
+  --theme-components-phantomsection-root-app-o0md2: black;
+
+  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 53, 161);
+  --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: pink;
+  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: red;
+  --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(255, 161, 102);
+  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgba(255, 255, 255, 0.8);
+  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgba(0, 150, 180, 0.5);
+  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: rgba(0, 255, 255, 0.7);
+  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgba(0, 200, 200, 0.1);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: #00ffff;
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: rgba(0, 255, 255, 0.5);
+  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: rgba(0, 0, 0, 0.4);
+  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: rgba(0, 200, 200, 0.3);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgba(0, 100, 120, 0.5);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: rgba(0, 200, 200, 0.6);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(0, 200, 200, 0.2);
+  --theme-components-controlbar-controlbar-notes-icon-color-qo8di: palegoldenrod;
+  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: black;
+  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: lime;
+  --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: green;
+  --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(251, 228, 111, 0.485);
+  --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
+  --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+  --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
+  --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgba(0, 0, 0, 0.5);
+  --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(0,0,0,.8);
+  --theme-components-notes-noteswidget-note-btn-color-26sfj: lime;
+  --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.1);
+  --theme-components-notes-noteswidget-note-card-background-48988: rgb(14, 68, 68);
+  --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(0, 200, 200, 0.15);
+  --theme-components-notes-noteswidget-note-card-border-top-12gea: #ffc107;
+  --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgba(0, 0, 0, 0.571);
+  --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(0, 200, 200, 0.63);
+  --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgba(0, 0, 0, 0.3);
+  --theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 0, 0, 0.2);
+  --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(0, 200, 200, 0.1);
+  --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(180, 220, 235, 0.8) 45%, rgba(180, 220, 235, 0.8) 55%, transparent 55%);
+  --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: white;
+  --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: red;
+  --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: pink;
+  --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgba(250, 30, 30, 0.5);
+  --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(255, 100, 100, 0.5);
+  --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0));
+  --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(200, 180, 60, .1);
+  --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: black;
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.2);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(150, 30, 30, 0.6);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(255, 100, 100, 0.5);
+  --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(0, 100, 120, 0.5);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(0, 50, 70, 0.9) 0%, rgba(0, 30, 50, 0.9) 100%);
+  --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(0, 200, 200, 0.3);
+  --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: #0a0a0a;
+  --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgba(0, 200, 200, 0.5);
+  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgba(0, 0, 0, 0.12);
+  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgba(0, 100, 120, 0.25);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(0, 229, 229, 0.1);
+  --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(0, 229, 229, 0.15);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgba(255, 255, 255, 0.2);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgba(76, 175, 80, 0.1);
+  --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgba(30, 50, 70, 0.3);
+  --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(0, 200, 200, 0.08);
+  --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgba(0, 100, 120, 0.2);
+  --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: #a855f7;
+  --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: #000;
+  --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: #d0d0d0;
+  --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgba(255, 255, 255, 0.15);
+  --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgba(255, 255, 255, 0.05);
+  --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgba(0, 50, 80, 0.2);
+  --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(0, 200, 200, 0.15);
+  --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(0, 200, 200, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgba(0, 30, 50, 0.3);
+  --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(0, 200, 200, 0.1);
+  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);
+  --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgba(0, 80, 100, 0.3);
+  --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgba(0, 200, 200, 0.2);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgba(0, 100, 120, 0.4);
+  --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgba(0, 200, 200, 0.4);
+  --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgba(0, 150, 180, 0.4);
+  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(0, 150, 180, 0.5);
+  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(0, 180, 200, 0.6);
+  --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(20, 40, 60, 0.6);
+  --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(0, 200, 200, 0.5);
+  --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
+  --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.06);
+  --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #111;
+  --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(255, 255, 255, 0.1);
+  --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgba(3, 95, 42, 0.771);
+  --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgba(0, 200, 100, 0.912);
+  --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgba(0, 0, 0, 0.52);
+  --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgba(255, 255, 255, 0.08);
+  --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #777;
+  --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #bbb;
+  --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(255, 255, 255, 0.2);
+  --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(76, 175, 80, 0.1);
+  --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #a855f7;
+  --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(30, 50, 70, 0.3);
+  --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(0, 100, 120, 0.2);
+  --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgba(0, 150, 180, 0.5);
+  --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(0, 200, 200, 0.4);
+  --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgba(0, 180, 200, 0.6);
+  --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(20, 40, 60, 0.6);
+  --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(0, 200, 200, 0.5);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(0, 200, 200, 0.3);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgba(0, 0, 0, 0.2);
+  --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(255, 255, 255, 0.1);
+  --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(0, 50, 80, 0.2);
+  --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(0, 200, 200, 0.12);
+  --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgba(0, 0, 0, 0.15);
+  --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(255, 255, 255, 0.05);
+  --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgba(255, 255, 255, 0.15);
+  --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(0, 200, 200, 0.15);
+  --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #80d2972d 0%, #0115343a 100%);
+  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(0, 200, 200, 0.7);
+  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(0, 100, 100, 0.6);
+  --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(0,255,255,.1);
+  --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(0, 200, 200, 0.08);
+  --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: lime;
+  --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: white;
+  --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(0, 200, 200, 0.05);
+  --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(0, 30, 50, 0.3);
+  --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(0, 200, 200, 0.1);
+  --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(0, 200, 200, 0.2);
+  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0,0,0,0.2);
+
+}
+
+  :root[data-theme='sherbert-sakura'] {
+    --ui-app-border-radius:10px;
   --chat-input-text-color: rgb(255, 48, 20);
   --palletet-accent-primary: rgb(241, 255, 117);
   --palletet-accent-primary-soft: rgb(241, 255, 117);
@@ -4816,24 +5817,24 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --palette-text-muted: rgb(189, 186, 212);
   --palette-text-dim: rgb(189, 186, 212);
   --palette-white: #fff;
-  --ui-body-bg: rgb(12, 12, 8);  font-family:Nokie !important;
+  --ui-body-bg: rgb(12, 12, 8);
   --ui-app-bg: orange,yellow;
-  --ui-app-border: 3px solid yellow;
-  --ui-app-shadow: inset 0 0 10px rgba(0, 40, 70);
+  --ui-app-border: 10px solid rgba(200,140,0);
+  --ui-app-shadow: inset 0 0 40px white;
   --ui-text-primary: rgb(122, 115, 178);
   --ui-header-text: rgb(255, 255, 0,1);
-  --ui-header-bg: linear-gradient(to bottom, black,purple, deeppink);
+  --ui-header-bg: linear-gradient(to bottom,rgba(200,140,0),darkred, violet);
   --ui-title-icon: rgb(255, 48, 20);
   --ui-title-icon-glow: 0 0 8px var(--palletet-accent-primary);
   --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
-  --ui-title-stroke: 0.1px var(--palette-white);
+  --ui-title-stroke: 2px white;
   --ui-button-ghost-bg: rgb(26, 26, 26);
   --ui-button-ghost-border: rgba(179, 179, 179, 0.1);
   --ui-button-ghost-border-strong: rgba(179, 179, 179, 0.15);
   --ui-button-ghost-text: rgb(122, 115, 178);
   --ui-button-ghost-text-hover: rgb(122, 115, 178);
   --ui-button-ghost-bg-hover: rgb(26, 26, 26);
-  --ui-panel-header-text: yellow; font-weight:600;
+  --ui-panel-header-text: yellow; font-weight:800;
   --ui-panel-btn: rgb(26, 26, 26);
   --ui-panel-btn-hover: rgb(26, 26, 26);
   --ui-chat-header-text: rgb(255, 48, 20);
@@ -4899,7 +5900,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --ui-markdown-code-bg: rgb(12, 12, 8);
   --ui-markdown-code-color: var(--palletet-accent-primary);
   --ui-markdown-th-bg: rgb(12, 12, 8);
-  --ui-controlbar-bg: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
+  --ui-controlbar-bg: linear-gradient(240deg, lime, teal, cyan,yellow,magenta);
   --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
   --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
   --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
@@ -4979,25 +5980,22 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-phantomsection-root-app-1jpsf: #00e5ff;
   --theme-components-phantomsection-root-app-b5mm4: green;
   --theme-components-phantomsection-root-app-o0md2: black;
-  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: rgb(204, 61, 255);
-  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 248, 114);
-  --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: rgb(161, 255, 61);
-  --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgb(255, 48, 20);
-  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgba(126, 13, 128, 0.6);
-  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgba(126, 6, 255, 0.1);
-  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: rgb(255, 48, 20);
-  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: rgb(255, 48, 20);
-  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: rgba(126, 13, 128, 0.6);
-  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgba(126, 13, 128, 0.6);
-  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-notes-icon-color-qo8di: rgb(215, 255, 230);
-  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: rgba(126, 6, 255, 0.2);
-  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: rgb(61, 161, 255);
+  --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: white;
+  --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: white;
+  --theme-components-controlbar-controlbar-cb-label-color-sqqmz: pink;
+  --theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43: rgba(100,20,280,1);
+  --theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95: yellow;
+  --theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9: rgba(255,255,0,1);
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84: white;
+  --theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5: white, 0px 0px 1px white, 1.5px 1.5px 3px red;
+  --theme-components-controlbar-controlbar-cb-toggle-background-yovd6: darkred;
+  --theme-components-controlbar-controlbar-cb-toggle-border-1jdub: chocolate;
+  --theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk: rgba(0,15,10,1);
+  --theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10: lime;
+  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(126, 6, 255, 0.2), inset 0px 0px 11px lime;
+  --theme-components-controlbar-controlbar-notes-icon-color-qo8di:white;
+  --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: none;
+  --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: white;
   --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: rgba(126, 6, 255, 0.2);
   --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(175, 34, 95, 0.486);
   --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
@@ -5025,28 +6023,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255,155,55,0.1), rgba(213, 195, 160, 0.51), rgb(200, 90, 0));
   --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(0, 0, 0, .31);
   --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgb(255, 48, 20);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(28, 13, 34, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(135, 27, 175, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: rgb(179, 55, 224);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: rgb(120, 129, 116);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(25, 66, 10, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: rgb(179, 179, 179);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgb(26, 26, 26);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(60, 86, 16, 0.45);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: rgb(208, 32, 148);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: rgb(12, 12, 8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(0, 83, 226, 0.3);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(0, 0, 0, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(0, 0, 0, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(103, 255, 166, 0.5));
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(0, 83, 226, 0.3);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #ffc107;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: rgb(255, 48, 20);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgb(26, 26, 26);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(179, 179, 179, 0.2);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgb(26, 26, 26);
@@ -5056,11 +6032,11 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(0, 83, 226, 0.3);
   --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: rgb(12, 12, 8);
   --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgb(255, 48, 20);
-  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgb(12, 34, 24);
-  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgb(12, 34, 24);
+  --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgb(12, 34, 24,.2);
+  --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgb(12, 34, 24,.5);
   --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(126, 13, 128, 0.6);
   --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(126, 13, 128, 0.6);
-  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgb(26, 26, 26);
+  --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y:pink;
   --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgb(26, 26, 26);
   --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgb(12, 34, 24);
   --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(0, 83, 226, 0.3);
@@ -5086,11 +6062,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(26, 26, 26);
   --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(126, 13, 128, 0.6);
   --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(126, 6, 255, 0.2);
-  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(0, 83, 226, 0.3);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgb(12, 12, 8);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgb(12, 12, 8);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(0, 83, 226, 0.3);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgb(12, 12, 8);
   --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgb(12, 12, 8);
   --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(0, 83, 226, 0.3);
   --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: rgb(12, 34, 24);
@@ -5133,7 +6104,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(0, 83, 226, 0.3);
   --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgb(12, 34, 24);
   --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgb(12, 34, 24);
-
 }
 
 
@@ -5338,7 +6308,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-phantomsection-root-app-b5mm4: var(--palette-success);
   --theme-components-phantomsection-root-app-o0md2: var(--palette-burnt-chestnut-dark);
   /* src/components/controlbar/ControlBar.css */
-  --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: var(--palette-accent-salmon);
   --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: var(--palette-accent-pink);
   --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: #ffd5dc;
   --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: var(--palette-danger);
@@ -5385,29 +6354,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(88,44,43,0.3), rgba(213, 195, 160, 0.3), var(--palette-burnt-chestnut));
   --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(0, 0, 0, .31);
   --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: var(--palette-burnt-chestnut-dark);
-  /* src/components/overlays/ActionDeckColumn.css */
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(88, 44, 43, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(110, 30, 30, 0.7);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(170, 50, 50, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(150, 50, 50, 0.7);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(255, 120, 120, 0.6);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #ffc1c1;
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: var(--palette-text-faint);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(120, 80, 80, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(250, 128, 114, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: var(--palette-text-main);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: rgba(141, 179, 139, 0.5);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(141, 179, 139, 0.45);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: var(--palette-warning);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: var(--palette-burnt-chestnut-dark);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(250, 128, 114, 0.35);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(0, 0, 0, 0.65);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(0, 0, 0, 0.8);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(to top, transparent, rgba(250, 128, 114, 0.3));
-  --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(250, 128, 114, 0.4);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(135deg, #3D2525 0%, #2C1A1A 100%);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: var(--palette-warning);
-  --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: var(--palette-accent-salmon);
   /* src/components/overlays/BriiztormOverlay.css */
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
   --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(240, 234, 214, 0.2);
@@ -5449,12 +6395,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(250, 128, 114, 0.6);
   --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(88, 44, 43, 0.6);
   --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(250, 128, 114, 0.5);
-  /* src/components/overlays/DashboardOverlay.css */
-  --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(250, 128, 114, 0.1);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(250, 128, 114, 0.06);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(61, 37, 37, 0.5);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(250, 128, 114, 0.12);
-  --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(61, 37, 37, 0.6);
   /* src/components/overlays/LiveCanvas.css */
   --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(240, 234, 214, 0.03);
   --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(240, 234, 214, 0.06);
@@ -5960,7 +6900,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --theme-components-phantomsection-root-app-1jpsf: #7feaff;
     --theme-components-phantomsection-root-app-b5mm4: #9fffe7;
     --theme-components-phantomsection-root-app-o0md2: #040913;
-    --theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38: #b8f5ff;
     --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: #f2d7ff;
     --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: rgba(7, 15, 26, 0.92);
     --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #cdbfff;
@@ -6006,28 +6945,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(145deg, rgba(18, 34, 54, 0.96) 0%, rgba(10, 18, 31, 0.98) 55%, rgba(31, 41, 66, 0.96) 100%);
     --theme-components-notes-noteswidget-notes-drawer-open-box-shadow-ly038: rgba(4, 12, 24, 0.42);
     --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: rgba(7, 15, 26, 0.88);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-background-idkl8: rgba(13, 26, 40, 0.82);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-background-18w58: rgba(84, 26, 44, 0.78);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-border-color-tqncr: rgba(255, 143, 168, 0.32);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-background-1nk37: rgba(120, 33, 58, 0.84);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-border-color-1evgc: rgba(255, 184, 201, 0.46);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-close-hover-color-l2prx: #ffeaf0;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-color-1xy18: #d8ecf8;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-background-1atdb: rgba(18, 38, 60, 0.88);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-border-color-1hyjj: rgba(184, 245, 255, 0.46);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-hover-color-1plkp: #ffffff;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-background-1pyby: linear-gradient(135deg, rgba(159, 255, 231, 0.18) 0%, rgba(127, 234, 255, 0.12) 100%);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-border-color-13w00: rgba(159, 255, 231, 0.34);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-btn-mode-color-7ji4k: #eafcff;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-background-o0md2: #06101a;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-border-p7cl8: rgba(165, 219, 255, 0.32);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-box-shadow-uygbx: rgba(2, 10, 20, 0.60);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-column-floating-dragging-box-shadow-10xyf: rgba(1, 7, 15, 0.76);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-header-background-gradient: linear-gradient(180deg, rgba(184, 245, 255, 0.14) 0%, rgba(205, 191, 255, 0.06) 55%, rgba(0, 0, 0, 0) 100%);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-header-border-1ck3l: rgba(184, 245, 255, 0.28);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-background-gradient: linear-gradient(145deg, #0f1f32 0%, #091421 50%, #13253b 100%);
-    --theme-components-overlays-actiondeckcolumn-actiondeck-placeholder-h3-color-12gea: #ffe6ae;
-    --theme-components-overlays-actiondeckcolumn-actiondeck-title-color-26sfj: #f2fcff;
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(11, 22, 36, 0.66);
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(190, 228, 255, 0.22);
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(116, 32, 54, 0.72);
@@ -6067,11 +6984,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: linear-gradient(135deg, rgba(127, 234, 255, 0.28) 0%, rgba(205, 191, 255, 0.16) 100%);
     --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(11, 22, 36, 0.82);
     --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(184, 245, 255, 0.44);
-    --theme-components-overlays-dashboardoverlay-dashboard-blacklist-row-border-kz1a9: rgba(165, 219, 255, 0.12);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-item-hover-background-1v3j3: rgba(127, 234, 255, 0.08);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-background-1sfna: rgba(11, 22, 36, 0.74);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-list-border-19ivk: rgba(165, 219, 255, 0.16);
-    --theme-components-overlays-dashboardoverlay-dashboard-chunk-preview-background-1hc01: rgba(8, 18, 31, 0.86);
     --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(184, 245, 255, 0.05);
     --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(190, 228, 255, 0.12);
     --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #0b1521;
@@ -6685,7 +7597,8 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     width: 100%;}
 .resizable-panel {
     height: 100%;
-    overflow: hidden;}
+    overflow: hidden;
+    contain: layout style paint;}
 [data-group] {
     height: 100%;
     width: 100%;}

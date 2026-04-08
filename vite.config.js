@@ -11,6 +11,26 @@ export default defineConfig({
     alias: {
       '@reactbits': path.join(reactBitsPath, 'src/ts-default/Backgrounds'),
     },
+    dedupe: [
+      'react',
+      'react-dom',
+      'react-reconciler',
+      'scheduler',
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+      '@react-three/postprocessing',
+    ],
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-reconciler',
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+    ],
   },
   build: {
     outDir: 'dist'

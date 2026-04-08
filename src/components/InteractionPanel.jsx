@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense, Component } from 'react';
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -118,13 +118,29 @@ function getReactBitsComponent(name) {
   return reactBitsComponentCache[name];
 }
 
+class ReactBitsErrorBoundary extends Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    logger.error('ReactBits background crashed', { error: error.message, component: info?.componentStack?.slice(0, 200) });
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
 function ReactBitsBackground({ name, blur }) {
   const Component = getReactBitsComponent(name);
   return (
     <div className="chat-bg-frame-container reactbits-bg" style={blur ? { filter: `blur(${blur}px)` } : undefined}>
-      <Suspense fallback={null}>
-        <Component />
-      </Suspense>
+      <ReactBitsErrorBoundary>
+        <Suspense fallback={null}>
+          <Component />
+        </Suspense>
+      </ReactBitsErrorBoundary>
     </div>
   );
 }
@@ -378,8 +394,7 @@ function InteractionPanel() {
 
   const handleMessageClick = (e, index, role) => {
     if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({ index, role, x: rect.left, y: rect.bottom + 5 });
+    setTooltip({ index, role });
   };
 
   // Close tooltip on outside click
@@ -613,6 +628,18 @@ function InteractionPanel() {
                       </ReactMarkdown>
                     )}
                   </div>
+                  {tooltip && tooltip.index === index && (
+                    <div className={`message-tooltip-${isUser ? 'user' : 'assistant'}`}>
+                      <button className="tooltip-btn" onClick={() => handleCopyMessage(tooltip.index)}>
+                        Copy
+                      </button>
+                      {tooltip.role === 'user' && (
+                        <button className="tooltip-btn" onClick={() => handleEditMessage(tooltip.index)}>
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -915,22 +942,6 @@ function InteractionPanel() {
         </div>
       </div>
 
-      {/* Message tooltip */}
-      {tooltip && (
-        <div
-          className="message-tooltip"
-          style={{ position: 'fixed', top: tooltip.y, left: tooltip.x, zIndex: 10000 }}
-        >
-          <button className="tooltip-btn" onClick={() => handleCopyMessage(tooltip.index)}>
-            Copy
-          </button>
-          {tooltip.role === 'user' && (
-            <button className="tooltip-btn" onClick={() => handleEditMessage(tooltip.index)}>
-              Edit
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Confirmation Toast */}
       <ConfirmationToast

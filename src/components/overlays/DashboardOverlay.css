@@ -5,8 +5,9 @@
 
 /* Wider container for dashboard content */
 .dashboard-modal-container {
-  max-width: 600px;
+  max-width: 65vw;
 }
+
 
 /* ── Memory Tab ── */
 

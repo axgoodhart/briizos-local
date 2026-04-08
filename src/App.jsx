@@ -29,11 +29,11 @@ const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
 function applyUiTheme(theme) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  if (theme === 'mint-icecube') {
-    root.setAttribute('data-theme', 'mint-icecube');
+  if (!theme || theme === 'default') {
+    root.removeAttribute('data-theme');
     return;
   }
-  root.removeAttribute('data-theme');
+  root.setAttribute('data-theme', theme);
 }
 
 // Debug counter to track renders
@@ -418,7 +418,7 @@ function AppContent({ layout }) {
 
         <HeaderDateTimeWeather />
 
-        <button className="settings-btn" onClick={() => setShowSettings(true)}>
+        <button id="settings-btn" onClick={() => setShowSettings(true)}>
           <span className="settings-icon">⚙</span>
           <span>Settings</span>
         </button>

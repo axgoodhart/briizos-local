@@ -1,8 +1,90 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { subscribeNotes, upsertNote, deleteNote as deleteNoteFirestore } from '../../lib/firestore';
 import { ensureAuth } from '../../lib/firebase';
 import logger from '../../lib/logger';
 import './NotesWidget.css';
+
+// --- Smooth interpolation helpers ---
+function smoothstep(t) {
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * (3 - 2 * c);
+}
+function smoothWindow(t, center = 0.5, width = 0.25) {
+  return smoothstep((t - (center - width)) / (2 * width));
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+/**
+ * Compute concave 3D properties based on where the drawer sits on screen.
+ * Concave = panel always faces toward screen center, like the inside of a bowl.
+ * Uses smoothstep windowing so all visual properties ease continuously
+ * rather than snapping at quadrant boundaries.
+ */
+function computeDrawer3D(drawerRect) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Normalised center of the drawer: 0 = left/top edge, 1 = right/bottom edge
+  const cx = (drawerRect.x + drawerRect.width / 2) / vw;   // 0‑1
+  const cy = (drawerRect.y + drawerRect.height / 2) / vh;
+
+  // --- Rotation (concave: face toward center) ---
+  const rotateY = 30 * (cx * 2 - 1);            // cx=0 → -30 (faces right), cx=1 → +30 (faces left)
+  const rotateX = -10 * (cy * 2 - 1);           // cy=0 → +10 (tilts down),  cy=1 → -10 (tilts up)
+
+  // --- Inset shadow (rim-lit: shadow falls toward center) ---
+  const shadowX = Math.round(-12 * (cx * 2 - 1));
+  const shadowY = Math.round(-8 * (cy * 2 - 1));
+  const boxShadow = `inset ${shadowX}px ${shadowY}px 20px rgba(0,0,0,0.6)`;
+
+  // --- Border-radius (smoothstep windowed, no hard flips) ---
+  const leftBias   = 1 - cx;
+  const rightBias  = cx;
+  const topBias    = 1 - cy;
+  const bottomBias = cy;
+
+  const tx = smoothWindow(cx, 0.5, 0.25);
+  const ty = smoothWindow(cy, 0.5, 0.25);
+
+  const tlMix = clamp01(tx * leftBias  + ty * topBias);
+  const trMix = clamp01(tx * rightBias + ty * topBias);
+  const brMix = clamp01(tx * rightBias + ty * bottomBias);
+  const blMix = clamp01(tx * leftBias  + ty * bottomBias);
+
+  const outerR = 80;
+  const innerR = 24;
+  const borderRadius = [
+    lerp(innerR, outerR, tlMix),
+    lerp(innerR, outerR, trMix),
+    lerp(innerR, outerR, brMix),
+    lerp(innerR, outerR, blMix),
+  ].map(r => `${Math.round(r)}px`).join(' ');
+
+  // --- Border brightness (smooth blend, no hard threshold) ---
+  const brightA = 0.45;
+  const dimA    = 0.12;
+  const borderAlphaTop    = lerp(dimA, brightA, clamp01(topBias * ty));
+  const borderAlphaBottom = lerp(dimA, brightA, clamp01(bottomBias * ty));
+  const borderAlphaLeft   = lerp(dimA, brightA, clamp01(leftBias * tx));
+  const borderAlphaRight  = lerp(dimA, brightA, clamp01(rightBias * tx));
+
+  const borderTop    = `2px solid rgba(155,220,200,${borderAlphaTop.toFixed(3)})`;
+  const borderBottom = `5px solid rgba(155,220,200,${borderAlphaBottom.toFixed(3)})`;
+  const borderLeft   = `2px solid rgba(155,220,200,${borderAlphaLeft.toFixed(3)})`;
+  const borderRight  = `2px solid rgba(155,220,200,${borderAlphaRight.toFixed(3)})`;
+
+  // --- Close animation (fold toward nearest vertical edge) ---
+  const closedRotateY = cx > 0.5 ? 90 : -90;
+  const closedTranslateX = cx > 0.5 ? 20 : -20;
+
+  return {
+    rotateY, rotateX,
+    boxShadow, borderRadius,
+    borderTop, borderBottom, borderLeft, borderRight,
+    closedRotateY, closedTranslateX,
+  };
+}
 
 /**
  * NotesWidget - Floating sticky notes system
@@ -34,6 +116,17 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
   const MIN_DRAWER_HEIGHT = 300;
 
   const colors = ['#fef08a', '#a5f3fc', '#f0abfc', '#86efac', '#fca5a5', '#93c5fd'];
+
+  // Compute position-aware 3D rotation
+  const drawer3D = useMemo(() => {
+    const rect = {
+      x: drawerPos?.x ?? (window.innerWidth * 0.78 - drawerSize.width),
+      y: drawerPos?.y ?? (window.innerHeight * 0.28),
+      width: drawerSize.width,
+      height: drawerSize.height,
+    };
+    return computeDrawer3D(rect);
+  }, [drawerPos, drawerSize]);
 
   // Subscribe to notes from Firebase
   useEffect(() => {
@@ -319,15 +412,20 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
       {/* Drawer */}
       <div
         className={`notes-drawer ${isOpen ? 'open' : ''} ${draggingDrawer ? 'drawer-dragging' : ''} ${resizingDrawer ? 'drawer-resizing' : ''}`}
-        style={drawerPos ? {
-          left: drawerPos.x,
-          top: drawerPos.y,
-          right: 'auto',
+        style={{
+          ...(drawerPos ? { left: drawerPos.x, top: drawerPos.y, right: 'auto' } : {}),
           width: drawerSize.width,
-          height: drawerSize.height
-        } : {
-          width: drawerSize.width,
-          height: drawerSize.height
+          height: drawerSize.height,
+          transformOrigin: 'center center',
+          transform: isOpen
+            ? `rotateY(${drawer3D.rotateY}deg) rotateX(${drawer3D.rotateX}deg)`
+            : `rotateY(${drawer3D.closedRotateY}deg) rotateX(-10deg) translateX(${drawer3D.closedTranslateX}px)`,
+          boxShadow: isOpen ? drawer3D.boxShadow : undefined,
+          borderRadius: drawer3D.borderRadius,
+          borderTop: drawer3D.borderTop,
+          borderBottom: drawer3D.borderBottom,
+          borderLeft: drawer3D.borderLeft,
+          borderRight: drawer3D.borderRight,
         }}
       >
         <div className="notes-drawer-header" onMouseDown={handleDrawerDragStart}>
