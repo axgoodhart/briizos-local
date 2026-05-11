@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   // Platform info
@@ -78,6 +78,10 @@ contextBridge.exposeInMainWorld('api', {
   canvasSave: (title, html) => ipcRenderer.invoke('canvas-save', title, html),
   canvasList: () => ipcRenderer.invoke('canvas-list'),
   canvasLoad: (filename) => ipcRenderer.invoke('canvas-load', filename),
+  canvasDelete: (filename) => ipcRenderer.invoke('canvas-delete', filename),
+  canvasSaveMeta: (filename, meta) => ipcRenderer.invoke('canvas-save-meta', filename, meta),
+  canvasLoadMeta: (filename) => ipcRenderer.invoke('canvas-load-meta', filename),
+  canvasRename: (oldFilename, newTitle) => ipcRenderer.invoke('canvas-rename', oldFilename, newTitle),
 
   // Model Config API
   getModels: () => ipcRenderer.invoke('models-get-list'),
@@ -85,24 +89,11 @@ contextBridge.exposeInMainWorld('api', {
   checkApiKeys: () => ipcRenderer.invoke('models-check-api-keys'),
   isAIConfigured: () => ipcRenderer.invoke('ai-is-configured'),
 
-  // LangGraph Status API
-  langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
+  // Direct AI API - Get API key for a provider (secure, main process only)
+  getApiKey: (provider) => ipcRenderer.invoke('get-api-key', provider),
 
-  // LangGraph Agent API
-  langgraphCreateThread: () => ipcRenderer.invoke('langgraph-create-thread'),
-  langgraphSendMessage: (threadId, message, config) =>
-    ipcRenderer.invoke('langgraph-send-message', threadId, message, config),
-  langgraphStreamMessage: (threadId, message, config) =>
-    ipcRenderer.invoke('langgraph-stream-message', threadId, message, config),
-  onLanggraphStreamEvent: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('langgraph-stream-event', handler);
-    return () => ipcRenderer.removeListener('langgraph-stream-event', handler);
-  },
-  langgraphResumeRun: (threadId, response, config) =>
-    ipcRenderer.invoke('langgraph-resume-run', threadId, response, config),
-  langgraphGetSuggestions: (recentMessages, n, config) =>
-    ipcRenderer.invoke('langgraph-get-suggestions', recentMessages, n, config),
+  // Tool execution bridge
+  executeTool: (toolName, params) => ipcRenderer.invoke('execute-tool', toolName, params),
 
   // Tool Bridge API (relay tool execution requests from main process)
   onToolBridgeExecute: (callback) => {
@@ -118,4 +109,9 @@ contextBridge.exposeInMainWorld('api', {
 
   // Weather API
   weatherGetCurrent: (latitude, longitude) => ipcRenderer.invoke('weather-get-current', latitude, longitude),
+
+  // Media API
+  mediaOpenFiles: () => ipcRenderer.invoke('media-open-files'),
+  mediaDescribeFiles: (filePaths) => ipcRenderer.invoke('media-describe-files', filePaths),
+  mediaGetFilePath: (file) => webUtils.getPathForFile(file),
 });

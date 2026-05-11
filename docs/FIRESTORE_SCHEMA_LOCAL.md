@@ -5,7 +5,7 @@ This table reflects what `briizOS.Local` writes to Firestore today (primarily vi
 | Firestore path | Fields written | Nomenclature notes |
 | --- | --- | --- |
 | `users/{uid}/panels/{noteId}` | `type` (`note`), `title`, `content`, `customColor` (`{h,s,l}`), `color`, `x`, `y`, `width`, `w`, `height`, `h`, `active`, `isDocked`, `createdAt`, `updatedAt` | Dual size keys (`width` + `w`, `height` + `h`). Timestamp style is Firestore `serverTimestamp()`. |
-| `users/{uid}/tasks/{taskId}` | `type`, `name`, `title`, `completed`, `status`, `priority`, `dueDate`, `parentId`, `createdAt`, `updatedAt` | Uses both `name` and `title`. Subtasks are separate docs linked by `parentId`. |
+| `users/{uid}/tasks/{taskId}` | `type`, `name`, `title`, `completed`, `status`, `priority`, `dueDate`, `parentId`, `createdAt`, `updatedAt`, `automated`, `ignored`, `taskLog[]`, `actions[]`, `source`, `automation` | Uses both `name` and `title`. In Local, `jobPanel` task docs can also act as message-first remote jobs, with visible logs and nested automation state on the same record. |
 | `users/{uid}/events/{eventId}` | `type` (`event`), `name`, `title`, `description`, `scheduledDate`, `time`, `endTime`, `startMinute`, `durationMinutes`, `color`, `completed`, `allDay`, `projectId`, `createdAt`, `updatedAt` | Mixed time/date representation (`time` strings + minute integers). |
 | `users/{uid}/organizer/{id}` (project flow) | `type` (`project`), `name`, `description`, `domain`, `status`, `completed`, `deadline`, `importance`, `size`, `relevance`, `tags[]`, `tasks[]`, `milestones[]`, `createdAt`, `updatedAt` | Project writes use numeric `Date.now()` timestamps, not Firestore timestamp sentinels. |
 | `users/{uid}/organizer/{id}` (organizer-item flow) | `type`, `name`, `body`, `createdAt`, `updatedAt`, `scheduledDate`, `start`, `end`, `due`, `duration`, `completedAt`, `status`, `priority`, `tags[]`, `source`, `dateMode`, `dateValue`, `recurrence`, `owner`, `visibility`, `syncSource`, `lastModified`, `history[]` | Also numeric timestamps (`Date.now()`). Shares same collection as projects, so schema is polymorphic/disjoint. |
@@ -47,3 +47,14 @@ Minimal enqueue payload equivalent:
 - Path: `users/{uid}/desktopAgentJobs/{jobId}`
 - Required fields: `type: "tool"`, `tool`, `params`, `status: "pending"`, `createdAt`, `updatedAt`
 - Recommended fields: `opId`, `nextRunAt`, `retryCount`, `maxRetries`, `source`
+
+## Message-first remote jobs
+
+Local now also exposes a task-bucket path for remote jobs that should stay represented as one human request even when tools are used during execution:
+
+- `createAutomatedJobTask(title, options)` -> creates a `users/{uid}/tasks/{taskId}` doc with `type: "jobPanel"`, `automated: true`, top-level task status, visible `taskLog[]`, `source`, and nested `automation` state.
+- `claimNextAutomatedTask(options)` -> scans automated task docs and transactionally claims the next eligible job by setting `automation.runnerId`, `automation.leaseUntil`, and `automation.state`.
+- `heartbeatAutomatedTask(taskId, options)` -> refreshes the lease on a claimed task.
+- `updateAutomatedJobTask(taskId, updates)` -> merges task-level status fields and nested automation state without changing the job's canonical location.
+
+This path is the intended model for "do this for me" requests. Tool use becomes an implementation detail recorded in the task log, not the primary queue record.

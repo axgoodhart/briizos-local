@@ -3,6 +3,7 @@ import './App.css';
 import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
+import MediaPanel from './components/MediaPanel';
 import LoginOverlay from './components/LoginOverlay';
 import { TileLayout } from './components/layout/TileLayout';
 import { useLayout } from './hooks/useLayout';
@@ -17,23 +18,51 @@ import { useAppContext } from './hooks/useAppContext';
 import { useAgentWorkers } from './hooks/useAgentWorkers';
 import { useToolBridge } from './hooks/useToolBridge';
 import { useTaskAutomation } from './hooks/useTaskAutomation';
+import { setBriizToolsContext } from './lib/briizos-tools';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
 import { BriiztormOverlay, ActionDeckColumn, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
 import { NotesWidget } from './components/notes';
+import { CanvasesPopover, CanvasTile } from './components/canvases';
+import { useCanvases } from './hooks/useCanvases';
+import BfastBundle from './components/bfast/BfastBundle';
+import { toast as bfastToast } from './lib/bfast-queue';
 import logger from './lib/logger';
+import { CANVAS_RENDER_ENGINES } from './lib/canvasUtils';
+import {
+  DEFAULT_ACTIONDECK_PANEL_SETTINGS,
+  DEFAULT_CANVAS_PANEL_SETTINGS,
+  PANEL_VIEW_OPTIONS,
+  loadPanelSettings,
+  normalizePanelSettings,
+  resolvePanelStartView,
+  savePanelSettings,
+} from './lib/floatingPanelPrefs';
 
 const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
+const ACTIONDECK_SETTINGS_KEY = 'briizos.actiondeck.panel-settings';
 
 function applyUiTheme(theme) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
+
+  // Trigger transition animation
+  root.classList.remove('theme-transitioning');
+  // Force reflow so the animation restarts
+  void root.offsetWidth;
+  root.classList.add('theme-transitioning');
+
   if (!theme || theme === 'default') {
     root.removeAttribute('data-theme');
     return;
   }
   root.setAttribute('data-theme', theme);
+
+  // Clean up animation class after animation completes
+  setTimeout(() => {
+    root.classList.remove('theme-transitioning');
+  }, 500);
 }
 
 // Debug counter to track renders
@@ -184,6 +213,14 @@ function AppContent({ layout }) {
   useAgentWorkers(executeTool, appContext);
   useToolBridge(executeTool, appContext);
   useTaskAutomation();
+
+  // Feed the BriizTools chat pipeline the same appContext + layoutHook
+  // that ToolContext/useToolBridge already use. This is how chat-originated
+  // tool calls (useChat → BriizTools.execute) reach the real handlers in
+  // src/lib/tools.js instead of the fake-success stub in electron/main.js.
+  useEffect(() => {
+    setBriizToolsContext({ appContext, layoutHook: layout });
+  }, [appContext, layout]);
   appRenderCount++;
   logger.debug('ui', `App render #${appRenderCount}`);
 
@@ -193,6 +230,7 @@ function AppContent({ layout }) {
     getVisiblePanels,
     getPanelByType,
     addPanel,
+    removePanel,
     togglePanelVisibility,
     updateColumnSizes,
     updateStackSizes,
@@ -209,11 +247,21 @@ function AppContent({ layout }) {
   const [actionDeckFloating, setActionDeckFloating] = useState(false);
   const [organizerOpen, setOrganizerOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const [controlBarOpen, setControlBarOpen] = useState(false);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasData, setCanvasData] = useState(null);
   const [canvasTitle, setCanvasTitle] = useState('Canvas');
+  // Canvases library (the Control Bar folder feature)
+  const [canvasesPopoverOpen, setCanvasesPopoverOpen] = useState(false);
+  // openCanvases tracks which saved canvases are currently mounted
+  // { [filename]: { formFactor: 'float' | 'tile' | 'hybrid' | 'widget' } }
+  const [openCanvases, setOpenCanvases] = useState({});
+  // The single floating canvas currently in LiveCanvas from the popover
+  // (separate from the AI-driven canvasData path). Shape:
+  // { filename, title, rawHtml }
+  const [floatingCanvas, setFloatingCanvas] = useState(null);
+  const canvasesHook = useCanvases();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem(UI_THEME_STORAGE_KEY) || 'default';
@@ -229,7 +277,10 @@ function AppContent({ layout }) {
       if (ws) {
         if (ws.notesOpen) setNotesOpen(true);
         if (ws.actionDeckFloating) setActionDeckFloating(true);
-        if (ws.controlBarOpen) setControlBarOpen(true);
+        if (ws.mediaOpen) setMediaOpen(true);
+        if (ws.openCanvases && typeof ws.openCanvases === 'object') {
+          setOpenCanvases(ws.openCanvases);
+        }
       }
     }
   }, [layoutLoading, layoutRow.workspace]);
@@ -237,8 +288,8 @@ function AppContent({ layout }) {
   // Persist overlay states to workspace (debounced via useLayout)
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
-    updateWorkspace({ notesOpen, actionDeckFloating, controlBarOpen });
-  }, [notesOpen, actionDeckFloating, controlBarOpen, updateWorkspace]);
+    updateWorkspace({ notesOpen, actionDeckFloating, mediaOpen, openCanvases });
+  }, [notesOpen, actionDeckFloating, mediaOpen, openCanvases, updateWorkspace]);
 
   // Get the panels from the layout hook
   const panels = getVisiblePanels();
@@ -246,7 +297,22 @@ function AppContent({ layout }) {
   const actionDeckPanel = getPanelByType('actiondeck');
   const actionDeckOpen = actionDeckFloating || actionDeckPanel?.visible === true;
 
+  const getActionDeckPanelSettings = useCallback(() => (
+    loadPanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS)
+  ), []);
+
+  const saveActionDeckPanelSettings = useCallback((updater) => {
+    const current = getActionDeckPanelSettings();
+    const next = normalizePanelSettings(
+      typeof updater === 'function' ? updater(current) : { ...current, ...updater },
+      DEFAULT_ACTIONDECK_PANEL_SETTINGS
+    );
+    savePanelSettings(ACTIONDECK_SETTINGS_KEY, next, DEFAULT_ACTIONDECK_PANEL_SETTINGS);
+    return next;
+  }, [getActionDeckPanelSettings]);
+
   const openActionDeckColumn = useCallback(() => {
+    saveActionDeckPanelSettings({ lastUsedView: PANEL_VIEW_OPTIONS.TILE });
     if (actionDeckPanel?.visible) return;
     if (actionDeckPanel) {
       togglePanelVisibility(actionDeckPanel.id);
@@ -258,7 +324,7 @@ function AppContent({ layout }) {
       size: 25,
       visible: true
     });
-  }, [actionDeckPanel, togglePanelVisibility, addPanel]);
+  }, [actionDeckPanel, togglePanelVisibility, addPanel, saveActionDeckPanelSettings]);
 
   const hideActionDeckColumn = useCallback(() => {
     if (actionDeckPanel?.visible) {
@@ -275,13 +341,30 @@ function AppContent({ layout }) {
       hideActionDeckColumn();
       return;
     }
+    const preferredView = resolvePanelStartView(
+      getActionDeckPanelSettings(),
+      PANEL_VIEW_OPTIONS.TILE
+    );
+    if (preferredView === PANEL_VIEW_OPTIONS.FLOATING) {
+      setActionDeckFloating(true);
+      saveActionDeckPanelSettings({ lastUsedView: PANEL_VIEW_OPTIONS.FLOATING });
+      return;
+    }
     openActionDeckColumn();
-  }, [actionDeckFloating, actionDeckPanel, hideActionDeckColumn, openActionDeckColumn]);
+  }, [
+    actionDeckFloating,
+    actionDeckPanel,
+    getActionDeckPanelSettings,
+    hideActionDeckColumn,
+    openActionDeckColumn,
+    saveActionDeckPanelSettings,
+  ]);
 
   const popOutActionDeck = useCallback(() => {
     hideActionDeckColumn();
+    saveActionDeckPanelSettings({ lastUsedView: PANEL_VIEW_OPTIONS.FLOATING });
     setActionDeckFloating(true);
-  }, [hideActionDeckColumn]);
+  }, [hideActionDeckColumn, saveActionDeckPanelSettings]);
 
   const dockActionDeck = useCallback(() => {
     setActionDeckFloating(false);
@@ -295,6 +378,355 @@ function AppContent({ layout }) {
     }
     hideActionDeckColumn();
   }, [actionDeckFloating, hideActionDeckColumn]);
+
+  // ----- Canvases (folder library of saved mini-apps) -----
+
+  const openCanvasTile = useCallback((filename) => {
+    const panelId = `canvas:${filename}`;
+    // addPanel is idempotent: if a panel with this id already exists
+    // (via findPanelLocation check inside useLayout) it is a no-op.
+    addPanel({
+      id: panelId,
+      type: 'canvas',
+      size: 25,
+      visible: true,
+    });
+    logger.info('canvases', 'Canvas tile opened', { filename });
+  }, [addPanel]);
+
+  const openCanvasFloating = useCallback(async (canvas) => {
+    if (!canvas?.filename) return;
+    const api = typeof window !== 'undefined' ? window.api : null;
+    if (!api?.canvasLoad) {
+      logger.warn('canvases', 'Canvas IPC unavailable — cannot open floating canvas');
+      return;
+    }
+    try {
+      const raw = await api.canvasLoad(canvas.filename);
+      const meta = api.canvasLoadMeta ? await api.canvasLoadMeta(canvas.filename) : {};
+      setFloatingCanvas({
+        filename: canvas.filename,
+        title: canvas.title || canvas.filename,
+        rawHtml: raw || '',
+        meta: { ...(meta || {}), source: canvas.source || meta?.source },
+      });
+      setCanvasData({
+        filename: canvas.filename,
+        rawHtml: raw || '',
+        html: '',
+        css: '',
+        js: '',
+        meta: { ...(meta || {}), source: canvas.source || meta?.source },
+      });
+      setCanvasTitle(canvas.title || canvas.filename);
+      setCanvasOpen(true);
+      logger.info('canvases', 'Canvas float opened', { filename: canvas.filename });
+    } catch (err) {
+      logger.error('canvases', 'Failed to open canvas float', { filename: canvas.filename, error: String(err) });
+    }
+  }, []);
+
+  const persistCanvasPanelSettings = useCallback(async (filename, updater) => {
+    if (!filename) return DEFAULT_CANVAS_PANEL_SETTINGS;
+    const existing = await canvasesHook.loadMeta(filename);
+    const currentSettings = normalizePanelSettings(
+      existing?.panelSettings || {},
+      DEFAULT_CANVAS_PANEL_SETTINGS
+    );
+    const nextSettings = normalizePanelSettings(
+      typeof updater === 'function' ? updater(currentSettings) : { ...currentSettings, ...updater },
+      DEFAULT_CANVAS_PANEL_SETTINGS
+    );
+    await canvasesHook.saveMeta(filename, {
+      ...(existing || {}),
+      panelSettings: nextSettings,
+    });
+    if (floatingCanvas?.filename === filename) {
+      setFloatingCanvas((prev) => prev ? {
+        ...prev,
+        meta: { ...(prev.meta || {}), panelSettings: nextSettings },
+      } : null);
+      setCanvasData((prev) => prev ? {
+        ...prev,
+        meta: { ...(prev.meta || {}), panelSettings: nextSettings },
+      } : null);
+    }
+    return nextSettings;
+  }, [canvasesHook, floatingCanvas]);
+
+  const handleOpenCanvas = useCallback(async (canvas) => {
+    if (!canvas) return;
+    const meta = await canvasesHook.loadMeta(canvas.filename);
+    const preferredView = resolvePanelStartView(
+      meta?.panelSettings || DEFAULT_CANVAS_PANEL_SETTINGS,
+      PANEL_VIEW_OPTIONS.FLOATING
+    );
+    const factor = preferredView === PANEL_VIEW_OPTIONS.TILE ? 'tile' : 'float';
+    setOpenCanvases((prev) => ({ ...prev, [canvas.filename]: { formFactor: factor } }));
+    await persistCanvasPanelSettings(canvas.filename, { lastUsedView: preferredView });
+    if (factor === 'tile') {
+      openCanvasTile(canvas.filename);
+    }
+    if (factor === 'float') {
+      await openCanvasFloating(canvas);
+    }
+  }, [canvasesHook, openCanvasTile, openCanvasFloating, persistCanvasPanelSettings]);
+
+  const handleCreateCanvas = useCallback(async ({ source, name, html, meta }) => {
+    const created = await canvasesHook.createCanvas({
+      title: name,
+      html,
+      formFactor: 'float',
+      source,
+      meta,
+    });
+    if (created) {
+      await canvasesHook.refresh();
+      // Auto-open the new canvas in its default (float) form factor
+      await handleOpenCanvas({
+        filename: created.filename,
+        title: created.title,
+        formFactor: 'float',
+      });
+    }
+    return created;
+  }, [canvasesHook, handleOpenCanvas]);
+
+  const handleDeleteCanvas = useCallback(async (canvas) => {
+    if (!canvas?.filename) return;
+    await canvasesHook.deleteCanvas(canvas.filename);
+    // Remove tile panel from layout (not just hide — fully remove)
+    const panelId = `canvas:${canvas.filename}`;
+    removePanel(panelId);
+    setOpenCanvases((prev) => {
+      if (!prev[canvas.filename]) return prev;
+      const next = { ...prev };
+      delete next[canvas.filename];
+      return next;
+    });
+    if (floatingCanvas?.filename === canvas.filename) {
+      setFloatingCanvas(null);
+      setCanvasOpen(false);
+      setCanvasData(null);
+    }
+  }, [canvasesHook, floatingCanvas, removePanel]);
+
+  const handleRenameCanvas = useCallback(async (canvas, newTitle) => {
+    if (!canvas?.filename) return;
+    const res = await canvasesHook.renameCanvas(canvas.filename, newTitle);
+    if (res?.success && res.filename && res.filename !== canvas.filename) {
+      const oldPanelId = `canvas:${canvas.filename}`;
+      const newPanelId = `canvas:${res.filename}`;
+      // Swap tile panel: remove old, add new with same form factor
+      setOpenCanvases((prev) => {
+        if (!prev[canvas.filename]) return prev;
+        const entry = prev[canvas.filename];
+        // If this canvas had a tile panel, replace it in the layout
+        if (entry.formFactor === 'tile' || entry.formFactor === 'hybrid') {
+          removePanel(oldPanelId);
+          addPanel({ id: newPanelId, type: 'canvas', size: 25, visible: true });
+        }
+        const next = { ...prev };
+        next[res.filename] = entry;
+        delete next[canvas.filename];
+        return next;
+      });
+      // Update floating canvas reference if open
+      if (floatingCanvas?.filename === canvas.filename) {
+        setFloatingCanvas((prev) => prev ? { ...prev, filename: res.filename, title: newTitle } : null);
+      }
+    }
+  }, [canvasesHook, removePanel, addPanel, floatingCanvas]);
+
+  const handleSetCanvasFormFactor = useCallback(async (canvas, factor) => {
+    if (!canvas?.filename) return;
+    if (factor === 'widget') {
+      try { bfastToast('Widget mode — coming soon'); } catch { /* ignore */ }
+      return;
+    }
+    const prev = openCanvases[canvas.filename];
+    const hadTile = prev && (prev.formFactor === 'tile' || prev.formFactor === 'hybrid');
+    const hadFloat = prev && (prev.formFactor === 'float' || prev.formFactor === 'hybrid');
+    const wantsTile = factor === 'tile' || factor === 'hybrid';
+    const wantsFloat = factor === 'float' || factor === 'hybrid';
+
+    await canvasesHook.setFormFactor(canvas.filename, factor);
+    // If this canvas is currently open, update its mount shape live
+    if (prev) {
+      setOpenCanvases((oc) => ({ ...oc, [canvas.filename]: { formFactor: factor } }));
+      // Remove tile panel if no longer needed
+      if (hadTile && !wantsTile) {
+        removePanel(`canvas:${canvas.filename}`);
+      }
+      // Add tile panel if now needed
+      if (wantsTile && !hadTile) {
+        openCanvasTile(canvas.filename);
+      }
+      // Close float if no longer needed
+      if (hadFloat && !wantsFloat && floatingCanvas?.filename === canvas.filename) {
+        setFloatingCanvas(null);
+        setCanvasOpen(false);
+        setCanvasData(null);
+      }
+      // Open float if now needed
+      if (wantsFloat && !hadFloat) {
+        await openCanvasFloating({ filename: canvas.filename, title: canvas.title, formFactor: factor });
+      }
+    }
+  }, [canvasesHook, openCanvases, openCanvasTile, openCanvasFloating, removePanel, floatingCanvas]);
+
+  const handleSetCanvasRenderEngine = useCallback(async (canvas, renderEngine) => {
+    if (!canvas?.filename) return;
+    await canvasesHook.setRenderEngine(canvas.filename, renderEngine);
+    if (floatingCanvas?.filename === canvas.filename) {
+      setFloatingCanvas((prev) => prev ? {
+        ...prev,
+        meta: { ...(prev.meta || {}), renderEngine },
+      } : null);
+      setCanvasData((prev) => prev ? {
+        ...prev,
+        meta: { ...(prev.meta || {}), renderEngine },
+      } : null);
+    }
+  }, [canvasesHook, floatingCanvas]);
+
+  const handleToggleCanvasMount = useCallback(async (filename, mountType) => {
+    if (!filename || (mountType !== 'tile' && mountType !== 'float')) return;
+    const canvas = canvasesHook.canvases.find((entry) => entry.filename === filename)
+      || (floatingCanvas?.filename === filename ? {
+        filename,
+        title: floatingCanvas.title,
+        formFactor: openCanvases[filename]?.formFactor || 'float',
+      } : null);
+    if (!canvas) return;
+
+    const currentFactor = openCanvases[filename]?.formFactor || canvas.formFactor || 'float';
+    const hasTile = currentFactor === 'tile' || currentFactor === 'hybrid';
+    const hasFloat = currentFactor === 'float' || currentFactor === 'hybrid';
+    const nextHasTile = mountType === 'tile' ? !hasTile : hasTile;
+    const nextHasFloat = mountType === 'float' ? !hasFloat : hasFloat;
+
+    if (!nextHasTile && !nextHasFloat) {
+      return;
+    }
+
+    const nextFactor = nextHasTile && nextHasFloat
+      ? 'hybrid'
+      : nextHasTile
+        ? 'tile'
+        : 'float';
+
+    await persistCanvasPanelSettings(filename, {
+      lastUsedView: mountType === 'tile' ? PANEL_VIEW_OPTIONS.TILE : PANEL_VIEW_OPTIONS.FLOATING,
+    });
+    await handleSetCanvasFormFactor(canvas, nextFactor);
+  }, [
+    canvasesHook.canvases,
+    floatingCanvas,
+    handleSetCanvasFormFactor,
+    openCanvases,
+    persistCanvasPanelSettings,
+  ]);
+
+  const handlePromoteCanvasToBrowser = useCallback(async (filename) => {
+    if (!filename) return;
+    const canvas = canvasesHook.canvases.find((entry) => entry.filename === filename);
+    if (!canvas) return;
+    if (canvas.renderEngine === CANVAS_RENDER_ENGINES.BROWSER) return;
+    await handleSetCanvasRenderEngine(canvas, CANVAS_RENDER_ENGINES.BROWSER);
+  }, [canvasesHook.canvases, handleSetCanvasRenderEngine]);
+
+  const handleSaveFloatingCanvas = useCallback(async (srcdoc) => {
+    if (!floatingCanvas) return;
+    const api = typeof window !== 'undefined' ? window.api : null;
+    if (!api?.canvasSave) return;
+    try {
+      await api.canvasSave(floatingCanvas.title || 'Canvas', srcdoc);
+      await canvasesHook.refresh();
+      logger.info('canvases', 'Floating canvas saved', { title: floatingCanvas.title });
+    } catch (err) {
+      logger.error('canvases', 'Failed to save floating canvas', { error: String(err) });
+    }
+  }, [floatingCanvas, canvasesHook]);
+
+  const closeCanvasPanel = useCallback((panelId) => {
+    const prefix = 'canvas:';
+    if (typeof panelId !== 'string' || !panelId.startsWith(prefix)) return;
+    const filename = panelId.slice(prefix.length);
+    togglePanelVisibility(panelId);
+    setOpenCanvases((prev) => {
+      if (!prev[filename]) return prev;
+      const current = prev[filename];
+      // For hybrid, keep float open; remove tile dimension only
+      if (current.formFactor === 'hybrid') {
+        return { ...prev, [filename]: { formFactor: 'float' } };
+      }
+      const next = { ...prev };
+      delete next[filename];
+      return next;
+    });
+    logger.info('canvases', 'Canvas tile closed', { filename });
+  }, [togglePanelVisibility]);
+
+  useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.api : null;
+    if (!api?.canvasList || layoutLoading || canvasesHook.isLoading) return;
+
+    const liveFilenames = new Set(
+      canvasesHook.canvases
+        .map(canvas => canvas?.filename)
+        .filter(Boolean)
+    );
+    const canvasPanelIds = new Set();
+
+    (layoutRow.columns || []).forEach((column) => {
+      (column.panels || []).forEach((panel) => {
+        if (typeof panel.panelId === 'string' && panel.panelId.startsWith('canvas:')) {
+          canvasPanelIds.add(panel.panelId);
+        }
+      });
+    });
+    (layoutRow.hiddenPanels || []).forEach((panel) => {
+      if (typeof panel.panelId === 'string' && panel.panelId.startsWith('canvas:')) {
+        canvasPanelIds.add(panel.panelId);
+      }
+    });
+
+    const orphanPanelIds = [...canvasPanelIds].filter((panelId) => {
+      const filename = panelId.slice('canvas:'.length);
+      return !liveFilenames.has(filename);
+    });
+
+    if (orphanPanelIds.length === 0) return;
+
+    orphanPanelIds.forEach(removePanel);
+    setOpenCanvases((prev) => {
+      let changed = false;
+      const next = {};
+      Object.entries(prev).forEach(([filename, entry]) => {
+        if (liveFilenames.has(filename)) {
+          next[filename] = entry;
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    if (floatingCanvas?.filename && !liveFilenames.has(floatingCanvas.filename)) {
+      setFloatingCanvas(null);
+      setCanvasOpen(false);
+      setCanvasData(null);
+    }
+    logger.info('canvases', 'Removed orphaned canvas panels from layout', { orphanPanelIds });
+  }, [
+    canvasesHook.canvases,
+    canvasesHook.isLoading,
+    floatingCanvas,
+    layoutLoading,
+    layoutRow.columns,
+    layoutRow.hiddenPanels,
+    removePanel,
+  ]);
 
   // Track mount/unmount
   useEffect(() => {
@@ -326,6 +758,10 @@ function AppContent({ layout }) {
             e.preventDefault();
             setCalendarOpen(true);
             break;
+          case 'm': // Cmd+Shift+M - Toggle Media
+            e.preventDefault();
+            setMediaOpen(prev => !prev);
+            break;
           case 'n': // Cmd+Shift+N - Toggle Notes
             e.preventDefault();
             setNotesOpen(prev => !prev);
@@ -334,13 +770,21 @@ function AppContent({ layout }) {
             e.preventDefault();
             setCanvasOpen(prev => !prev);
             break;
+          case 'k': // Cmd+Shift+K - Toggle Canvases library
+            e.preventDefault();
+            setCanvasesPopoverOpen(prev => !prev);
+            break;
         }
       }
 
       // Escape closes topmost overlay
       if (e.key === 'Escape') {
-        if (canvasOpen) {
+        if (canvasesPopoverOpen) {
+          setCanvasesPopoverOpen(false);
+        } else if (canvasOpen) {
           setCanvasOpen(false);
+        } else if (mediaOpen) {
+          setMediaOpen(false);
         } else if (organizerOpen) {
           setOrganizerOpen(false);
         } else if (calendarOpen) {
@@ -359,7 +803,7 @@ function AppContent({ layout }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, toggleActionDeck]);
+  }, [organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, mediaOpen, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, toggleActionDeck]);
 
   // Listen for canvas events from tool system
   useEffect(() => {
@@ -391,8 +835,34 @@ function AppContent({ layout }) {
         return <InteractionPanel />;
       case 'tasks':
         return <TasksPanel />;
+      case 'media':
+        return <MediaPanel />;
       case 'actiondeck':
         return <ActionDeckColumn embedded onClose={closeActionDeck} onPopOut={popOutActionDeck} />;
+      case 'canvas': {
+        const canvasFilename = String(panel.panelId || panel.id || '').replace(/^canvas:/, '');
+        const canvasEntry = canvasesHook.canvases.find((entry) => entry.filename === canvasFilename);
+        return (
+          <CanvasTile
+            panel={panel}
+            metaOverride={canvasEntry ? {
+              displayName: canvasEntry.title,
+              source: canvasEntry.source,
+              renderEngine: canvasEntry.renderEngine,
+              url: canvasEntry.url,
+            } : null}
+            onClose={() => closeCanvasPanel(panel.panelId || panel.id)}
+            isTileActive
+            isFloatActive={(() => {
+              const factor = openCanvases[canvasFilename]?.formFactor || 'tile';
+              return factor === 'float' || factor === 'hybrid';
+            })()}
+            onPromoteBrowser={() => handlePromoteCanvasToBrowser(canvasFilename)}
+            onToggleTile={() => handleToggleCanvasMount(canvasFilename, 'tile')}
+            onToggleFloat={() => handleToggleCanvasMount(canvasFilename, 'float')}
+          />
+        );
+      }
       default:
         return (
           <div className="panel">
@@ -405,38 +875,66 @@ function AppContent({ layout }) {
           </div>
         );
     }
-  }, [closeActionDeck, popOutActionDeck]);
+  }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases]);
 
   return (
     <div className="app">
       <header className="app-header">
         <div className="header-title">
-          <span className="title-icon">●</span>
+          <span className="title-icon:before"></span>
+          <span className="title-icon"></span>
           <span className="title-text">briizOS</span>
         </div>
-        <div id="controlBarBtn" onClick={() => setControlBarOpen(!controlBarOpen)}></div>
 
-        <HeaderDateTimeWeather />
+        <div className="header-dock-slot">
+          <ControlBar
+            variant="dock"
+            briiztormOpen={briiztormOpen}
+            actionDeckOpen={actionDeckOpen}
+            organizerOpen={organizerOpen}
+            calendarOpen={calendarOpen}
+            mediaOpen={mediaOpen}
+            notesOpen={notesOpen}
+            canvasesOpen={canvasesPopoverOpen}
+            onToggleBriiztorm={() => setBriiztormOpen(!briiztormOpen)}
+            onToggleActionDeck={toggleActionDeck}
+            onOpenOrganizer={() => setOrganizerOpen((prev) => !prev)}
+            onOpenCalendar={() => setCalendarOpen((prev) => !prev)}
+            onToggleMedia={() => setMediaOpen((prev) => !prev)}
+            onToggleNotes={() => setNotesOpen(!notesOpen)}
+            onToggleCanvases={() => setCanvasesPopoverOpen((prev) => !prev)}
+            canvasesPopoverSlot={(
+              <CanvasesPopover
+                isOpen={canvasesPopoverOpen}
+                onClose={() => setCanvasesPopoverOpen(false)}
+                canvases={canvasesHook.canvases}
+                isLoading={canvasesHook.isLoading}
+                onOpenCanvas={handleOpenCanvas}
+                onCreateCanvas={handleCreateCanvas}
+                onDeleteCanvas={handleDeleteCanvas}
+                onRenameCanvas={handleRenameCanvas}
+                onSetFormFactor={handleSetCanvasFormFactor}
+                onSetRenderEngine={handleSetCanvasRenderEngine}
+              />
+            )}
+          />
+        </div>
 
-        <button id="settings-btn" onClick={() => setShowSettings(true)}>
-          <span className="settings-icon">⚙</span>
-          <span>Settings</span>
-        </button>
+        <div className="header-right">
+          <HeaderDateTimeWeather />
+
+          <button id="settings-btn" onClick={() => setShowSettings(true)}>
+            <span className="settings-icon">⚙</span>
+            <span>Settings</span>
+          </button>
+        </div>
+
+        <div id="controlBarBtn" aria-hidden="true"></div>
       </header>
 
       {/* Control Bar with Toggles */}
-      <div className={`controlBar${controlBarOpen ? '' : ' closed'}`} id="controlBar">
-        <ControlBar
-          isOpen={controlBarOpen}
-          briiztormOpen={briiztormOpen}
-          actionDeckOpen={actionDeckOpen}
-          notesOpen={notesOpen}
-          onToggleBriiztorm={() => setBriiztormOpen(!briiztormOpen)}
-          onToggleActionDeck={toggleActionDeck}
-          onOpenOrganizer={() => setOrganizerOpen(true)}
-          onOpenCalendar={() => setCalendarOpen(true)}
-          onToggleNotes={() => setNotesOpen(!notesOpen)}
-        />
+      <div className="controlBar closed" id="controlBar">
+        <ControlBar variant="bar" />
       </div>
 
       {/* Main Content */}
@@ -490,12 +988,40 @@ function AppContent({ layout }) {
         }}
       />
 
+      {mediaOpen && (
+        <MediaPanel
+          floating
+          onClose={() => setMediaOpen(false)}
+          panelPosition={workspace.mediaPanel ? { x: workspace.mediaPanel.x, y: workspace.mediaPanel.y } : null}
+          panelDimensions={workspace.mediaPanel ? { width: workspace.mediaPanel.width, height: workspace.mediaPanel.height } : null}
+          onPanelChange={(pos, size) => {
+            updateWorkspace({
+              mediaPanel: pos
+                ? { x: pos.x, y: pos.y, width: size.width, height: size.height }
+                : { width: size.width, height: size.height }
+            });
+          }}
+        />
+      )}
+
       {/* Live Canvas */}
       <LiveCanvas
         isOpen={canvasOpen}
-        onClose={() => setCanvasOpen(false)}
+        onClose={() => {
+          setCanvasOpen(false);
+          setFloatingCanvas(null);
+        }}
         canvasData={canvasData}
         title={canvasTitle}
+        onSave={floatingCanvas ? handleSaveFloatingCanvas : undefined}
+        isTileActive={floatingCanvas ? (() => {
+          const factor = openCanvases[floatingCanvas.filename]?.formFactor || 'float';
+          return factor === 'tile' || factor === 'hybrid';
+        })() : false}
+        isFloatActive={!!floatingCanvas}
+        onToggleTile={floatingCanvas ? () => handleToggleCanvasMount(floatingCanvas.filename, 'tile') : undefined}
+        onToggleFloat={floatingCanvas ? () => handleToggleCanvasMount(floatingCanvas.filename, 'float') : undefined}
+        onPromoteBrowser={floatingCanvas ? () => handlePromoteCanvasToBrowser(floatingCanvas.filename) : undefined}
       />
 
       {/* Dashboard (replaces Settings Modal) */}
@@ -506,6 +1032,9 @@ function AppContent({ layout }) {
 
       {/* Login Overlay - Shows when not authenticated */}
       <LoginOverlay />
+
+      {/* Bfast Bundle — toasts, snackbars, and margerin intent holds */}
+      <BfastBundle />
     </div>
   );
 }

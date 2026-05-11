@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import logger from '../lib/logger';
+import ChatAPI from '../lib/chat-api';
+import SystemPrompt from '../lib/system-prompt';
+import BriizTools from '../lib/briizos-tools';
 import {
   subscribeChatMessages,
   addChatMessage,
@@ -11,7 +14,6 @@ import {
   markRemoteChatRead,
 } from '../lib/firestore';
 import { getCurrentUid } from '../lib/firebase';
-import { useAppContext } from './useAppContext';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 const hasApi = typeof window !== 'undefined' && window.api;
@@ -26,6 +28,35 @@ const MODALITY_SKILL_MAP = {
   plan: null,
 };
 
+const FILE_CONTEXT_TOOL_CAPABILITIES = [
+  '- `agentReadFile(path)`: Read file contents (subject to blacklist rules).',
+  '- `agentListDir(path)`: List directory contents (subject to blacklist rules).',
+  '- `agentWriteFile(path, content, opId?)`: Create/overwrite files.',
+  '- `agentCopyFile(source, destination, opId?)`: Copy files or folders.',
+  '- `agentMoveFile(source, destination, opId?)`: Move/rename files.',
+  '- `agentDeleteFile(path, opId?)`: Delete files or folders.',
+  '- `runCommand(command, cwd?, opId?)`: Run shell commands when needed.'
+];
+
+function buildFileContextAddendum(files = []) {
+  if (!Array.isArray(files) || files.length === 0) return '';
+  const lines = files
+    .map((file) => file?.path)
+    .filter(Boolean)
+    .map((filePath) => `- ${filePath}`);
+  if (lines.length === 0) return '';
+
+  return [
+    'Pinned filesystem context from the user:',
+    ...lines,
+    '',
+    'Capabilities available for working with these paths (tools):',
+    ...FILE_CONTEXT_TOOL_CAPABILITIES,
+    '',
+    'Prefer direct path-based tool calls when the user asks to inspect or modify pinned files.'
+  ].join('\n');
+}
+
 export function useChat({ selectedModel } = {}) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,8 +66,9 @@ export function useChat({ selectedModel } = {}) {
   const [streamingContent, setStreamingContent] = useState('');
   const [currentStreamId, setCurrentStreamId] = useState(null);
   const [toolCalls, setToolCalls] = useState([]);
-  const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
+  const [pendingToolConfirmation] = useState(null);
   const [threadTitle, setThreadTitle] = useState(null);
+  const threadTitleRef = useRef(null);
   const [modality, setModality] = useState('chat');
   const [subAgentTasks, setSubAgentTasks] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -48,58 +80,50 @@ export function useChat({ selectedModel } = {}) {
   });
 
   const streamContentRef = useRef('');
-  const streamIdRef = useRef(null);
   const toolCallsRef = useRef([]);
-  const subAgentTasksRef = useRef([]);
-  const threadIdRef = useRef(null);
-  const threadTitleRef = useRef(null);
-  const isRemoteResponseRef = useRef(false);
-  const messagesRef = useRef([]);
-  const suggestionsEnabledRef = useRef(suggestionsEnabled);
   const selectedModelRef = useRef(selectedModel || null);
+  // Mirror suggestionsEnabled into a ref so sendMessage's stable closure
+  // always reads the current value (otherwise toggling mid-session would
+  // not reach the next request).
+  const suggestionsEnabledRef = useRef(suggestionsEnabled);
 
-  // Contexts
-  const appContext = useAppContext();
+  const chatAPIRef = useRef(null);
+  const briizToolsRef = useRef(null);
 
-  // Keep refs for values used inside IPC listeners (avoids effect re-runs)
-  const appContextRef = useRef(appContext);
-  useEffect(() => { appContextRef.current = appContext; }, [appContext]);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => { suggestionsEnabledRef.current = suggestionsEnabled; }, [suggestionsEnabled]);
+  useEffect(() => {
+    chatAPIRef.current = new ChatAPI();
+    window.systemPrompt = new SystemPrompt();
+    briizToolsRef.current = new BriizTools();
+    window.briizTools = briizToolsRef.current;
+  }, []);
+
   useEffect(() => { selectedModelRef.current = selectedModel || null; }, [selectedModel]);
 
-  // Persist suggestionsEnabled to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('briizos-suggestions-enabled', JSON.stringify(suggestionsEnabled));
     } catch {}
+    // Keep the ref in sync for sendMessage's stable closure.
+    suggestionsEnabledRef.current = suggestionsEnabled;
+    // When the user turns suggestions OFF, immediately drop any chips
+    // currently on screen so the toggle feels responsive.
+    if (!suggestionsEnabled) {
+      setSuggestions([]);
+    }
   }, [suggestionsEnabled]);
 
-  // Re-check uid each render so subscription restarts when auth becomes ready
   const uid = getCurrentUid();
 
-  // Subscribe to chat messages from Firestore
   useEffect(() => {
     if (!uid) return;
-
-    const unsubscribe = subscribeChatMessages((firestoreMessages) => {
-      setMessages(firestoreMessages);
-    });
-
+    const unsubscribe = subscribeChatMessages((firestoreMessages) => setMessages(firestoreMessages));
     return () => unsubscribe();
   }, [uid]);
-
-  // Check if AI is configured
-  useEffect(() => {
-    checkConfig();
-    loadSelectedFiles();
-  }, []);
 
   const checkConfig = useCallback(async () => {
     if (!hasApi) return;
     try {
       if (typeof api.isAIConfigured !== 'function') {
-        // Older preload builds may not expose this; avoid noisy errors.
         setIsConfigured(true);
         return;
       }
@@ -113,7 +137,7 @@ export function useChat({ selectedModel } = {}) {
   const loadSelectedFiles = useCallback(async () => {
     try {
       const files = await getSelectedFilesFirestore();
-      const normalized = files.map(f => ({ name: f.file_name, path: f.file_path }));
+      const normalized = files.map((f) => ({ name: f.file_name, path: f.file_path }));
       setFilesInContext(normalized);
       return normalized;
     } catch (error) {
@@ -122,21 +146,12 @@ export function useChat({ selectedModel } = {}) {
     }
   }, []);
 
-  // Ensure a LangGraph thread exists, creating one if needed
-  const ensureThread = useCallback(async () => {
-    if (threadIdRef.current) return threadIdRef.current;
-    if (!hasApi || !api.langgraphCreateThread) {
-      throw new Error('LangGraph API not available');
-    }
-    const result = await api.langgraphCreateThread();
-    const tid = result?.thread_id || result?.threadId || result;
-    threadIdRef.current = tid;
-    logger.debug('chat', 'Created LangGraph thread', tid);
-    return tid;
-  }, []);
+  useEffect(() => {
+    checkConfig();
+    loadSelectedFiles();
+  }, [checkConfig, loadSelectedFiles]);
 
-  const getModelForRun = useCallback(() => {
-    if (!hasApi) return null;
+  const getSelectedModel = useCallback(() => {
     const fromProp = selectedModelRef.current;
     if (fromProp) return fromProp;
     try {
@@ -146,510 +161,190 @@ export function useChat({ selectedModel } = {}) {
     }
   }, []);
 
-  // Set up LangGraph stream event listener — register once, use refs for latest values
-  useEffect(() => {
-    if (!hasApi || !api.onLanggraphStreamEvent) return;
+  const parseProviderFromModel = useCallback((modelName) => {
+    if (!modelName) return 'gemini';
+    const m = String(modelName).toLowerCase();
+    if (m.includes('claude')) return 'claude';
+    if (m.includes('gpt') || m.includes('o1') || m.includes('o3') || m.includes('openai')) return 'openai';
+    if (m.includes('gemini')) return 'gemini';
+    return 'gemini';
+  }, []);
 
-    const cleanup = api.onLanggraphStreamEvent((data) => {
-      // Match by streamId
-      if (data.streamId !== streamIdRef.current) return;
+  const executeToolCall = useCallback(async (toolCall) => {
+    const tc = {
+      id: `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: toolCall.tool,
+      args: toolCall.params || {},
+      status: 'running',
+    };
+    toolCallsRef.current = [...toolCallsRef.current, tc];
+    setToolCalls([...toolCallsRef.current]);
 
-      switch (data.type) {
-        case 'text': {
-          streamContentRef.current += data.payload?.content || '';
-          setStreamingContent(streamContentRef.current);
-          break;
-        }
-        case 'tool_call_start': {
-          const tc = {
-            id: data.payload?.tool_call_id || data.payload?.id || `tc-${Date.now()}`,
-            name: data.payload?.name || 'unknown',
-            args: data.payload?.args || {},
-            status: 'running',
-          };
-          toolCallsRef.current = [...toolCallsRef.current, tc];
-          setToolCalls([...toolCallsRef.current]);
-          // Log tool call to activity log so LogPanel captures it
-          addLog('tool_call', `${tc.name}(${JSON.stringify(tc.args).slice(0, 200)})`)
-            .catch(err => logger.debug('chat', 'Failed to write tool_call log', err?.message));
-          break;
-        }
-        case 'tool_result': {
-          const callId = data.payload?.tool_call_id || data.payload?.id;
-          const resultContent = data.payload?.content || data.payload?.result;
-          toolCallsRef.current = toolCallsRef.current.map((tc) =>
-            tc.id === callId
-              ? { ...tc, status: 'done', result: resultContent }
-              : tc
-          );
-          setToolCalls([...toolCallsRef.current]);
-          // Log tool result to activity log so LogPanel captures it
-          const resultStr = typeof resultContent === 'string'
-            ? resultContent.slice(0, 400)
-            : JSON.stringify(resultContent).slice(0, 400);
-          addLog('tool_result', resultStr)
-            .catch(err => logger.debug('chat', 'Failed to write tool_result log', err?.message));
-          break;
-        }
-        case 'tool_confirmation': {
-          // Destructive tool intercepted -- show confirmation UI
-          const confirmSummary = data.payload?.summary || data.summary || 'Tool operation';
-          setPendingToolConfirmation({
-            tool_name: data.payload?.tool_name || data.tool_name,
-            tool_call_id: data.payload?.tool_call_id || data.tool_call_id,
-            args: data.payload?.args || data.args || {},
-            summary: confirmSummary,
-          });
-          // Log confirmation request to activity log
-          addLog('tool_call', `[CONFIRM REQUIRED] ${confirmSummary}`)
-            .catch(err => logger.debug('chat', 'Failed to write tool_confirmation log', err?.message));
-          // Don't call handleStreamEnd -- keep loading state so user knows action is needed
-          break;
-        }
-        case 'task_started': {
-          const task = {
-            id: data.task_id || data.payload?.task_id,
-            description: data.description || data.payload?.description || 'Sub-agent task',
-            status: 'running',
-            messageCount: 0,
-          };
-          subAgentTasksRef.current = [...subAgentTasksRef.current, task];
-          setSubAgentTasks([...subAgentTasksRef.current]);
-          // Log sub-agent task start
-          addLog('agent_step', `Sub-agent started: ${task.description}`)
-            .catch(err => logger.debug('chat', 'Failed to write task_started log', err?.message));
-          break;
-        }
-        case 'task_running': {
-          const taskId = data.task_id || data.payload?.task_id;
-          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
-            t.id === taskId
-              ? { ...t, messageCount: data.message_index || data.payload?.message_index || t.messageCount + 1 }
-              : t
-          );
-          setSubAgentTasks([...subAgentTasksRef.current]);
-          break;
-        }
-        case 'task_completed': {
-          const taskId = data.task_id || data.payload?.task_id;
-          const completedTask = subAgentTasksRef.current.find(t => t.id === taskId);
-          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
-            t.id === taskId
-              ? { ...t, status: 'completed', result: data.result || data.payload?.result }
-              : t
-          );
-          setSubAgentTasks([...subAgentTasksRef.current]);
-          // Log sub-agent task completion
-          if (completedTask) {
-            addLog('agent_complete', `Sub-agent done: ${completedTask.description}`)
-              .catch(err => logger.debug('chat', 'Failed to write task_completed log', err?.message));
-          }
-          break;
-        }
-        case 'task_failed': {
-          const taskId = data.task_id || data.payload?.task_id;
-          const failedTask = subAgentTasksRef.current.find(t => t.id === taskId);
-          const failError = data.error || data.payload?.error || 'Task failed';
-          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
-            t.id === taskId
-              ? { ...t, status: 'failed', error: failError }
-              : t
-          );
-          setSubAgentTasks([...subAgentTasksRef.current]);
-          // Log sub-agent task failure
-          addLog('agent_failed', `Sub-agent failed: ${failedTask?.description || taskId} — ${failError}`)
-            .catch(err => logger.debug('chat', 'Failed to write task_failed log', err?.message));
-          break;
-        }
-        case 'task_timed_out': {
-          const taskId = data.task_id || data.payload?.task_id;
-          const timedOutTask = subAgentTasksRef.current.find(t => t.id === taskId);
-          subAgentTasksRef.current = subAgentTasksRef.current.map((t) =>
-            t.id === taskId
-              ? { ...t, status: 'timed_out', error: data.error || data.payload?.error || 'Task timed out' }
-              : t
-          );
-          setSubAgentTasks([...subAgentTasksRef.current]);
-          // Log sub-agent timeout
-          addLog('agent_cutoff', `Sub-agent timed out: ${timedOutTask?.description || taskId}`)
-            .catch(err => logger.debug('chat', 'Failed to write task_timed_out log', err?.message));
-          break;
-        }
-        case 'thread_title': {
-          if (data.payload?.title) {
-setThreadTitle(data.payload.title);
-            // Add active class to title for animation
-            if (threadTitleRef.current) {
-              threadTitleRef.current.classList.add('active');
-            }             
-
-          }
-          break;
-        }
-        case 'end': {
-          handleStreamEnd();
-          break;
-        }
-        case 'error': {
-          handleStreamError(data.payload?.error || data.payload?.message || 'Unknown streaming error');
-          break;
-        }
-        default:
-          // Ignore values, metadata, and other event types
-          break;
-      }
-    });
-
-    return () => cleanup();
-  }, []); // empty deps — listener registered once, use refs for latest values
-
-  // Handle stream end: persist to Firestore and reset state
-  const handleStreamEnd = useCallback(async () => {
-    const fullContent = streamContentRef.current;
-    const currentToolCalls = toolCallsRef.current;
-
-    // Save assistant message to Firestore
-    if (fullContent) {
-      await addChatMessage('assistant', fullContent);
-    }
-
-    // If tool calls occurred, save a structured tool call summary as a separate message
-    if (currentToolCalls.length > 0) {
-      const toolSummary = currentToolCalls.map((tc) => {
-        const resultStr = tc.result
-          ? (typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result))
-          : '(no result)';
-        return `[${tc.name}] ${tc.status === 'done' ? resultStr : 'incomplete'}`;
-      }).join('\n');
-      // Only save tool summary if there was no text content (avoid duplicate messages)
-      if (!fullContent) {
-        await addChatMessage('assistant', toolSummary);
-      }
-    }
-
-    // Log assistant response to activity log
-    if (fullContent) {
-      addLog('assistant_message', fullContent.slice(0, 1200))
-        .catch(err => logger.debug('chat', 'Failed to write assistant_message log', err?.message));
-    }
-
-    // Log to memory
     try {
-      const { minifyChatText, getChunkFilename, formatLogPrefix } = await import('../lib/memory.js');
-      const chunkFile = getChunkFilename();
-      const entry = formatLogPrefix('assistant') + ' ' + minifyChatText(fullContent || '(tool calls only)');
-      await api.memoryAppendLog(chunkFile, entry);
-    } catch (e) {
-      logger.error('memory', 'Failed to log assistant message', e?.message);
+      const result = await briizToolsRef.current.execute(toolCall.tool, toolCall.params || {});
+      toolCallsRef.current = toolCallsRef.current.map((t) => (t.id === tc.id ? { ...t, status: 'done', result } : t));
+      setToolCalls([...toolCallsRef.current]);
+      return result;
+    } catch (error) {
+      // A margerin 💬 ("return to chat for refinement") is NOT a
+      // failure — it's a deliberate user decision to keep discussing
+      // the call in the chat instead of running it. Mark the tool
+      // card as 'returned' so the UI shows a subtle neutral state
+      // instead of a red failure, and rethrow so the stream consumer
+      // can skip the "[Tool failed: ...]" append below.
+      const returnedToChat = Boolean(error?.__returnedToChat);
+      toolCallsRef.current = toolCallsRef.current.map((t) =>
+        t.id === tc.id
+          ? {
+              ...t,
+              status: returnedToChat ? 'returned' : 'failed',
+              error: error?.message,
+            }
+          : t,
+      );
+      setToolCalls([...toolCallsRef.current]);
+      throw error;
     }
-
-    // Remote chat passthrough
-    if (isRemoteResponseRef.current && fullContent) {
-      try {
-        await addRemoteChatMessage('assistant', fullContent);
-      } catch (e) {
-        logger.error('chat', 'Failed to write remote response', e?.message);
-      }
-      isRemoteResponseRef.current = false;
-    }
-
-    // Fetch follow-up suggestions (non-blocking, fire-and-forget)
-    if (suggestionsEnabledRef.current && hasApi && api.langgraphGetSuggestions) {
-      const lastMessages = [...(messagesRef.current || [])].slice(-4).map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
-      // Include the just-streamed response
-      if (fullContent) {
-        lastMessages.push({ role: 'assistant', content: fullContent.slice(0, 2000) });
-      }
-      let suggestionModel = null;
-      try {
-        suggestionModel = selectedModelRef.current || localStorage.getItem(MODEL_STORAGE_KEY) || null;
-      } catch {}
-      api.langgraphGetSuggestions(lastMessages, 3, { model: suggestionModel })
-        .then(results => setSuggestions(results || []))
-        .catch(() => setSuggestions([]));
-    }
-
-    // Reset streaming state
-    streamContentRef.current = '';
-    streamIdRef.current = null;
-    toolCallsRef.current = [];
-    subAgentTasksRef.current = [];
-    setStreamingContent('');
-    setCurrentStreamId(null);
-    setToolCalls([]);
-    setSubAgentTasks([]);
-    setIsLoading(false);
   }, []);
 
-  // Handle stream error
-  const handleStreamError = useCallback(async (errorMsg) => {
-    await addChatMessage('assistant', `Error: ${errorMsg}`, true);
+  const sendMessage = useCallback(async (message, { isRemote = false } = {}) => {
+    if (!message?.trim() || isLoading || !chatAPIRef.current) return null;
 
-    isRemoteResponseRef.current = false;
-    streamContentRef.current = '';
-    streamIdRef.current = null;
-    toolCallsRef.current = [];
-    subAgentTasksRef.current = [];
-    setStreamingContent('');
-    setCurrentStreamId(null);
-    setToolCalls([]);
-    setSubAgentTasks([]);
-    setIsLoading(false);
-  }, []);
+    setSuggestions([]);
+    await addChatMessage('user', message);
+    setIsLoading(true);
 
-  // Subscribe to remote chat — auto-respond to incoming remote messages
+    try {
+      let actualMessage = message;
+      const skillName = MODALITY_SKILL_MAP[modality];
+      if (skillName) actualMessage = `[Use skill: ${skillName}] ${message}`;
+      else if (modality === 'plan') actualMessage = `[Plan mode] ${message}`;
+      const selectedFiles = await loadSelectedFiles();
+      const fileContextAddendum = buildFileContextAddendum(selectedFiles);
+
+      const model = getSelectedModel() || 'gemini-2.5-flash';
+      const provider = parseProviderFromModel(model);
+
+      const streamId = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setCurrentStreamId(streamId);
+      streamContentRef.current = '';
+      setStreamingContent('');
+      toolCallsRef.current = [];
+      setToolCalls([]);
+
+      const chatHistory = [...messages, { role: 'user', content: actualMessage }]
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      // Don't ask for suggestions on relayed remote messages — the chips
+      // are a UI affordance for the local interactive user only.
+      const wantSuggestions = suggestionsEnabledRef.current && !isRemote;
+
+      for await (const chunk of chatAPIRef.current.streamChat(
+        chatHistory,
+        provider,
+        model,
+        null,
+        { suggestionsEnabled: wantSuggestions, contextAddendum: fileContextAddendum },
+      )) {
+        if (typeof chunk === 'string') {
+          streamContentRef.current += chunk;
+          setStreamingContent(streamContentRef.current);
+        } else if (chunk && chunk.type === 'tool_call') {
+          try {
+            const result = await executeToolCall(chunk);
+            const resultText = typeof result === 'string' ? result : (result?.summary || result?.message || JSON.stringify(result));
+            streamContentRef.current += `\n\n[Tool executed: ${chunk.tool}]\n${resultText}`;
+            setStreamingContent(streamContentRef.current);
+          } catch (err) {
+            // Returning the call to chat via the margerin 💬 icon is a
+            // first-class user choice, not a failure. Leave the stream
+            // text untouched — InteractionPanel's onChatReturn handler
+            // will instead prepend a "re:" quote and refocus the
+            // textarea so the user can discuss/refine the call.
+            if (err && err.__returnedToChat) {
+              // intentionally no-op on the streaming content
+            } else {
+              streamContentRef.current += `\n\n[Tool failed: ${chunk.tool}] ${err?.message || 'Unknown error'}`;
+              setStreamingContent(streamContentRef.current);
+            }
+          }
+        } else if (chunk && chunk.type === 'suggestions') {
+          // Only update if the toggle is still on by the time the chunk
+          // arrives — guards against the user flipping the switch off
+          // mid-stream.
+          if (suggestionsEnabledRef.current && Array.isArray(chunk.items) && chunk.items.length > 0) {
+            setSuggestions(chunk.items);
+          }
+        }
+      }
+
+      if (streamContentRef.current) {
+        await addChatMessage('assistant', streamContentRef.current);
+        if (isRemote) {
+          await addRemoteChatMessage('assistant', streamContentRef.current);
+        }
+        addLog('assistant_message', streamContentRef.current.slice(0, 1200)).catch(() => {});
+      }
+
+      setThreadTitle((prev) => prev || message.slice(0, 60));
+    } catch (error) {
+      logger.error('chat', 'Direct API stream failed', error?.message);
+      await addChatMessage('assistant', `Error: ${error?.message || 'Unknown error'}`, true);
+    } finally {
+      setIsLoading(false);
+      setCurrentStreamId(null);
+      setStreamingContent('');
+      streamContentRef.current = '';
+    }
+
+    return null;
+  }, [isLoading, messages, modality, getSelectedModel, parseProviderFromModel, executeToolCall, loadSelectedFiles]);
+
   const isLoadingRef = useRef(false);
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
   const sendRemoteResponse = useCallback(async (remoteMsg) => {
-    if (isLoadingRef.current || !hasApi) return;
-
-    // Add the remote message to local chat with [Remote] prefix
+    if (isLoadingRef.current || !remoteMsg?.content) return;
     await addChatMessage('user', `[Remote] ${remoteMsg.content}`);
-    markRemoteChatRead(remoteMsg.id).catch(err => logger.debug('chat', 'Failed to mark remote chat read', err?.message));
-    setIsLoading(true);
-    isRemoteResponseRef.current = true;
-
-    // Log to memory
-    try {
-      const { minifyChatText, getChunkFilename, formatLogPrefix } = await import('../lib/memory.js');
-      const chunkFile = getChunkFilename();
-      const entry = formatLogPrefix('user') + ' [Remote] ' + minifyChatText(remoteMsg.content);
-      await api.memoryAppendLog(chunkFile, entry);
-    } catch (e) {
-      logger.error('memory', 'Failed to log remote message', e?.message);
-    }
-
-    // Ensure LangGraph thread exists
-    try {
-      const threadId = await ensureThread();
-      const model = getModelForRun();
-
-      // Generate stream ID
-      const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      streamIdRef.current = streamId;
-      streamContentRef.current = '';
-      toolCallsRef.current = [];
-      setCurrentStreamId(streamId);
-      setStreamingContent('');
-      setToolCalls([]);
-
-      const result = await api.langgraphStreamMessage(threadId, `[Remote message] ${remoteMsg.content}`, {
-        model,
-        thinking: true,
-        streamId,
-      });
-      if (result?.streamId && result.streamId !== streamIdRef.current) {
-        streamIdRef.current = result.streamId;
-        setCurrentStreamId(result.streamId);
-      }
-    } catch (error) {
-      logger.error('chat', 'Remote response stream error', error?.message);
-      await addChatMessage('assistant', `Error: ${error.message}`, true);
-      setIsLoading(false);
-      isRemoteResponseRef.current = false;
-      streamIdRef.current = null;
-      setCurrentStreamId(null);
-    }
-  }, [ensureThread, getModelForRun]);
+    try { await markRemoteChatRead(remoteMsg.id); } catch {}
+    await sendMessage(`[Remote message] ${remoteMsg.content}`, { isRemote: true });
+  }, [sendMessage]);
 
   useEffect(() => {
     if (!uid) return;
-
     const unsubscribe = subscribeRemoteChat(
       () => {},
       (remoteMsg) => {
         sendRemoteResponse(remoteMsg);
       }
     );
-
     return () => unsubscribe();
   }, [uid, sendRemoteResponse]);
 
-  // Send a message using LangGraph streaming
-  const sendMessage = useCallback(async (message) => {
-    if (!message.trim() || isLoading || !hasApi) return null;
-
-    // Clear previous suggestions
-    setSuggestions([]);
-
-    // Save user message to Firestore
-    await addChatMessage('user', message);
-    setIsLoading(true);
-
-    // Log user message to memory
-    try {
-      const { minifyChatText, getChunkFilename, formatLogPrefix } = await import('../lib/memory.js');
-      const chunkFile = getChunkFilename();
-      const entry = formatLogPrefix('user') + ' ' + minifyChatText(message);
-      await api.memoryAppendLog(chunkFile, entry);
-    } catch (e) {
-      logger.error('memory', 'Failed to log user message', e?.message);
-    }
-
-    // Refresh files in context
-    await loadSelectedFiles();
-
-    // Ensure LangGraph thread exists
-    try {
-      const threadId = await ensureThread();
-      const model = getModelForRun();
-
-      // Generate stream ID
-      const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      streamIdRef.current = streamId;
-      streamContentRef.current = '';
-      toolCallsRef.current = [];
-      setCurrentStreamId(streamId);
-      setStreamingContent('');
-      setToolCalls([]);
-
-      // Prepend skill directive based on selected modality
-      let actualMessage = message;
-      const skillName = MODALITY_SKILL_MAP[modality];
-      if (skillName) {
-        actualMessage = `[Use skill: ${skillName}] ${message}`;
-      } else if (modality === 'plan') {
-        actualMessage = `[Plan mode] ${message}`;
-      }
-
-      // Stream via LangGraph IPC bridge
-      const result = await api.langgraphStreamMessage(threadId, actualMessage, {
-        model,
-        thinking: true,
-        plan_mode: modality === 'plan',
-        streamId,
-      });
-      if (result?.streamId && result.streamId !== streamIdRef.current) {
-        streamIdRef.current = result.streamId;
-        setCurrentStreamId(result.streamId);
-      }
-    } catch (error) {
-      logger.error('chat', 'Stream initiation error', error?.message);
-      await addChatMessage('assistant', `Error: ${error.message}`, true);
-      setIsLoading(false);
-      streamIdRef.current = null;
-      setCurrentStreamId(null);
-    }
-
-    return null;
-  }, [isLoading, modality, loadSelectedFiles, ensureThread, getModelForRun]);
-
-  // Clear chat history
   const clearHistory = useCallback(async () => {
     try {
       await clearChatMessages();
       setMessages([]);
       setTokenUsage(null);
       setStreamingContent('');
+      setCurrentStreamId(null);
       setToolCalls([]);
       toolCallsRef.current = [];
-      // Reset thread so a new one is created next time
-      threadIdRef.current = null;
-      // Reset modality to default
       setModality('chat');
-      // Clear suggestions
       setSuggestions([]);
-      // Clear thread title
       setThreadTitle(null);
     } catch (error) {
       logger.error('chat', 'Failed to clear history', error?.message);
     }
   }, []);
 
-  // Approve a pending destructive tool confirmation
-  const approveToolConfirmation = useCallback(async () => {
-    const confirmation = pendingToolConfirmation;
-    if (!confirmation || !hasApi) return;
-
-    setPendingToolConfirmation(null);
-
-    try {
-      const threadId = threadIdRef.current;
-      if (!threadId) {
-        logger.error('chat', 'Cannot approve tool -- no thread');
-        setIsLoading(false);
-        return;
-      }
-
-      const model = getModelForRun();
-
-      // Generate new stream ID for the resumed run
-      const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      streamIdRef.current = streamId;
-      streamContentRef.current = '';
-      toolCallsRef.current = [];
-      setCurrentStreamId(streamId);
-      setStreamingContent('');
-      setToolCalls([]);
-
-      const result = await api.langgraphResumeRun(threadId, {
-        approved: true,
-        summary: confirmation.summary,
-      }, { model, thinking: true, streamId });
-      if (result?.streamId && result.streamId !== streamIdRef.current) {
-        streamIdRef.current = result.streamId;
-        setCurrentStreamId(result.streamId);
-      }
-    } catch (error) {
-      logger.error('chat', 'Failed to approve tool', error?.message);
-      await addChatMessage('assistant', `Error resuming after approval: ${error.message}`, true);
-      setIsLoading(false);
-      streamIdRef.current = null;
-      setCurrentStreamId(null);
-    }
-  }, [pendingToolConfirmation, getModelForRun]);
-
-  // Reject a pending destructive tool confirmation
-  const rejectToolConfirmation = useCallback(async () => {
-    const confirmation = pendingToolConfirmation;
-    if (!confirmation || !hasApi) return;
-
-    setPendingToolConfirmation(null);
-
-    try {
-      const threadId = threadIdRef.current;
-      if (!threadId) {
-        logger.error('chat', 'Cannot reject tool -- no thread');
-        setIsLoading(false);
-        return;
-      }
-
-      const model = getModelForRun();
-
-      // Generate new stream ID for the resumed run
-      const streamId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      streamIdRef.current = streamId;
-      streamContentRef.current = '';
-      toolCallsRef.current = [];
-      setCurrentStreamId(streamId);
-      setStreamingContent('');
-      setToolCalls([]);
-
-      const result = await api.langgraphResumeRun(threadId, {
-        approved: false,
-        summary: confirmation.summary,
-      }, { model, thinking: true, streamId });
-      if (result?.streamId && result.streamId !== streamIdRef.current) {
-        streamIdRef.current = result.streamId;
-        setCurrentStreamId(result.streamId);
-      }
-    } catch (error) {
-      logger.error('chat', 'Failed to reject tool', error?.message);
-      await addChatMessage('assistant', `Error resuming after rejection: ${error.message}`, true);
-      setIsLoading(false);
-      streamIdRef.current = null;
-      setCurrentStreamId(null);
-    }
-  }, [pendingToolConfirmation, getModelForRun]);
-
-  // Refresh files in context
   const refreshFilesInContext = useCallback(async () => {
     await loadSelectedFiles();
   }, [loadSelectedFiles]);
+
+  const approveToolConfirmation = useCallback(async () => {}, []);
+  const rejectToolConfirmation = useCallback(async () => {}, []);
 
   return {
     messages,

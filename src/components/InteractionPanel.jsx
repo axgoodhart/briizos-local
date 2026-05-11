@@ -3,177 +3,88 @@ import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChat } from '../hooks/useChat';
-import { useLangGraphStatus } from '../hooks/useLangGraphStatus';
 import { useChatSettings } from '../context/ChatSettingsContext';
 import { useTools } from '../context/ToolContext';
 import ConfirmationToast from './ConfirmationToast';
+import { onChatReturn } from '../lib/bfast-queue';
+import { formatMargerinLabel } from '../lib/bfast-format';
 import { addLog, addSelectedFile, removeSelectedFile } from '../lib/firestore';
 import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
 
-const REACTBITS_BACKGROUNDS = [
-  { value: 'reactbits:Aurora', label: 'Aurora' },
-  { value: 'reactbits:Balatro', label: 'Balatro' },
-  { value: 'reactbits:Ballpit', label: 'Ballpit' },
-  { value: 'reactbits:Beams', label: 'Beams' },
-  { value: 'reactbits:ColorBends', label: 'Color Bends' },
-  { value: 'reactbits:DarkVeil', label: 'Dark Veil' },
-  { value: 'reactbits:Dither', label: 'Dither' },
-  { value: 'reactbits:DotGrid', label: 'Dot Grid' },
-  { value: 'reactbits:EvilEye', label: 'Evil Eye' },
-  { value: 'reactbits:FaultyTerminal', label: 'Faulty Terminal' },
-  { value: 'reactbits:FloatingLines', label: 'Floating Lines' },
-  { value: 'reactbits:Galaxy', label: 'Galaxy' },
-  { value: 'reactbits:GradientBlinds', label: 'Gradient Blinds' },
-  { value: 'reactbits:Grainient', label: 'Grainient' },
-  { value: 'reactbits:GridDistortion', label: 'Grid Distortion' },
-  { value: 'reactbits:GridMotion', label: 'Grid Motion' },
-  { value: 'reactbits:GridScan', label: 'Grid Scan' },
-  { value: 'reactbits:Hyperspeed', label: 'Hyperspeed' },
-  { value: 'reactbits:Iridescence', label: 'Iridescence' },
-  { value: 'reactbits:LetterGlitch', label: 'Letter Glitch' },
-  { value: 'reactbits:Lightning', label: 'Lightning' },
-  { value: 'reactbits:LightPillar', label: 'Light Pillar' },
-  { value: 'reactbits:LightRays', label: 'Light Rays' },
-  { value: 'reactbits:LineWaves', label: 'Line Waves' },
-  { value: 'reactbits:LiquidChrome', label: 'Liquid Chrome' },
-  { value: 'reactbits:LiquidEther', label: 'Liquid Ether' },
-  { value: 'reactbits:Mycelium', label: 'Mycelium' },
-  { value: 'reactbits:Orb', label: 'Orb' },
-  { value: 'reactbits:Particles', label: 'Particles' },
-  { value: 'reactbits:PixelBlast', label: 'Pixel Blast' },
-  { value: 'reactbits:PixelSnow', label: 'Pixel Snow' },
-  { value: 'reactbits:Plasma', label: 'Plasma' },
-  { value: 'reactbits:Prism', label: 'Prism' },
-  { value: 'reactbits:PrismaticBurst', label: 'Prismatic Burst' },
-  { value: 'reactbits:Radar', label: 'Radar' },
-  { value: 'reactbits:RippleGrid', label: 'Ripple Grid' },
-  { value: 'reactbits:ShapeGrid', label: 'Shape Grid' },
-  { value: 'reactbits:Silk', label: 'Silk' },
-  { value: 'reactbits:SoftAurora', label: 'Soft Aurora' },
-  { value: 'reactbits:Spores', label: 'Spores' },
-  { value: 'reactbits:Threads', label: 'Threads' },
-  { value: 'reactbits:Tide', label: 'Tide' },
-  { value: 'reactbits:Waves', label: 'Waves' },
-];
-
-const reactBitsImportMap = {
-  Aurora: () => import('@reactbits/Aurora/Aurora.tsx'),
-  Balatro: () => import('@reactbits/Balatro/Balatro.tsx'),
-  Ballpit: () => import('@reactbits/Ballpit/Ballpit.tsx'),
-  Beams: () => import('@reactbits/Beams/Beams.tsx'),
-  ColorBends: () => import('@reactbits/ColorBends/ColorBends.tsx'),
-  DarkVeil: () => import('@reactbits/DarkVeil/DarkVeil.tsx'),
-  Dither: () => import('@reactbits/Dither/Dither.tsx'),
-  DotGrid: () => import('@reactbits/DotGrid/DotGrid.tsx'),
-  EvilEye: () => import('@reactbits/EvilEye/EvilEye.tsx'),
-  FaultyTerminal: () => import('@reactbits/FaultyTerminal/FaultyTerminal.tsx'),
-  FloatingLines: () => import('@reactbits/FloatingLines/FloatingLines.tsx'),
-  Galaxy: () => import('@reactbits/Galaxy/Galaxy.tsx'),
-  GradientBlinds: () => import('@reactbits/GradientBlinds/GradientBlinds.tsx'),
-  Grainient: () => import('@reactbits/Grainient/Grainient.tsx'),
-  GridDistortion: () => import('@reactbits/GridDistortion/GridDistortion.tsx'),
-  GridMotion: () => import('@reactbits/GridMotion/GridMotion.tsx'),
-  GridScan: () => import('@reactbits/GridScan/GridScan.tsx'),
-  Hyperspeed: () => import('@reactbits/Hyperspeed/Hyperspeed.tsx'),
-  Iridescence: () => import('@reactbits/Iridescence/Iridescence.tsx'),
-  LetterGlitch: () => import('@reactbits/LetterGlitch/LetterGlitch.tsx'),
-  Lightning: () => import('@reactbits/Lightning/Lightning.tsx'),
-  LightPillar: () => import('@reactbits/LightPillar/LightPillar.tsx'),
-  LightRays: () => import('@reactbits/LightRays/LightRays.tsx'),
-  LineWaves: () => import('@reactbits/LineWaves/LineWaves.tsx'),
-  LiquidChrome: () => import('@reactbits/LiquidChrome/LiquidChrome.tsx'),
-  LiquidEther: () => import('@reactbits/LiquidEther/LiquidEther.tsx'),
-  Mycelium: () => import('@reactbits/Mycelium/Mycelium.tsx'),
-  Orb: () => import('@reactbits/Orb/Orb.tsx'),
-  Particles: () => import('@reactbits/Particles/Particles.tsx'),
-  PixelBlast: () => import('@reactbits/PixelBlast/PixelBlast.tsx'),
-  PixelSnow: () => import('@reactbits/PixelSnow/PixelSnow.tsx'),
-  Plasma: () => import('@reactbits/Plasma/Plasma.tsx'),
-  Prism: () => import('@reactbits/Prism/Prism.tsx'),
-  PrismaticBurst: () => import('@reactbits/PrismaticBurst/PrismaticBurst.tsx'),
-  Radar: () => import('@reactbits/Radar/Radar.tsx'),
-  RippleGrid: () => import('@reactbits/RippleGrid/RippleGrid.tsx'),
-  ShapeGrid: () => import('@reactbits/ShapeGrid/ShapeGrid.tsx'),
-  Silk: () => import('@reactbits/Silk/Silk.tsx'),
-  SoftAurora: () => import('@reactbits/SoftAurora/SoftAurora.tsx'),
-  Spores: () => import('@reactbits/Spores/Spores.tsx'),
-  Threads: () => import('@reactbits/Threads/Threads.tsx'),
-  Tide: () => import('@reactbits/Tide/Tide.tsx'),
-  Waves: () => import('@reactbits/Waves/Waves.tsx'),
-};
-
-const reactBitsComponentCache = {};
-function getReactBitsComponent(name) {
-  if (!reactBitsComponentCache[name]) {
-    const importFn = reactBitsImportMap[name];
-    if (!importFn) {
-      console.error(`ReactBits background "${name}" not found in import map`);
-      return () => null;
-    }
-    reactBitsComponentCache[name] = lazy(importFn);
-  }
-  return reactBitsComponentCache[name];
-}
-
-class ReactBitsErrorBoundary extends Component {
-  state = { hasError: false, error: null };
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, info) {
-    logger.error('ReactBits background crashed', { error: error.message, component: info?.componentStack?.slice(0, 200) });
-  }
-  render() {
-    if (this.state.hasError) return null;
-    return this.props.children;
-  }
-}
-
-function ReactBitsBackground({ name, blur }) {
-  const Component = getReactBitsComponent(name);
-  return (
-    <div className="chat-bg-frame-container reactbits-bg" style={blur ? { filter: `blur(${blur}px)` } : undefined}>
-      <ReactBitsErrorBoundary>
-        <Suspense fallback={null}>
-          <Component />
-        </Suspense>
-      </ReactBitsErrorBoundary>
-    </div>
-  );
-}
-
 const CHAT_BACKGROUNDS = [
   { value: '', label: 'Default' },
   { value: 'assets/backgrounds/24h.html', label: '24h' },
-{ value: 'assets/backgrounds/Butterflies.html', label: 'Butterflies' },
-{ value: 'assets/backgrounds/Darkstars.html', label: 'Darkstars' },
-{ value: 'assets/backgrounds/GlassClock.html', label: 'GlassClock' },
-{ value: 'assets/backgrounds/Insectiana.html', label: 'Insectiana' },
-{ value: 'assets/backgrounds/RotoPulse.html', label: 'RotoPulse' },
-{ value: 'assets/backgrounds/Spheres.html', label: 'Spheres' },
-{ value: 'assets/backgrounds/Stars.html', label: 'Stars' },
-{ value: 'assets/backgrounds/Wallpaper.html', label: 'Wallpaper' },
-{ value: 'assets/backgrounds/Widget.html', label: 'Widget' },
-{ value: 'assets/backgrounds/butterflies.html', label: 'butterflies' },
-{ value: 'assets/backgrounds/colorink.html', label: 'colorink' },
-{ value: 'assets/backgrounds/darkwater.html', label: 'darkwater' },
-{ value: 'assets/backgrounds/default-gradient.html', label: 'default-gradient' },
-{ value: 'assets/backgrounds/linetrance.html', label: 'linetrance' },
-{ value: 'assets/backgrounds/liquid.html', label: 'liquid' },
-{ value: 'assets/backgrounds/neuralnetworkbackground.html', label: 'neuralnetworkbackground' },
-{ value: 'assets/backgrounds/portals.html', label: 'portals' },
-{ value: 'assets/backgrounds/rainbo.html', label: 'rainbo' },
-{ value: 'assets/backgrounds/rainpool.html', label: 'rainpool' },
-{ value: 'assets/backgrounds/thing.html', label: 'thing' },
-{ value: 'assets/backgrounds/transformer.html', label: 'transformer' },
-{ value: 'assets/backgrounds/univer.html', label: 'univer' },
-{ value: 'assets/backgrounds/vialinebg.html', label: 'vialinebg' },
-{ value: 'assets/backgrounds/visualizer5.html', label: 'visualizer5' },
-{ value: 'assets/backgrounds/visualizer6.html', label: 'visualizer6' },
-{ value: 'assets/backgrounds/wavepool.html', label: 'wavepool' }
+  { value: 'assets/backgrounds/Aurora.html', label: 'Aurora' },
+  { value: 'assets/backgrounds/Balatro.html', label: 'Balatro' },
+  { value: 'assets/backgrounds/Ballpit.html', label: 'Ballpit' },
+  { value: 'assets/backgrounds/Beams.html', label: 'Beams' },
+  { value: 'assets/backgrounds/Butterflies.html', label: 'Butterflies' },
+  { value: 'assets/backgrounds/ColorBends.html', label: 'ColorBends' },
+  { value: 'assets/backgrounds/colorink.html', label: 'colorink' },
+  { value: 'assets/backgrounds/Darkstars.html', label: 'Darkstars' },
+  { value: 'assets/backgrounds/DarkVeil.html', label: 'DarkVeil' },
+  { value: 'assets/backgrounds/darkwater.html', label: 'darkwater' },
+  { value: 'assets/backgrounds/default-gradient.html', label: 'default-gradient' },
+  { value: 'assets/backgrounds/Dither.html', label: 'Dither' },
+  { value: 'assets/backgrounds/DotGrid.html', label: 'DotGrid' },
+  { value: 'assets/backgrounds/EvilEye.html', label: 'EvilEye' },
+  { value: 'assets/backgrounds/FaultyTerminal.html', label: 'FaultyTerminal' },
+  { value: 'assets/backgrounds/FloatingLines.html', label: 'FloatingLines' },
+  { value: 'assets/backgrounds/Galaxy.html', label: 'Galaxy' },
+  { value: 'assets/backgrounds/gems.html', label: 'gems' },
+  { value: 'assets/backgrounds/GlassClock.html', label: 'GlassClock' },
+  { value: 'assets/backgrounds/GradientBlinds.html', label: 'GradientBlinds' },
+  { value: 'assets/backgrounds/Grainient.html', label: 'Grainient' },
+  { value: 'assets/backgrounds/GridMotion.html', label: 'GridMotion' },
+  { value: 'assets/backgrounds/Insectiana.html', label: 'Insectiana' },
+  { value: 'assets/backgrounds/Iridescence.html', label: 'Iridescence' },
+  { value: 'assets/backgrounds/LetterGlitch.html', label: 'LetterGlitch' },
+  { value: 'assets/backgrounds/Lightning.html', label: 'Lightning' },
+  { value: 'assets/backgrounds/LightPillar.html', label: 'LightPillar' },
+  { value: 'assets/backgrounds/LightRays.html', label: 'LightRays' },
+  { value: 'assets/backgrounds/linetrance.html', label: 'linetrance' },
+  { value: 'assets/backgrounds/LineWaves.html', label: 'LineWaves' },
+  { value: 'assets/backgrounds/liquid.html', label: 'liquid' },
+  { value: 'assets/backgrounds/LiquidChrome.html', label: 'LiquidChrome' },
+  { value: 'assets/backgrounds/LiquidEther.html', label: 'LiquidEther' },
+  { value: 'assets/backgrounds/Mycelium.html', label: 'Mycelium' },
+  { value: 'assets/backgrounds/neuralnetworkbackground.html', label: 'neuralnetworkbackground' },
+  { value: 'assets/backgrounds/Orb.html', label: 'Orb' },
+  { value: 'assets/backgrounds/panning1.html', label: 'panning1' },
+  { value: 'assets/backgrounds/panning2.html', label: 'panning2' },
+  { value: 'assets/backgrounds/panning3.html', label: 'panning3' },
+  { value: 'assets/backgrounds/Particles.html', label: 'Particles' },
+  { value: 'assets/backgrounds/PixelBlast.html', label: 'PixelBlast' },
+  { value: 'assets/backgrounds/PixelSnow.html', label: 'PixelSnow' },
+  { value: 'assets/backgrounds/Plasma.html', label: 'Plasma' },
+  { value: 'assets/backgrounds/portals.html', label: 'portals' },
+  { value: 'assets/backgrounds/Prism.html', label: 'Prism' },
+  { value: 'assets/backgrounds/PrismaticBurst.html', label: 'PrismaticBurst' },
+  { value: 'assets/backgrounds/purdots.png', label: 'purdots' },
+  { value: 'assets/backgrounds/Radar.html', label: 'Radar' },
+  { value: 'assets/backgrounds/rainbo.html', label: 'rainbo' },
+  { value: 'assets/backgrounds/rainpool.html', label: 'rainpool' },
+  { value: 'assets/backgrounds/RippleGrid.html', label: 'RippleGrid' },
+  { value: 'assets/backgrounds/RotoPulse.html', label: 'RotoPulse' },
+  { value: 'assets/backgrounds/ShapeGrid.html', label: 'ShapeGrid' },
+  { value: 'assets/backgrounds/Silk.html', label: 'Silk' },
+  { value: 'assets/backgrounds/SoftAurora.html', label: 'SoftAurora' },
+  { value: 'assets/backgrounds/Spheres.html', label: 'Spheres' },
+  { value: 'assets/backgrounds/Spores.html', label: 'Spores' },
+  { value: 'assets/backgrounds/Stars.html', label: 'Stars' },
+  { value: 'assets/backgrounds/thing.html', label: 'thing' },
+  { value: 'assets/backgrounds/Threads.html', label: 'Threads' },
+  { value: 'assets/backgrounds/Tide.html', label: 'Tide' },
+  { value: 'assets/backgrounds/torando.png', label: 'torando' },
+  { value: 'assets/backgrounds/transformer.html', label: 'transformer' },
+  { value: 'assets/backgrounds/vialinebg.html', label: 'vialinebg' },
+  { value: 'assets/backgrounds/Wallpaper.html', label: 'Wallpaper' },
+  { value: 'assets/backgrounds/wavepool.html', label: 'wavepool' },
+  { value: 'assets/backgrounds/Waves.html', label: 'Waves' },
+  { value: 'assets/backgrounds/Widget.html', label: 'Widget' }
 ];
 
 
@@ -279,8 +190,45 @@ function InteractionPanel() {
     rejectToolConfirmation,
   } = useChat();
 
-  const { status: lgStatus, ready: lgReady } = useLangGraphStatus();
-  const { provider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur } = useChatSettings();
+  const lgStatus = 'running';
+  const lgReady = true;
+  const { provider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur, getThemeChatBackground } = useChatSettings();
+
+  // Resolve theme-specific chat background
+  const [activeTheme, setActiveTheme] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.getAttribute('data-theme') || 'default';
+    }
+    return 'default';
+  });
+  const [resolvedChatBg, setResolvedChatBg] = useState(chatBackground);
+  const [resolvedChatBgBlur, setResolvedChatBgBlur] = useState(chatBgBlur);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = document.documentElement.getAttribute('data-theme') || 'default';
+      setActiveTheme(theme);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const themeEntry = getThemeChatBackground?.(activeTheme);
+    if (themeEntry && themeEntry.background) {
+      setResolvedChatBg(themeEntry.background);
+      setResolvedChatBgBlur(themeEntry.blur ?? 0);
+    } else {
+      setResolvedChatBg(chatBackground);
+      setResolvedChatBgBlur(chatBgBlur);
+    }
+  }, [activeTheme, chatBackground, chatBgBlur, getThemeChatBackground]);
+
+  // When user picks a bg from the InteractionPanel picker, also save to theme mapping
+  const handleChatBgSelect = useCallback((bgValue) => {
+    setChatBackground(bgValue);
+    setShowBgPicker(false);
+  }, [setChatBackground]);
   const { pendingConfirmation, confirmAction, cancelAction } = useTools();
   const { models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus, loading: modelsLoading } = useModelSelection();
 
@@ -343,6 +291,35 @@ function InteractionPanel() {
   useEffect(() => {
     adjustTextarea();
   }, [inputValue, adjustTextarea]);
+
+  // Subscribe to bfast-queue chat-return events. When the user taps
+  // 💬 on a margerin, the queue emits { toolName, params, label } and
+  // we refocus the textarea with a "re:" quote prepended so the user
+  // can discuss/refine the call instead of running it. The quote is
+  // preserved across re-renders via setInputValue + textareaRef.focus.
+  useEffect(() => {
+    const unsubscribe = onChatReturn(({ toolName, params, label }) => {
+      const preview = label || formatMargerinLabel(toolName, params || {});
+      const quote = `re: ${preview}\n\n`;
+      setInputValue((prev) => {
+        // Don't double-prepend if the user already has a re: quote
+        // for this exact call staged.
+        if (prev.startsWith(quote)) return prev;
+        // If there's draft text, keep it below the quote.
+        return prev ? `${quote}${prev}` : quote;
+      });
+      // Focus and move the caret to the end on the next tick so the
+      // value has committed.
+      setTimeout(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.focus();
+        const end = el.value.length;
+        try { el.setSelectionRange(end, end); } catch { /* noop */ }
+      }, 0);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -455,7 +432,10 @@ function InteractionPanel() {
           <button
             className={`panel-header-btn ${suggestionsEnabled ? '' : 'disabled-indicator'}`}
             onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
-            title={suggestionsEnabled ? 'Suggestions on' : 'Suggestions off'}
+            title={suggestionsEnabled
+              ? 'Follow-up suggestions: ON (click to disable)'
+              : 'Follow-up suggestions: OFF (click to enable)'}
+            aria-pressed={suggestionsEnabled}
             style={{ fontSize: '10px', opacity: suggestionsEnabled ? 0.8 : 0.4 }}
           >
             ?
@@ -488,7 +468,7 @@ function InteractionPanel() {
           <div className="context-files">
             {filesInContext.map((file, index) => (
               <span key={file.path || index} className="context-file" title={file.path}>
-                {file.name}
+                <span className="context-file-name">{file.name}</span>
                 <button
                   className="context-file-remove"
                   onClick={() => handleRemoveFromContext(file.path)}
@@ -509,14 +489,12 @@ function InteractionPanel() {
         </div>
       )}
 
-      <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${chatBackground ? 'has-custom-bg' : ''}`}>
-        {chatBackground && chatBackground.startsWith('reactbits:') ? (
-          <ReactBitsBackground name={chatBackground.replace('reactbits:', '')} blur={chatBgBlur} />
-        ) : chatBackground ? (
-          <div className="chat-bg-frame-container" style={chatBgBlur ? { filter: `blur(${chatBgBlur}px)` } : undefined}>
+      <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${resolvedChatBg ? 'has-custom-bg' : ''}`}>
+        {resolvedChatBg ? (
+          <div className="chat-bg-frame-container" style={resolvedChatBgBlur ? { filter: `blur(${resolvedChatBgBlur}px)` } : undefined}>
             <iframe
               className="chat-bg-frame"
-              src={chatBackground}
+              src={resolvedChatBg}
               sandbox="allow-scripts"
               loading="lazy"
             />
@@ -529,34 +507,18 @@ function InteractionPanel() {
             {CHAT_BACKGROUNDS.map((bg) => (
               <button
                 key={bg.value}
-                className={`chat-bg-option ${chatBackground === bg.value ? 'active' : ''}`}
-                onClick={() => {
-                  setChatBackground(bg.value);
-                  setShowBgPicker(false);
-                }}
-              >
-                {bg.label}
-              </button>
-            ))}
-            <div className="chat-bg-section-label">React Bits</div>
-            {REACTBITS_BACKGROUNDS.map((bg) => (
-              <button
-                key={bg.value}
-                className={`chat-bg-option ${chatBackground === bg.value ? 'active' : ''}`}
-                onClick={() => {
-                  setChatBackground(bg.value);
-                  setShowBgPicker(false);
-                }}
+                className={`chat-bg-option ${resolvedChatBg === bg.value ? 'active' : ''}`}
+                onClick={() => handleChatBgSelect(bg.value)}
               >
                 {bg.label}
               </button>
             ))}
             <div className="chat-bg-blur-slider">
-              <label>Blur: {chatBgBlur}px</label>
+              <label>Blur: {resolvedChatBgBlur}px</label>
               <input
                 type="range"
                 min="0" max="30" step="1"
-                value={chatBgBlur}
+                value={resolvedChatBgBlur}
                 onChange={(e) => setChatBgBlur(parseInt(e.target.value))}
               />
             </div>
@@ -757,14 +719,28 @@ function InteractionPanel() {
               </div>
             )}
 
-            {/* Suggested follow-ups */}
-            {suggestions.length > 0 && !isLoading && (
-              <div className="suggestion-chips">
+            {/* Suggested follow-ups
+              * Click  → auto-send the suggestion as a new user message.
+              * Shift-click (or Alt-click) → fill the input for editing.
+              * Hidden while a turn is in flight or the toggle is off.
+              */}
+            {suggestionsEnabled && suggestions.length > 0 && !isLoading && (
+              <div className="suggestion-chips" role="group" aria-label="Follow-up suggestions">
                 {suggestions.map((s, i) => (
                   <button
-                    key={i}
+                    key={`${i}-${s}`}
                     className="suggestion-chip"
-                    onClick={() => setInputValue(s)}
+                    type="button"
+                    aria-label={`Send follow-up: ${s}`}
+                    title={`Click to send · Shift-click to edit first`}
+                    onClick={(e) => {
+                      if (e.shiftKey || e.altKey) {
+                        setInputValue(s);
+                        textareaRef.current?.focus();
+                        return;
+                      }
+                      sendMessage(s);
+                    }}
                   >
                     {s}
                   </button>

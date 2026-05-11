@@ -363,6 +363,12 @@
             }
         });
 
+
+        input.addEventListener('focus', () => {
+            document.querySelector('.orb-core').style.animation = 'none';
+            document.querySelector('.orb-core').style.transform='scale(0) !important';
+        });
+
         //orb opacity and orb border opacity affected by mouse move
         document.addEventListener('mousemove', (e) => {
             const { clientX, clientY } = e;

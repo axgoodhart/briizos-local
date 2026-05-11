@@ -1,5 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { pathToFileURL, fileURLToPath } = require('url');
 const { logger, registerLoggerIPC } = require('./logger');
 const filesystem = require('./filesystem');
 const studio = require('./studio');
@@ -9,9 +11,10 @@ const agentConfig = require('./agent-config');
 const agentFs = require('./agent-fs');
 const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
-const langgraphProcess = require('./langgraph-process');
 const modelConfig = require('./model-config');
 const toolBridge = require('./tool-bridge');
+const localDb = require('./local-db');
+const yaml = require('js-yaml');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -37,6 +40,42 @@ function isFirebaseNetworkUrl(url) {
 }
 
 const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
+const VIDEO_EXTENSIONS = new Set([
+  '.mp4', '.m4v', '.mov', '.webm', '.ogv',
+]);
+const AUDIO_EXTENSIONS = new Set([
+  '.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.oga', '.opus', '.aiff', '.aif',
+]);
+
+function inferMediaKind(filePath) {
+  const ext = path.extname(filePath || '').toLowerCase();
+  if (VIDEO_EXTENSIONS.has(ext)) return 'video';
+  if (AUDIO_EXTENSIONS.has(ext)) return 'audio';
+  return null;
+}
+
+function describeMediaPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') return null;
+  const localPath = filePath.startsWith('file:') ? fileURLToPath(filePath) : filePath;
+  const kind = inferMediaKind(localPath);
+  if (!kind) return null;
+
+  const stat = fs.statSync(localPath);
+  if (!stat.isFile()) return null;
+
+  return {
+    id: localPath,
+    path: localPath,
+    sourceLocation: localPath,
+    url: pathToFileURL(localPath).toString(),
+    name: path.basename(localPath),
+    size: stat.size,
+    kind,
+    type: `${kind}/${path.extname(localPath).slice(1).toLowerCase() || 'local'}`,
+    lastModified: stat.mtimeMs,
+    persistable: true,
+  };
+}
 
 function normalizeCoord(value, min, max) {
   const n = Number(value);
@@ -47,12 +86,12 @@ function normalizeCoord(value, min, max) {
 const CSP = [
   "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://apis.google.com https://www.gstatic.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
-  "font-src 'self' https://fonts.gstatic.com data:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+  "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:",
   "img-src 'self' data: blob: https:",
   "connect-src 'self' ws://localhost:* http://localhost:* http://127.0.0.1:2024 http://127.0.0.1:2025 https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
-  "frame-src 'self' blob: data: https://dex--briizos.us-central1.hosted.app http://localhost:* file: https://*.firebaseapp.com https://*.web.app https://apis.google.com",
-  "media-src 'self' blob: data:",
+  "frame-src 'self' blob: data: https: https://dex--briizos.us-central1.hosted.app http://localhost:* file: https://*.firebaseapp.com https://*.web.app https://apis.google.com",
+  "media-src 'self' blob: data: https: file:",
   "worker-src 'self' blob:"
 ].join('; ') + ';';
 
@@ -71,6 +110,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
+      webviewTag: true,
       webSecurity: !isDev, // Allow cross-origin in dev for iframes
       allowRunningInsecureContent: isDev
     }
@@ -86,12 +126,26 @@ function createWindow() {
   // In development, skip CSP header injection to avoid blocking local auth/network debugging.
   if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [CSP]
-        }
-      });
+      // Only apply our CSP to the main frame and same-origin sub-resources.
+      // Third-party sub-frame navigations (e.g. canvas URL iframes) should
+      // keep whatever CSP the remote site sends — our app-level policy blocks
+      // their scripts, styles, and network calls.
+      const isMainFrame = details.resourceType === 'mainFrame';
+      const isSameOrigin = details.url.startsWith('file://') ||
+        details.url.startsWith('http://localhost');
+      const isSubFrame = details.resourceType === 'subFrame';
+
+      if (isMainFrame || (isSameOrigin && !isSubFrame)) {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [CSP]
+          }
+        });
+      } else {
+        // Let sub-frames (canvas iframes, embedded sites) use their own CSP
+        callback({ responseHeaders: details.responseHeaders });
+      }
     });
   }
 
@@ -389,11 +443,28 @@ ipcMain.handle('canvas-list', async () => {
       .filter(f => f.endsWith('.html'))
       .sort()
       .reverse()
-      .map(f => ({
-        filename: f,
-        title: f.replace(/^\d+-/, '').replace(/-/g, ' ').replace('.html', ''),
-        size: fs.statSync(path.join(dir, f)).size,
-      }));
+      .map(f => {
+        const htmlPath = path.join(dir, f);
+        let meta = {};
+        try {
+          const metaPath = path.join(dir, `${f}.meta.json`);
+          if (fs.existsSync(metaPath)) {
+            meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) || {};
+          }
+        } catch { meta = {}; }
+        const derivedTitle = f.replace(/^\d+-/, '').replace(/-/g, ' ').replace('.html', '');
+        return {
+          filename: f,
+          title: meta.displayName || derivedTitle,
+          size: fs.statSync(htmlPath).size,
+          formFactor: meta.formFactor || 'float',
+          source: meta.source || 'ai',
+          renderEngine: meta.renderEngine || 'iframe',
+          url: meta.url || '',
+          createdAt: meta.createdAt || null,
+          updatedAt: meta.updatedAt || null,
+        };
+      });
   } catch { return []; }
 });
 
@@ -402,6 +473,76 @@ ipcMain.handle('canvas-load', async (event, filename) => {
   try {
     return fs.readFileSync(path.join(agentConfig.DIRS.canvas, filename), 'utf8');
   } catch { return ''; }
+});
+
+ipcMain.handle('canvas-delete', async (event, filename) => {
+  const fs = require('fs');
+  try {
+    const dir = agentConfig.DIRS.canvas;
+    const htmlPath = path.join(dir, filename);
+    const metaPath = path.join(dir, `${filename}.meta.json`);
+    if (fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
+    if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('canvas-save-meta', async (event, filename, meta) => {
+  const fs = require('fs');
+  try {
+    const metaPath = path.join(agentConfig.DIRS.canvas, `${filename}.meta.json`);
+    const payload = { ...(meta || {}), updatedAt: Date.now() };
+    if (!payload.createdAt) payload.createdAt = payload.updatedAt;
+    fs.writeFileSync(metaPath, JSON.stringify(payload, null, 2), 'utf8');
+    return { success: true, meta: payload };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('canvas-load-meta', async (event, filename) => {
+  const fs = require('fs');
+  try {
+    const metaPath = path.join(agentConfig.DIRS.canvas, `${filename}.meta.json`);
+    if (!fs.existsSync(metaPath)) return {};
+    return JSON.parse(fs.readFileSync(metaPath, 'utf8')) || {};
+  } catch { return {}; }
+});
+
+ipcMain.handle('canvas-rename', async (event, oldFilename, newTitle) => {
+  const fs = require('fs');
+  try {
+    const dir = agentConfig.DIRS.canvas;
+    const oldHtml = path.join(dir, oldFilename);
+    if (!fs.existsSync(oldHtml)) {
+      return { success: false, error: 'Source canvas not found' };
+    }
+    const slug = String(newTitle || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
+    const stampMatch = oldFilename.match(/^(\d+)-/);
+    const stamp = stampMatch ? stampMatch[1] : String(Date.now());
+    const newFilename = `${stamp}-${slug}.html`;
+    const newHtml = path.join(dir, newFilename);
+    if (newFilename !== oldFilename) {
+      fs.renameSync(oldHtml, newHtml);
+    }
+    // Move sidecar
+    const oldMeta = path.join(dir, `${oldFilename}.meta.json`);
+    const newMeta = path.join(dir, `${newFilename}.meta.json`);
+    let metaObj = {};
+    if (fs.existsSync(oldMeta)) {
+      try { metaObj = JSON.parse(fs.readFileSync(oldMeta, 'utf8')) || {}; } catch { metaObj = {}; }
+      if (newFilename !== oldFilename) fs.unlinkSync(oldMeta);
+    }
+    metaObj.displayName = newTitle;
+    metaObj.updatedAt = Date.now();
+    if (!metaObj.createdAt) metaObj.createdAt = metaObj.updatedAt;
+    fs.writeFileSync(newMeta, JSON.stringify(metaObj, null, 2), 'utf8');
+    return { success: true, filename: newFilename, meta: metaObj };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 });
 
 // === Weather IPC Handler ===
@@ -445,6 +586,54 @@ ipcMain.handle('weather-get-current', async (event, latitude, longitude) => {
   }
 });
 
+ipcMain.handle('media-open-files', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      {
+        name: 'Media',
+        extensions: [
+          'mp4', 'm4v', 'mov', 'webm', 'ogv',
+          'mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'oga', 'opus', 'aiff', 'aif',
+        ],
+      },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  });
+
+  if (result.canceled) {
+    return { ok: true, files: [] };
+  }
+
+  const files = result.filePaths
+    .map((filePath) => {
+      try {
+        return describeMediaPath(filePath);
+      } catch (error) {
+        logger.warn('media', 'Unable to describe media file', { filePath, error: error?.message });
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return { ok: true, files };
+});
+
+ipcMain.handle('media-describe-files', async (_event, filePaths = []) => {
+  const files = filePaths
+    .map((filePath) => {
+      try {
+        return describeMediaPath(filePath);
+      } catch (error) {
+        logger.warn('media', 'Unable to describe dropped media file', { filePath, error: error?.message });
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return { ok: true, files };
+});
+
 // === Health Check IPC Handler ===
 
 ipcMain.handle('health-check', async () => {
@@ -457,7 +646,7 @@ ipcMain.handle('health-check', async () => {
   return {
     timestamp: new Date().toISOString(),
     directories: dirStatus,
-    langgraphStatus: langgraphProcess.getStatus(),
+    aiConfigured: modelConfig.isAIConfigured(),
     electronVersion: process.versions.electron,
     nodeVersion: process.versions.node,
     platform: process.platform,
@@ -465,16 +654,18 @@ ipcMain.handle('health-check', async () => {
   };
 });
 
-// === Memory IPC Handlers (Phase 8) ===
+// === Memory IPC Handlers (Phase 8) - DISABLED ===
+// Memory functionality disconnected as per requirements
+// These handlers previously depended on langgraphProcess
 
 ipcMain.handle('memory-get-data', async () => {
-  const { fetchMemory } = require('./langgraph-process');
-  return await fetchMemory();
+  logger.warn('memory', 'Memory functionality is currently disabled');
+  return { facts: [], enabled: false };
 });
 
 ipcMain.handle('memory-delete-fact', async (event, factId) => {
-  const { deleteFact } = require('./langgraph-process');
-  return await deleteFact(factId);
+  logger.warn('memory', 'Memory delete functionality is currently disabled');
+  return { success: false, error: 'Memory functionality is currently disabled' };
 });
 
 // === Skills IPC Handlers ===
@@ -513,85 +704,99 @@ ipcMain.handle('skills-toggle', async (event, skillName, enabled) => {
   }
 });
 
-// === LangGraph Status API ===
+// === Direct AI API - Get API Key for Provider ===
 
-ipcMain.handle('langgraph-get-status', async () => langgraphProcess.getStatus());
+ipcMain.handle('get-api-key', async (event, provider) => {
+  // Prefer environment variables if set
+  const envKey = {
+    gemini: process.env.GEMINI_API_KEY,
+    google: process.env.GEMINI_API_KEY,
+    claude: process.env.ANTHROPIC_API_KEY,
+    anthropic: process.env.ANTHROPIC_API_KEY,
+    openai: process.env.OPENAI_API_KEY,
+    chatgpt: process.env.OPENAI_API_KEY,
+  }[provider];
 
-// === LangGraph Agent API ===
+  if (envKey) return envKey;
 
-ipcMain.handle('langgraph-create-thread', async () => {
-  return langgraphProcess.createThread();
-});
+  // Fallback: read from agent/config.yaml (not the Electron appSupport config.json)
+  try {
+    const fs = require('fs');
+    const configPath = path.resolve(__dirname, '../agent/config.yaml');
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, 'utf8');
+      const parsed = yaml.load(raw);
+      const models = Array.isArray(parsed?.models) ? parsed.models : [];
 
-ipcMain.handle('langgraph-send-message', async (event, threadId, message, config) => {
-  return langgraphProcess.sendMessage(threadId, message, config || {});
-});
+      // Find first model matching requested provider that contains a key
+      const match = models.find((m) => {
+        const p = deriveProviderFromModel(m);
+        if (p !== provider) return false;
+        if (provider === 'gemini' || provider === 'google') {
+          return !!m?.google_api_key;
+        }
+        return !!m?.api_key;
+      });
 
-ipcMain.handle('langgraph-stream-message', async (event, threadId, message, config) => {
-  const streamId = config?.streamId || `lg-stream-${Date.now()}`;
-  const sender = event.sender;
-
-  // Resolve tool_confirmation_mode from agent config when not explicitly set by caller.
-  // Maps terminal.mode ("ask-always" | "ask-destructive" | "no-asking") to the same
-  // value expected by ToolConfirmationMiddleware on the Python side.
-  const resolvedConfig = { ...(config || {}) };
-  if (!resolvedConfig.tool_confirmation_mode) {
-    try {
-      const agentCfg = agentConfig.readConfig();
-      resolvedConfig.tool_confirmation_mode = agentCfg?.terminal?.mode || 'ask-always';
-    } catch {
-      resolvedConfig.tool_confirmation_mode = 'ask-always';
+      if (match) {
+        if (provider === 'gemini' || provider === 'google') {
+          return match.google_api_key || null;
+        }
+        return match.api_key || null;
+      }
     }
+  } catch (err) {
+    logger.warn('api', 'Failed to read API key from agent/config.yaml', err?.message);
   }
 
-  langgraphProcess.streamMessage(threadId, message, resolvedConfig, (type, payload) => {
-    if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type, payload: payload || {} });
-    }
-  }).catch(err => {
-    if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type: 'error', payload: { message: err?.message || 'Stream failed' } });
-    }
-  });
-
-  return { streamId };
+  return null;
 });
 
-// === LangGraph Resume Run (Tool Confirmation) ===
+// Helper to derive provider from model config
+function deriveProviderFromModel(model) {
+  if (!model?.use) return 'unknown';
 
-ipcMain.handle('langgraph-resume-run', async (event, threadId, response, config) => {
-  const streamId = config?.streamId || `lg-resume-${Date.now()}`;
-  const sender = event.sender;
+  const useField = model.use;
+  if (useField.includes('anthropic')) return 'claude';
+  if (useField.includes('openai')) return 'openai';
+  if (useField.includes('google')) return 'gemini';
+  return 'unknown';
+}
 
-  // Carry tool_confirmation_mode through to resumed run so the middleware
-  // doesn't revert to ask-always and re-fire the confirmation dialog.
-  const resolvedResumeConfig = { ...(config || {}) };
-  if (!resolvedResumeConfig.tool_confirmation_mode) {
-    try {
-      const agentCfg = agentConfig.readConfig();
-      resolvedResumeConfig.tool_confirmation_mode = agentCfg?.terminal?.mode || 'ask-always';
-    } catch {
-      resolvedResumeConfig.tool_confirmation_mode = 'ask-always';
-    }
-  }
+// === Tool Execution Bridge ===
+//
+// DEPRECATED for chat-originated tool calls.
+//
+// Chat tools now route through src/lib/briizos-tools.js →
+// src/lib/tools.js registry directly inside the renderer, reusing the
+// same real handlers the LangGraph tool-bridge already uses (see
+// src/hooks/useToolBridge.js). That path is synchronous from
+// main.js's perspective — no IPC hop — and exercises the real
+// Firestore-backed and layoutHook-backed implementations instead of
+// the universal fake-success response this handler used to return.
+//
+// This IPC handler is kept only as a last-resort fallback so that
+// callers which somehow bypass the registry (very early boot, unit
+// tests, renderer crash recovery) don't hit a MethodNotFound. It
+// logs a warning on every hit so any regression back to this path
+// is visible in the main-process logs.
+ipcMain.handle('execute-tool', async (event, toolName, params) => {
+  logger.warn(
+    'tools',
+    `execute-tool IPC fallback hit for "${toolName}" — this path is deprecated; ` +
+      'chat tool calls should reach src/lib/tools.js directly via BriizTools.',
+    params,
+  );
 
-  langgraphProcess.resumeRun(threadId, response, resolvedResumeConfig, (type, payload) => {
-    if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type, payload: payload || {} });
-    }
-  }).catch(err => {
-    if (!sender.isDestroyed()) {
-      sender.send('langgraph-stream-event', { streamId, type: 'error', payload: { message: err?.message || 'Resume failed' } });
-    }
-  });
-
-  return { streamId };
-});
-
-// === LangGraph Suggestions API ===
-
-ipcMain.handle('langgraph-get-suggestions', async (event, recentMessages, n, config) => {
-  return langgraphProcess.fetchSuggestions(recentMessages, n || 3, config || {});
+  return {
+    success: false,
+    tool: toolName,
+    params,
+    message:
+      `Tool "${toolName}" reached the deprecated main.js IPC fallback and was not executed. ` +
+      'Ensure src/lib/briizos-tools.js is wired to the tools.js registry.',
+    timestamp: new Date().toISOString(),
+  };
 });
 
 // === Model Config IPC Handlers ===
@@ -606,7 +811,7 @@ ipcMain.handle('ai-is-configured', async () => modelConfig.isAIConfigured());
 app.whenReady().then(() => {
   // Register logger IPC (must be first — other modules may log during init)
   registerLoggerIPC(ipcMain);
-  logger.info('app', 'briizOS starting', {
+  logger.info('app', 'briizOS starting (Direct API Mode)', {
     isDev,
     pid: process.pid,
     electron: process.versions.electron,
@@ -616,17 +821,6 @@ app.whenReady().then(() => {
 
   // Initialize agent App Support directories
   agentConfig.ensureDirectories();
-
-  // Start LangGraph backend process
-  langgraphProcess.start().then(started => {
-    if (started) {
-      logger.info('app', 'LangGraph process started', { port: langgraphProcess.getPort() });
-    } else {
-      logger.warn('app', 'LangGraph process failed to start', langgraphProcess.getStatus());
-    }
-  }).catch(err => {
-    logger.error('app', 'LangGraph process start error', err?.message);
-  });
 
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {
@@ -658,10 +852,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Stop LangGraph process and tool bridge before quit (fire-and-forget — Electron won't wait for async)
+// Stop tool bridge before quit (fire-and-forget — Electron won't wait for async)
 app.on('before-quit', () => {
   toolBridge.stop();
-  langgraphProcess.stop();
 });
 
 // Clean up watchers on quit

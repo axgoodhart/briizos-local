@@ -10,7 +10,7 @@ function SettingsModal({ isOpen, onClose }) {
   const [isLoading, setIsLoading] = useState(true);
   const [modelList, setModelList] = useState([]);
   const [modelLoading, setModelLoading] = useState(false);
-  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false });
+  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false, claude: false, gemini: false });
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showGithubToken, setShowGithubToken] = useState(false);
@@ -96,7 +96,7 @@ function SettingsModal({ isOpen, onClose }) {
   const loadBackendStatus = async () => {
     setBackendLoading(true);
     try {
-      const result = await window.api.langgraphGetStatus();
+      const result = await window.api.healthCheck();
       setBackendStatus(result);
     } catch (error) {
       logger.error('config', 'Failed to load backend status', error?.message);
@@ -113,7 +113,17 @@ function SettingsModal({ isOpen, onClose }) {
         window.api.checkApiKeys(),
       ]);
       setModelList(models || []);
-      setApiKeyStatus(keys || {});
+      // Normalize provider key map to support both legacy and new slugs
+      const normalized = {
+        ...(keys || {}),
+        // Ensure new slugs exist even if only legacy are returned
+        claude: (keys && (keys.claude ?? keys.anthropic)) ?? false,
+        gemini: (keys && (keys.gemini ?? keys.google)) ?? false,
+        // Keep legacy slugs in sync with new slugs for any code paths that still read them
+        anthropic: (keys && (keys.anthropic ?? keys.claude)) ?? false,
+        google: (keys && (keys.google ?? keys.gemini)) ?? false,
+      };
+      setApiKeyStatus(normalized);
     } catch (error) {
       logger.error('config', 'Failed to load models', error?.message);
     } finally {
@@ -516,7 +526,7 @@ function SettingsModal({ isOpen, onClose }) {
               {/* AI Model Tab - LangGraph Model List */}
               {activeTab === 'model' && (
                 <div className="settings-section">
-                  <h3 className="settings-section-title">LangGraph Models</h3>
+                  <h3 className="settings-section-title">AI Models</h3>
                   {modelLoading ? (
                     <div className="settings-loading">Loading models...</div>
                   ) : modelList.length === 0 ? (
@@ -526,11 +536,11 @@ function SettingsModal({ isOpen, onClose }) {
                   ) : (
                     <>
                       {/* Group models by provider */}
-                      {['anthropic', 'openai', 'google'].map(provider => {
+                      {['claude', 'openai', 'gemini'].map(provider => {
                         const providerModels = modelList.filter(m => m.provider === provider);
                         if (providerModels.length === 0) return null;
                         const hasKey = apiKeyStatus[provider];
-                        const providerLabel = provider === 'anthropic' ? 'Anthropic' : provider === 'openai' ? 'OpenAI' : 'Google';
+                        const providerLabel = provider === 'claude' ? 'Claude' : provider === 'openai' ? 'OpenAI' : 'Gemini';
                         return (
                           <div key={provider} style={{ marginBottom: 16 }}>
                             <div style={{
@@ -782,7 +792,7 @@ function SettingsModal({ isOpen, onClose }) {
                         </button>
                       </div>
 
-                      <h3 className="settings-section-title">LangGraph Process</h3>
+                      <h3 className="settings-section-title">AI Runtime</h3>
 
                       <div className="backend-status-row">
                         <span className="backend-status-label">Status</span>
@@ -790,21 +800,13 @@ function SettingsModal({ isOpen, onClose }) {
                           <span
                             className="backend-status-dot"
                             style={{
-                              background: backendStatus.status === 'running'
-                                ? '#4caf50'
-                                : backendStatus.status === 'starting'
-                                  ? '#ff9800'
-                                  : '#f44336',
+                              background: backendStatus.aiConfigured ? '#4caf50' : '#f44336',
                             }}
                           />
                           <span className="backend-status-value" style={{
-                            color: backendStatus.status === 'running'
-                              ? '#81c784'
-                              : backendStatus.status === 'starting'
-                                ? '#ffb74d'
-                                : '#ff8a80',
+                            color: backendStatus.aiConfigured ? '#81c784' : '#ff8a80',
                           }}>
-                            {backendStatus.status || 'unknown'}
+                            {backendStatus.aiConfigured ? 'ready' : 'not configured'}
                           </span>
                         </span>
                       </div>

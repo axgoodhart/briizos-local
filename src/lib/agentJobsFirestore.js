@@ -22,10 +22,13 @@ const COLLECTIONS = {
 };
 
 const DEFAULTS = {
-  workerCount: 3,
+  // Reduce default background load substantially
+  workerCount: 1,
   leaseMs: 45000,
-  pollMs: 1500,
-  heartbeatMs: 4000,
+  // Poll less frequently when idle
+  pollMs: 6000,
+  // Heartbeat less frequently
+  heartbeatMs: 15000,
   maxRetries: 3,
 };
 

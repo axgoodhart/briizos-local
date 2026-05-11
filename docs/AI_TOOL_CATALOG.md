@@ -1,11 +1,11 @@
 # AI Tool Catalog
 
-Generated: `2026-03-13T10:20:23.421Z`
+Generated: `2026-04-23T22:37:51.273Z`
 Source: `src/lib/tools.js`
 
 ## Summary
-- Total tools: **43**
-- Implemented: **33**
+- Total tools: **46**
+- Implemented: **36**
 - Limited: **8**
 - Stub: **2**
 
@@ -84,6 +84,9 @@ Source: `src/lib/tools.js`
 ## Uncategorized
 | Tool | Confirm | Purpose | Status |
 |---|---|---|---|
+| `deleteCanvas` | Yes | Delete a saved canvas from the Canvases library | Implemented |
+| `renameCanvas` | No | Rename a saved canvas in the Canvases library | Implemented |
+| `setCanvasFormFactor` | No | Set how a saved canvas is rendered: float (draggable window), tile (Panel Tile), hybrid (both), or widget (stub) | Implemented |
 | `taskComplete` | No | Signal that the requested task has been fully and successfully completed. You MUST call this when the goal is achieved — the loop will not stop otherwise. | Implemented |
 | `taskFailed` | No | Signal that the task cannot be completed. Call this when you have exhausted all options or hit a hard blocker. Never silently stop. | Implemented |
 | `updateScratchpad` | No | Update your working scratchpad (visible as a live iframe). Call at the start of each step with: current goal, steps completed so far, last result, and what you plan to do next. | Implemented |

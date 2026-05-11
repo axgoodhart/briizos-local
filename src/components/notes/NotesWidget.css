@@ -45,6 +45,7 @@ transition: visibility 2s, transform 1s;
   padding-top:0px;
   margin-top:0px;
   padding:20px;
+  padding-right:30px;
  padding-bottom:3px;
   padding-top:8px;
   cursor: grab;
@@ -65,13 +66,14 @@ color:var(--notes-title, yellow);}
 .notes-actions {
   display: flex;
   gap: 8px;
+  align-items: flex-end;
 }
 
 .notes-add-btn,
 .notes-close-btn {
   width: 26px;
   height: 26px;
-  border-radius: 4px;
+  border-radius: 64px;
   border: 1px solid var(--theme-components-notes-noteswidget-notes-add-btn-border-1plkp, white);
   background: transparent;
   color: var(--theme-components-notes-noteswidget-notes-add-btn-border-1plkp, white);
@@ -83,11 +85,12 @@ color:var(--notes-title, yellow);}
   justify-content: center;
 }
 
+
 .notes-close-btn {
 color:var(--theme-components-notes-noteswidget-notes-add-btn-border-1plkp, white);
 background:var(--theme-components-notes-noteswidget-notes-close-btn-background-i0tgi, red);
-box-shadow:inset 0 0 4px  var(--theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92, pink);}
-
+box-shadow:inset 0 0 4px  var(--theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92, pink);
+}
   .notes-add-btn:hover {
   width:80px;
   background: transparent;
@@ -99,7 +102,13 @@ box-shadow:inset 0 0 4px  var(--theme-components-notes-noteswidget-notes-close-b
   width:80px;
   background: var(--theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda, rgba(250, 30, 30, 0.5));
   border-color: var(--theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y, rgba(255, 100, 100, 0.5));
-  color: var(--palette-danger);
+  color: var(--palette-danger, red);
+  text-shadow:2px 2px 1px red;
+}
+
+.notes-close-btn:active, .notes-add-btn:active {
+  filter:brightness(2);
+  box-shadow:none;
 }
 
 /* Drawer Content */
@@ -308,6 +317,9 @@ backdrop-filter:blur(10px);  color:var(--theme-components-notes-noteswidget-note
   cursor: grab;
   transition:opacity .2s;
   animation: popIn 0.2s ease;
+    border:1px solid rgba(255,255,255,.2);
+
+  border-top: 3px solid var(--theme-components-notes-noteswidget-floating-note-border-top-1x3oe, rgba(0, 200, 200, 0.5));
   box-shadow: 0 8px 30px var(--theme-components-notes-noteswidget-floating-note-box-shadow-op6ip, rgba(0, 0, 0, 0.5));
   border-radius: 8px;
   overflow: hidden;

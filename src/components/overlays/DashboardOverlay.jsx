@@ -1,14 +1,53 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useChatSettings } from '../../context/ChatSettingsContext';
 import { getAllSettings, setSetting, addLog } from '../../lib/firestore';
 import logger from '../../lib/logger';
 import './DashboardOverlay.css';
 
 const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
+
+// Chat background lists (mirrors InteractionPanel)
+const CHAT_BACKGROUNDS = [
+  { value: '', label: 'Default' },
+  { value: 'assets/backgrounds/24h.html', label: '24h' },
+  { value: 'assets/backgrounds/Butterflies.html', label: 'Butterflies' },
+  { value: 'assets/backgrounds/Darkstars.html', label: 'Darkstars' },
+  { value: 'assets/backgrounds/GlassClock.html', label: 'GlassClock' },
+  { value: 'assets/backgrounds/Insectiana.html', label: 'Insectiana' },
+  { value: 'assets/backgrounds/RotoPulse.html', label: 'RotoPulse' },
+  { value: 'assets/backgrounds/Spheres.html', label: 'Spheres' },
+  { value: 'assets/backgrounds/Stars.html', label: 'Stars' },
+  { value: 'assets/backgrounds/Wallpaper.html', label: 'Wallpaper' },
+  { value: 'assets/backgrounds/Widget.html', label: 'Widget' },
+  { value: 'assets/backgrounds/colorink.html', label: 'colorink' },
+  { value: 'assets/backgrounds/darkwater.html', label: 'darkwater' },
+  { value: 'assets/backgrounds/default-gradient.html', label: 'default-gradient' },
+  { value: 'assets/backgrounds/linetrance.html', label: 'linetrance' },
+  { value: 'assets/backgrounds/liquid.html', label: 'liquid' },
+  { value: 'assets/backgrounds/neuralnetworkbackground.html', label: 'neuralnetworkbackground' },
+  { value: 'assets/backgrounds/portals.html', label: 'portals' },
+  { value: 'assets/backgrounds/rainbo.html', label: 'rainbo' },
+  { value: 'assets/backgrounds/rainpool.html', label: 'rainpool' },
+  { value: 'assets/backgrounds/thing.html', label: 'thing' },
+  { value: 'assets/backgrounds/transformer.html', label: 'transformer' },
+  { value: 'assets/backgrounds/univer.html', label: 'univer' },
+  { value: 'assets/backgrounds/vialinebg.html', label: 'vialinebg' },
+  { value: 'assets/backgrounds/visualizer5.html', label: 'visualizer5' },
+  { value: 'assets/backgrounds/visualizer6.html', label: 'visualizer6' },
+  { value: 'assets/backgrounds/wavepool.html', label: 'wavepool' }
+];
+
 function applyUiTheme(theme) {
   if (typeof document === 'undefined') return;
 
   const root = document.documentElement;
+
+  // Trigger transition animation
+  root.classList.remove('theme-transitioning');
+  // Force reflow so the animation restarts
+  void root.offsetWidth;
+  root.classList.add('theme-transitioning');
 
   if (!theme || theme === 'default') {
     root.removeAttribute('data-theme');
@@ -16,6 +55,11 @@ function applyUiTheme(theme) {
   }
 
   root.setAttribute('data-theme', theme);
+
+  // Clean up animation class after animation completes
+  setTimeout(() => {
+    root.classList.remove('theme-transitioning');
+  }, 500);
 }
 
 /* ───────────────────────────
@@ -41,7 +85,17 @@ function ModelTab({ isOpen }) {
         window.api.checkApiKeys(),
       ]);
       setModelList(models || []);
-      setApiKeyStatus(keys || {});
+      // Normalize provider key map to support both legacy and new slugs
+      const normalized = {
+        ...(keys || {}),
+        // Ensure new slugs exist even if only legacy are returned
+        claude: (keys && (keys.claude ?? keys.anthropic)) ?? false,
+        gemini: (keys && (keys.gemini ?? keys.google)) ?? false,
+        // Keep legacy slugs in sync with new slugs for any code paths that still read them
+        anthropic: (keys && (keys.anthropic ?? keys.claude)) ?? false,
+        google: (keys && (keys.google ?? keys.gemini)) ?? false,
+      };
+      setApiKeyStatus(normalized);
     } catch (err) {
       logger.error('config', 'Failed to load models', err?.message);
     } finally {
@@ -114,11 +168,14 @@ function ModelTab({ isOpen }) {
       <div className="settings-divider" />
 
       {/* Models grouped by provider */}
-      {['anthropic', 'openai', 'google'].map(provider => {
+      {['claude', 'openai', 'gemini', 'other'].map(provider => {
         const models = modelsByProvider[provider];
         if (!models || models.length === 0) return null;
         const hasKey = apiKeyStatus[provider];
-        const providerLabel = provider === 'anthropic' ? 'Anthropic' : provider === 'openai' ? 'OpenAI' : 'Google';
+        const providerLabel =
+          provider === 'claude' ? 'Claude' :
+          provider === 'openai' ? 'OpenAI' :
+          provider === 'gemini' ? 'Gemini' : 'Other';
         return (
           <div key={provider} style={{ marginBottom: 16 }}>
             <div style={{
@@ -892,8 +949,113 @@ function HealthTab({ isOpen }) {
   );
 }
 
-function AppearanceTab({ settings, handleThemeChange }) {
+function ThemeChatBgPicker({ theme, onClose, getThemeChatBackground, onSave }) {
+  const current = getThemeChatBackground(theme);
+  const [selectedBg, setSelectedBg] = useState(() => current?.background || '');
+  const [blur, setBlur] = useState(() => current?.blur || 0);
+  const pickerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  const handleSave = () => {
+    onSave(theme, selectedBg, blur);
+    onClose();
+  };
+
+  return (
+    <div
+      ref={pickerRef}
+      className="theme-chat-bg-picker"
+    >
+      <div className="theme-chat-bg-picker-header">
+        <span className="theme-chat-bg-picker-title">ChatView for: {theme || 'default'}</span>
+        <button className="theme-chat-bg-picker-close" onClick={onClose} type="button">&times;</button>
+      </div>
+      <div className="theme-chat-bg-picker-body">
+        <div className="chat-bg-section-label">HTML Backgrounds</div>
+        {CHAT_BACKGROUNDS.map((bg) => (
+          <button
+            key={bg.value}
+            className={`chat-bg-option ${selectedBg === bg.value ? 'active' : ''}`}
+            onClick={() => setSelectedBg(bg.value)}
+            type="button"
+          >
+            {bg.label}
+          </button>
+        ))}
+        <div className="chat-bg-blur-slider">
+          <label>Blur: {blur}px</label>
+          <input
+            type="range"
+            min="0" max="30" step="1"
+            value={blur}
+            onChange={(e) => setBlur(parseInt(e.target.value))}
+          />
+        </div>
+        <div className="theme-chat-bg-picker-actions">
+          <button className="settings-btn settings-btn-connect" onClick={handleSave} type="button">
+            Save
+          </button>
+          <button className="settings-btn" onClick={onClose} type="button">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatView, onOpenChatViewPicker }) {
+  const handleButtonClick = (e) => {
+    e.preventDefault();
+    onOpenChatViewPicker(value);
+  };
+
+  return (
+    <label className="settings-radio settings-radio-theme">
+      <input
+        type="radio"
+        name="ui-theme"
+        value={value}
+        checked={currentTheme === value}
+        onChange={(e) => handleThemeChange(e.target.value)}
+      />
+      <div className="radio-theme-content">
+        <div className="radio-theme-info">
+          <span className="radio-label">{label}</span>
+          <span className="radio-desc">{desc}</span>
+        </div>
+        <button
+          className="settings-choose-chatview-btn"
+          onClick={handleButtonClick}
+          title="Choose ChatView background"
+          type="button"
+        >
+          Choose ChatView{chatView ? `: ${chatView.label || '✓'}` : ''}
+        </button>
+      </div>
+    </label>
+  );
+}
+
+function AppearanceTab({ settings, handleThemeChange, getThemeChatBackground, onOpenChatViewPicker, openPickerForTheme, onPickerSave }) {
   const currentTheme = settings.ui_theme || 'default';
+
+  const getChatViewLabel = (themeKey) => {
+    const entry = getThemeChatBackground(themeKey);
+    if (!entry || !entry.background) return null;
+    const all = CHAT_BACKGROUNDS;
+    const found = all.find(b => b.value === entry.background);
+    return found ? { label: found.label } : { label: '✓' };
+  };
 
   return (
     <div className="settings-section">
@@ -903,159 +1065,27 @@ function AppearanceTab({ settings, handleThemeChange }) {
       </p>
 
       <div className="settings-radio-group">
-        <label className="settings-radio">
-          <input
-            type="radio"
-            name="ui-theme"
-            value="default"
-            checked={currentTheme === 'default'}
-            onChange={(e) => handleThemeChange(e.target.value)}
-          />
-          <span className="radio-label">Default Neon</span>
-          <span className="radio-desc">Current dark neon interface.</span>
-        </label>
-
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="antarctic-teafog"
-    checked={currentTheme === 'antarctic-teafog'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Antarctic Teafog</span>
-  <span className="radio-desc">Muted warmth with cool earth tones..</span>
-</label>
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="postlinear-glassos"
-    checked={currentTheme === 'postlinear-glassos'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Postlinear Glassos</span>
-  <span className="radio-desc">Splashing gold with rosy dry warmth..</span>
-</label>
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="neon-orbi"
-    checked={currentTheme === 'neon-orbi'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Neon Orb</span>
-  <span className="radio-desc">Flatter, soft hue multicolor interface.</span>
-</label>
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="winterbloom"
-    checked={currentTheme === 'winterbloom'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Winterbloom</span>
-  <span className="radio-desc">A lush, wintry night theme: midnight navy foundations with delicate cherry-blossom pink highlights, moonlit cyan accents, frosted glass textures and soft glows</span>
-</label>
-
-
-
-
-
-        <label className="settings-radio">
-          <input
-            type="radio"
-            name="ui-theme"
-            value="mint-icecube"
-            checked={currentTheme === 'mint-icecube'}
-            onChange={(e) => handleThemeChange(e.target.value)}
-          />
-          <span className="radio-label">Mint Icecube</span>
-          <span className="radio-desc">Frosted mint glass palette with cooler contrast.</span>
-        </label>
-
-              <label className="settings-radio">
-          <input
-            type="radio"
-            name="ui-theme"
-            value="great-wave"
-            checked={currentTheme === 'great-wave'}
-            onChange={(e) => handleThemeChange(e.target.value)}
-          />
-          <span className="radio-label">Great Wave</span>
-          <span className="radio-desc">Kanagawan pallete with muted opacity.</span>
-        </label>
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="sherbert-sakura"
-    checked={currentTheme === 'sherbert-sakura'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Sherbert Sakura</span>
-  <span className="radio-desc">A pastel-neon cherry blossom theme.</span>
-</label>
-
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="burnt-chestnut"
-    checked={currentTheme === 'burnt-chestnut'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Burnt Chestnut</span>
-  <span className="radio-desc">A medium springtime theme.</span>
-</label>
-
-
-
-
- 
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="verdigris"
-    checked={currentTheme === 'verdigris'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Verdigris</span>
-  <span className="radio-desc">Tarnished bronze with a hint of gold and green.</span>
-</label>
-
-
-<label className="settings-radio">
-  <input
-    type="radio"
-    name="ui-theme"
-    value="space-glass"
-    checked={currentTheme === 'space-glass'}
-    onChange={(e) => handleThemeChange(e.target.value)}
-  />
-  <span className="radio-label">Space Glass</span>
-  <span className="radio-desc">A dark space theme with twilight hue.</span>
-</label>
-
-
-
-        
+        <ThemeRadio value="default" label="Default Neon" desc="Current dark neon interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('default')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="antarctic-teafog" label="Antarctic Teafog" desc="Muted warmth with cool earth tones." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('antarctic-teafog')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="postlinear-glassos" label="Postlinear Glassos" desc="Splashing gold with rosy dry warmth." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('postlinear-glassos')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="neon-orbi" label="Neon Orb" desc="Flatter, soft hue multicolor interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('neon-orbi')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="winterbloom" label="Winterbloom" desc="A lush, wintry night theme with cherry-blossom pink highlights." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('winterbloom')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="mint-icecube" label="Mint Icecube" desc="Frosted mint glass palette with cooler contrast." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('mint-icecube')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="great-wave" label="Great Wave" desc="Kanagawan palette with muted opacity." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('great-wave')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="sherbert-sakura" label="Sherbert Sakura" desc="A pastel-neon cherry blossom theme." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('sherbert-sakura')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="burnt-chestnut" label="Burnt Chestnut" desc="A medium springtime theme." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('burnt-chestnut')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="verdigris" label="Verdigris" desc="Tarnished bronze with a hint of gold and green." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('verdigris')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="space-glass" label="Space Glass" desc="A dark space theme with twilight hue." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('space-glass')} onOpenChatViewPicker={onOpenChatViewPicker} />
       </div>
+
+      {openPickerForTheme && (
+        <ThemeChatBgPicker
+          theme={openPickerForTheme}
+          onClose={() => onOpenChatViewPicker(null)}
+          getThemeChatBackground={getThemeChatBackground}
+          onSave={onPickerSave}
+        />
+      )}
     </div>
   );
 }
@@ -1066,6 +1096,7 @@ function AppearanceTab({ settings, handleThemeChange }) {
 
 function DashboardOverlay({ isOpen, onClose }) {
   const { user, logout, isAuthenticated } = useAuth();
+  const { setThemeChatBackground, getThemeChatBackground } = useChatSettings();
 
   const [activeTab, setActiveTab] = useState('model');
   const [settings, setSettings] = useState({});
@@ -1077,6 +1108,7 @@ function DashboardOverlay({ isOpen, onClose }) {
   const [gdriveStatus, setGdriveStatus] = useState(null);
   const [isConnectingGdrive, setIsConnectingGdrive] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [openPickerForTheme, setOpenPickerForTheme] = useState(null);
 
   // Load settings when overlay opens
   useEffect(() => {
@@ -1094,6 +1126,7 @@ function DashboardOverlay({ isOpen, onClose }) {
       setSettings({ ...allSettings, ui_theme: savedTheme });
       localStorage.setItem(UI_THEME_STORAGE_KEY, savedTheme);
       applyUiTheme(savedTheme);
+
       if (allSettings.github_token && window.api?.githubSetToken) {
         window.api.githubSetToken(allSettings.github_token);
       }
@@ -1122,6 +1155,14 @@ function DashboardOverlay({ isOpen, onClose }) {
     localStorage.setItem(UI_THEME_STORAGE_KEY, theme);
     applyUiTheme(theme);
   }, [handleSettingChange]);
+
+  const handleOpenChatViewPicker = useCallback((theme) => {
+    setOpenPickerForTheme(theme);
+  }, []);
+
+  const handlePickerSave = useCallback((theme, background, blur) => {
+    setThemeChatBackground(theme, background, blur);
+  }, [setThemeChatBackground]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -1264,6 +1305,10 @@ function DashboardOverlay({ isOpen, onClose }) {
                 <AppearanceTab
                   settings={settings}
                   handleThemeChange={handleThemeChange}
+                  getThemeChatBackground={getThemeChatBackground}
+                  onOpenChatViewPicker={handleOpenChatViewPicker}
+                  openPickerForTheme={openPickerForTheme}
+                  onPickerSave={handlePickerSave}
                 />
               )}
 

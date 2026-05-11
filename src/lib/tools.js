@@ -370,6 +370,82 @@ const tools = {
     },
   },
 
+  deleteCanvas: {
+    requiresConfirmation: true,
+    description: 'Delete a saved canvas from the Canvases library',
+    parameters: {
+      filename: { type: 'string', description: 'Canvas filename to delete' },
+    },
+    handler: async (params) => {
+      if (!window.api?.canvasDelete) {
+        return { success: false, message: 'Canvas IPC unavailable.' };
+      }
+      const res = await window.api.canvasDelete(params.filename);
+      if (res?.success) {
+        logger.info('canvases', 'Canvas deleted via tool', { filename: params.filename });
+        return { success: true, message: `Deleted canvas "${params.filename}".` };
+      }
+      return { success: false, message: `Failed to delete: ${res?.error || 'unknown error'}` };
+    },
+  },
+
+  renameCanvas: {
+    requiresConfirmation: false,
+    description: 'Rename a saved canvas in the Canvases library',
+    parameters: {
+      filename: { type: 'string', description: 'Canvas filename to rename' },
+      newTitle: { type: 'string', description: 'New display title' },
+    },
+    handler: async (params) => {
+      if (!window.api?.canvasRename) {
+        return { success: false, message: 'Canvas IPC unavailable.' };
+      }
+      const res = await window.api.canvasRename(params.filename, params.newTitle);
+      if (res?.success) {
+        logger.info('canvases', 'Canvas renamed via tool', {
+          oldFilename: params.filename,
+          newFilename: res.filename,
+          newTitle: params.newTitle,
+        });
+        return {
+          success: true,
+          message: `Renamed to "${params.newTitle}".`,
+          filename: res.filename,
+        };
+      }
+      return { success: false, message: `Failed to rename: ${res?.error || 'unknown error'}` };
+    },
+  },
+
+  setCanvasFormFactor: {
+    requiresConfirmation: false,
+    description: 'Set how a saved canvas is rendered: float (draggable window), tile (Panel Tile), hybrid (both), or widget (stub)',
+    parameters: {
+      filename: { type: 'string', description: 'Canvas filename' },
+      formFactor: { type: 'string', description: 'One of: float, tile, hybrid, widget' },
+    },
+    handler: async (params) => {
+      if (!window.api?.canvasSaveMeta || !window.api?.canvasLoadMeta) {
+        return { success: false, message: 'Canvas IPC unavailable.' };
+      }
+      const allowed = ['float', 'tile', 'hybrid', 'widget'];
+      if (!allowed.includes(params.formFactor)) {
+        return { success: false, message: `formFactor must be one of: ${allowed.join(', ')}` };
+      }
+      const existing = await window.api.canvasLoadMeta(params.filename);
+      const merged = { ...(existing || {}), formFactor: params.formFactor };
+      const res = await window.api.canvasSaveMeta(params.filename, merged);
+      if (res?.success) {
+        logger.info('canvases', 'Canvas form factor set via tool', {
+          filename: params.filename,
+          formFactor: params.formFactor,
+        });
+        return { success: true, message: `Canvas form factor set to "${params.formFactor}".` };
+      }
+      return { success: false, message: `Failed: ${res?.error || 'unknown error'}` };
+    },
+  },
+
   // === AGENT LOOP CONTROL SIGNALS ===
 
   taskComplete: {

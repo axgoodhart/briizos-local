@@ -228,14 +228,19 @@ export const noteAdapter = {
     const w = doc.width ?? doc.w;
     const h = doc.height ?? doc.h;
 
+    // Only write position fields that are explicitly provided (partial updates)
     if (x !== undefined || y !== undefined || w !== undefined || h !== undefined) {
       if (!doc.ui) doc.ui = {};
       if (!doc.ui.local) doc.ui.local = {};
+
+      // Preserve existing ui.local.xywh if present (for partial updates)
+      const existingXywh = doc.ui.local.xywh || {};
+
       doc.ui.local.xywh = {
-        x: Number(x) || 0,
-        y: Number(y) || 0,
-        w: Number(w) || 250,
-        h: Number(h) || 200,
+        x: x !== undefined ? Number(x) : (existingXywh.x ?? 0),
+        y: y !== undefined ? Number(y) : (existingXywh.y ?? 0),
+        w: w !== undefined ? Number(w) : (existingXywh.w ?? 250),
+        h: h !== undefined ? Number(h) : (existingXywh.h ?? 200),
       };
     }
     // Remove flat position fields — prohibited by contract §9
@@ -250,10 +255,29 @@ export const noteAdapter = {
     delete doc.positionX;
     delete doc.positionY;
 
-    requireFields(doc, ['id', 'type', 'title', 'createdAt'], 'noteAdapter');
-    // body and customColor are required but may be empty string / null for new notes
-    if (doc.body === undefined) doc.body = '';
-    if (doc.customColor === undefined) doc.customColor = null;
+    // On new notes, seed ui.web.xywh so briizOS.Web can display them (§4.4)
+    if (isNew) {
+      if (!doc.ui) doc.ui = {};
+      if (!doc.ui.web) {
+        doc.ui.web = {
+          xywh: {
+            x: doc.ui?.local?.xywh?.x ?? 0,
+            y: doc.ui?.local?.xywh?.y ?? 0,
+            w: doc.ui?.local?.xywh?.w ?? 250,
+            h: doc.ui?.local?.xywh?.h ?? 200,
+          },
+        };
+      }
+    }
+
+    // Full validation only on new docs; partial updates (merge:true) may omit fields
+    if (isNew) {
+      requireFields(doc, ['id', 'type', 'title', 'createdAt'], 'noteAdapter');
+      if (doc.body === undefined) doc.body = '';
+      if (doc.customColor === undefined) doc.customColor = null;
+    } else {
+      requireFields(doc, ['id'], 'noteAdapter');
+    }
     return doc;
   },
 };

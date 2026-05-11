@@ -1,35 +1,82 @@
-/* Control Bar Toggles Container */
-.control-bar-toggles {
+.control-bar-dock {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: clamp(10px, 1.5vw, 18px);
   width: 100%;
-  height: 100%;
-  padding: 0 20px;
+  max-width: 100%;
+  min-height: 58px;
+  padding: 0 clamp(12px, 2vw, 22px);
+  overflow: visible;
 }
 
-/* Individual Toggle Button */
+.control-bar-rail {
+  width: 100%;
+  height: 100%;
+}
+
+.cb-canvases-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
 .cb-toggle {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 16px;
-  background: var(--theme-components-controlbar-controlbar-cb-toggle-background-yovd6, rgba(0, 0, 0, 0.4));
-  border: 1px solid var(--theme-components-controlbar-controlbar-cb-toggle-border-1jdub, rgba(0, 200, 200, 0.3));
-  border-radius: 8px;
+  gap: 6px;
+  min-width: 42px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 20px;
   cursor: pointer;
-  transition: all 0.25s ease;
-  min-width: 80px;
-  backdrop-filter: blur(4px);
+  color: inherit;
+  transition: transform 0.28s ease, filter 0.3s ease, opacity 0.3s ease;
+}
+
+.cb-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -8px -10px -12px;
+  border-radius: 18px;
+  background: transparent;
+  border:none;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cb-toggle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 44px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.2));
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.72);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+.control-bar-dock:hover .cb-toggle,
+.control-bar-dock:focus-within .cb-toggle {
+  transform: translateY(-1px);
 }
 
 .cb-toggle:hover {
-  background: var(--theme-components-controlbar-controlbar-cb-toggle-hover-background-1trbk, rgba(0, 100, 120, 0.5));
-  border-color: var(--theme-components-controlbar-controlbar-cb-toggle-hover-border-color-9ve10, rgba(0, 200, 200, 0.6));
   transform: translateY(-2px);
+}
+
+.cb-toggle:hover::before {
+  opacity: 0.55;
   box-shadow: 0 4px 12px var(--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l, rgba(0, 200, 200, 0.2));
 }
 
@@ -37,60 +84,104 @@
   transform: translateY(0) scale(0.95);
 }
 
-.cb-toggle.active {
-  background: var(--theme-components-controlbar-controlbar-cb-toggle-active-background-jlh43, rgba(0, 150, 180, 0.5));
-  border-color: var(--theme-components-controlbar-controlbar-cb-toggle-active-border-color-1if95, rgba(0, 255, 255, 0.7));
-  box-shadow:
-    0 0 15px var(--theme-components-controlbar-controlbar-cb-toggle-border-1jdub, rgba(0, 200, 200, 0.3)),
-    inset 0 0 10px var(--theme-components-controlbar-controlbar-cb-toggle-active-box-shadow-kz1a9, rgba(0, 200, 200, 0.1));
+.cb-toggle.active::before,
+.cb-toggle:focus-visible::before {
+  opacity: 1;
 }
 
-.cb-toggle.active .cb-label {
-  color: var(--theme-components-controlbar-controlbar-cb-toggle-active-cb-label-color-1sl84, #00ffff);
-  text-shadow: 0 0 8px var(--theme-components-controlbar-controlbar-cb-toggle-active-cb-label-text-shadow-sw3f5, rgba(0, 255, 255, 0.5));
+.cb-toggle.active::after,
+.cb-toggle:focus-visible::after {
+  opacity: 0.95;
+  transform: translateX(-50%) scaleX(1);
 }
 
-/* Icon */
 .cb-icon {
-  
-font-family:SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  font-size: 20px;
+  position: relative;
+  z-index: 1;
+  font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-size: 22px;
   line-height: 1;
-}
-#notes-icon {
-  display:flex;
-  letter-spacing:-9px;
-  margin-right:10px;
-  align-items: center;
-justify-content: flex-start;
-  color:var(--theme-components-controlbar-controlbar-notes-icon-color-qo8di, palegoldenrod);
-  --webkit-text-stroke:.5px var(--theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2, black);
-  text-align:center;
-}
-#organizer-icon {
-  color:var(--theme-components-controlbar-controlbar-organizer-icon-color-26sfj, lime);
-  --webkit-text-stroke: .5px var(--theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4, green);
-}
-#calendar-icon {
-  color:var(--theme-components-controlbar-controlbar-calendar-icon-color-i0tgi, red);
-  --webkit-text-stroke: 1px var(--theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777, rgb(255, 161, 102));
-}
-#briiztorm-icon {
-  color:var(--theme-components-controlbar-controlbar-briiztorm-icon-color-hav81, rgb(255, 53, 161));
-  --webkit-text-stroke: .5px var(--theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92, pink);
-}
-#actiondeck-icon {
-  color:var(--theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38, deepskyblue);
-  --webkit-text-stroke: .5px lightblue;
-font-family:SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  opacity: 0.44;
+  filter: blur(5px) saturate(0.8);
+  transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease, text-shadow 0.3s ease;
 }
 
-/* Label */
+.control-bar-dock:hover .cb-icon,
+.control-bar-dock:focus-within .cb-icon {
+  opacity: 0.82;
+  filter: blur(0.8px) saturate(1);
+}
+
+.cb-toggle.active .cb-icon,
+.cb-toggle:focus-visible .cb-icon,
+.cb-toggle:hover .cb-icon {
+  opacity: 1;
+  filter: none;
+  transform: translateY(-1px);
+}
+
+#notes-icon {
+  display: flex;
+  letter-spacing: -9px;
+  margin-right: 10px;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--theme-components-controlbar-controlbar-notes-icon-color-qo8di, palegoldenrod);
+  -webkit-text-stroke: 0.5px var(--theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2, black);
+  text-align: center;
+}
+
+#organizer-icon {
+  color: var(--theme-components-controlbar-controlbar-organizer-icon-color-26sfj, lime);
+  -webkit-text-stroke: 0.5px var(--theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4, green);
+}
+
+#calendar-icon {
+  color: var(--theme-components-controlbar-controlbar-calendar-icon-color-i0tgi, red);
+  -webkit-text-stroke: 1px var(--theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777, rgb(255, 161, 102));
+}
+
+#media-icon {
+  color: var(--theme-components-controlbar-controlbar-media-icon-color-j5w4n, #9fffe7);
+  -webkit-text-stroke: 0.5px var(--theme-components-controlbar-controlbar-media-icon-webkit-text-stroke-8rq2p, rgba(7, 15, 26, 0.92));
+}
+
+#briiztorm-icon {
+  color: var(--theme-components-controlbar-controlbar-briiztorm-icon-color-hav81, rgb(255, 53, 161));
+  -webkit-text-stroke: 0.5px var(--theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92, pink);
+}
+
+#actiondeck-icon {
+  color: var(--theme-components-controlbar-controlbar-actiondeck-icon-color-ppo38, deepskyblue);
+  -webkit-text-stroke: 0.5px lightblue;
+  font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+#canvases-icon {
+  color: var(--theme-components-controlbar-controlbar-canvases-icon-color-bgkk1, cyan);
+  -webkit-text-stroke: 0.5px var(--theme-components-controlbar-controlbar-canvases-icon-webkit-text-stroke-ujr2d, rgba(0, 255, 255, 0.45));
+  font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 .cb-label {
+  position: relative;
+  z-index: 1;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.16em;
   color: var(--theme-components-controlbar-controlbar-cb-label-color-sqqmz, rgba(255, 255, 255, 0.8));
-  transition: all 0.2s ease;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.25s ease, max-height 0.25s ease, transform 0.25s ease;
+}
+
+.cb-toggle.active .cb-label,
+.cb-toggle:focus-visible .cb-label,
+.cb-toggle:hover .cb-label {
+  opacity: 1;
+  max-height: 14px;
+  transform: translateY(0);
 }

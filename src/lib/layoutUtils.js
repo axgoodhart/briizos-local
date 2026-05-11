@@ -174,11 +174,22 @@ export function findPanelLocation(layout, panelId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Remove a panel from the layout. Does NOT simplify afterwards.
+ * Remove a panel from the layout, including hidden panel storage.
+ * Does NOT simplify afterwards.
  */
 export function removePanelFromLayout(layout, panelId) {
   const loc = findPanelLocation(layout, panelId);
-  if (!loc) return layout;
+  const existingHiddenPanels = layout?.hiddenPanels;
+  const hiddenPanels = Array.isArray(layout?.hiddenPanels)
+    ? layout.hiddenPanels.filter(p => p.panelId !== panelId)
+    : layout?.hiddenPanels;
+  const hiddenChanged = Array.isArray(existingHiddenPanels)
+    && hiddenPanels.length !== existingHiddenPanels.length;
+
+  if (!loc) {
+    if (!hiddenChanged) return layout;
+    return { ...layout, hiddenPanels };
+  }
 
   const columns = layout.columns.map((col, ci) => {
     if (ci !== loc.columnIndex) return col;
@@ -188,7 +199,11 @@ export function removePanelFromLayout(layout, panelId) {
     };
   });
 
-  return { ...layout, columns };
+  if (!Array.isArray(existingHiddenPanels)) {
+    return { ...layout, columns };
+  }
+
+  return { ...layout, columns, hiddenPanels };
 }
 
 /**

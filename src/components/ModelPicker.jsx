@@ -3,14 +3,14 @@ import { useState, useRef, useEffect } from 'react';
 
 // Provider display config
 const PROVIDER_LABELS = {
-  anthropic: 'Anthropic',
+  claude: 'Claude',
   openai: 'OpenAI',
-  google: 'Google',
+  gemini: 'Gemini',
   other: 'Other',
 };
 
 // Provider order
-const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other'];
+const PROVIDER_ORDER = ['claude', 'openai', 'gemini', 'other'];
 
 export default function ModelPicker({ models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus }) {
   const [open, setOpen] = useState(false);

@@ -28,6 +28,7 @@ import {
   orderBy,
   where,
   limit,
+  runTransaction,
   writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -79,6 +80,15 @@ function sanitizeNested(value) {
   return value;
 }
 
+function buildTaskLogEntry(type, message, extra = {}) {
+  return removeUndefined({
+    timestamp: Date.now(),
+    type,
+    message,
+    ...sanitizeNested(extra),
+  });
+}
+
 /**
  * Safely convert any timestamp format to ISO string.
  * The web app stores timestamps as Date.now() numbers, but Firestore
@@ -92,6 +102,74 @@ function toISO(value) {
   if (typeof value === 'string') return value;
   if (value instanceof Date) return value.toISOString();
   return new Date().toISOString();
+}
+
+function normalizeTaskDoc(id, data) {
+  const t = taskAdapter.normalizeOnRead(id, data);
+  const actions = Array.isArray(t.actions) ? [...t.actions] : [];
+
+  actions.sort((a, b) => (a.created || 0) - (b.created || 0));
+
+  return {
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    due_date: t.dueDate,
+    parent_id: t.parentId,
+    created: toISO(t.createdAt),
+    type: t.type,
+    position: t.position,
+    automated: data.automated || false,
+    ignored: data.ignored || false,
+    source: data.source || null,
+    automation: data.automation || null,
+    taskLog: data.taskLog || [],
+    subtasks: actions.map(a => ({
+      id: a.id,
+      title: a.title || '',
+      status: a.completed ? 'completed' : 'pending',
+      priority: a.priority || 'medium',
+      parent_id: t.id,
+      created: toISO(a.created),
+    })),
+  };
+}
+
+function isTerminalAutomationStatus(status) {
+  return ['completed', 'failed', 'cancelled'].includes(status);
+}
+
+function getAutomationCandidateState(data) {
+  if (data?.automation?.state) return data.automation.state;
+  if (data?.status === 'active' && data?.automated) return 'queued';
+  return data?.status || 'queued';
+}
+
+function isClaimableAutomatedTask(data, now = Date.now()) {
+  if (!data?.automated) return false;
+  if (data.ignored) return false;
+  if (data.completed || data.completedAt) return false;
+  if (isTerminalAutomationStatus(data.status)) return false;
+
+  const automation = data.automation || {};
+  const state = getAutomationCandidateState(data);
+  const leaseUntil = automation.leaseUntil || 0;
+  const awaitingUser = automation.awaitingUser === true;
+  const nextRunAt = automation.nextRunAt || 0;
+
+  if (awaitingUser) return false;
+  if (nextRunAt > now) return false;
+  if (state === 'waiting_for_user' || state === 'blocked') return false;
+  if (state === 'running' || state === 'claimed') {
+    return leaseUntil <= now;
+  }
+  return state === 'queued' || state === 'needs_retry' || state === 'active';
+}
+
+function getAutomationClaimScore(data) {
+  const automation = data.automation || {};
+  return automation.nextRunAt || automation.claimedAt || data.createdAt || 0;
 }
 
 /**
@@ -303,31 +381,65 @@ export async function getNotes() {
 }
 
 /**
- * Add or update a note
+ * Add or update a note.
+ *
+ * On create, also mints a linked organizer item so the note shows up in the
+ * Organizer on briizOS.Web (which expects every panel to be backed by an
+ * organizer entry, via bidirectional orgId ↔ panelId). Without this link,
+ * local-created notes show up on web as "uncategorized" panels.
  */
 export async function upsertNote(noteData) {
   const user = await ensureAuth();
   if (!user) return null;
 
-  const { panelsCol } = getUserCollections(user.uid);
+  const { panelsCol, organizerCol } = getUserCollections(user.uid);
   const noteId = noteData.id || generateId();
 
   const isNew = !noteData.id;
   const now = Date.now();
+
+  // Create a paired organizer item for new notes (matches web createNewPanel flow).
+  // Done before the panel write so we can stamp orgId onto the panel doc in one go.
+  let orgId = noteData.orgId;
+  if (isNew && !orgId) {
+    try {
+      orgId = await addOrganizerItem({
+        type: 'note',
+        name: noteData.title || 'New Note',
+        tags: [],
+        source: { mode: 'panel' },
+        dateMode: 'created',
+        panelType: 'note',
+        panelId: noteId,
+      });
+    } catch (e) {
+      logger.warn('firestore', 'Failed to create paired organizer item for note', e?.message);
+    }
+  }
 
   const firestoreData = noteAdapter.prepareForWrite(removeUndefined({
     id: noteId,
     type: 'note',
     title: noteData.title,
     body: noteData.content,
-    customColor: noteData.color ? hexToHsl(noteData.color) : null,
+    // Only write these fields when they are explicitly provided so partial
+    // updates don't clobber existing values on merge.
+    customColor: noteData.color !== undefined ? hexToHsl(noteData.color) : undefined,
     position_x: noteData.position_x,
     position_y: noteData.position_y,
     width: noteData.width,
     height: noteData.height,
-    active: noteData.is_pinned === 1,
-    isDocked: noteData.is_docked === 1,
+    isDocked: noteData.is_docked !== undefined ? (noteData.is_docked === 1) : undefined,
+    // Web-compat scaffolding — only stamped on first create so merges don't wipe.
+    orgId: isNew ? (orgId || null) : undefined,
+    active: isNew
+      ? true
+      : (noteData.is_pinned !== undefined ? (noteData.is_pinned === 1) : undefined),
     tags: isNew ? [] : undefined,
+    chat: isNew ? null : undefined,
+    externalUrl: isNew ? '' : undefined,
+    externalShowUrl: isNew ? false : undefined,
+    externalData: isNew ? null : undefined,
     autoHeight: isNew ? true : undefined,
     expansionCount: isNew ? 0 : undefined,
     createdAt: isNew ? now : undefined,
@@ -338,14 +450,41 @@ export async function upsertNote(noteData) {
 }
 
 /**
- * Delete a note
+ * Delete a note — and its paired organizer item, if any.
+ *
+ * Reads the panel doc first to grab `orgId`, then deletes both. Without this,
+ * orphaned organizer items left behind can cause web to resurrect the panel
+ * on reload with null values (because web reconciles organizer ↔ panels and
+ * writes back stubs for dangling panelId references).
  */
 export async function deleteNote(noteId) {
   const user = await ensureAuth();
   if (!user) return false;
 
-  const { panelsCol } = getUserCollections(user.uid);
-  await deleteDoc(doc(panelsCol, noteId));
+  const { panelsCol, organizerCol } = getUserCollections(user.uid);
+  const panelRef = doc(panelsCol, noteId);
+
+  // Grab orgId before the delete so we can clean up the paired item.
+  let orgId = null;
+  try {
+    const snap = await getDoc(panelRef);
+    if (snap.exists()) {
+      orgId = snap.data()?.orgId || null;
+    }
+  } catch (e) {
+    logger.warn('firestore', 'deleteNote: failed to read panel before delete', e?.message);
+  }
+
+  await deleteDoc(panelRef);
+
+  if (orgId) {
+    try {
+      await deleteDoc(doc(organizerCol, orgId));
+    } catch (e) {
+      logger.warn('firestore', 'deleteNote: failed to delete paired organizer item', e?.message);
+    }
+  }
+
   return true;
 }
 
@@ -368,35 +507,7 @@ export function subscribeTasks(callback) {
   return onSnapshot(tasksCol, (snapshot) => {
     const tasks = [];
     snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const t = taskAdapter.normalizeOnRead(docSnap.id, data);
-      const actions = t.actions;
-
-      // Sort actions oldest first
-      actions.sort((a, b) => (a.created || 0) - (b.created || 0));
-
-      tasks.push({
-        id: t.id,
-        title: t.title,
-        status: t.status,
-        priority: t.priority,
-        due_date: t.dueDate,
-        parent_id: t.parentId,
-        created: toISO(t.createdAt),
-        type: t.type,
-        position: t.position,
-        automated: data.automated || false,
-        ignored: data.ignored || false,
-        taskLog: data.taskLog || [],
-        subtasks: actions.map(a => ({
-          id: a.id,
-          title: a.title || '',
-          status: a.completed ? 'completed' : 'pending',
-          priority: a.priority || 'medium',
-          parent_id: t.id,
-          created: toISO(a.created),
-        })),
-      });
+      tasks.push(normalizeTaskDoc(docSnap.id, docSnap.data()));
     });
 
     // Sort top-level: priority then newest first
@@ -457,14 +568,13 @@ export function subscribeAutomatedTasks(onNewAutomated) {
         if (!initialIds.has(id) || change.type === 'modified') {
           initialIds.add(id);
           lastFiredAt.set(id, now);
-          const t = taskAdapter.normalizeOnRead(id, data);
           const actions = Array.isArray(data.actions) ? data.actions : [];
           onNewAutomated({
-            id: t.id,
-            title: t.title,
-            status: t.status,
+            ...normalizeTaskDoc(id, data),
             automated: data.automated,
             taskLog: data.taskLog || [],
+            source: data.source || null,
+            automation: data.automation || null,
             subtasks: actions.map(a => ({
               id: a.id,
               title: a.title || '',
@@ -617,6 +727,12 @@ export async function updateTask(id, updates) {
   if (updates.taskLog !== undefined) {
     firestoreUpdates.taskLog = updates.taskLog;
   }
+  if (updates.source !== undefined) {
+    firestoreUpdates.source = sanitizeNested(updates.source);
+  }
+  if (updates.automation !== undefined) {
+    firestoreUpdates.automation = sanitizeNested(updates.automation);
+  }
   if (updates.completed !== undefined) {
     firestoreUpdates.completed = updates.completed;
   }
@@ -666,37 +782,224 @@ export async function getTask(id) {
   const taskDoc = await getDoc(doc(tasksCol, id));
   if (!taskDoc.exists()) return null;
 
-  const data = taskDoc.data();
-  const t = taskAdapter.normalizeOnRead(taskDoc.id, data);
-  const actions = t.actions;
+  return normalizeTaskDoc(taskDoc.id, taskDoc.data());
+}
 
-  // Sort actions oldest first
-  actions.sort((a, b) => (a.created || 0) - (b.created || 0));
+/**
+ * Create a message-first automated job in the canonical tasks bucket.
+ * One task doc owns the request, visible log, and automation state.
+ */
+export async function createAutomatedJobTask(title, options = {}) {
+  const user = await ensureAuth();
+  if (!user) return null;
 
-  const task = {
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    priority: t.priority,
-    due_date: t.dueDate,
-    parent_id: t.parentId,
-    type: t.type,
-    created: toISO(t.createdAt),
-    position: t.position,
-    automated: data.automated || false,
-    ignored: data.ignored || false,
-    taskLog: data.taskLog || [],
-    subtasks: actions.map(a => ({
-      id: a.id,
-      title: a.title || '',
-      status: a.completed ? 'completed' : 'pending',
-      priority: a.priority || 'medium',
-      parent_id: id,
-      created: toISO(a.created),
-    })),
-  };
+  const { tasksCol } = getUserCollections(user.uid);
+  const taskId = options.taskId || generateTaskId();
+  const now = Date.now();
+  const source = sanitizeNested(options.source || { kind: 'remote-web' });
+  const automation = removeUndefined({
+    mode: 'message-first',
+    state: options.state || 'queued',
+    runnerId: null,
+    workerId: null,
+    threadId: options.threadId || null,
+    leaseUntil: 0,
+    claimedAt: null,
+    lastHeartbeatAt: null,
+    nextRunAt: options.nextRunAt ?? now,
+    currentAction: null,
+    currentTool: null,
+    awaitingUser: false,
+    blockedReason: null,
+    lastError: null,
+    createdBy: options.createdBy || source?.kind || 'manual',
+  });
+  const taskLog = Array.isArray(options.taskLog) && options.taskLog.length > 0
+    ? options.taskLog
+    : [buildTaskLogEntry('status', options.initialLogMessage || 'Remote job queued')];
 
-  return task;
+  const firestoreData = taskAdapter.prepareForWrite(removeUndefined({
+    id: taskId,
+    type: 'jobPanel',
+    title,
+    completed: false,
+    completedAt: null,
+    status: options.status || 'queued',
+    priority: options.priority || 'medium',
+    dueDate: options.dueDate || null,
+    parentId: options.parentId || null,
+    position: options.position || { x: 0, y: 0 },
+    createdAt: now,
+    automated: true,
+    ignored: false,
+    taskLog,
+    automation,
+    source,
+  }), true);
+
+  await setDoc(doc(tasksCol, taskId), firestoreData);
+  return { taskId };
+}
+
+/**
+ * Append a user-visible log entry to an automated job task.
+ */
+export async function appendTaskLogEntry(taskId, entry) {
+  const task = await getTask(taskId);
+  if (!task) return false;
+
+  const nextLog = [...(task.taskLog || [])];
+  nextLog.push(buildTaskLogEntry(
+    entry?.type || 'status',
+    entry?.message || '',
+    entry || {},
+  ));
+
+  return updateTask(taskId, { taskLog: nextLog });
+}
+
+/**
+ * Merge task-level and automation-level updates for an automated job.
+ */
+export async function updateAutomatedJobTask(taskId, updates = {}) {
+  const task = await getTask(taskId);
+  if (!task) return false;
+
+  const nextAutomation = updates.automation !== undefined
+    ? removeUndefined({
+        ...(task.automation || {}),
+        ...sanitizeNested(updates.automation || {}),
+      })
+    : undefined;
+
+  return updateTask(taskId, removeUndefined({
+    status: updates.status,
+    completed: updates.completed,
+    completedAt: updates.completedAt,
+    automated: updates.automated,
+    ignored: updates.ignored,
+    title: updates.title,
+    priority: updates.priority,
+    dueDate: updates.dueDate,
+    position: updates.position,
+    source: updates.source,
+    taskLog: updates.taskLog,
+    automation: nextAutomation,
+  }));
+}
+
+/**
+ * Claim the next queued automated task from the tasks bucket.
+ * This is the message-first equivalent of desktopAgentJobs polling.
+ */
+export async function claimNextAutomatedTask(options = {}) {
+  const user = await ensureAuth();
+  if (!user) return null;
+
+  const runnerId = options.runnerId || `runner_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const leaseMs = Math.max(5000, options.leaseMs || 45000);
+  const maxItems = Math.max(1, Math.min(options.maxItems || 25, 100));
+  const { tasksCol } = getUserCollections(user.uid);
+  const snapshot = await getDocs(query(tasksCol, where('automated', '==', true), limit(maxItems)));
+  const now = Date.now();
+  const candidates = [];
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() || {};
+    if (isClaimableAutomatedTask(data, now)) {
+      candidates.push({
+        id: docSnap.id,
+        score: getAutomationClaimScore(data),
+      });
+    }
+  });
+
+  candidates.sort((a, b) => a.score - b.score);
+
+  for (const candidate of candidates) {
+    try {
+      const claimed = await runTransaction(db, async (tx) => {
+        const taskRef = doc(tasksCol, candidate.id);
+        const taskSnap = await tx.get(taskRef);
+        if (!taskSnap.exists()) return null;
+
+        const data = taskSnap.data() || {};
+        const t = Date.now();
+        if (!isClaimableAutomatedTask(data, t)) return null;
+
+        const currentAutomation = data.automation && typeof data.automation === 'object'
+          ? data.automation
+          : {};
+        const nextAutomation = removeUndefined({
+          ...currentAutomation,
+          mode: currentAutomation.mode || 'message-first',
+          state: 'running',
+          runnerId,
+          workerId: options.workerId || currentAutomation.workerId || null,
+          threadId: options.threadId || currentAutomation.threadId || null,
+          leaseUntil: t + leaseMs,
+          claimedAt: currentAutomation.claimedAt || t,
+          lastHeartbeatAt: t,
+          currentAction: options.currentAction || currentAutomation.currentAction || 'processing_request',
+          blockedReason: null,
+          lastError: null,
+          awaitingUser: false,
+        });
+
+        tx.update(taskRef, {
+          status: 'active',
+          automated: true,
+          ignored: false,
+          automation: nextAutomation,
+          updatedAt: serverTimestamp(),
+        });
+
+        return {
+          id: taskSnap.id,
+          ...data,
+          status: 'active',
+          automated: true,
+          ignored: false,
+          automation: nextAutomation,
+        };
+      });
+
+      if (claimed) {
+        return normalizeTaskDoc(claimed.id, claimed);
+      }
+    } catch (error) {
+      logger.debug('firestore', 'Automated task claim race lost', error?.message);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Refresh the lease/heartbeat for a claimed automated task.
+ */
+export async function heartbeatAutomatedTask(taskId, options = {}) {
+  const task = await getTask(taskId);
+  if (!task) return false;
+
+  const runnerId = options.runnerId;
+  if (!runnerId) throw new Error('heartbeatAutomatedTask requires runnerId');
+
+  const automation = task.automation && typeof task.automation === 'object'
+    ? task.automation
+    : {};
+  if (automation.runnerId && automation.runnerId !== runnerId) return false;
+
+  return updateTask(taskId, {
+    automation: removeUndefined({
+      ...automation,
+      mode: automation.mode || 'message-first',
+      state: automation.state || 'running',
+      runnerId,
+      leaseUntil: Date.now() + Math.max(5000, options.leaseMs || 45000),
+      lastHeartbeatAt: Date.now(),
+    }),
+  });
 }
 
 // =====================

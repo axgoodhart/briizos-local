@@ -23,6 +23,8 @@ const DEFAULT_STATE = {
   snapshots: [],
   chatBackground: '',
   chatBgBlur: 0,
+  // Per-theme chat backgrounds: { themeName: { background, blur } }
+  themeChatBackgrounds: {},
 };
 
 const LS_KEY = 'briizos2.chatSettings.v1';
@@ -155,6 +157,23 @@ export function ChatSettingsProvider({ children }) {
     setState(prev => ({ ...prev, chatBgBlur }));
   }, []);
 
+  const setThemeChatBackground = useCallback((theme, background, blur) => {
+    setState(prev => {
+      const existing = prev.themeChatBackgrounds || {};
+      return {
+        ...prev,
+        themeChatBackgrounds: {
+          ...existing,
+          [theme]: { background, blur: blur ?? (existing[theme]?.blur ?? 0) },
+        },
+      };
+    });
+  }, []);
+
+  const getThemeChatBackground = useCallback((theme) => {
+    return state.themeChatBackgrounds?.[theme] || { background: '', blur: 0 };
+  }, [state.themeChatBackgrounds]);
+
   const value = {
     provider: state.provider,
     setProvider,
@@ -173,6 +192,8 @@ export function ChatSettingsProvider({ children }) {
     setChatBackground,
     chatBgBlur: state.chatBgBlur || 0,
     setChatBgBlur,
+    setThemeChatBackground,
+    getThemeChatBackground,
   };
 
   return (

@@ -55,15 +55,19 @@ function loadConfig() {
 
 /**
  * Derive a provider name from the DeerFlow `use` field.
- * e.g. "langchain_anthropic:ChatAnthropic" -> "anthropic"
+ * Maps langchain-style names to direct API provider names.
+ * e.g. "langchain_anthropic:ChatAnthropic" -> "claude"
  */
 function deriveProvider(useField) {
   if (!useField || typeof useField !== 'string') return 'unknown';
 
-  const modulePart = useField.split(':')[0];
-  if (modulePart.startsWith('langchain_anthropic')) return 'anthropic';
-  if (modulePart.startsWith('langchain_openai')) return 'openai';
-  if (modulePart.startsWith('langchain_google_genai')) return 'google';
+  const mod = String(useField).toLowerCase();
+
+  // Robust mapping: handle various module path variants
+  if (mod.includes('anthropic')) return 'claude';
+  if (mod.includes('openai')) return 'openai';
+  if (mod.includes('google_genai') || mod.includes('google') || mod.includes('gemini')) return 'gemini';
+
   return 'unknown';
 }
 
@@ -112,10 +116,22 @@ function getConfigPath() {
  * Returns { anthropic: boolean, openai: boolean, google: boolean }.
  */
 function checkApiKeyStatus() {
+  const config = loadConfig();
+  const models = Array.isArray(config?.models) ? config.models : [];
+
+  const hasAnthropicFromConfig = models.some((m) => deriveProvider(m?.use) === 'claude' && !!m?.api_key);
+  const hasOpenAIFromConfig = models.some((m) => deriveProvider(m?.use) === 'openai' && !!m?.api_key);
+  const hasGeminiFromConfig = models.some((m) => deriveProvider(m?.use) === 'gemini' && !!m?.google_api_key);
+
   return {
-    anthropic: !!process.env.ANTHROPIC_API_KEY,
-    openai: !!process.env.OPENAI_API_KEY,
-    google: !!process.env.GEMINI_API_KEY,
+    // Backward-compatible keys used by existing UI components
+    anthropic: !!process.env.ANTHROPIC_API_KEY || hasAnthropicFromConfig,
+    openai: !!process.env.OPENAI_API_KEY || hasOpenAIFromConfig,
+    google: !!process.env.GEMINI_API_KEY || hasGeminiFromConfig,
+
+    // Direct-provider aliases
+    claude: !!process.env.ANTHROPIC_API_KEY || hasAnthropicFromConfig,
+    gemini: !!process.env.GEMINI_API_KEY || hasGeminiFromConfig,
   };
 }
 
@@ -134,9 +150,9 @@ function isAIConfigured() {
     const provider = deriveProvider(m?.use);
     if (provider === 'openai') {
       if (!!process.env.OPENAI_API_KEY || !!m?.api_key) return true;
-    } else if (provider === 'anthropic') {
+    } else if (provider === 'claude') {
       if (!!process.env.ANTHROPIC_API_KEY || !!m?.api_key) return true;
-    } else if (provider === 'google') {
+    } else if (provider === 'gemini') {
       if (!!process.env.GEMINI_API_KEY || !!m?.google_api_key) return true;
     }
   }
