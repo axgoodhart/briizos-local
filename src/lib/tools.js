@@ -793,7 +793,14 @@ const tools = {
   stackPanelsVertically: {
     requiresConfirmation: false,
     description: 'Stack panels vertically',
-    parameters: { panel_ids: { type: 'array', optional: true } },
+    parameters: {
+      panel_ids: {
+        type: 'array',
+        description: 'Optional array of panel IDs to stack',
+        optional: true,
+        items: { type: 'string' },
+      },
+    },
     handler: async () => ({ success: false, message: 'Panel stacking is managed automatically by the tile layout in briizOS.2.' }),
   },
 

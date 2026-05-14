@@ -306,8 +306,9 @@ class BriizTools {
         parameters: {
           panel_ids: {
             type: 'array',
-            description: 'Optional array of panel IDs to stack (if omitted, stacks all)',
-            optional: true
+            description: 'Optional array of panel IDs to stack',
+            optional: true,
+            items: { type: 'string' }
           }
         }
       },
@@ -446,8 +447,9 @@ class BriizTools {
           },
           days_of_week: {
             type: 'array',
-            description: 'Array of day numbers (0=Sun, 1=Mon, ..., 6=Sat)',
-            optional: false
+            description: 'Array of day numbers, 0=Sun through 6=Sat',
+            optional: false,
+            items: { type: 'number' }
           },
           start_date: {
             type: 'string',

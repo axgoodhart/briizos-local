@@ -259,11 +259,7 @@ Rules for the trailer:
       function: {
         name: tool.name,
         description: tool.description,
-        parameters: {
-          type: 'object',
-          properties: this.convertParamsToJSONSchema(tool.parameters),
-          required: this.getRequiredParams(tool.parameters)
-        }
+        parameters: this.convertParamsToJSONSchema(tool.parameters)
       }
     }));
   }
@@ -277,11 +273,7 @@ Rules for the trailer:
     return tools.map(tool => ({
       name: tool.name,
       description: tool.description,
-      parameters: {
-        type: 'object',
-        properties: this.convertParamsToJSONSchema(tool.parameters),
-        required: this.getRequiredParams(tool.parameters)
-      }
+      parameters: this.convertParamsToJSONSchema(tool.parameters)
     }));
   }
 
@@ -294,11 +286,7 @@ Rules for the trailer:
     return tools.map(tool => ({
       name: tool.name,
       description: tool.description,
-      input_schema: {
-        type: 'object',
-        properties: this.convertParamsToJSONSchema(tool.parameters),
-        required: this.getRequiredParams(tool.parameters)
-      }
+      input_schema: this.convertParamsToJSONSchema(tool.parameters)
     }));
   }
 
@@ -306,25 +294,41 @@ Rules for the trailer:
    * Convert parameter definitions to JSON Schema format
    */
   convertParamsToJSONSchema(params) {
-    const schema = {};
+    const properties = {};
+    const required = [];
 
     for (const [name, def] of Object.entries(params)) {
-      schema[name] = {
-        type: def.type || 'string',
+      const paramType = def.type || 'string';
+      const schema = {
+        type: paramType,
         description: def.description || ''
       };
+
+      if (paramType === 'array') {
+        const itemType = def.items && typeof def.items === 'object' ? def.items.type : null;
+        schema.items = {
+          type: itemType || 'string'
+        };
+      }
+
+      if (paramType === 'object') {
+        schema.properties = schema.properties || {};
+        schema.additionalProperties = true;
+      }
+
+      properties[name] = schema;
+
+      if (!def.optional) {
+        required.push(name);
+      }
     }
 
-    return schema;
-  }
-
-  /**
-   * Get list of required parameters
-   */
-  getRequiredParams(params) {
-    return Object.entries(params)
-      .filter(([name, def]) => !def.optional)
-      .map(([name]) => name);
+    return {
+      type: 'object',
+      properties,
+      required,
+      additionalProperties: false
+    };
   }
 }
 
