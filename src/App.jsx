@@ -18,7 +18,6 @@ import { useAppContext } from './hooks/useAppContext';
 import { useAgentWorkers } from './hooks/useAgentWorkers';
 import { useToolBridge } from './hooks/useToolBridge';
 import { useTaskAutomation } from './hooks/useTaskAutomation';
-import { setBriizToolsContext } from './lib/briizos-tools';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
@@ -214,13 +213,10 @@ function AppContent({ layout }) {
   useToolBridge(executeTool, appContext);
   useTaskAutomation();
 
-  // Feed the BriizTools chat pipeline the same appContext + layoutHook
-  // that ToolContext/useToolBridge already use. This is how chat-originated
-  // tool calls (useChat → BriizTools.execute) reach the real handlers in
-  // src/lib/tools.js instead of the fake-success stub in electron/main.js.
-  useEffect(() => {
-    setBriizToolsContext({ appContext, layoutHook: layout });
-  }, [appContext, layout]);
+  // Tool execution context (appContext + layoutHook) flows through
+  // ToolContext.executeTool, which is the single tool executor used by
+  // both the agent tool-bridge (useToolBridge) and autonomous workers.
+  // No separate BriizTools runtime needs feeding anymore.
   appRenderCount++;
   logger.debug('ui', `App render #${appRenderCount}`);
 
@@ -783,8 +779,6 @@ function AppContent({ layout }) {
           setCanvasesPopoverOpen(false);
         } else if (canvasOpen) {
           setCanvasOpen(false);
-        } else if (mediaOpen) {
-          setMediaOpen(false);
         } else if (organizerOpen) {
           setOrganizerOpen(false);
         } else if (calendarOpen) {

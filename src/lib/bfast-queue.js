@@ -4,9 +4,9 @@
  *
  * This file is the non-React brain of the bundle. React components in
  * src/components/bfast subscribe to it via `subscribe()`, and callers
- * anywhere in the renderer (useChat → BriizTools.executeToolInternal
- * for the chat path, imperative `toast()`/`snackbar()` calls from
- * anywhere) push into it via the API below.
+ * anywhere in the renderer push into it via the API below through
+ * imperative `toast()`/`snackbar()` calls. (Chat tool confirmation is
+ * now owned by the agent's Python middleware, not this queue.)
  *
  * Conceptual model: one ordered queue of pending "actions" where each
  * action is one of three kinds:
@@ -103,12 +103,15 @@ function _emitChatReturn(payload) {
  *   - ✕  →  reject(Error('Action cancelled by user'))
  *   - 💬 →  reject(Error with .__returnedToChat = true)
  *
- * Callers in briizos-tools.js interpret these three outcomes:
- *   - __approved: run the real handler
- *   - cancelled: propagate the error so the tool card shows "failed"
- *   - __returnedToChat: propagate a special error so useChat suppresses
- *     the tool-failed card and the InteractionPanel handler takes over
- *     to refocus the input and prepend the "re:" quote.
+ * The three outcomes mean:
+ *   - __approved: proceed
+ *   - cancelled: propagate the error so the action card shows "failed"
+ *   - __returnedToChat: propagate a special error so the InteractionPanel
+ *     handler can refocus the input and prepend the "re:" quote.
+ *
+ * NOTE: this margerin queue is no longer on the chat tool path (agent
+ * tool confirmation is owned by the Python middleware). It remains the
+ * general imperative toast/snackbar mechanism for the rest of the UI.
  */
 export function enqueueMargerin({ toolName, params, label }) {
   return new Promise((resolve, reject) => {

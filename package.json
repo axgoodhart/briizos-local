@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:debug": "concurrently \"vite\" \"wait-on http://localhost:5173 && LOG_LEVEL=debug electron .\"",
     "build": "vite build",
     "preview": "vite preview",
     "electron": "electron .",

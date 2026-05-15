@@ -8,8 +8,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3, rgba(0, 0, 0, 0.25));
-  backdrop-filter: blur(8px);
+/*  background: linear-gradient(var(--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3, rgba(0, 0, 0, 0.25)));*/
+  backdrop-filter: blur(88px) brightness(.1);
   display: flex;
   align-items: center;
   justify-content: center;

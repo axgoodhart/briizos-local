@@ -13,6 +13,7 @@ const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
 const modelConfig = require('./model-config');
 const toolBridge = require('./tool-bridge');
+const langgraph = require('./langgraph-process');
 const localDb = require('./local-db');
 const yaml = require('js-yaml');
 
@@ -763,28 +764,24 @@ function deriveProviderFromModel(model) {
   return 'unknown';
 }
 
-// === Tool Execution Bridge ===
+// === Tool Execution Bridge (DEPRECATED fallback) ===
 //
-// DEPRECATED for chat-originated tool calls.
+// There is exactly ONE tool execution path:
 //
-// Chat tools now route through src/lib/briizos-tools.js →
-// src/lib/tools.js registry directly inside the renderer, reusing the
-// same real handlers the LangGraph tool-bridge already uses (see
-// src/hooks/useToolBridge.js). That path is synchronous from
-// main.js's perspective — no IPC hop — and exercises the real
-// Firestore-backed and layoutHook-backed implementations instead of
-// the universal fake-success response this handler used to return.
+//   Python agent → HTTP :2025 (tool-bridge) → IPC →
+//     src/hooks/useToolBridge.js → ToolContext.executeTool →
+//       src/lib/tools.js registry handler (real Firestore + layoutHook)
 //
-// This IPC handler is kept only as a last-resort fallback so that
-// callers which somehow bypass the registry (very early boot, unit
-// tests, renderer crash recovery) don't hit a MethodNotFound. It
-// logs a warning on every hit so any regression back to this path
-// is visible in the main-process logs.
+// This 'execute-tool' IPC handler is NOT part of that path. It is kept
+// only as a last-resort guard so any caller that somehow bypasses the
+// registry (very early boot, unit tests, renderer crash recovery)
+// doesn't hit a MethodNotFound. Every hit is logged loudly so a
+// regression back to a second execution path is immediately visible.
 ipcMain.handle('execute-tool', async (event, toolName, params) => {
   logger.warn(
     'tools',
-    `execute-tool IPC fallback hit for "${toolName}" — this path is deprecated; ` +
-      'chat tool calls should reach src/lib/tools.js directly via BriizTools.',
+    `execute-tool IPC fallback hit for "${toolName}" — this path is deprecated and inert; ` +
+      'tool calls must reach src/lib/tools.js via the tool-bridge → useToolBridge → ToolContext.executeTool.',
     params,
   );
 
@@ -794,7 +791,7 @@ ipcMain.handle('execute-tool', async (event, toolName, params) => {
     params,
     message:
       `Tool "${toolName}" reached the deprecated main.js IPC fallback and was not executed. ` +
-      'Ensure src/lib/briizos-tools.js is wired to the tools.js registry.',
+      'The canonical path is tool-bridge (:2025) → useToolBridge → ToolContext.executeTool → tools.js.',
     timestamp: new Date().toISOString(),
   };
 });
@@ -806,12 +803,67 @@ ipcMain.handle('models-get-config', async (_, name) => modelConfig.getModelConfi
 ipcMain.handle('models-check-api-keys', async () => modelConfig.checkApiKeyStatus());
 ipcMain.handle('ai-is-configured', async () => modelConfig.isAIConfigured());
 
+// === LangGraph Agent Backend IPC ===
+//
+// THE canonical AI execution path. The renderer (useChat) talks to the
+// Python DeerFlow/LangGraph agent exclusively through these handlers.
+// There is no direct-to-provider streaming path anymore.
+//
+// Streaming model: the renderer generates a `streamId`, calls
+// `langgraph-stream-message`, and subscribes to the `langgraph-stream-event`
+// push channel. Every SSE event from the agent is forwarded as
+// { streamId, type, payload }. The invoke promise resolves once the agent
+// turn is fully finished (after the terminal 'end'/'error' event).
+
+function makeStreamForwarder(event, streamId) {
+  return (type, payload) => {
+    try {
+      if (event.sender && !event.sender.isDestroyed()) {
+        event.sender.send('langgraph-stream-event', { streamId, type, payload });
+      }
+    } catch (err) {
+      logger.warn('langgraph', 'Failed to forward stream event', err?.message);
+    }
+  };
+}
+
+ipcMain.handle('langgraph-get-status', async () => {
+  return langgraph.getStatus();
+});
+
+ipcMain.handle('langgraph-create-thread', async () => {
+  const threadId = await langgraph.createThread();
+  return { thread_id: threadId };
+});
+
+ipcMain.handle('langgraph-stream-message', async (event, streamId, threadId, message, config) => {
+  logger.info('langgraph', 'IPC stream-message', { streamId, threadId });
+  await langgraph.streamMessage(threadId, message, config || {}, makeStreamForwarder(event, streamId));
+  return { ok: true, streamId };
+});
+
+ipcMain.handle('langgraph-resume-run', async (event, streamId, threadId, response, config) => {
+  logger.info('langgraph', 'IPC resume-run', { streamId, threadId, approved: response?.approved });
+  await langgraph.resumeRun(threadId, response || {}, config || {}, makeStreamForwarder(event, streamId));
+  return { ok: true, streamId };
+});
+
+// Non-streaming synchronous turn — used by headless task automation
+// (single source: same langgraph-process, no parallel client).
+ipcMain.handle('langgraph-send-message', async (_event, threadId, message, config) => {
+  return langgraph.sendMessage(threadId, message, config || {});
+});
+
+ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, config) => {
+  return langgraph.fetchSuggestions(recentMessages || [], n || 3, config || {});
+});
+
 // === App Lifecycle ===
 
 app.whenReady().then(() => {
   // Register logger IPC (must be first — other modules may log during init)
   registerLoggerIPC(ipcMain);
-  logger.info('app', 'briizOS starting (Direct API Mode)', {
+  logger.info('app', 'briizOS starting (Agent Mode — LangGraph/DeerFlow backend)', {
     isDev,
     pid: process.pid,
     electron: process.versions.electron,
@@ -834,9 +886,17 @@ app.whenReady().then(() => {
 
   const win = createWindow();
 
-  // Start tool bridge server and pass the main window for IPC relay
+  // Start tool bridge server and pass the main window for IPC relay.
+  // The tool bridge (port 2025) is how the Python agent reaches the
+  // renderer tool registry, so it must be up before the agent starts.
   toolBridge.setMainWindow(win);
   toolBridge.start();
+
+  // Start the Python DeerFlow/LangGraph agent backend (LangGraph dev
+  // server on :2024 + Gateway on :8001). This is the single AI engine.
+  langgraph.start().then((ok) => {
+    logger.info('app', 'LangGraph backend start requested', { ok, status: langgraph.getStatus()?.status });
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -852,8 +912,11 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Stop tool bridge before quit (fire-and-forget — Electron won't wait for async)
+// Stop the agent backend and tool bridge before quit (fire-and-forget —
+// Electron won't await async). Stop the agent first so in-flight tool
+// calls can drain before the bridge they depend on goes away.
 app.on('before-quit', () => {
+  langgraph.stop();
   toolBridge.stop();
 });
 

@@ -104,6 +104,27 @@ contextBridge.exposeInMainWorld('api', {
   toolBridgeResult: (requestId, result, error) =>
     ipcRenderer.send('tool-bridge-result', { requestId, result, error }),
 
+  // LangGraph Agent Backend API — the single AI execution path.
+  // The renderer never talks to model providers directly; all chat
+  // flows through the Python DeerFlow/LangGraph agent via these.
+  langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
+  langgraphCreateThread: () => ipcRenderer.invoke('langgraph-create-thread'),
+  langgraphStreamMessage: (streamId, threadId, message, config) =>
+    ipcRenderer.invoke('langgraph-stream-message', streamId, threadId, message, config),
+  langgraphResumeRun: (streamId, threadId, response, config) =>
+    ipcRenderer.invoke('langgraph-resume-run', streamId, threadId, response, config),
+  langgraphSendMessage: (threadId, message, config) =>
+    ipcRenderer.invoke('langgraph-send-message', threadId, message, config),
+  langgraphFetchSuggestions: (recentMessages, n, config) =>
+    ipcRenderer.invoke('langgraph-fetch-suggestions', recentMessages, n, config),
+  // Push channel: every agent SSE event arrives here as
+  // { streamId, type, payload }. Returns an unsubscribe function.
+  onLanggraphStreamEvent: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('langgraph-stream-event', handler);
+    return () => ipcRenderer.removeListener('langgraph-stream-event', handler);
+  },
+
   // Health Check API
   healthCheck: () => ipcRenderer.invoke('health-check'),
 

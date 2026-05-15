@@ -1,8 +1,32 @@
+/**
+ * useChat — the single chat execution path.
+ *
+ * ARCHITECTURE (one path, no alternatives):
+ *
+ *   InteractionPanel.sendMessage
+ *     → useChat.sendMessage
+ *       → window.api.langgraphStreamMessage(streamId, threadId, msg, config)   [IPC]
+ *         → electron/main.js → langgraph-process.streamMessage                 [SSE :2024]
+ *           → LangGraph dev server, graph "lead_agent" (DeerFlow agent)
+ *             → agent runs; briizOS UI-state tools POST :2025 tool-bridge
+ *               → useToolBridge → ToolContext.executeTool → src/lib/tools.js
+ *     ← SSE events pushed back on the 'langgraph-stream-event' channel
+ *       (text / tool_call_start / tool_result / tool_confirmation /
+ *        task_* / thread_title / values / end / error)
+ *
+ * There is intentionally NO direct-to-provider streaming, NO renderer-side
+ * system prompt, and NO renderer-side tool catalog. The Python agent owns
+ * the system prompt, the tool set, memory, and tool confirmation. The
+ * renderer only renders the stream and persists the final message.
+ *
+ * Tool confirmation is owned solely by the agent's Python middleware. It
+ * surfaces here as a `tool_confirmation` event; the user's decision is sent
+ * back via langgraphResumeRun. The renderer tool-bridge executes with
+ * __agentAuto so it never double-confirms.
+ */
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import logger from '../lib/logger';
-import ChatAPI from '../lib/chat-api';
-import SystemPrompt from '../lib/system-prompt';
-import BriizTools from '../lib/briizos-tools';
+import logger, { setActiveThread } from '../lib/logger';
 import {
   subscribeChatMessages,
   addChatMessage,
@@ -16,7 +40,7 @@ import {
 import { getCurrentUid } from '../lib/firebase';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
-const hasApi = typeof window !== 'undefined' && window.api;
+const hasApi = typeof window !== 'undefined' && !!window.api;
 
 const MODEL_STORAGE_KEY = 'briizos-selected-model';
 
@@ -47,6 +71,8 @@ function buildFileContextAddendum(files = []) {
   if (lines.length === 0) return '';
 
   return [
+    '',
+    '---',
     'Pinned filesystem context from the user:',
     ...lines,
     '',
@@ -55,6 +81,10 @@ function buildFileContextAddendum(files = []) {
     '',
     'Prefer direct path-based tool calls when the user asks to inspect or modify pinned files.'
   ].join('\n');
+}
+
+function newId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function useChat({ selectedModel } = {}) {
@@ -66,7 +96,7 @@ export function useChat({ selectedModel } = {}) {
   const [streamingContent, setStreamingContent] = useState('');
   const [currentStreamId, setCurrentStreamId] = useState(null);
   const [toolCalls, setToolCalls] = useState([]);
-  const [pendingToolConfirmation] = useState(null);
+  const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
   const [threadTitle, setThreadTitle] = useState(null);
   const threadTitleRef = useRef(null);
   const [modality, setModality] = useState('chat');
@@ -79,37 +109,32 @@ export function useChat({ selectedModel } = {}) {
     } catch { return true; }
   });
 
+  // Streaming/session refs (stable across renders).
   const streamContentRef = useRef('');
   const toolCallsRef = useRef([]);
+  const subAgentTasksRef = useRef([]);
   const selectedModelRef = useRef(selectedModel || null);
-  // Mirror suggestionsEnabled into a ref so sendMessage's stable closure
-  // always reads the current value (otherwise toggling mid-session would
-  // not reach the next request).
   const suggestionsEnabledRef = useRef(suggestionsEnabled);
+  const modalityRef = useRef(modality);
 
-  const chatAPIRef = useRef(null);
-  const briizToolsRef = useRef(null);
-
-  useEffect(() => {
-    chatAPIRef.current = new ChatAPI();
-    window.systemPrompt = new SystemPrompt();
-    briizToolsRef.current = new BriizTools();
-    window.briizTools = briizToolsRef.current;
-  }, []);
+  // One LangGraph thread per chat session (multi-turn context lives in the
+  // agent's checkpointer, keyed by this thread_id).
+  const threadIdRef = useRef(null);
+  // The streamId currently being consumed — used to filter the shared
+  // 'langgraph-stream-event' subscription so stale streams are ignored.
+  const activeStreamIdRef = useRef(null);
+  // Confirmation bookkeeping so approve/reject can resume the right run.
+  const pendingConfirmRef = useRef(null);
 
   useEffect(() => { selectedModelRef.current = selectedModel || null; }, [selectedModel]);
+  useEffect(() => { modalityRef.current = modality; }, [modality]);
 
   useEffect(() => {
     try {
       localStorage.setItem('briizos-suggestions-enabled', JSON.stringify(suggestionsEnabled));
     } catch {}
-    // Keep the ref in sync for sendMessage's stable closure.
     suggestionsEnabledRef.current = suggestionsEnabled;
-    // When the user turns suggestions OFF, immediately drop any chips
-    // currently on screen so the toggle feels responsive.
-    if (!suggestionsEnabled) {
-      setSuggestions([]);
-    }
+    if (!suggestionsEnabled) setSuggestions([]);
   }, [suggestionsEnabled]);
 
   const uid = getCurrentUid();
@@ -120,17 +145,28 @@ export function useChat({ selectedModel } = {}) {
     return () => unsubscribe();
   }, [uid]);
 
+  // ---------------------------------------------------------------------
+  // Backend status → isConfigured (agent reachable, not "API keys set").
+  // ---------------------------------------------------------------------
   const checkConfig = useCallback(async () => {
-    if (!hasApi) return;
+    if (!hasApi || typeof api.langgraphGetStatus !== 'function') {
+      setIsConfigured(true);
+      return;
+    }
     try {
-      if (typeof api.isAIConfigured !== 'function') {
-        setIsConfigured(true);
-        return;
-      }
-      const configured = await api.isAIConfigured();
-      setIsConfigured(configured);
+      const status = await api.langgraphGetStatus();
+      // Surface backend state in the LogPanel (not just the terminal) so
+      // "is the agent up?" is answerable from inside the app.
+      logger.info('agent.backend', `Agent backend status: ${status?.status || 'unknown'}`, {
+        ready: status?.ready, port: status?.port, pid: status?.pid,
+      });
+      // Don't hard-block the UI while the backend is still booting; only
+      // flag "not configured" on a definitive failed/env_missing state.
+      const blocked = status?.status === 'env_missing' || status?.status === 'failed';
+      setIsConfigured(!blocked);
     } catch (error) {
-      logger.error('chat', 'Failed to check AI config', error?.message);
+      logger.error('agent.status', 'Failed to read LangGraph status', { error: error?.message });
+      setIsConfigured(true);
     }
   }, []);
 
@@ -141,7 +177,7 @@ export function useChat({ selectedModel } = {}) {
       setFilesInContext(normalized);
       return normalized;
     } catch (error) {
-      logger.error('chat', 'Failed to load selected files', error?.message);
+      logger.error('chat', 'Failed to load selected files', { error: error?.message });
       return [];
     }
   }, []);
@@ -161,54 +197,198 @@ export function useChat({ selectedModel } = {}) {
     }
   }, []);
 
-  const parseProviderFromModel = useCallback((modelName) => {
-    if (!modelName) return 'gemini';
-    const m = String(modelName).toLowerCase();
-    if (m.includes('claude')) return 'claude';
-    if (m.includes('gpt') || m.includes('o1') || m.includes('o3') || m.includes('openai')) return 'openai';
-    if (m.includes('gemini')) return 'gemini';
-    return 'gemini';
-  }, []);
+  // ---------------------------------------------------------------------
+  // Single SSE event handler. Mutates refs then mirrors into state so the
+  // UI contract (streamingContent / toolCalls / subAgentTasks / etc.)
+  // is preserved exactly as before.
+  // ---------------------------------------------------------------------
+  const handleStreamEvent = useCallback((type, payload = {}) => {
+    switch (type) {
+      case 'text': {
+        if (payload.content) {
+          streamContentRef.current += payload.content;
+          setStreamingContent(streamContentRef.current);
+        }
+        break;
+      }
+      case 'tool_call_start': {
+        const tc = {
+          id: payload.id || newId('tc'),
+          name: payload.name,
+          args: payload.args || {},
+          status: 'running',
+        };
+        toolCallsRef.current = [...toolCallsRef.current, tc];
+        setToolCalls([...toolCallsRef.current]);
+        logger.info('tool.call', `Agent tool: ${payload.name}`, { id: tc.id, args: tc.args });
+        break;
+      }
+      case 'tool_result': {
+        toolCallsRef.current = toolCallsRef.current.map((t) => {
+          const match = (payload.tool_call_id && t.id === payload.tool_call_id)
+            || (!payload.tool_call_id && t.name === payload.name && t.status === 'running');
+          return match ? { ...t, status: 'done', result: payload.content } : t;
+        });
+        setToolCalls([...toolCallsRef.current]);
+        break;
+      }
+      case 'tool_confirmation': {
+        const conf = {
+          summary: payload.summary || payload.tool_name,
+          tool_name: payload.tool_name,
+          tool_call_id: payload.tool_call_id,
+          args: payload.args || {},
+        };
+        pendingConfirmRef.current = conf;
+        setPendingToolConfirmation(conf);
+        logger.info('agent.confirm', `Tool confirmation requested: ${conf.tool_name}`, { summary: conf.summary });
+        break;
+      }
+      case 'thread_title': {
+        if (payload.title) {
+          threadTitleRef.current = payload.title;
+          setThreadTitle((prev) => prev || payload.title);
+        }
+        break;
+      }
+      case 'values': {
+        if (payload?.title) {
+          threadTitleRef.current = payload.title;
+          setThreadTitle((prev) => prev || payload.title);
+        }
+        break;
+      }
+      case 'error': {
+        logger.error('agent.stream', 'Agent stream error', { message: payload?.message });
+        streamContentRef.current += `\n\n[Agent error] ${payload?.message || 'Unknown error'}`;
+        setStreamingContent(streamContentRef.current);
+        break;
+      }
+      case 'end':
+        break;
+      default: {
+        // DeerFlow sub-agent lifecycle events: task_started / task_progress /
+        // task_completed / task_failed / task_timeout.
+        if (typeof type === 'string' && type.startsWith('task_')) {
+          const id = payload.task_id || payload.id || payload.name || newId('sa');
+          const existing = subAgentTasksRef.current.find((t) => t.id === id);
+          const base = existing || {
+            id,
+            description: payload.description || payload.title || payload.name || 'Sub-agent task',
+            status: 'running',
+            messageCount: 0,
+          };
+          let next = { ...base };
+          if (type === 'task_started') next.status = 'running';
+          else if (type === 'task_progress') next.messageCount = (base.messageCount || 0) + 1;
+          else if (type === 'task_completed') next.status = 'completed';
+          else if (type === 'task_failed') { next.status = 'failed'; next.error = payload.error || payload.message; }
+          else if (type === 'task_timeout') next.status = 'timed_out';
 
-  const executeToolCall = useCallback(async (toolCall) => {
-    const tc = {
-      id: `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: toolCall.tool,
-      args: toolCall.params || {},
-      status: 'running',
-    };
-    toolCallsRef.current = [...toolCallsRef.current, tc];
-    setToolCalls([...toolCallsRef.current]);
-
-    try {
-      const result = await briizToolsRef.current.execute(toolCall.tool, toolCall.params || {});
-      toolCallsRef.current = toolCallsRef.current.map((t) => (t.id === tc.id ? { ...t, status: 'done', result } : t));
-      setToolCalls([...toolCallsRef.current]);
-      return result;
-    } catch (error) {
-      // A margerin 💬 ("return to chat for refinement") is NOT a
-      // failure — it's a deliberate user decision to keep discussing
-      // the call in the chat instead of running it. Mark the tool
-      // card as 'returned' so the UI shows a subtle neutral state
-      // instead of a red failure, and rethrow so the stream consumer
-      // can skip the "[Tool failed: ...]" append below.
-      const returnedToChat = Boolean(error?.__returnedToChat);
-      toolCallsRef.current = toolCallsRef.current.map((t) =>
-        t.id === tc.id
-          ? {
-              ...t,
-              status: returnedToChat ? 'returned' : 'failed',
-              error: error?.message,
-            }
-          : t,
-      );
-      setToolCalls([...toolCallsRef.current]);
-      throw error;
+          subAgentTasksRef.current = existing
+            ? subAgentTasksRef.current.map((t) => (t.id === id ? next : t))
+            : [...subAgentTasksRef.current, next];
+          setSubAgentTasks([...subAgentTasksRef.current]);
+        }
+        break;
+      }
     }
   }, []);
 
+  // Persistent subscription to the agent stream push channel. Set up once;
+  // filters by the active streamId so only the live turn is consumed.
+  useEffect(() => {
+    if (!hasApi || typeof api.onLanggraphStreamEvent !== 'function') {
+      logger.warn('agent.stream', 'LangGraph stream channel unavailable (preload bindings missing)');
+      return undefined;
+    }
+    const cleanup = api.onLanggraphStreamEvent(({ streamId, type, payload }) => {
+      if (streamId !== activeStreamIdRef.current) return;
+      try {
+        handleStreamEvent(type, payload);
+      } catch (err) {
+        logger.error('agent.stream', 'Stream event handler threw', { type, error: err?.message });
+      }
+    });
+    return cleanup;
+  }, [handleStreamEvent]);
+
+  // ---------------------------------------------------------------------
+  // Thread lifecycle
+  // ---------------------------------------------------------------------
+  const ensureThread = useCallback(async () => {
+    if (threadIdRef.current) return threadIdRef.current;
+    if (!hasApi || typeof api.langgraphCreateThread !== 'function') {
+      throw new Error('Agent backend unavailable (no LangGraph IPC bindings)');
+    }
+    const res = await api.langgraphCreateThread();
+    const threadId = res?.thread_id || res?.threadId || res;
+    if (!threadId) throw new Error('Failed to create agent thread');
+    threadIdRef.current = threadId;
+    setActiveThread(threadId);
+    logger.info('agent.thread', 'Agent thread created', { threadId });
+    return threadId;
+  }, []);
+
+  const buildConfig = useCallback(() => {
+    const model = getSelectedModel() || undefined;
+    return {
+      model,
+      thinking: true,
+      plan_mode: modalityRef.current === 'plan',
+      // Confirmation is owned by the agent's Python middleware. 'ask-always'
+      // makes destructive tools surface a tool_confirmation event here.
+      tool_confirmation_mode: 'ask-always',
+    };
+  }, [getSelectedModel]);
+
+  // Run one agent turn (fresh message OR a resume) over a single streamId,
+  // accumulating into streamContentRef. Returns when the turn is fully done
+  // (terminal end/error) OR paused awaiting tool confirmation.
+  const runAgentTurn = useCallback(async (kind, args) => {
+    const streamId = newId('stream');
+    activeStreamIdRef.current = streamId;
+    setCurrentStreamId(streamId);
+
+    if (kind === 'message') {
+      return api.langgraphStreamMessage(streamId, args.threadId, args.message, args.config);
+    }
+    return api.langgraphResumeRun(streamId, args.threadId, args.response, args.config);
+  }, []);
+
+  const finalizeAssistantTurn = useCallback(async ({ isRemote }) => {
+    const content = streamContentRef.current;
+    if (content) {
+      await addChatMessage('assistant', content);
+      if (isRemote) {
+        try { await addRemoteChatMessage('assistant', content); } catch {}
+      }
+      addLog('assistant_message', content.slice(0, 1200)).catch(() => {});
+    }
+
+    // Follow-up suggestions are a local-user affordance only.
+    if (suggestionsEnabledRef.current && !isRemote && typeof api.langgraphFetchSuggestions === 'function') {
+      try {
+        const recent = [...messages, { role: 'assistant', content }]
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .slice(-6)
+          .map((m) => ({ role: m.role, content: m.content }));
+        const items = await api.langgraphFetchSuggestions(recent, 3, { model: getSelectedModel() || undefined });
+        if (suggestionsEnabledRef.current && Array.isArray(items) && items.length > 0) {
+          setSuggestions(items);
+        }
+      } catch (err) {
+        logger.debug('agent.suggestions', 'Suggestion fetch failed', { error: err?.message });
+      }
+    }
+  }, [messages, getSelectedModel]);
+
   const sendMessage = useCallback(async (message, { isRemote = false } = {}) => {
-    if (!message?.trim() || isLoading || !chatAPIRef.current) return null;
+    if (!message?.trim() || isLoading) return null;
+    if (!hasApi || typeof api.langgraphStreamMessage !== 'function') {
+      await addChatMessage('assistant', 'Error: the AI agent backend is not available.', true);
+      return null;
+    }
 
     setSuggestions([]);
     await addChatMessage('user', message);
@@ -216,91 +396,103 @@ export function useChat({ selectedModel } = {}) {
 
     try {
       let actualMessage = message;
-      const skillName = MODALITY_SKILL_MAP[modality];
+      const skillName = MODALITY_SKILL_MAP[modalityRef.current];
       if (skillName) actualMessage = `[Use skill: ${skillName}] ${message}`;
-      else if (modality === 'plan') actualMessage = `[Plan mode] ${message}`;
+      else if (modalityRef.current === 'plan') actualMessage = `[Plan mode] ${message}`;
+
       const selectedFiles = await loadSelectedFiles();
-      const fileContextAddendum = buildFileContextAddendum(selectedFiles);
+      actualMessage += buildFileContextAddendum(selectedFiles);
 
-      const model = getSelectedModel() || 'gemini-2.5-flash';
-      const provider = parseProviderFromModel(model);
+      const threadId = await ensureThread();
 
-      const streamId = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      setCurrentStreamId(streamId);
+      // Reset per-turn accumulators.
       streamContentRef.current = '';
       setStreamingContent('');
       toolCallsRef.current = [];
       setToolCalls([]);
+      subAgentTasksRef.current = [];
+      setSubAgentTasks([]);
+      pendingConfirmRef.current = null;
 
-      const chatHistory = [...messages, { role: 'user', content: actualMessage }]
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({ role: m.role, content: m.content }));
+      logger.info('chat', 'Dispatching message to agent', { threadId, isRemote, modality: modalityRef.current });
 
-      // Don't ask for suggestions on relayed remote messages — the chips
-      // are a UI affordance for the local interactive user only.
-      const wantSuggestions = suggestionsEnabledRef.current && !isRemote;
+      await runAgentTurn('message', { threadId, message: actualMessage, config: buildConfig() });
 
-      for await (const chunk of chatAPIRef.current.streamChat(
-        chatHistory,
-        provider,
-        model,
-        null,
-        { suggestionsEnabled: wantSuggestions, contextAddendum: fileContextAddendum },
-      )) {
-        if (typeof chunk === 'string') {
-          streamContentRef.current += chunk;
-          setStreamingContent(streamContentRef.current);
-        } else if (chunk && chunk.type === 'tool_call') {
-          try {
-            const result = await executeToolCall(chunk);
-            const resultText = typeof result === 'string' ? result : (result?.summary || result?.message || JSON.stringify(result));
-            streamContentRef.current += `\n\n[Tool executed: ${chunk.tool}]\n${resultText}`;
-            setStreamingContent(streamContentRef.current);
-          } catch (err) {
-            // Returning the call to chat via the margerin 💬 icon is a
-            // first-class user choice, not a failure. Leave the stream
-            // text untouched — InteractionPanel's onChatReturn handler
-            // will instead prepend a "re:" quote and refocus the
-            // textarea so the user can discuss/refine the call.
-            if (err && err.__returnedToChat) {
-              // intentionally no-op on the streaming content
-            } else {
-              streamContentRef.current += `\n\n[Tool failed: ${chunk.tool}] ${err?.message || 'Unknown error'}`;
-              setStreamingContent(streamContentRef.current);
-            }
-          }
-        } else if (chunk && chunk.type === 'suggestions') {
-          // Only update if the toggle is still on by the time the chunk
-          // arrives — guards against the user flipping the switch off
-          // mid-stream.
-          if (suggestionsEnabledRef.current && Array.isArray(chunk.items) && chunk.items.length > 0) {
-            setSuggestions(chunk.items);
-          }
-        }
+      // If the run paused for tool confirmation, hold the turn open — the
+      // assistant message is persisted only once the run truly completes
+      // (after approve/reject → resume). Otherwise finalize now.
+      if (pendingConfirmRef.current) {
+        logger.info('chat', 'Turn paused awaiting tool confirmation');
+        return null;
       }
 
-      if (streamContentRef.current) {
-        await addChatMessage('assistant', streamContentRef.current);
-        if (isRemote) {
-          await addRemoteChatMessage('assistant', streamContentRef.current);
-        }
-        addLog('assistant_message', streamContentRef.current.slice(0, 1200)).catch(() => {});
-      }
-
+      await finalizeAssistantTurn({ isRemote });
       setThreadTitle((prev) => prev || message.slice(0, 60));
     } catch (error) {
-      logger.error('chat', 'Direct API stream failed', error?.message);
+      logger.error('chat', 'Agent turn failed', { error: error?.message });
       await addChatMessage('assistant', `Error: ${error?.message || 'Unknown error'}`, true);
     } finally {
-      setIsLoading(false);
-      setCurrentStreamId(null);
-      setStreamingContent('');
-      streamContentRef.current = '';
+      if (!pendingConfirmRef.current) {
+        setIsLoading(false);
+        setCurrentStreamId(null);
+        setStreamingContent('');
+        streamContentRef.current = '';
+        activeStreamIdRef.current = null;
+      }
     }
 
     return null;
-  }, [isLoading, messages, modality, getSelectedModel, parseProviderFromModel, executeToolCall, loadSelectedFiles]);
+  }, [isLoading, loadSelectedFiles, ensureThread, runAgentTurn, buildConfig, finalizeAssistantTurn]);
 
+  // ---------------------------------------------------------------------
+  // Tool confirmation resolution → resume the same thread.
+  // ---------------------------------------------------------------------
+  const resolveConfirmation = useCallback(async (approved) => {
+    const conf = pendingConfirmRef.current;
+    if (!conf) return;
+    pendingConfirmRef.current = null;
+    setPendingToolConfirmation(null);
+
+    const threadId = threadIdRef.current;
+    if (!threadId) {
+      setIsLoading(false);
+      return;
+    }
+
+    logger.info('agent.confirm', `Tool ${approved ? 'approved' : 'rejected'}: ${conf.tool_name}`, { summary: conf.summary });
+
+    try {
+      await runAgentTurn('resume', {
+        threadId,
+        response: { approved, summary: conf.summary },
+        config: buildConfig(),
+      });
+
+      if (pendingConfirmRef.current) {
+        // Another confirmation surfaced — stay paused.
+        return;
+      }
+      await finalizeAssistantTurn({ isRemote: false });
+    } catch (error) {
+      logger.error('agent.confirm', 'Resume after confirmation failed', { error: error?.message });
+      await addChatMessage('assistant', `Error: ${error?.message || 'Unknown error'}`, true);
+    } finally {
+      if (!pendingConfirmRef.current) {
+        setIsLoading(false);
+        setCurrentStreamId(null);
+        setStreamingContent('');
+        streamContentRef.current = '';
+        activeStreamIdRef.current = null;
+      }
+    }
+  }, [runAgentTurn, buildConfig, finalizeAssistantTurn]);
+
+  const approveToolConfirmation = useCallback(() => resolveConfirmation(true), [resolveConfirmation]);
+  const rejectToolConfirmation = useCallback(() => resolveConfirmation(false), [resolveConfirmation]);
+
+  // ---------------------------------------------------------------------
+  // Remote chat relay (unchanged contract)
+  // ---------------------------------------------------------------------
   const isLoadingRef = useRef(false);
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
@@ -315,9 +507,7 @@ export function useChat({ selectedModel } = {}) {
     if (!uid) return;
     const unsubscribe = subscribeRemoteChat(
       () => {},
-      (remoteMsg) => {
-        sendRemoteResponse(remoteMsg);
-      }
+      (remoteMsg) => { sendRemoteResponse(remoteMsg); }
     );
     return () => unsubscribe();
   }, [uid, sendRemoteResponse]);
@@ -331,20 +521,26 @@ export function useChat({ selectedModel } = {}) {
       setCurrentStreamId(null);
       setToolCalls([]);
       toolCallsRef.current = [];
+      setSubAgentTasks([]);
+      subAgentTasksRef.current = [];
       setModality('chat');
       setSuggestions([]);
       setThreadTitle(null);
+      threadTitleRef.current = null;
+      setPendingToolConfirmation(null);
+      pendingConfirmRef.current = null;
+      // New conversation → new agent thread.
+      threadIdRef.current = null;
+      activeStreamIdRef.current = null;
+      setActiveThread(null);
     } catch (error) {
-      logger.error('chat', 'Failed to clear history', error?.message);
+      logger.error('chat', 'Failed to clear history', { error: error?.message });
     }
   }, []);
 
   const refreshFilesInContext = useCallback(async () => {
     await loadSelectedFiles();
   }, [loadSelectedFiles]);
-
-  const approveToolConfirmation = useCallback(async () => {}, []);
-  const rejectToolConfirmation = useCallback(async () => {}, []);
 
   return {
     messages,
