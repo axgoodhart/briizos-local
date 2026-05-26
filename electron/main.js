@@ -12,10 +12,11 @@ const agentFs = require('./agent-fs');
 const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
 const modelConfig = require('./model-config');
-const toolBridge = require('./tool-bridge');
-const langgraph = require('./langgraph-process');
+// In-process agent runtime — Electron main hosts the lead_agent graph
+// directly (LangChain.js + LangGraph.js). No Python subprocess, no
+// localhost HTTP tool-bridge; the renderer is reached via IPC.
+const langgraph = require('./agent');
 const localDb = require('./local-db');
-const yaml = require('js-yaml');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -90,7 +91,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' ws://localhost:* http://localhost:* http://127.0.0.1:2024 http://127.0.0.1:2025 https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
+  "connect-src 'self' ws://localhost:* http://localhost:* https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
   "frame-src 'self' blob: data: https: https://dex--briizos.us-central1.hosted.app http://localhost:* file: https://*.firebaseapp.com https://*.web.app https://apis.google.com",
   "media-src 'self' blob: data: https: file:",
   "worker-src 'self' blob:"
@@ -308,10 +309,21 @@ ipcMain.handle('agent-update-config', async (event, partial) => {
   return agentConfig.updateConfig(partial);
 });
 
+// Resolve the effective permission policy for a surface ('chat' | 'task').
+// Used by the renderer hard gate and per-task clamping. Unknown surface
+// returns the most restrictive policy (fail-closed).
+ipcMain.handle('agent-get-surface-policy', async (event, surface) => {
+  return agentConfig.getSurfacePolicy(surface);
+});
+
 // === Agent Filesystem IPC Handlers ===
 
 ipcMain.handle('agent-fs-read', async (event, filePath, maxSize) => {
   return agentFs.agentReadFile(filePath, maxSize);
+});
+
+ipcMain.handle('agent-fs-read-base64', async (event, filePath, maxSize) => {
+  return agentFs.agentReadFileBase64(filePath, maxSize);
 });
 
 ipcMain.handle('agent-fs-write', async (event, filePath, content, opId) => {
@@ -705,72 +717,14 @@ ipcMain.handle('skills-toggle', async (event, skillName, enabled) => {
   }
 });
 
-// === Direct AI API - Get API Key for Provider ===
-
-ipcMain.handle('get-api-key', async (event, provider) => {
-  // Prefer environment variables if set
-  const envKey = {
-    gemini: process.env.GEMINI_API_KEY,
-    google: process.env.GEMINI_API_KEY,
-    claude: process.env.ANTHROPIC_API_KEY,
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    openai: process.env.OPENAI_API_KEY,
-    chatgpt: process.env.OPENAI_API_KEY,
-  }[provider];
-
-  if (envKey) return envKey;
-
-  // Fallback: read from agent/config.yaml (not the Electron appSupport config.json)
-  try {
-    const fs = require('fs');
-    const configPath = path.resolve(__dirname, '../agent/config.yaml');
-    if (fs.existsSync(configPath)) {
-      const raw = fs.readFileSync(configPath, 'utf8');
-      const parsed = yaml.load(raw);
-      const models = Array.isArray(parsed?.models) ? parsed.models : [];
-
-      // Find first model matching requested provider that contains a key
-      const match = models.find((m) => {
-        const p = deriveProviderFromModel(m);
-        if (p !== provider) return false;
-        if (provider === 'gemini' || provider === 'google') {
-          return !!m?.google_api_key;
-        }
-        return !!m?.api_key;
-      });
-
-      if (match) {
-        if (provider === 'gemini' || provider === 'google') {
-          return match.google_api_key || null;
-        }
-        return match.api_key || null;
-      }
-    }
-  } catch (err) {
-    logger.warn('api', 'Failed to read API key from agent/config.yaml', err?.message);
-  }
-
-  return null;
-});
-
-// Helper to derive provider from model config
-function deriveProviderFromModel(model) {
-  if (!model?.use) return 'unknown';
-
-  const useField = model.use;
-  if (useField.includes('anthropic')) return 'claude';
-  if (useField.includes('openai')) return 'openai';
-  if (useField.includes('google')) return 'gemini';
-  return 'unknown';
-}
-
-// === Tool Execution Bridge (DEPRECATED fallback) ===
+// === Tool Execution Fallback (DEPRECATED, inert) ===
 //
 // There is exactly ONE tool execution path:
 //
-//   Python agent → HTTP :2025 (tool-bridge) → IPC →
-//     src/hooks/useToolBridge.js → ToolContext.executeTool →
-//       src/lib/tools.js registry handler (real Firestore + layoutHook)
+//   electron/agent (in-process lead_agent)
+//     → electron/agent/bridge.js (direct IPC, no HTTP)
+//       → 'tool-bridge-execute' → src/hooks/useToolBridge.js
+//         → ToolContext.executeTool → src/lib/tools.js handler
 //
 // This 'execute-tool' IPC handler is NOT part of that path. It is kept
 // only as a last-resort guard so any caller that somehow bypasses the
@@ -781,7 +735,7 @@ ipcMain.handle('execute-tool', async (event, toolName, params) => {
   logger.warn(
     'tools',
     `execute-tool IPC fallback hit for "${toolName}" — this path is deprecated and inert; ` +
-      'tool calls must reach src/lib/tools.js via the tool-bridge → useToolBridge → ToolContext.executeTool.',
+      'agent tool calls must flow through electron/agent/bridge.js → useToolBridge → ToolContext.executeTool.',
     params,
   );
 
@@ -791,7 +745,7 @@ ipcMain.handle('execute-tool', async (event, toolName, params) => {
     params,
     message:
       `Tool "${toolName}" reached the deprecated main.js IPC fallback and was not executed. ` +
-      'The canonical path is tool-bridge (:2025) → useToolBridge → ToolContext.executeTool → tools.js.',
+      'The canonical path is electron/agent → bridge → useToolBridge → ToolContext.executeTool → tools.js.',
     timestamp: new Date().toISOString(),
   };
 });
@@ -806,7 +760,7 @@ ipcMain.handle('ai-is-configured', async () => modelConfig.isAIConfigured());
 // === LangGraph Agent Backend IPC ===
 //
 // THE canonical AI execution path. The renderer (useChat) talks to the
-// Python DeerFlow/LangGraph agent exclusively through these handlers.
+// in-process Electron LangGraph agent exclusively through these handlers.
 // There is no direct-to-provider streaming path anymore.
 //
 // Streaming model: the renderer generates a `streamId`, calls
@@ -849,13 +803,13 @@ ipcMain.handle('langgraph-resume-run', async (event, streamId, threadId, respons
 });
 
 // Non-streaming synchronous turn — used by headless task automation
-// (single source: same langgraph-process, no parallel client).
+// (single source: same in-process agent runtime, no parallel client).
 ipcMain.handle('langgraph-send-message', async (_event, threadId, message, config) => {
   return langgraph.sendMessage(threadId, message, config || {});
 });
 
-ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, config) => {
-  return langgraph.fetchSuggestions(recentMessages || [], n || 3, config || {});
+ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, config, threadId) => {
+  return langgraph.fetchSuggestions(recentMessages || [], n || 3, config || {}, threadId || null);
 });
 
 // === App Lifecycle ===
@@ -863,7 +817,7 @@ ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, 
 app.whenReady().then(() => {
   // Register logger IPC (must be first — other modules may log during init)
   registerLoggerIPC(ipcMain);
-  logger.info('app', 'briizOS starting (Agent Mode — LangGraph/DeerFlow backend)', {
+  logger.info('app', 'briizOS starting (Agent Mode — in-process LangGraph runtime)', {
     isDev,
     pid: process.pid,
     electron: process.versions.electron,
@@ -886,22 +840,18 @@ app.whenReady().then(() => {
 
   const win = createWindow();
 
-  // Start tool bridge server and pass the main window for IPC relay.
-  // The tool bridge (port 2025) is how the Python agent reaches the
-  // renderer tool registry, so it must be up before the agent starts.
-  toolBridge.setMainWindow(win);
-  toolBridge.start();
-
-  // Start the Python DeerFlow/LangGraph agent backend (LangGraph dev
-  // server on :2024 + Gateway on :8001). This is the single AI engine.
+  // Wire the renderer window into the in-process agent bridge so the
+  // lead_agent (running here in main) can reach the renderer tool
+  // registry via IPC. No HTTP socket; no port 2025.
+  langgraph.setMainWindow(win);
   langgraph.start().then((ok) => {
-    logger.info('app', 'LangGraph backend start requested', { ok, status: langgraph.getStatus()?.status });
+    logger.info('app', 'In-process agent runtime ready', { ok, status: langgraph.getStatus()?.status });
   });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       const newWin = createWindow();
-      toolBridge.setMainWindow(newWin);
+      langgraph.setMainWindow(newWin);
     }
   });
 });
@@ -912,12 +862,10 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Stop the agent backend and tool bridge before quit (fire-and-forget —
-// Electron won't await async). Stop the agent first so in-flight tool
-// calls can drain before the bridge they depend on goes away.
+// Stop the in-process agent runtime before quit (clears caches; nothing
+// to spawn-kill since the agent lives inside this process).
 app.on('before-quit', () => {
   langgraph.stop();
-  toolBridge.stop();
 });
 
 // Clean up watchers on quit

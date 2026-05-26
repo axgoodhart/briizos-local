@@ -32,6 +32,24 @@ function agentReadFile(filePath, maxSize = 500 * 1024) {
   }
 }
 
+function agentReadFileBase64(filePath, maxSize = 5 * 1024 * 1024) {
+  try {
+    const resolved = path.resolve(expandHome(filePath));
+    logger.debug('fs', 'agent readFileBase64', { filePath, resolved });
+    const stats = fs.statSync(resolved);
+    if (!stats.isFile()) return { error: 'Not a file' };
+    if (stats.size > maxSize) return { error: `File too large (${stats.size} bytes, max ${maxSize})` };
+    return {
+      base64: fs.readFileSync(resolved).toString('base64'),
+      truncated: false,
+      totalSize: stats.size,
+      path: resolved,
+    };
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
 function replayIfPresent(opId) {
   const receipt = getReceipt(opId);
   if (!receipt) return null;
@@ -171,6 +189,6 @@ function agentListDirectory(dirPath) {
 }
 
 module.exports = {
-  agentReadFile, agentWriteFile, agentDeleteFile,
+  agentReadFile, agentReadFileBase64, agentWriteFile, agentDeleteFile,
   agentMoveFile, agentCopyFile, agentListDirectory,
 };

@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "run_dir": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/pets/briiz-buddy-run",
+  "spritesheet": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/pets/briiz-buddy-run/final/spritesheet.webp",
+  "validation": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/pets/briiz-buddy-run/final/validation.json",
+  "contact_sheet": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/pets/briiz-buddy-run/qa/contact-sheet.png",
+  "review": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/pets/briiz-buddy-run/qa/review.json",
+  "package": "/Users/alex/.codex/pets/briiz-buddy"
+}

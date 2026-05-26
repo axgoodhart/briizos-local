@@ -15,5 +15,6 @@ public/assets/
 # Quarantined legacy direct-streaming AI path (pending `git rm`).
 # See .rewire-removed/README.md
 .rewire-removed/
-# Throwaway build dir used to verify the rewire compiles.
+# Throwaway build dirs used to verify the rewire/port compiles.
 dist_rewire_verify/
+dist_jsport_verify/

@@ -876,7 +876,7 @@ function AppContent({ layout }) {
       <header className="app-header">
         <div className="header-title">
           <span className="title-icon:before"></span>
-          <span className="title-icon"></span>
+          <span className="title-icon" id="settings-btn" onClick={() => setShowSettings(true)}></span>
           <span className="title-text">briizOS</span>
         </div>
 
@@ -917,10 +917,6 @@ function AppContent({ layout }) {
         <div className="header-right">
           <HeaderDateTimeWeather />
 
-          <button id="settings-btn" onClick={() => setShowSettings(true)}>
-            <span className="settings-icon">⚙</span>
-            <span>Settings</span>
-          </button>
         </div>
 
         <div id="controlBarBtn" aria-hidden="true"></div>

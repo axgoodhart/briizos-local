@@ -1,10 +1,11 @@
 /**
- * useToolBridge — relays agent tool calls into the single tool executor.
+ * useToolBridge — relays in-process agent tool calls into the single executor.
  *
- * When the Python DeerFlow/LangGraph agent invokes a briizOS UI-state tool
- * it POSTs to the Electron tool-bridge (port 2025), which relays via IPC:
+ * The lead_agent runs inside Electron main (LangChain.js / LangGraph.js)
+ * and calls back into the renderer's tool registry via direct IPC — no
+ * HTTP, no localhost socket. The path is:
  *
- *   Python agent → HTTP :2025 → electron/tool-bridge.js → IPC →
+ *   electron/agent → electron/agent/bridge.js → IPC 'tool-bridge-execute' →
  *     useToolBridge → ToolContext.executeTool → src/lib/tools.js handler
  *
  * IMPORTANT: this hook routes through `executeTool` (the ONE canonical
@@ -14,9 +15,10 @@
  * layoutHook, silently breaking panel/layout tools. Routing through the
  * shared executor removes that whole class of drift.
  *
- * Confirmation is owned by the agent's Python middleware, so bridge calls
- * pass `__agentAuto: true` to bypass the renderer-side confirmation gate
- * (no double-confirm).
+ * Confirmation is initiated by the LangGraph tool interrupt and still
+ * enforced here by ToolContext's renderer-side hard gate. Bridge calls pass
+ * `__agentAuto: true` plus the LangGraph thread id so the gate can resolve
+ * the correct chat/task surface policy before any handler runs.
  *
  * Mount once in AppContent (App.jsx).
  *
@@ -40,13 +42,16 @@ export function useToolBridge(executeTool, appContext) {
       return undefined;
     }
 
-    const cleanup = window.api.onToolBridgeExecute(async ({ requestId, toolName, params }) => {
-      logger.info('tool.bridge', `Agent tool request: ${toolName}`, { requestId });
+    const cleanup = window.api.onToolBridgeExecute(async ({ requestId, toolName, params, threadId }) => {
+      logger.info('tool.bridge', `Agent tool request: ${toolName}`, { requestId, threadId });
 
       try {
+        // __agentAuto marks this as an agent-originated call (so the hard
+        // gate engages); __briizosThreadId lets the gate resolve which
+        // surface/policy governs it. No bypass — the gate decides.
         const result = await executeToolRef.current(
           toolName,
-          { ...params, __agentAuto: true },
+          { ...params, __agentAuto: true, __briizosThreadId: threadId || null },
           appContextRef.current,
         );
         logger.info('tool.bridge', `Tool executed: ${toolName}`, { requestId, success: result?.success });

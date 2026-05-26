@@ -22,6 +22,16 @@ function formatActionText(toolName, params) {
       return `Duplicate panel "${params.panel_id}"`;
     case 'updateNoteContent':
       return `Update content of "${params.panel_id}"`;
+    case 'agentWriteFile':
+      return `Write file "${params.path}"`;
+    case 'agentCopyFile':
+      return `Copy "${params.source}" to "${params.destination}"`;
+    case 'agentMoveFile':
+      return `Move "${params.source}" to "${params.destination}"`;
+    case 'agentDeleteFile':
+      return `Delete "${params.path}"`;
+    case 'runCommand':
+      return `Run command "${params.command}"`;
     case 'setPanelColor':
       return `Change color of "${params.panel_id}"`;
     case 'setPanelTitle':

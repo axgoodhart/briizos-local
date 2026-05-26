@@ -92,6 +92,114 @@ def _get_confirmation_mode(request: ToolCallRequest) -> str:
     return "ask-always"
 
 
+def _get_permission_policy(request: ToolCallRequest) -> dict:
+    """Extract the per-surface permission_policy from the run config.
+
+    Shape: {"surface": str, "mode": str, "blacklist": {"paths": [...],
+    "filetypes": [...]}}. Missing → fail-closed (ask-always, empty allow).
+    """
+    try:
+        tool_runtime = getattr(request, "runtime", None)
+        runnable_config = getattr(tool_runtime, "config", None) or {}
+        pol = (runnable_config.get("configurable") or {}).get("permission_policy")
+        if isinstance(pol, dict):
+            bl = pol.get("blacklist") or {}
+            return {
+                "surface": pol.get("surface", "unknown"),
+                "mode": pol.get("mode", _get_confirmation_mode(request)),
+                "blacklist": {
+                    "paths": list(bl.get("paths") or []),
+                    "filetypes": list(bl.get("filetypes") or []),
+                },
+            }
+    except Exception:
+        pass
+    return {
+        "surface": "unknown",
+        "mode": _get_confirmation_mode(request),
+        "blacklist": {"paths": [], "filetypes": []},
+    }
+
+
+# Destructive command verbs (mirrors src/lib/permissions.js so the Python
+# middleware and the renderer gate classify bash the same way).
+_DESTRUCTIVE_VERBS = {
+    "rm", "rmdir", "mv", "chmod", "chown", "chgrp", "kill", "killall",
+    "pkill", "mkfs", "fdisk", "dd", "truncate", "shred", "launchctl",
+    "systemctl", "defaults", "xattr",
+}
+_SAFE_VERBS = {
+    "ls", "cat", "head", "tail", "less", "more", "echo", "printf", "pwd",
+    "whoami", "which", "where", "find", "grep", "rg", "ag", "ack", "wc",
+    "sort", "uniq", "diff", "comm", "file", "stat", "du", "df", "date",
+    "cal", "uptime", "uname", "env", "printenv", "set", "cp", "mkdir",
+    "touch", "curl", "wget", "ping", "dig", "nslookup", "host", "git",
+    "node", "npm", "npx", "python", "python3", "pip", "brew", "open",
+    "top", "ps", "htop", "lsof", "netstat",
+}
+
+
+def _bash_is_destructive(command: str) -> bool:
+    """Best-effort destructive classification for a bash command string."""
+    if not command:
+        return False
+    trimmed = command.strip()
+    parts = trimmed.split()
+    if not parts:
+        return False
+    verb = parts[0]
+    if verb == "sudo" and len(parts) > 1:
+        verb = parts[1]
+    verb = verb.split("/")[-1]
+    if verb in _SAFE_VERBS:
+        # Still re-check pipe/redirect chains below.
+        pass
+    elif verb in _DESTRUCTIVE_VERBS:
+        return True
+    if any(sep in trimmed for sep in ("|", "&&", ";")):
+        import re
+        for sub in re.split(r"[|;&]+", trimmed):
+            sub = sub.strip()
+            if sub and _bash_is_destructive(sub):
+                return True
+    if ">" in trimmed:
+        return True
+    if verb in _SAFE_VERBS:
+        return False
+    # Unknown verb → destructive (safer), matching the renderer.
+    return verb not in _SAFE_VERBS
+
+
+def _is_blacklisted(path: str, blacklist: dict) -> bool:
+    if not path or not blacklist:
+        return False
+    for blocked in blacklist.get("paths", []):
+        if path == blocked or path.startswith(blocked.rstrip("/") + "/"):
+            return True
+    if "." in path:
+        ext = "." + path.rsplit(".", 1)[-1].lower()
+        if ext in [ft.lower() for ft in blacklist.get("filetypes", [])]:
+            return True
+    return False
+
+
+def _blacklisted_target(tool_name: str, args: dict, blacklist: dict) -> str | None:
+    """Return the first blacklisted path this call would touch, if any."""
+    candidates = []
+    if tool_name in ("write_file", "str_replace"):
+        candidates.append(args.get("file_path") or args.get("path"))
+    elif tool_name == "bash":
+        cmd = args.get("command", "") or ""
+        # Coarse: scan whitespace tokens that look like paths.
+        for tok in cmd.replace("'", " ").replace('"', " ").split():
+            if "/" in tok or tok.startswith(".") or "." in tok:
+                candidates.append(tok)
+    for c in candidates:
+        if c and _is_blacklisted(c, blacklist):
+            return c
+    return None
+
+
 class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
     """Intercepts destructive tool calls and interrupts execution for user confirmation.
 
@@ -146,6 +254,54 @@ class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
             goto=END,
         )
 
+    def _deny(self, request: ToolCallRequest, reason: str) -> ToolMessage:
+        """Hard-deny a tool call. The agent receives an error result and
+        continues (it can explain / replan) rather than the run ending."""
+        tool_call = request.tool_call
+        logger.warning("[ToolConfirmationMiddleware] DENY %s: %s", tool_call.get("name"), reason)
+        return ToolMessage(
+            content=f"Error: blocked by permission policy — {reason}",
+            tool_call_id=tool_call.get("id", ""),
+            name=tool_call.get("name", "unknown"),
+        )
+
+    def _decide(self, request: ToolCallRequest) -> tuple[str, str]:
+        """Return (action, reason) where action ∈ {'pass','deny','confirm'}.
+
+        - Blacklist is a HARD DENY for every mode, including no-asking.
+        - ask-destructive only confirms genuinely destructive operations:
+          bash (by command heuristic) and write_file/str_replace; briizOS
+          UI mutations are reversible and pass.
+        - ask-always (and unknown/fail-closed) confirms every destructive
+          tool. no-asking confirms none (but blacklist still denies).
+        """
+        tool_name = request.tool_call.get("name")
+        if tool_name not in DESTRUCTIVE_TOOLS:
+            return ("pass", "")
+
+        policy = _get_permission_policy(request)
+        mode = policy["mode"]
+        args = request.tool_call.get("args", {}) or {}
+
+        blocked = _blacklisted_target(tool_name, args, policy["blacklist"])
+        if blocked:
+            return ("deny", f'path "{blocked}" is blacklisted for the {policy["surface"]} surface')
+
+        if mode == "no-asking":
+            return ("pass", "")
+
+        if mode == "ask-destructive":
+            if tool_name.startswith("briizos_"):
+                return ("pass", "")  # reversible UI mutation
+            if tool_name == "bash":
+                cmd = args.get("command", "") or ""
+                return ("confirm", "") if _bash_is_destructive(cmd) else ("pass", "")
+            # write_file / str_replace are inherently destructive
+            return ("confirm", "")
+
+        # ask-always or unknown → most restrictive
+        return ("confirm", "")
+
     @override
     def wrap_tool_call(
         self,
@@ -153,19 +309,11 @@ class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
         """Intercept destructive tool calls (sync version)."""
-        tool_name = request.tool_call.get("name")
-        if tool_name not in DESTRUCTIVE_TOOLS:
+        action, reason = self._decide(request)
+        if action == "pass":
             return handler(request)
-
-        # Check if user has disabled confirmation prompts via tool_confirmation_mode
-        mode = _get_confirmation_mode(request)
-        if mode == "no-asking":
-            logger.info(
-                "[ToolConfirmationMiddleware] tool_confirmation_mode=no-asking; bypassing confirmation for %s",
-                tool_name,
-            )
-            return handler(request)
-
+        if action == "deny":
+            return self._deny(request, reason)
         return self._handle_destructive_call(request)
 
     @override
@@ -175,17 +323,9 @@ class ToolConfirmationMiddleware(AgentMiddleware[AgentState]):
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
         """Intercept destructive tool calls (async version)."""
-        tool_name = request.tool_call.get("name")
-        if tool_name not in DESTRUCTIVE_TOOLS:
+        action, reason = self._decide(request)
+        if action == "pass":
             return await handler(request)
-
-        # Check if user has disabled confirmation prompts via tool_confirmation_mode
-        mode = _get_confirmation_mode(request)
-        if mode == "no-asking":
-            logger.info(
-                "[ToolConfirmationMiddleware] tool_confirmation_mode=no-asking; bypassing confirmation for %s",
-                tool_name,
-            )
-            return await handler(request)
-
+        if action == "deny":
+            return self._deny(request, reason)
         return self._handle_destructive_call(request)

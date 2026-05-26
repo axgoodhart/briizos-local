@@ -35,17 +35,19 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
         onClick={() => setOpen(!open)}
         className="model-picker-trigger"
         style={{
-          background: 'rgba(0,100,100,.42)',
+          background: 'rgba(0,100,100)',
           border: '1px solid var(--border-color, #333)',
           borderRadius: '16px',
-          padding: '4px 10px',
-          fontSize: '11px',
+          cornerShape: 'var(--ui-corner-shape, round)',
+          padding: '10px 0px',
+          fontSize: '16px',
           color: 'var(--text-secondary, #aaa)',
           cursor: 'pointer',
+          textAlign: 'center',
+          justifyContent: 'center',
           display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          maxWidth: '180px',
+          gap: '10px',
+          width:'180px'
         }}
         title={`Current model: ${displayName}`}
       >
@@ -60,7 +62,7 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
           className="model-picker-dropdown"
           style={{
             position: 'absolute',
-            bottom: '100%',
+            top: '100%',
             left: 0,
             marginBottom: '4px',
             background: 'var(--bg-secondary, #1a1a1a)',

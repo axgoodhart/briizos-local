@@ -1,32 +1,32 @@
 /**
  * useChat — the single chat execution path.
  *
- * ARCHITECTURE (one path, no alternatives):
+ * ARCHITECTURE (one path, in-process):
  *
  *   InteractionPanel.sendMessage
  *     → useChat.sendMessage
  *       → window.api.langgraphStreamMessage(streamId, threadId, msg, config)   [IPC]
- *         → electron/main.js → langgraph-process.streamMessage                 [SSE :2024]
- *           → LangGraph dev server, graph "lead_agent" (DeerFlow agent)
- *             → agent runs; briizOS UI-state tools POST :2025 tool-bridge
- *               → useToolBridge → ToolContext.executeTool → src/lib/tools.js
- *     ← SSE events pushed back on the 'langgraph-stream-event' channel
+ *         → electron/main.js → electron/agent (in-process LangGraph.js)
+ *           → lead_agent graph runs inside Electron main; tools call the
+ *             renderer registry directly via IPC (no HTTP, no port 2025):
+ *             agent → bridge → useToolBridge → ToolContext.executeTool →
+ *             src/lib/tools.js handlers (Electron-trusted fs/terminal/UI)
+ *     ← Streamed events pushed back on the 'langgraph-stream-event' channel
  *       (text / tool_call_start / tool_result / tool_confirmation /
- *        task_* / thread_title / values / end / error)
+ *        clarification / thread_title / end / error)
  *
  * There is intentionally NO direct-to-provider streaming, NO renderer-side
- * system prompt, and NO renderer-side tool catalog. The Python agent owns
- * the system prompt, the tool set, memory, and tool confirmation. The
- * renderer only renders the stream and persists the final message.
+ * system prompt, and NO renderer-side tool catalog. The in-process agent
+ * owns the system prompt, the tool set, memory, and tool confirmation.
  *
- * Tool confirmation is owned solely by the agent's Python middleware. It
- * surfaces here as a `tool_confirmation` event; the user's decision is sent
- * back via langgraphResumeRun. The renderer tool-bridge executes with
- * __agentAuto so it never double-confirms.
+ * Confirmation and clarification pause the graph via LangGraph interrupt
+ * and resume through langgraphResumeRun. Tool execution still passes through
+ * ToolContext.executeTool, keyed by __briizosThreadId.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import logger, { setActiveThread } from '../lib/logger';
+import { registerSurfaceForThread, unregisterThread, restrictivePolicy } from '../lib/agentSurfaces';
 import {
   subscribeChatMessages,
   addChatMessage,
@@ -53,13 +53,14 @@ const MODALITY_SKILL_MAP = {
 };
 
 const FILE_CONTEXT_TOOL_CAPABILITIES = [
-  '- `agentReadFile(path)`: Read file contents (subject to blacklist rules).',
-  '- `agentListDir(path)`: List directory contents (subject to blacklist rules).',
-  '- `agentWriteFile(path, content, opId?)`: Create/overwrite files.',
-  '- `agentCopyFile(source, destination, opId?)`: Copy files or folders.',
-  '- `agentMoveFile(source, destination, opId?)`: Move/rename files.',
-  '- `agentDeleteFile(path, opId?)`: Delete files or folders.',
-  '- `runCommand(command, cwd?, opId?)`: Run shell commands when needed.'
+  '- `read_file(path)`: Read file contents (subject to blacklist rules).',
+  '- `ls(path)`: List directory contents (subject to blacklist rules).',
+  '- `write_file(path, content, opId?)`: Create/overwrite files.',
+  '- `str_replace(path, old_str, new_str, opId?)`: Replace one exact string occurrence.',
+  '- `copy_file(source, destination, opId?)`: Copy files or folders.',
+  '- `move_file(source, destination, opId?)`: Move/rename files.',
+  '- `delete_file(path, opId?)`: Delete files or folders.',
+  '- `bash(command, cwd?, opId?)`: Run shell commands when needed.'
 ];
 
 function buildFileContextAddendum(files = []) {
@@ -73,8 +74,14 @@ function buildFileContextAddendum(files = []) {
   return [
     '',
     '---',
-    'Pinned filesystem context from the user:',
+    '<uploaded_files>',
+    'The following files were uploaded or pinned in this message:',
+    '',
     ...lines,
+    '',
+    'You can read these files using the `read_file` tool with the paths shown above.',
+    'Use `view_image` for jpg, jpeg, png, or webp files when visual inspection is needed.',
+    '</uploaded_files>',
     '',
     'Capabilities available for working with these paths (tools):',
     ...FILE_CONTEXT_TOOL_CAPABILITIES,
@@ -97,6 +104,7 @@ export function useChat({ selectedModel } = {}) {
   const [currentStreamId, setCurrentStreamId] = useState(null);
   const [toolCalls, setToolCalls] = useState([]);
   const [pendingToolConfirmation, setPendingToolConfirmation] = useState(null);
+  const [pendingClarification, setPendingClarification] = useState(null);
   const [threadTitle, setThreadTitle] = useState(null);
   const threadTitleRef = useRef(null);
   const [modality, setModality] = useState('chat');
@@ -125,6 +133,11 @@ export function useChat({ selectedModel } = {}) {
   const activeStreamIdRef = useRef(null);
   // Confirmation bookkeeping so approve/reject can resume the right run.
   const pendingConfirmRef = useRef(null);
+  const pendingClarificationRef = useRef(null);
+  // Effective permission policy for the chat surface (resolved at thread
+  // creation). Drives permission_policy on every run so the agent runtime
+  // and renderer gate agree.
+  const chatPolicyRef = useRef(restrictivePolicy('chat'));
 
   useEffect(() => { selectedModelRef.current = selectedModel || null; }, [selectedModel]);
   useEffect(() => { modalityRef.current = modality; }, [modality]);
@@ -244,6 +257,25 @@ export function useChat({ selectedModel } = {}) {
         logger.info('agent.confirm', `Tool confirmation requested: ${conf.tool_name}`, { summary: conf.summary });
         break;
       }
+      case 'clarification': {
+        const clarification = {
+          question: payload.question,
+          clarification_type: payload.clarification_type || 'missing_info',
+          context: payload.context || null,
+          options: payload.options || [],
+          message: payload.message || payload.question,
+        };
+        pendingClarificationRef.current = clarification;
+        setPendingClarification(clarification);
+        if (clarification.message) {
+          streamContentRef.current += streamContentRef.current
+            ? `\n\n${clarification.message}`
+            : clarification.message;
+          setStreamingContent(streamContentRef.current);
+        }
+        logger.info('agent.clarify', 'Clarification requested', { question: clarification.question });
+        break;
+      }
       case 'thread_title': {
         if (payload.title) {
           threadTitleRef.current = payload.title;
@@ -280,10 +312,13 @@ export function useChat({ selectedModel } = {}) {
           };
           let next = { ...base };
           if (type === 'task_started') next.status = 'running';
-          else if (type === 'task_progress') next.messageCount = (base.messageCount || 0) + 1;
+          else if (type === 'task_progress' || type === 'task_running') {
+            next.status = 'running';
+            next.messageCount = payload.message_index || ((base.messageCount || 0) + 1);
+          }
           else if (type === 'task_completed') next.status = 'completed';
           else if (type === 'task_failed') { next.status = 'failed'; next.error = payload.error || payload.message; }
-          else if (type === 'task_timeout') next.status = 'timed_out';
+          else if (type === 'task_timeout' || type === 'task_timed_out') next.status = 'timed_out';
 
           subAgentTasksRef.current = existing
             ? subAgentTasksRef.current.map((t) => (t.id === id ? next : t))
@@ -326,19 +361,29 @@ export function useChat({ selectedModel } = {}) {
     if (!threadId) throw new Error('Failed to create agent thread');
     threadIdRef.current = threadId;
     setActiveThread(threadId);
-    logger.info('agent.thread', 'Agent thread created', { threadId });
+    // Resolve + register the chat-surface policy for this thread. Used by
+    // both the renderer hard gate (bridge tools) and the run config.
+    // Fail-closed if resolution fails.
+    try {
+      chatPolicyRef.current = await registerSurfaceForThread(threadId, 'chat');
+    } catch {
+      chatPolicyRef.current = restrictivePolicy('chat');
+    }
+    logger.info('agent.thread', 'Agent thread created', { threadId, mode: chatPolicyRef.current?.mode });
     return threadId;
   }, []);
 
   const buildConfig = useCallback(() => {
     const model = getSelectedModel() || undefined;
+    const policy = chatPolicyRef.current || restrictivePolicy('chat');
     return {
       model,
       thinking: true,
       plan_mode: modalityRef.current === 'plan',
-      // Confirmation is owned by the agent's Python middleware. 'ask-always'
-      // makes destructive tools surface a tool_confirmation event here.
-      tool_confirmation_mode: 'ask-always',
+      // Per-surface (chat column) effective level. permission_policy
+      // carries the blacklist and confirmation level for bridge tools.
+      tool_confirmation_mode: policy.mode || 'ask-always',
+      permission_policy: policy,
     };
   }, [getSelectedModel]);
 
@@ -356,7 +401,7 @@ export function useChat({ selectedModel } = {}) {
     return api.langgraphResumeRun(streamId, args.threadId, args.response, args.config);
   }, []);
 
-  const finalizeAssistantTurn = useCallback(async ({ isRemote }) => {
+  const finalizeAssistantTurn = useCallback(async ({ isRemote, skipSuggestions = false }) => {
     const content = streamContentRef.current;
     if (content) {
       await addChatMessage('assistant', content);
@@ -367,13 +412,18 @@ export function useChat({ selectedModel } = {}) {
     }
 
     // Follow-up suggestions are a local-user affordance only.
-    if (suggestionsEnabledRef.current && !isRemote && typeof api.langgraphFetchSuggestions === 'function') {
+    if (!skipSuggestions && suggestionsEnabledRef.current && !isRemote && typeof api.langgraphFetchSuggestions === 'function') {
       try {
         const recent = [...messages, { role: 'assistant', content }]
           .filter((m) => m.role === 'user' || m.role === 'assistant')
           .slice(-6)
           .map((m) => ({ role: m.role, content: m.content }));
-        const items = await api.langgraphFetchSuggestions(recent, 3, { model: getSelectedModel() || undefined });
+        const items = await api.langgraphFetchSuggestions(
+          recent,
+          3,
+          { model: getSelectedModel() || undefined },
+          threadIdRef.current,
+        );
         if (suggestionsEnabledRef.current && Array.isArray(items) && items.length > 0) {
           setSuggestions(items);
         }
@@ -391,10 +441,45 @@ export function useChat({ selectedModel } = {}) {
     }
 
     setSuggestions([]);
+    const pendingClarificationAnswer = pendingClarificationRef.current;
     await addChatMessage('user', message);
     setIsLoading(true);
 
     try {
+      if (pendingClarificationAnswer) {
+        const threadId = threadIdRef.current;
+        if (!threadId) throw new Error('Cannot resume clarification without an agent thread');
+
+        pendingClarificationRef.current = null;
+        setPendingClarification(null);
+        streamContentRef.current = '';
+        setStreamingContent('');
+        toolCallsRef.current = [];
+        setToolCalls([]);
+        subAgentTasksRef.current = [];
+        setSubAgentTasks([]);
+        pendingConfirmRef.current = null;
+
+        logger.info('agent.clarify', 'Resuming after clarification', { threadId });
+        await runAgentTurn('resume', {
+          threadId,
+          response: { answer: message, clarification: pendingClarificationAnswer },
+          config: buildConfig(),
+        });
+
+        if (pendingConfirmRef.current) {
+          logger.info('chat', 'Turn paused awaiting tool confirmation');
+          return null;
+        }
+        if (pendingClarificationRef.current) {
+          await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
+          return null;
+        }
+
+        await finalizeAssistantTurn({ isRemote });
+        return null;
+      }
+
       let actualMessage = message;
       const skillName = MODALITY_SKILL_MAP[modalityRef.current];
       if (skillName) actualMessage = `[Use skill: ${skillName}] ${message}`;
@@ -425,9 +510,12 @@ export function useChat({ selectedModel } = {}) {
         logger.info('chat', 'Turn paused awaiting tool confirmation');
         return null;
       }
+      if (pendingClarificationRef.current) {
+        await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
+        return null;
+      }
 
       await finalizeAssistantTurn({ isRemote });
-      setThreadTitle((prev) => prev || message.slice(0, 60));
     } catch (error) {
       logger.error('chat', 'Agent turn failed', { error: error?.message });
       await addChatMessage('assistant', `Error: ${error?.message || 'Unknown error'}`, true);
@@ -470,6 +558,10 @@ export function useChat({ selectedModel } = {}) {
 
       if (pendingConfirmRef.current) {
         // Another confirmation surfaced — stay paused.
+        return;
+      }
+      if (pendingClarificationRef.current) {
+        await finalizeAssistantTurn({ isRemote: false, skipSuggestions: true });
         return;
       }
       await finalizeAssistantTurn({ isRemote: false });
@@ -529,7 +621,11 @@ export function useChat({ selectedModel } = {}) {
       threadTitleRef.current = null;
       setPendingToolConfirmation(null);
       pendingConfirmRef.current = null;
+      setPendingClarification(null);
+      pendingClarificationRef.current = null;
       // New conversation → new agent thread.
+      if (threadIdRef.current) unregisterThread(threadIdRef.current);
+      chatPolicyRef.current = restrictivePolicy('chat');
       threadIdRef.current = null;
       activeStreamIdRef.current = null;
       setActiveThread(null);
@@ -553,6 +649,7 @@ export function useChat({ selectedModel } = {}) {
     toolCalls,
     subAgentTasks,
     pendingToolConfirmation,
+    pendingClarification,
     modality,
     setModality,
     suggestions,

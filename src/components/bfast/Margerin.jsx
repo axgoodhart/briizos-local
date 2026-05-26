@@ -25,9 +25,16 @@
 import { useCallback, useRef } from 'react';
 import {
   rotateSelectedIcon,
+  rotateMargerinLevel,
   setSelectedIcon,
   commitMargerin,
 } from '../../lib/bfast-queue';
+
+const LEVEL_LABEL = {
+  'ask-always': 'Ask always',
+  'ask-destructive': 'Ask destructive only',
+  'no-asking': 'No asking',
+};
 
 const ICON_ORDER = ['check', 'x', 'chat'];
 
@@ -44,8 +51,9 @@ const ICON_TITLE = {
 };
 
 function Margerin({ action }) {
-  const { id, label, selectedIcon } = action;
+  const { id, label, selectedIcon, levels, selectedLevel } = action;
   const wheelAccumRef = useRef(0);
+  const isLevelPicker = Array.isArray(levels) && levels.length > 0;
 
   const handleWheel = useCallback(
     (e) => {
@@ -57,11 +65,15 @@ function Margerin({ action }) {
       const threshold = 20;
       if (Math.abs(wheelAccumRef.current) >= threshold) {
         const direction = wheelAccumRef.current > 0 ? 1 : -1;
-        rotateSelectedIcon(id, direction);
+        if (isLevelPicker) {
+          rotateMargerinLevel(id, direction);
+        } else {
+          rotateSelectedIcon(id, direction);
+        }
         wheelAccumRef.current = 0;
       }
     },
-    [id],
+    [id, isLevelPicker],
   );
 
   const handlePillClick = useCallback(() => {
@@ -88,7 +100,12 @@ function Margerin({ action }) {
         onWheel={handleWheel}
         aria-label={`${label}. ${ICON_TITLE[selectedIcon]}. Scroll to change action.`}
       >
-        <span className="bfast-margerin-label">{label}</span>
+        <span className="bfast-margerin-label">
+          {label}
+          {isLevelPicker && (
+            <span className="bfast-margerin-level"> · {LEVEL_LABEL[selectedLevel] || selectedLevel}</span>
+          )}
+        </span>
         <span
           className={`bfast-margerin-icon bfast-margerin-icon--primary bfast-margerin-icon--${selectedIcon}`}
           aria-hidden="true"

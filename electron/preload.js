@@ -42,9 +42,11 @@ contextBridge.exposeInMainWorld('api', {
   // Agent Config API
   agentGetConfig: () => ipcRenderer.invoke('agent-get-config'),
   agentUpdateConfig: (partial) => ipcRenderer.invoke('agent-update-config', partial),
+  agentGetSurfacePolicy: (surface) => ipcRenderer.invoke('agent-get-surface-policy', surface),
 
   // Agent Filesystem API
   agentReadFile: (filePath, maxSize) => ipcRenderer.invoke('agent-fs-read', filePath, maxSize),
+  agentReadFileBase64: (filePath, maxSize) => ipcRenderer.invoke('agent-fs-read-base64', filePath, maxSize),
   agentWriteFile: (filePath, content, opId) => ipcRenderer.invoke('agent-fs-write', filePath, content, opId),
   agentDeleteFile: (filePath, opId) => ipcRenderer.invoke('agent-fs-delete', filePath, opId),
   agentMoveFile: (source, dest, opId) => ipcRenderer.invoke('agent-fs-move', source, dest, opId),
@@ -89,9 +91,6 @@ contextBridge.exposeInMainWorld('api', {
   checkApiKeys: () => ipcRenderer.invoke('models-check-api-keys'),
   isAIConfigured: () => ipcRenderer.invoke('ai-is-configured'),
 
-  // Direct AI API - Get API key for a provider (secure, main process only)
-  getApiKey: (provider) => ipcRenderer.invoke('get-api-key', provider),
-
   // Tool execution bridge
   executeTool: (toolName, params) => ipcRenderer.invoke('execute-tool', toolName, params),
 
@@ -106,7 +105,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // LangGraph Agent Backend API — the single AI execution path.
   // The renderer never talks to model providers directly; all chat
-  // flows through the Python DeerFlow/LangGraph agent via these.
+  // flows through the Electron in-process LangGraph agent via these.
   langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
   langgraphCreateThread: () => ipcRenderer.invoke('langgraph-create-thread'),
   langgraphStreamMessage: (streamId, threadId, message, config) =>
@@ -115,8 +114,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('langgraph-resume-run', streamId, threadId, response, config),
   langgraphSendMessage: (threadId, message, config) =>
     ipcRenderer.invoke('langgraph-send-message', threadId, message, config),
-  langgraphFetchSuggestions: (recentMessages, n, config) =>
-    ipcRenderer.invoke('langgraph-fetch-suggestions', recentMessages, n, config),
+  langgraphFetchSuggestions: (recentMessages, n, config, threadId) =>
+    ipcRenderer.invoke('langgraph-fetch-suggestions', recentMessages, n, config, threadId),
   // Push channel: every agent SSE event arrives here as
   // { streamId, type, payload }. Returns an unsubscribe function.
   onLanggraphStreamEvent: (callback) => {

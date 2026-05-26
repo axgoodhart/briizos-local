@@ -596,13 +596,34 @@ function MemoryTab({ isOpen }) {
   );
 }
 
+function _normalizeSurface(x) {
+  const src = x && typeof x === 'object' ? x : {};
+  const bl = src.blacklist || {};
+  return {
+    mode: ['ask-always', 'ask-destructive', 'no-asking'].includes(src.mode) ? src.mode : 'ask-always',
+    blacklist: {
+      paths: Array.isArray(bl.paths) ? bl.paths : [],
+      filetypes: Array.isArray(bl.filetypes) ? bl.filetypes : [],
+    },
+  };
+}
+
+const PERM_SURFACES = [
+  { key: 'chat', label: 'Chat', desc: 'Tools the agent uses while you chat with it (a human is present).' },
+  { key: 'task', label: 'Task agents', desc: 'Tools used by background task automation. Runs headless; a per-task request may choose a stricter level but can never exceed this.' },
+];
+
+const PERM_MODES = [
+  { value: 'ask-always', label: 'Ask always', desc: 'Confirm before every destructive tool (bash, file writes, mutations).' },
+  { value: 'ask-destructive', label: 'Ask destructive only', desc: 'Confirm only genuinely destructive operations; reversible UI actions pass.' },
+  { value: 'no-asking', label: 'No asking', desc: 'Execute destructive tools without confirmation (blacklist still blocks).' },
+];
+
 function PermissionsTab({ isOpen }) {
-  const [terminalMode, setTerminalMode] = useState('ask-always');
-  const [blacklistPaths, setBlacklistPaths] = useState([]);
-  const [blacklistFiletypes, setBlacklistFiletypes] = useState([]);
-  const [newPath, setNewPath] = useState('');
-  const [newFiletype, setNewFiletype] = useState('');
+  const EMPTY = { mode: 'ask-always', blacklist: { paths: [], filetypes: [] } };
+  const [perm, setPerm] = useState({ chat: EMPTY, task: EMPTY });
   const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState({ chat: { path: '', ft: '' }, task: { path: '', ft: '' } });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -613,209 +634,142 @@ function PermissionsTab({ isOpen }) {
     setLoading(true);
     try {
       const config = await window.api.agentGetConfig();
-      if (config?.terminal?.mode) {
-        setTerminalMode(config.terminal.mode);
-      }
-      if (config?.filesystem?.blacklist) {
-        setBlacklistPaths(config.filesystem.blacklist.paths || []);
-        setBlacklistFiletypes(config.filesystem.blacklist.filetypes || []);
-      }
+      const pcfg = config?.permissions || {};
+      setPerm({ chat: _normalizeSurface(pcfg.chat), task: _normalizeSurface(pcfg.task) });
     } catch (err) {
-      logger.error('config', 'Failed to load agent config', err?.message);
+      logger.error('config', 'Failed to load permissions', err?.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTerminalModeChange = async (mode) => {
-    setTerminalMode(mode);
+  const persist = async (next) => {
+    setPerm(next);
     try {
-      await window.api.agentUpdateConfig({ terminal: { mode } });
+      await window.api.agentUpdateConfig({ permissions: { chat: next.chat, task: next.task } });
     } catch (err) {
-      logger.error('config', 'Failed to update terminal mode', err?.message);
+      logger.error('config', 'Failed to save permissions', err?.message);
     }
   };
 
-  const handleAddPath = async () => {
-    const trimmed = newPath.trim();
-    if (!trimmed || blacklistPaths.includes(trimmed)) return;
-    const updated = [...blacklistPaths, trimmed];
-    setBlacklistPaths(updated);
-    setNewPath('');
-    try {
-      await window.api.agentUpdateConfig({
-        filesystem: { blacklist: { paths: updated, filetypes: blacklistFiletypes } }
-      });
-    } catch (err) {
-      logger.error('config', 'Failed to update blacklist paths', err?.message);
-    }
+  const setMode = (sk, mode) => persist({ ...perm, [sk]: { ...perm[sk], mode } });
+
+  const addPath = (sk) => {
+    const t = draft[sk].path.trim();
+    if (!t || perm[sk].blacklist.paths.includes(t)) return;
+    const next = { ...perm, [sk]: { ...perm[sk], blacklist: { ...perm[sk].blacklist, paths: [...perm[sk].blacklist.paths, t] } } };
+    setDraft((d) => ({ ...d, [sk]: { ...d[sk], path: '' } }));
+    persist(next);
   };
 
-  const handleRemovePath = async (path) => {
-    const updated = blacklistPaths.filter(p => p !== path);
-    setBlacklistPaths(updated);
-    try {
-      await window.api.agentUpdateConfig({
-        filesystem: { blacklist: { paths: updated, filetypes: blacklistFiletypes } }
-      });
-    } catch (err) {
-      logger.error('config', 'Failed to update blacklist paths', err?.message);
-    }
+  const removePath = (sk, pth) => {
+    const next = { ...perm, [sk]: { ...perm[sk], blacklist: { ...perm[sk].blacklist, paths: perm[sk].blacklist.paths.filter((x) => x !== pth) } } };
+    persist(next);
   };
 
-  const handleAddFiletype = async () => {
-    let trimmed = newFiletype.trim();
-    if (!trimmed) return;
-    if (!trimmed.startsWith('.')) trimmed = '.' + trimmed;
-    if (blacklistFiletypes.includes(trimmed)) return;
-    const updated = [...blacklistFiletypes, trimmed];
-    setBlacklistFiletypes(updated);
-    setNewFiletype('');
-    try {
-      await window.api.agentUpdateConfig({
-        filesystem: { blacklist: { paths: blacklistPaths, filetypes: updated } }
-      });
-    } catch (err) {
-      logger.error('config', 'Failed to update blacklist filetypes', err?.message);
-    }
+  const addFt = (sk) => {
+    let t = draft[sk].ft.trim();
+    if (!t) return;
+    if (!t.startsWith('.')) t = '.' + t;
+    if (perm[sk].blacklist.filetypes.includes(t)) return;
+    const next = { ...perm, [sk]: { ...perm[sk], blacklist: { ...perm[sk].blacklist, filetypes: [...perm[sk].blacklist.filetypes, t] } } };
+    setDraft((d) => ({ ...d, [sk]: { ...d[sk], ft: '' } }));
+    persist(next);
   };
 
-  const handleRemoveFiletype = async (ft) => {
-    const updated = blacklistFiletypes.filter(f => f !== ft);
-    setBlacklistFiletypes(updated);
-    try {
-      await window.api.agentUpdateConfig({
-        filesystem: { blacklist: { paths: blacklistPaths, filetypes: updated } }
-      });
-    } catch (err) {
-      logger.error('config', 'Failed to update blacklist filetypes', err?.message);
-    }
+  const removeFt = (sk, ft) => {
+    const next = { ...perm, [sk]: { ...perm[sk], blacklist: { ...perm[sk].blacklist, filetypes: perm[sk].blacklist.filetypes.filter((x) => x !== ft) } } };
+    persist(next);
   };
 
   if (loading) {
     return <div className="settings-loading">Loading permissions...</div>;
   }
 
-  const terminalModes = [
-    { value: 'ask-always', label: 'Ask always', desc: 'Prompt for confirmation before every terminal command.' },
-    { value: 'ask-destructive', label: 'Ask destructive only', desc: 'Only ask for commands that could modify or delete data.' },
-    { value: 'no-asking', label: 'No asking', desc: 'Execute all commands without confirmation.' }
-  ];
-
   return (
     <div className="settings-section">
-      {/* Terminal Mode */}
-      <h3 className="settings-section-title">Terminal Mode</h3>
-      <div className="settings-field">
-        <div className="settings-radio-group">
-          {terminalModes.map(m => (
-            <label className="settings-radio" key={m.value}>
-              <input
-                type="radio"
-                name="terminal-mode"
-                value={m.value}
-                checked={terminalMode === m.value}
-                onChange={() => handleTerminalModeChange(m.value)}
-              />
-              <span className="radio-label">{m.label}</span>
-              <span className="radio-desc">{m.desc}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="settings-divider" />
-
-      {/* Filesystem Blacklist — Paths */}
-      <h3 className="settings-section-title">Filesystem Blacklist &mdash; Paths</h3>
-      <div className="settings-field">
-        <p className="settings-hint" style={{ fontStyle: 'normal' }}>
-          The agent will be prevented from reading or modifying these paths.
-        </p>
-        <div className="dashboard-blacklist-table">
-          {blacklistPaths.length === 0 ? (
-            <p className="settings-hint">No blocked paths.</p>
-          ) : (
-            blacklistPaths.map(path => (
-              <div className="dashboard-blacklist-row" key={path}>
-                <span className="dashboard-blacklist-value">{path}</span>
-                <button
-                  className="dashboard-blacklist-remove"
-                  onClick={() => handleRemovePath(path)}
-                  type="button"
-                  title="Remove"
-                >
-                  &times;
-                </button>
+      <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+        Two independent permission policies. The agent cannot bypass these.
+        <strong> Task agents</strong> run headless &mdash; if a tool needs
+        confirmation the run can&rsquo;t grant, that task pauses for you.
+      </p>
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+        {PERM_SURFACES.map((sf) => {
+          const cur = perm[sf.key];
+          return (
+            <div key={sf.key} style={{ flex: 1, minWidth: 0 }}>
+              <h3 className="settings-section-title">{sf.label}</h3>
+              <p className="settings-hint">{sf.desc}</p>
+              <div className="settings-radio-group">
+                {PERM_MODES.map((m) => (
+                  <label className="settings-radio" key={m.value}>
+                    <input
+                      type="radio"
+                      name={`perm-mode-${sf.key}`}
+                      value={m.value}
+                      checked={cur.mode === m.value}
+                      onChange={() => setMode(sf.key, m.value)}
+                    />
+                    <span className="radio-label">{m.label}</span>
+                    <span className="radio-desc">{m.desc}</span>
+                  </label>
+                ))}
               </div>
-            ))
-          )}
-        </div>
-        <div className="settings-input-group">
-          <input
-            type="text"
-            className="settings-input"
-            value={newPath}
-            onChange={(e) => setNewPath(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAddPath(); }}
-            placeholder="/path/to/block"
-          />
-          <button
-            className="settings-btn settings-btn-connect"
-            onClick={handleAddPath}
-            disabled={!newPath.trim()}
-            type="button"
-          >
-            Add
-          </button>
-        </div>
-      </div>
 
-      <div className="settings-divider" />
-
-      {/* Filesystem Blacklist — Filetypes */}
-      <h3 className="settings-section-title">Filesystem Blacklist &mdash; File Types</h3>
-      <div className="settings-field">
-        <p className="settings-hint" style={{ fontStyle: 'normal' }}>
-          The agent will be prevented from reading or modifying files with these extensions.
-        </p>
-        <div className="dashboard-blacklist-table">
-          {blacklistFiletypes.length === 0 ? (
-            <p className="settings-hint">No blocked file types.</p>
-          ) : (
-            blacklistFiletypes.map(ft => (
-              <div className="dashboard-blacklist-row" key={ft}>
-                <span className="dashboard-blacklist-value">{ft}</span>
-                <button
-                  className="dashboard-blacklist-remove"
-                  onClick={() => handleRemoveFiletype(ft)}
-                  type="button"
-                  title="Remove"
-                >
-                  &times;
-                </button>
+              <div className="settings-divider" />
+              <h3 className="settings-section-title">Blacklist &mdash; Paths</h3>
+              <div className="dashboard-blacklist-table">
+                {cur.blacklist.paths.length === 0 ? (
+                  <p className="settings-hint">No blocked paths.</p>
+                ) : (
+                  cur.blacklist.paths.map((pth) => (
+                    <div className="dashboard-blacklist-row" key={pth}>
+                      <span className="dashboard-blacklist-value">{pth}</span>
+                      <button className="dashboard-blacklist-remove" type="button" onClick={() => removePath(sf.key, pth)} title="Remove">&times;</button>
+                    </div>
+                  ))
+                )}
               </div>
-            ))
-          )}
-        </div>
-        <div className="settings-input-group">
-          <input
-            type="text"
-            className="settings-input"
-            value={newFiletype}
-            onChange={(e) => setNewFiletype(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAddFiletype(); }}
-            placeholder=".pem"
-          />
-          <button
-            className="settings-btn settings-btn-connect"
-            onClick={handleAddFiletype}
-            disabled={!newFiletype.trim()}
-            type="button"
-          >
-            Add
-          </button>
-        </div>
+              <div className="settings-input-group">
+                <input
+                  type="text"
+                  className="settings-input"
+                  value={draft[sf.key].path}
+                  onChange={(e) => setDraft((d) => ({ ...d, [sf.key]: { ...d[sf.key], path: e.target.value } }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addPath(sf.key); }}
+                  placeholder="/path/to/block"
+                />
+                <button className="settings-btn settings-btn-connect" type="button" onClick={() => addPath(sf.key)} disabled={!draft[sf.key].path.trim()}>Add</button>
+              </div>
+
+              <div className="settings-divider" />
+              <h3 className="settings-section-title">Blacklist &mdash; File Types</h3>
+              <div className="dashboard-blacklist-table">
+                {cur.blacklist.filetypes.length === 0 ? (
+                  <p className="settings-hint">No blocked file types.</p>
+                ) : (
+                  cur.blacklist.filetypes.map((ft) => (
+                    <div className="dashboard-blacklist-row" key={ft}>
+                      <span className="dashboard-blacklist-value">{ft}</span>
+                      <button className="dashboard-blacklist-remove" type="button" onClick={() => removeFt(sf.key, ft)} title="Remove">&times;</button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="settings-input-group">
+                <input
+                  type="text"
+                  className="settings-input"
+                  value={draft[sf.key].ft}
+                  onChange={(e) => setDraft((d) => ({ ...d, [sf.key]: { ...d[sf.key], ft: e.target.value } }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addFt(sf.key); }}
+                  placeholder=".pem"
+                />
+                <button className="settings-btn settings-btn-connect" type="button" onClick={() => addFt(sf.key)} disabled={!draft[sf.key].ft.trim()}>Add</button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

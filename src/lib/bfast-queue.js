@@ -113,7 +113,7 @@ function _emitChatReturn(payload) {
  * tool confirmation is owned by the Python middleware). It remains the
  * general imperative toast/snackbar mechanism for the rest of the UI.
  */
-export function enqueueMargerin({ toolName, params, label }) {
+export function enqueueMargerin({ toolName, params, label, levels = null, selectedLevel = null }) {
   return new Promise((resolve, reject) => {
     const id = _nextId();
     _update((s) => ({
@@ -127,6 +127,12 @@ export function enqueueMargerin({ toolName, params, label }) {
           params,
           label,
           selectedIcon: 'check',
+          // Optional level picker: when `levels` is a non-empty array the
+          // Margerin renders the current level and the scroll wheel
+          // rotates it (instead of the icon). ✓ then resolves with the
+          // chosen level. Used by per-task permission holds.
+          levels: Array.isArray(levels) && levels.length > 0 ? levels : null,
+          selectedLevel: selectedLevel || (Array.isArray(levels) && levels.length > 0 ? levels[levels.length - 1] : null),
           createdAt: Date.now(),
           _resolve: resolve,
           _reject: reject,
@@ -134,6 +140,25 @@ export function enqueueMargerin({ toolName, params, label }) {
       ],
     }));
   });
+}
+
+/**
+ * Rotate the selected level on a level-picker margerin. No-op for
+ * plain (icon-only) margerins.
+ */
+export function rotateMargerinLevel(id, direction) {
+  _update((s) => ({
+    ...s,
+    actions: s.actions.map((a) => {
+      if (a.id !== id || a.kind !== 'margerin' || !a.levels) return a;
+      const i = a.levels.indexOf(a.selectedLevel);
+      const safeI = i === -1 ? 0 : i;
+      const next = direction > 0
+        ? a.levels[(safeI + 1) % a.levels.length]
+        : a.levels[(safeI - 1 + a.levels.length) % a.levels.length];
+      return { ...a, selectedLevel: next };
+    }),
+  }));
 }
 
 /**
@@ -185,7 +210,7 @@ export function commitMargerin(id, icon = null) {
   }));
 
   if (chosen === 'check') {
-    action._resolve({ __approved: true });
+    action._resolve({ __approved: true, level: action.levels ? action.selectedLevel : null });
   } else if (chosen === 'x') {
     action._reject(new Error('Action cancelled by user'));
   } else if (chosen === 'chat') {

@@ -175,8 +175,33 @@ const tools = {
     },
   },
 
-  agentWriteFile: {
+  agentReadFileBase64: {
     requiresConfirmation: false,
+    description: 'Read a binary file from the filesystem as base64',
+    parameters: {
+      path: { type: 'string', description: 'Absolute path to the file' },
+      maxSize: { type: 'number', description: 'Maximum bytes to read', optional: true },
+    },
+    handler: async (params) => {
+      const { isPathBlacklisted } = await import('./permissions.js');
+      const config = await window.api.agentGetConfig();
+      if (isPathBlacklisted(params.path, config?.filesystem?.blacklist)) {
+        return { error: `Blocked: "${params.path}" is blacklisted` };
+      }
+      const result = await window.api.agentReadFileBase64(params.path, params.maxSize);
+      if (result.error) return { success: false, message: result.error };
+      return {
+        success: true,
+        message: `Read binary: ${result.path} (${result.totalSize} bytes)`,
+        base64: result.base64,
+        totalSize: result.totalSize,
+        path: result.path,
+      };
+    },
+  },
+
+  agentWriteFile: {
+    requiresConfirmation: true,
     description: 'Write content to a file (creates or overwrites)',
     parameters: {
       path: { type: 'string', description: 'Absolute path to write to' },
@@ -236,8 +261,8 @@ const tools = {
   },
 
   agentCopyFile: {
-    requiresConfirmation: false,
-    description: 'Copy a file or directory (non-destructive)',
+    requiresConfirmation: true,
+    description: 'Copy a file or directory (may create or overwrite files)',
     parameters: {
       source: { type: 'string', description: 'Source path' },
       destination: { type: 'string', description: 'Destination path' },

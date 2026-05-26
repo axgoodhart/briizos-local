@@ -176,6 +176,7 @@ function InteractionPanel() {
     toolCalls,
     subAgentTasks,
     pendingToolConfirmation,
+    pendingClarification,
     modality,
     setModality,
     suggestions,
@@ -411,14 +412,46 @@ function InteractionPanel() {
       <div className="panel-header" id="chat-header">
         <span
           className="chat-header-label"
-          onClick={() => setShowBgPicker(!showBgPicker)}
-          onMouseDown={(e) => e.stopPropagation()}
-          onDragStart={(e) => e.preventDefault()}
-          title="Change chat background"
-          style={{ cursor: 'pointer' }}
+
         >
-          Chat
+          
         </span>
+        {!modelsLoading && models.length > 0 && (
+          <div className="chat-input-toolbar" style={{ display: 'flex', alignItems: 'center', padding: '4px 8px 0', gap: '8px' }}>
+            <ModelPicker
+              models={models}
+              modelsByProvider={modelsByProvider}
+              selectedModel={selectedModel}
+              selectModel={selectModel}
+              isModelAvailable={isModelAvailable}
+              apiKeyStatus={apiKeyStatus}
+            />
+            <div className="modality-selector" style={{ display: 'flex', gap: '4%' }}>
+              {MODALITIES.map(m => (
+                <button
+                  key={m.id}
+                  className={`modality-chip ${modality === m.id ? 'active' : ''}`}
+                  onClick={() => setModality(m.id)}
+                  title={`${m.label} mode`}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '10px',
+                    fontWeight: modality === m.id ? 600 : 400,
+                    border: `1px solid ${modality === m.id ? 'rgba(0, 200, 200, 0.5)' : 'rgba(255,255,255,0.15)'}`,
+                    borderRadius: '12px',
+                    background: modality === m.id ? 'rgba(0, 200, 200, 0.15)' : 'transparent',
+                    color: modality === m.id ? 'var(--palette-accent-cyan-soft, #7dd3fc)' : 'rgba(255,255,255,0.5)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
 
                 {threadTitle && (
           <div ref={threadTitleRef} className="chat-thread-title">{threadTitle}</div>
@@ -429,32 +462,40 @@ function InteractionPanel() {
           <span className="provider-indicator" title={`${providerLabel} / ${currentSettings.model}`}>
             {providerLabel}
           </span>
+          <button 
+            className="panel-header-btn interaction-header-icon interaction-bg-picker-btn"
+            onClick={() => setShowBgPicker(!showBgPicker)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDragStart={(e) => e.preventDefault()}
+            title="Change chat background"
+            style={{ cursor: 'pointer' }}
+          >􀌆</button>
           <button
-            className={`panel-header-btn ${suggestionsEnabled ? '' : 'disabled-indicator'}`}
+            className={`panel-header-btn interaction-header-icon interaction-suggestions-btn ${suggestionsEnabled ? '' : 'disabled-indicator'}`}
             onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
             title={suggestionsEnabled
               ? 'Follow-up suggestions: ON (click to disable)'
               : 'Follow-up suggestions: OFF (click to enable)'}
             aria-pressed={suggestionsEnabled}
-            style={{ fontSize: '10px', opacity: suggestionsEnabled ? 0.8 : 0.4 }}
+            style={{ opacity: suggestionsEnabled ? 0.8 : 0.4 }}
           >
-            ?
+            􀌴
           </button>
           {messages.length > 0 && (
             <>
               <button
-                className="panel-header-btn"
+                className="panel-header-btn interaction-header-icon interaction-collapse-btn"
                 onClick={() => setCollapsed(!collapsed)}
                 title={collapsed ? 'Expand' : 'Collapse'}
               >
-                {collapsed ? '▼' : '▲'}
+                {collapsed ? '􀁍' : '􀁎'}
               </button>
               <button
-                className="panel-header-btn"
+                className="panel-header-btn interaction-header-icon interaction-clear-btn"
                 onClick={handleClearHistory}
                 title="Clear chat"
               >
-                ×
+                ♻
               </button>
             </>
           )}
@@ -522,8 +563,8 @@ function InteractionPanel() {
                 onChange={(e) => setChatBgBlur(parseInt(e.target.value))}
               />
             </div>
-          </div>
-        )}
+          </div>)}
+
 
         {showWelcome ? (
           <>
@@ -769,6 +810,32 @@ function InteractionPanel() {
         </div>
       )}
 
+      {/* Clarification Bar */}
+      {pendingClarification && !pendingToolConfirmation && (
+        <div className="lg-status-bar" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#93c5fd',
+          background: 'rgba(59, 130, 246, 0.08)',
+          borderTop: '1px solid rgba(59, 130, 246, 0.2)',
+        }}>
+          <span style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: '#93c5fd',
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }} />
+          <span style={{ flex: 1, lineHeight: '1.3' }}>
+            <strong>Clarify:</strong> {pendingClarification.question}
+          </span>
+        </div>
+      )}
+
       {/* Tool Confirmation Bar */}
       {pendingToolConfirmation && (
         <div className="lg-status-bar" style={{
@@ -862,46 +929,17 @@ function InteractionPanel() {
 
       {/* Input Area */}
       <div className="chat-input-area">
-        {!modelsLoading && models.length > 0 && (
-          <div className="chat-input-toolbar" style={{ display: 'flex', alignItems: 'center', padding: '4px 8px 0', gap: '8px' }}>
-            <ModelPicker
-              models={models}
-              modelsByProvider={modelsByProvider}
-              selectedModel={selectedModel}
-              selectModel={selectModel}
-              isModelAvailable={isModelAvailable}
-              apiKeyStatus={apiKeyStatus}
-            />
-            <div className="modality-selector" style={{ display: 'flex', gap: '2px', marginLeft: 'auto' }}>
-              {MODALITIES.map(m => (
-                <button
-                  key={m.id}
-                  className={`modality-chip ${modality === m.id ? 'active' : ''}`}
-                  onClick={() => setModality(m.id)}
-                  title={`${m.label} mode`}
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: '10px',
-                    fontWeight: modality === m.id ? 600 : 400,
-                    border: `1px solid ${modality === m.id ? 'rgba(0, 200, 200, 0.5)' : 'rgba(255,255,255,0.15)'}`,
-                    borderRadius: '12px',
-                    background: modality === m.id ? 'rgba(0, 200, 200, 0.15)' : 'transparent',
-                    color: modality === m.id ? 'var(--palette-accent-cyan-soft, #7dd3fc)' : 'rgba(255,255,255,0.5)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         <div className="chat-input-wrapper">
           <textarea
             ref={textareaRef}
             className="chat-textarea"
-            placeholder={!lgReady ? 'Waiting for AI backend...' : filesInContext.length > 0 ? `Ask about ${filesInContext.length} file(s)...` : "Ask anything (\u2318+Enter)"}
+            placeholder={!lgReady
+              ? 'Waiting for AI backend...'
+              : pendingClarification
+                ? 'Answer the clarification...'
+                : filesInContext.length > 0
+                  ? `Ask about ${filesInContext.length} file(s)...`
+                  : "Ask anything (\u2318+Enter)"}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
