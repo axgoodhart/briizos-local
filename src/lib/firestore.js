@@ -3,7 +3,7 @@
  * Syncs with briizOS-Dev's Firebase collections
  *
  * Collection Structure (matches web app):
- * - users/{uid}/panels          (notes, type='note')
+ * - users/{uid}/panels          (panel/window render state only)
  * - users/{uid}/tasks           (tasks)
  * - users/{uid}/events          (schedule events)
  * - users/{uid}/organizer       (projects, type='project')
@@ -35,6 +35,7 @@ import {
 import { db, ensureAuth, getCurrentUid } from './firebase';
 import logger from './logger';
 import { taskAdapter, organizerAdapter, calendarAdapter, noteAdapter } from './syncAdapters';
+import { readBriizSyncState, prepareBriizSyncWrite } from './briizSyncCore';
 
 // =====================
 // HELPER FUNCTIONS
@@ -48,6 +49,17 @@ function removeUndefined(obj) {
     }
   }
   return cleaned;
+}
+
+async function applySyncOps(ops) {
+  for (const op of ops) {
+    const ref = doc(db, op.path);
+    if (op.kind === 'delete') {
+      await deleteDoc(ref);
+    } else {
+      await setDoc(ref, op.data, op.options || { merge: true });
+    }
+  }
 }
 
 function generateId() {
@@ -298,12 +310,12 @@ function hslToHex(hsl) {
 }
 
 // =====================
-// NOTES FUNCTIONS (panels collection, type='note')
+// NOTES FUNCTIONS (organizer-backed notes + linked panel/window state)
 // =====================
 
 /**
  * Subscribe to notes in real-time
- * Reads from panels collection where type === 'note'
+ * Reads organizer notes as data and panels only as linked render state.
  */
 export function subscribeNotes(callback) {
   const uid = getCurrentUid();
@@ -312,37 +324,53 @@ export function subscribeNotes(callback) {
     return () => {};
   }
 
-  const { panelsCol } = getUserCollections(uid);
+  const { panelsCol, organizerCol } = getUserCollections(uid);
+  let panelDocs = [];
+  let organizerDocs = [];
 
-  // Subscribe to full panels collection (matches web app — no where/orderBy)
-  // Filter to notes client-side
-  return onSnapshot(panelsCol, (snapshot) => {
-    const notes = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.type !== 'note') return; // client-side filter
-      const n = noteAdapter.normalizeOnRead(docSnap.id, data);
-      notes.push({
-        id: n.id,
-        title: n.title,
-        content: n.body,
-        color: readCustomColor(n.customColor, data.color || '#fef08a'),
-        position_x: n.position_x,
-        position_y: n.position_y,
-        width: n.width,
-        height: n.height,
-        is_pinned: n.active ? 1 : 0,
-        is_docked: n.isDocked ? 1 : 0,
-        created: toISO(n.createdAt),
-        updated: toISO(n.updatedAt),
-      });
+  const emit = () => {
+    const view = readBriizSyncState({ platform: 'local', organizerDocs, panelDocs });
+    const byOrgId = new Map(view.renderablePanels.map(panel => [String(panel.orgId), panel]));
+    const notes = view.notes.map(item => {
+      const panel = byOrgId.get(String(item.id)) || {};
+      return {
+        id: panel.id || item.panelId || item.id,
+        orgId: item.id,
+        title: item.title || '',
+        content: item.body || '',
+        color: readCustomColor(item.customColor, '#fef08a'),
+        position_x: panel.x ?? 100,
+        position_y: panel.y ?? 100,
+        width: panel.w ?? 250,
+        height: panel.h ?? 200,
+        is_pinned: panel.active !== false ? 1 : 0,
+        is_docked: panel.isDocked !== false ? 1 : 0,
+        created: toISO(item.createdAt),
+        updated: toISO(item.updatedAt || panel.updatedAt),
+      };
     });
-    // Sort client-side by updatedAt descending
     notes.sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
     callback(notes);
+  };
+
+  const unsubPanels = onSnapshot(panelsCol, (snapshot) => {
+    panelDocs = snapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() }));
+    emit();
   }, (error) => {
-    logger.error('firestore', 'Notes subscription error', error?.message);
+    logger.error('firestore', 'Notes panel subscription error', error?.message);
   });
+
+  const unsubOrganizer = onSnapshot(organizerCol, (snapshot) => {
+    organizerDocs = snapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() }));
+    emit();
+  }, (error) => {
+    logger.error('firestore', 'Notes organizer subscription error', error?.message);
+  });
+
+  return () => {
+    try { unsubPanels(); } catch {}
+    try { unsubOrganizer(); } catch {}
+  };
 }
 
 /**
@@ -352,28 +380,31 @@ export async function getNotes() {
   const user = await ensureAuth();
   if (!user) return [];
 
-  const { panelsCol } = getUserCollections(user.uid);
-  const snapshot = await getDocs(panelsCol);
-
-  const notes = [];
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    if (data.type !== 'note') return; // client-side filter
-    const n = noteAdapter.normalizeOnRead(docSnap.id, data);
-    notes.push({
-      id: n.id,
-      title: n.title,
-      content: n.body,
-      color: readCustomColor(n.customColor, data.color || '#fef08a'),
-      position_x: n.position_x,
-      position_y: n.position_y,
-      width: n.width,
-      height: n.height,
-      is_pinned: n.active ? 1 : 0,
-      is_docked: n.isDocked ? 1 : 0,
-      created: toISO(n.createdAt),
-      updated: toISO(n.updatedAt),
-    });
+  const { panelsCol, organizerCol } = getUserCollections(user.uid);
+  const [panelSnapshot, organizerSnapshot] = await Promise.all([getDocs(panelsCol), getDocs(organizerCol)]);
+  const view = readBriizSyncState({
+    platform: 'local',
+    panelDocs: panelSnapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() })),
+    organizerDocs: organizerSnapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() })),
+  });
+  const byOrgId = new Map(view.renderablePanels.map(panel => [String(panel.orgId), panel]));
+  const notes = view.notes.map(item => {
+    const panel = byOrgId.get(String(item.id)) || {};
+    return {
+      id: panel.id || item.panelId || item.id,
+      orgId: item.id,
+      title: item.title || '',
+      content: item.body || '',
+      color: readCustomColor(item.customColor, '#fef08a'),
+      position_x: panel.x ?? 100,
+      position_y: panel.y ?? 100,
+      width: panel.w ?? 250,
+      height: panel.h ?? 200,
+      is_pinned: panel.active !== false ? 1 : 0,
+      is_docked: panel.isDocked !== false ? 1 : 0,
+      created: toISO(item.createdAt),
+      updated: toISO(item.updatedAt || panel.updatedAt),
+    };
   });
 
   notes.sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
@@ -383,69 +414,106 @@ export async function getNotes() {
 /**
  * Add or update a note.
  *
- * On create, also mints a linked organizer item so the note shows up in the
- * Organizer on briizOS.Web (which expects every panel to be backed by an
- * organizer entry, via bidirectional orgId ↔ panelId). Without this link,
- * local-created notes show up on web as "uncategorized" panels.
+ * On create, also mints a linked organizer item so every panel has an
+ * organizer source record via bidirectional orgId ↔ panelId.
  */
 export async function upsertNote(noteData) {
   const user = await ensureAuth();
   if (!user) return null;
 
-  const { panelsCol, organizerCol } = getUserCollections(user.uid);
+  const { panelsCol } = getUserCollections(user.uid);
   const noteId = noteData.id || generateId();
-
   const isNew = !noteData.id;
   const now = Date.now();
-
-  // Create a paired organizer item for new notes (matches web createNewPanel flow).
-  // Done before the panel write so we can stamp orgId onto the panel doc in one go.
   let orgId = noteData.orgId;
-  if (isNew && !orgId) {
-    try {
-      orgId = await addOrganizerItem({
-        type: 'note',
-        name: noteData.title || 'New Note',
-        tags: [],
-        source: { mode: 'panel' },
-        dateMode: 'created',
-        panelType: 'note',
-        panelId: noteId,
-      });
-    } catch (e) {
-      logger.warn('firestore', 'Failed to create paired organizer item for note', e?.message);
-    }
+  if (!isNew && !orgId) {
+    const existingPanel = await getDoc(doc(panelsCol, noteId));
+    orgId = existingPanel.exists() ? existingPanel.data()?.orgId : null;
   }
 
-  const firestoreData = noteAdapter.prepareForWrite(removeUndefined({
-    id: noteId,
-    type: 'note',
+  if (isNew) {
+    orgId = orgId || `itm_${now}_${Math.random().toString(36).slice(2, 7)}`;
+    await applySyncOps(prepareBriizSyncWrite({
+      uid: user.uid,
+      entity: 'note',
+      action: 'create',
+      platform: 'local',
+      itemId: orgId,
+      panelId: noteId,
+      panelType: 'note',
+      now,
+      serverTimestamp,
+      data: {
+        type: 'note',
+        title: noteData.title || 'New Note',
+        body: noteData.content || '',
+        customColor: noteData.color !== undefined ? hexToHsl(noteData.color) : null,
+        tags: [],
+        status: 'todo',
+        active: true,
+        isDocked: noteData.is_docked !== undefined ? (noteData.is_docked === 1) : true,
+        xywh: {
+          x: noteData.position_x ?? 100,
+          y: noteData.position_y ?? 100,
+          w: noteData.width ?? 250,
+          h: noteData.height ?? 200,
+        },
+        source: { mode: 'panel' },
+        createdAt: now,
+      },
+    }));
+    return noteId;
+  }
+
+  if (!orgId) {
+    logger.warn('firestore', 'Blocked note update without organizer link', { noteId });
+    return noteId;
+  }
+
+  const notePatch = removeUndefined({
     title: noteData.title,
     body: noteData.content,
-    // Only write these fields when they are explicitly provided so partial
-    // updates don't clobber existing values on merge.
     customColor: noteData.color !== undefined ? hexToHsl(noteData.color) : undefined,
-    position_x: noteData.position_x,
-    position_y: noteData.position_y,
-    width: noteData.width,
-    height: noteData.height,
-    isDocked: noteData.is_docked !== undefined ? (noteData.is_docked === 1) : undefined,
-    // Web-compat scaffolding — only stamped on first create so merges don't wipe.
-    orgId: isNew ? (orgId || null) : undefined,
-    active: isNew
-      ? true
-      : (noteData.is_pinned !== undefined ? (noteData.is_pinned === 1) : undefined),
-    tags: isNew ? [] : undefined,
-    chat: isNew ? null : undefined,
-    externalUrl: isNew ? '' : undefined,
-    externalShowUrl: isNew ? false : undefined,
-    externalData: isNew ? null : undefined,
-    autoHeight: isNew ? true : undefined,
-    expansionCount: isNew ? 0 : undefined,
-    createdAt: isNew ? now : undefined,
-  }), isNew);
+  });
+  if (Object.keys(notePatch).length) {
+    await applySyncOps(prepareBriizSyncWrite({
+      uid: user.uid,
+      entity: 'note',
+      action: 'update',
+      itemId: orgId,
+      serverTimestamp,
+      data: notePatch,
+    }));
+  }
 
-  await setDoc(doc(panelsCol, noteId), firestoreData, { merge: true });
+  const panelPatch = removeUndefined({
+    active: noteData.is_pinned !== undefined ? (noteData.is_pinned === 1) : undefined,
+    isDocked: noteData.is_docked !== undefined ? (noteData.is_docked === 1) : undefined,
+    xywh: (
+      noteData.position_x !== undefined ||
+      noteData.position_y !== undefined ||
+      noteData.width !== undefined ||
+      noteData.height !== undefined
+    ) ? {
+      x: noteData.position_x,
+      y: noteData.position_y,
+      w: noteData.width,
+      h: noteData.height,
+    } : undefined,
+  });
+  if (Object.keys(panelPatch).length) {
+    await applySyncOps(prepareBriizSyncWrite({
+      uid: user.uid,
+      entity: 'panel',
+      action: 'update',
+      platform: 'local',
+      itemId: orgId,
+      panelId: noteId,
+      panelType: 'note',
+      serverTimestamp,
+      data: panelPatch,
+    }));
+  }
   return noteId;
 }
 
@@ -461,7 +529,7 @@ export async function deleteNote(noteId) {
   const user = await ensureAuth();
   if (!user) return false;
 
-  const { panelsCol, organizerCol } = getUserCollections(user.uid);
+  const { panelsCol } = getUserCollections(user.uid);
   const panelRef = doc(panelsCol, noteId);
 
   // Grab orgId before the delete so we can clean up the paired item.
@@ -475,16 +543,19 @@ export async function deleteNote(noteId) {
     logger.warn('firestore', 'deleteNote: failed to read panel before delete', e?.message);
   }
 
-  await deleteDoc(panelRef);
-
-  if (orgId) {
-    try {
-      await deleteDoc(doc(organizerCol, orgId));
-    } catch (e) {
-      logger.warn('firestore', 'deleteNote: failed to delete paired organizer item', e?.message);
-    }
+  if (!orgId) {
+    logger.warn('firestore', 'deleteNote: panel had no organizer link; deleting panel only', { noteId });
+    await deleteDoc(panelRef);
+    return true;
   }
 
+  await applySyncOps(prepareBriizSyncWrite({
+    uid: user.uid,
+    entity: 'note',
+    action: 'delete',
+    itemId: orgId,
+    panelId: noteId,
+  }));
   return true;
 }
 
