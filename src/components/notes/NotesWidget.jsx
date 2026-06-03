@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { subscribeNotes, upsertNote, deleteNote as deleteNoteFirestore } from '../../lib/firestore';
 import { ensureAuth } from '../../lib/firebase';
 import { computeFloatingShellChrome } from '../../lib/floatingShell';
@@ -33,6 +33,14 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
   const MIN_NOTE_HEIGHT = 170;
   const MIN_DRAWER_WIDTH = 240;
   const MIN_DRAWER_HEIGHT = 300;
+  const TEXT_SAVE_DEBOUNCE_MS = 10_000;
+  const REMOTE_REFRESH_DEBOUNCE_MS = 10_000;
+
+  const isEditingTextRef = useRef(false);
+  const pendingRemoteNotesRef = useRef(null);
+  const remoteRefreshTimerRef = useRef(null);
+  const pendingTextSavesRef = useRef(new Map());
+  const textSaveTimersRef = useRef(new Map());
 
   const colors = ['#fef08a', '#a5f3fc', '#f0abfc', '#86efac', '#fca5a5', '#93c5fd'];
 
@@ -47,6 +55,117 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     return computeFloatingShellChrome(rect);
   }, [drawerPos, drawerSize]);
 
+  const transformFirebaseNotes = useCallback((firebaseNotes) => firebaseNotes.map(note => ({
+    id: note.id,
+    title: note.title || '',
+    content: note.content || '',
+    color: note.color || '#fef08a',
+    floating: !note.is_docked,
+    x: note.position_x || 100,
+    y: note.position_y || 100,
+    width: Math.max(note.width || 250, MIN_NOTE_WIDTH),
+    height: Math.max(note.height || 200, MIN_NOTE_HEIGHT)
+  })), []);
+
+  const applyPendingRemoteNotes = useCallback(() => {
+    if (remoteRefreshTimerRef.current) {
+      clearTimeout(remoteRefreshTimerRef.current);
+      remoteRefreshTimerRef.current = null;
+    }
+
+    if (isEditingTextRef.current) {
+      remoteRefreshTimerRef.current = setTimeout(applyPendingRemoteNotes, REMOTE_REFRESH_DEBOUNCE_MS);
+      return;
+    }
+
+    const pending = pendingRemoteNotesRef.current;
+    if (!pending) return;
+    pendingRemoteNotesRef.current = null;
+    setNotes(pending);
+    setLoading(false);
+  }, []);
+
+  const schedulePendingRemoteApply = useCallback(() => {
+    if (!pendingRemoteNotesRef.current) return;
+    if (remoteRefreshTimerRef.current) clearTimeout(remoteRefreshTimerRef.current);
+    remoteRefreshTimerRef.current = setTimeout(applyPendingRemoteNotes, REMOTE_REFRESH_DEBOUNCE_MS);
+  }, [applyPendingRemoteNotes]);
+
+  const queueIncomingNotes = useCallback((firebaseNotes) => {
+    const transformed = transformFirebaseNotes(firebaseNotes);
+    if (isEditingTextRef.current) {
+      pendingRemoteNotesRef.current = transformed;
+      schedulePendingRemoteApply();
+      setLoading(false);
+      return;
+    }
+
+    if (remoteRefreshTimerRef.current) {
+      clearTimeout(remoteRefreshTimerRef.current);
+      remoteRefreshTimerRef.current = null;
+    }
+    pendingRemoteNotesRef.current = null;
+    setNotes(transformed);
+    setLoading(false);
+  }, [schedulePendingRemoteApply, transformFirebaseNotes]);
+
+  const buildFirestoreUpdates = useCallback((id, updates) => ({
+    id,
+    ...(updates.title !== undefined && { title: updates.title }),
+    ...(updates.content !== undefined && { content: updates.content }),
+    ...(updates.color !== undefined && { color: updates.color }),
+    ...(updates.floating !== undefined && { is_docked: updates.floating ? 0 : 1 }),
+    ...(updates.x !== undefined && { position_x: updates.x }),
+    ...(updates.y !== undefined && { position_y: updates.y }),
+    ...(updates.width !== undefined && { width: updates.width }),
+    ...(updates.height !== undefined && { height: updates.height })
+  }), []);
+
+  const flushTextSave = useCallback((id) => {
+    const timer = textSaveTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      textSaveTimersRef.current.delete(id);
+    }
+
+    const pending = pendingTextSavesRef.current.get(id);
+    if (!pending) return;
+    pendingTextSavesRef.current.delete(id);
+    upsertNote(pending).catch(error => {
+      logger.error('ui', 'Failed to update note', error?.message);
+    });
+  }, []);
+
+  const scheduleTextSave = useCallback((id, updates) => {
+    const firestoreUpdates = buildFirestoreUpdates(id, updates);
+    const current = pendingTextSavesRef.current.get(id) || { id };
+    pendingTextSavesRef.current.set(id, { ...current, ...firestoreUpdates });
+
+    const existingTimer = textSaveTimersRef.current.get(id);
+    if (existingTimer) clearTimeout(existingTimer);
+    const timer = setTimeout(() => flushTextSave(id), TEXT_SAVE_DEBOUNCE_MS);
+    textSaveTimersRef.current.set(id, timer);
+  }, [buildFirestoreUpdates, flushTextSave]);
+
+  const handleTextEditFocus = useCallback(() => {
+    isEditingTextRef.current = true;
+    if (remoteRefreshTimerRef.current) {
+      clearTimeout(remoteRefreshTimerRef.current);
+      remoteRefreshTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTextEditBlur = useCallback((id) => {
+    flushTextSave(id);
+    window.setTimeout(() => {
+      const active = document.activeElement;
+      if (!active?.closest?.('.note-input, .note-textarea')) {
+        isEditingTextRef.current = false;
+        schedulePendingRemoteApply();
+      }
+    }, 0);
+  }, [flushTextSave, schedulePendingRemoteApply]);
+
   // Subscribe to notes from Firebase
   useEffect(() => {
     let unsubscribe = () => {};
@@ -56,27 +175,19 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
       await ensureAuth();
 
       unsubscribe = subscribeNotes((firebaseNotes) => {
-        // Transform to component format
-        const transformed = firebaseNotes.map(note => ({
-          id: note.id,
-          title: note.title || '',
-          content: note.content || '',
-          color: note.color || '#fef08a',
-          floating: !note.is_docked,
-          x: note.position_x || 100,
-          y: note.position_y || 100,
-          width: Math.max(note.width || 250, MIN_NOTE_WIDTH),
-          height: Math.max(note.height || 200, MIN_NOTE_HEIGHT)
-        }));
-        setNotes(transformed);
-        setLoading(false);
+        queueIncomingNotes(firebaseNotes);
       });
     };
 
     setupSubscription();
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribe();
+      if (remoteRefreshTimerRef.current) clearTimeout(remoteRefreshTimerRef.current);
+      Array.from(pendingTextSavesRef.current.keys()).forEach(flushTextSave);
+      textSaveTimersRef.current.forEach(timer => clearTimeout(timer));
+    };
+  }, [flushTextSave, queueIncomingNotes]);
 
   const addNote = async () => {
     const newNoteData = {
@@ -98,30 +209,21 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     }
   };
 
-  const updateNote = async (id, updates) => {
+  const updateNote = (id, updates) => {
     // Update local state immediately for responsiveness
-    setNotes(notes.map(note =>
+    setNotes(prev => prev.map(note =>
       note.id === id ? { ...note, ...updates } : note
     ));
 
-    // Transform updates for Firestore
-    const firestoreUpdates = {
-      id,
-      ...(updates.title !== undefined && { title: updates.title }),
-      ...(updates.content !== undefined && { content: updates.content }),
-      ...(updates.color !== undefined && { color: updates.color }),
-      ...(updates.floating !== undefined && { is_docked: updates.floating ? 0 : 1 }),
-      ...(updates.x !== undefined && { position_x: updates.x }),
-      ...(updates.y !== undefined && { position_y: updates.y }),
-      ...(updates.width !== undefined && { width: updates.width }),
-      ...(updates.height !== undefined && { height: updates.height })
-    };
-
-    try {
-      await upsertNote(firestoreUpdates);
-    } catch (error) {
-      logger.error('ui', 'Failed to update note', error?.message);
+    const isTextEdit = updates.title !== undefined || updates.content !== undefined;
+    if (isTextEdit) {
+      scheduleTextSave(id, updates);
+      return;
     }
+
+    upsertNote(buildFirestoreUpdates(id, updates)).catch(error => {
+      logger.error('ui', 'Failed to update note', error?.message);
+    });
   };
 
   const handleDeleteNote = async (id) => {
@@ -375,6 +477,8 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
                 onUpdate={(updates) => updateNote(note.id, updates)}
                 onDelete={() => handleDeleteNote(note.id)}
                 onTearOff={(e) => tearOffNote(note.id, e)}
+                onTextEditFocus={handleTextEditFocus}
+                onTextEditBlur={() => handleTextEditBlur(note.id)}
                 isDocked={true}
               />
             ))
@@ -406,6 +510,8 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
             onDelete={() => handleDeleteNote(note.id)}
             onDock={() => dockNote(note.id)}
             onResizeStart={(e) => handleResizeStart(note.id, e)}
+            onTextEditFocus={handleTextEditFocus}
+            onTextEditBlur={() => handleTextEditBlur(note.id)}
             isDocked={false}
           />
         </div>
@@ -417,7 +523,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
 /**
  * Individual Note Card
  */
-function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, isDocked }) {
+function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, onTextEditFocus, onTextEditBlur, isDocked }) {
   return (
     <div
       className="note-card"
@@ -428,6 +534,8 @@ function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, 
           type="text"
           className="note-input"
           value={note.title}
+          onFocus={onTextEditFocus}
+          onBlur={onTextEditBlur}
           onChange={(e) => onUpdate({ title: e.target.value })}
           placeholder="Title..."
         />
@@ -461,6 +569,8 @@ function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, 
       <textarea
         className="note-textarea"
         value={note.content}
+        onFocus={onTextEditFocus}
+        onBlur={onTextEditBlur}
         onChange={(e) => onUpdate({ content: e.target.value })}
         placeholder="Write something..."
       />
