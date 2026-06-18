@@ -15,7 +15,7 @@ import {
 const DEFAULT_LAYOUT_V1 = {
   panels: [
     { id: 'sources', type: 'sources', size: 20, order: 0, visible: true },
-    { id: 'interaction', type: 'interaction', size: 60, order: 1, visible: true },
+    { id: 'workspace', type: 'workspace', size: 60, order: 1, visible: true },
     { id: 'tasks', type: 'tasks', size: 20, order: 2, visible: true }
   ],
   version: 1

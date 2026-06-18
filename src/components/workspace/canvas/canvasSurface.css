@@ -1,0 +1,293 @@
+.canvas-surface {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(164px, 0.22fr) minmax(360px, 1fr) minmax(168px, 0.24fr);
+  background: #12161d;
+  color: #f5efe5;
+  overflow: hidden;
+}
+
+.canvas-projects,
+.canvas-library {
+  min-width: 0;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.canvas-library {
+  border-right: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.canvas-projects__new,
+.canvas-import,
+.canvas-toolbar {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.canvas-projects input,
+.canvas-import input,
+.canvas-toolbar input {
+  min-width: 0;
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  padding: 0 10px;
+  color: #f7efe6;
+  background: rgba(0, 0, 0, 0.24);
+  font: 500 13px/1 system-ui, sans-serif;
+}
+
+.canvas-surface button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  color: #f8efe2;
+  background: rgba(255, 255, 255, 0.08);
+  font: 700 12px/1 system-ui, sans-serif;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.canvas-surface button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.canvas-projects__new button {
+  flex: 0 0 34px;
+  height: 34px;
+}
+
+.canvas-projects__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  overflow: auto;
+  max-height: calc(100% - 48px);
+}
+
+.canvas-project {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.canvas-project.is-selected {
+  color: #241a12;
+  background: #d3a76f;
+  border-color: rgba(255, 242, 213, 0.75);
+}
+
+.canvas-project__name,
+.canvas-file__open,
+.canvas-library button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-project__meta {
+  font-size: 11px;
+  opacity: 0.68;
+}
+
+.canvas-stage {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.canvas-toolbar {
+  flex: 0 0 auto;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.canvas-toolbar button,
+.canvas-import button {
+  min-width: max-content;
+  height: 34px;
+  padding: 0 11px;
+}
+
+.canvas-board {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.canvas-board__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.canvas-board__head h2,
+.canvas-start h2,
+.canvas-library h3 {
+  margin: 0;
+  font: 750 22px/1.05 system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.canvas-board__head span {
+  display: inline-block;
+  margin-top: 5px;
+  color: rgba(255, 246, 236, 0.66);
+  font-size: 12px;
+}
+
+.canvas-import {
+  width: min(420px, 48%);
+}
+
+.canvas-filegrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.canvas-file {
+  min-width: 0;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.canvas-file.is-ok {
+  border-color: rgba(62, 184, 128, 0.45);
+}
+
+.canvas-file.is-modified {
+  border-color: rgba(239, 184, 86, 0.55);
+}
+
+.canvas-file.is-missing {
+  border-color: rgba(233, 97, 86, 0.58);
+}
+
+.canvas-file__open {
+  width: 100%;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  text-align: left;
+  background: transparent;
+  color: #fff4e6;
+  font-size: 14px;
+}
+
+.canvas-file__path {
+  min-height: 34px;
+  color: rgba(255, 246, 236, 0.62);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.canvas-file__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.canvas-file__meta span {
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: rgba(255, 246, 236, 0.74);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 11px;
+}
+
+.canvas-library h3 {
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.canvas-library__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100% - 72px);
+  overflow: auto;
+}
+
+.canvas-library button {
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px;
+  text-align: left;
+}
+
+.canvas-library small {
+  color: rgba(255, 246, 236, 0.58);
+}
+
+.canvas-empty,
+.canvas-message {
+  margin: 12px 0 0;
+  color: rgba(255, 246, 236, 0.62);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.canvas-message {
+  color: #e8c186;
+}
+
+.canvas-start {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .canvas-surface {
+    grid-template-columns: 140px minmax(0, 1fr);
+  }
+
+  .canvas-library {
+    display: none;
+  }
+
+  .canvas-board__head {
+    flex-direction: column;
+  }
+
+  .canvas-import {
+    width: 100%;
+  }
+}

@@ -85,6 +85,35 @@ contextBridge.exposeInMainWorld('api', {
   canvasLoadMeta: (filename) => ipcRenderer.invoke('canvas-load-meta', filename),
   canvasRename: (oldFilename, newTitle) => ipcRenderer.invoke('canvas-rename', oldFilename, newTitle),
 
+  // Workspace SQLite API
+  journalsList: () => ipcRenderer.invoke('journals-list'),
+  journalsCreate: (input) => ipcRenderer.invoke('journals-create', input),
+  foliosList: (journalId) => ipcRenderer.invoke('journal-folios-list', journalId),
+  foliosCreate: (journalId, folio, opts) => ipcRenderer.invoke('journal-folios-create', journalId, folio, opts),
+  foliosDelete: (id) => ipcRenderer.invoke('journal-folios-delete', id),
+  foliosUpdate: (id, patch) => ipcRenderer.invoke('journal-folios-update', id, patch),
+
+  notefallsList: () => ipcRenderer.invoke('notefalls-list'),
+  notefallsCreate: (input) => ipcRenderer.invoke('notefalls-create', input),
+  notefallsUpdate: (id, patch) => ipcRenderer.invoke('notefalls-update', id, patch),
+  notefallsDelete: (id) => ipcRenderer.invoke('notefalls-delete', id),
+  notefallsAttachMedia: () => ipcRenderer.invoke('notefalls-attach-media'),
+
+  canvasProjectsList: () => ipcRenderer.invoke('canvas-projects-list'),
+  canvasProjectsCreate: (input) => ipcRenderer.invoke('canvas-projects-create', input),
+  canvasProjectsUpdate: (id, patch) => ipcRenderer.invoke('canvas-projects-update', id, patch),
+  canvasProjectsDelete: (id) => ipcRenderer.invoke('canvas-projects-delete', id),
+  canvasProjectFilesList: (projectId) => ipcRenderer.invoke('canvas-project-files-list', projectId),
+  canvasProjectFilesAdd: (projectId, file) => ipcRenderer.invoke('canvas-project-files-add', projectId, file),
+  canvasProjectFilesUpdate: (id, patch) => ipcRenderer.invoke('canvas-project-files-update', id, patch),
+  canvasProjectFilesDelete: (id) => ipcRenderer.invoke('canvas-project-files-delete', id),
+  canvasProjectFilesScan: (projectId) => ipcRenderer.invoke('canvas-project-files-scan', projectId),
+  canvasProjectConsolidate: (projectId) => ipcRenderer.invoke('canvas-project-consolidate', projectId),
+  workspaceLinksList: (filter) => ipcRenderer.invoke('workspace-links-list', filter),
+  workspaceLinksCreate: (input) => ipcRenderer.invoke('workspace-links-create', input),
+  workspaceLinksDelete: (id) => ipcRenderer.invoke('workspace-links-delete', id),
+  workspaceOpenPath: (filePath) => ipcRenderer.invoke('workspace-open-path', filePath),
+
   // Model Config API
   getModels: () => ipcRenderer.invoke('models-get-list'),
   getModelConfig: (name) => ipcRenderer.invoke('models-get-config', name),
