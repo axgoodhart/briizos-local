@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import './App.css';
 import SourcesPanel from './components/SourcesPanel';
-import WorkspacePanel from './components/workspace/WorkspacePanel';
+import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
 import MediaPanel from './components/MediaPanel';
 import LoginOverlay from './components/LoginOverlay';
@@ -826,8 +826,7 @@ function AppContent({ layout }) {
       case 'sources':
         return <SourcesPanel />;
       case 'interaction':
-      case 'workspace':
-        return <WorkspacePanel workspace={workspace} onWorkspaceChange={updateWorkspace} />;
+        return <InteractionPanel />;
       case 'tasks':
         return <TasksPanel />;
       case 'media':
@@ -870,7 +869,7 @@ function AppContent({ layout }) {
           </div>
         );
     }
-  }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, updateWorkspace, workspace]);
+  }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases]);
 
   return (
     <div className="app">

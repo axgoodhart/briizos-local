@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
@@ -48,9 +48,6 @@ const VIDEO_EXTENSIONS = new Set([
 const AUDIO_EXTENSIONS = new Set([
   '.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.oga', '.opus', '.aiff', '.aif',
 ]);
-const IMAGE_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.svg',
-]);
 
 function inferMediaKind(filePath) {
   const ext = path.extname(filePath || '').toLowerCase();
@@ -77,31 +74,6 @@ function describeMediaPath(filePath) {
     size: stat.size,
     kind,
     type: `${kind}/${path.extname(localPath).slice(1).toLowerCase() || 'local'}`,
-    lastModified: stat.mtimeMs,
-    persistable: true,
-  };
-}
-
-function describeWorkspaceAttachment(filePath) {
-  if (!filePath || typeof filePath !== 'string') return null;
-  const localPath = filePath.startsWith('file:') ? fileURLToPath(filePath) : filePath;
-  const ext = path.extname(localPath).toLowerCase();
-  const stat = fs.statSync(localPath);
-  if (!stat.isFile()) return null;
-
-  const kind = IMAGE_EXTENSIONS.has(ext)
-    ? 'image'
-    : (inferMediaKind(localPath) || 'file');
-
-  return {
-    id: localPath,
-    path: localPath,
-    sourceLocation: localPath,
-    url: pathToFileURL(localPath).toString(),
-    name: path.basename(localPath),
-    size: stat.size,
-    kind,
-    type: kind === 'file' ? (ext.slice(1) || 'file') : `${kind}/${ext.slice(1) || 'local'}`,
     lastModified: stat.mtimeMs,
     persistable: true,
   };
@@ -496,7 +468,6 @@ ipcMain.handle('canvas-list', async () => {
         const derivedTitle = f.replace(/^\d+-/, '').replace(/-/g, ' ').replace('.html', '');
         return {
           filename: f,
-          path: htmlPath,
           title: meta.displayName || derivedTitle,
           size: fs.statSync(htmlPath).size,
           formFactor: meta.formFactor || 'float',
@@ -585,68 +556,6 @@ ipcMain.handle('canvas-rename', async (event, oldFilename, newTitle) => {
   } catch (err) {
     return { success: false, error: String(err) };
   }
-});
-
-// === Workspace SQLite IPC Handlers ===
-
-ipcMain.handle('journals-list', async () => localDb.journalsList());
-ipcMain.handle('journals-create', async (_event, input) => localDb.journalsCreate(input));
-ipcMain.handle('journal-folios-list', async (_event, journalId) => localDb.foliosList(journalId));
-ipcMain.handle('journal-folios-create', async (_event, journalId, folio, opts) => localDb.foliosCreate(journalId, folio, opts));
-ipcMain.handle('journal-folios-delete', async (_event, id) => localDb.foliosDelete(id));
-ipcMain.handle('journal-folios-update', async (_event, id, patch) => localDb.foliosUpdate(id, patch));
-
-ipcMain.handle('notefalls-list', async () => localDb.notefallsList());
-ipcMain.handle('notefalls-create', async (_event, input) => localDb.notefallsCreate(input));
-ipcMain.handle('notefalls-update', async (_event, id, patch) => localDb.notefallsUpdate(id, patch));
-ipcMain.handle('notefalls-delete', async (_event, id) => localDb.notefallsDelete(id));
-ipcMain.handle('notefalls-attach-media', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openFile', 'multiSelections'],
-    filters: [
-      {
-        name: 'Images and Media',
-        extensions: [
-          'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'svg',
-          'mp4', 'm4v', 'mov', 'webm', 'ogv',
-          'mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'oga', 'opus', 'aiff', 'aif',
-        ],
-      },
-      { name: 'All Files', extensions: ['*'] },
-    ],
-  });
-
-  if (result.canceled) return [];
-  return result.filePaths
-    .map((filePath) => {
-      try {
-        return describeWorkspaceAttachment(filePath);
-      } catch (error) {
-        logger.warn('workspace', 'Unable to describe attachment', { filePath, error: error?.message });
-        return null;
-      }
-    })
-    .filter(Boolean);
-});
-
-ipcMain.handle('canvas-projects-list', async () => localDb.canvasProjectsList());
-ipcMain.handle('canvas-projects-create', async (_event, input) => localDb.canvasProjectsCreate(input));
-ipcMain.handle('canvas-projects-update', async (_event, id, patch) => localDb.canvasProjectsUpdate(id, patch));
-ipcMain.handle('canvas-projects-delete', async (_event, id) => localDb.canvasProjectsDelete(id));
-ipcMain.handle('canvas-project-files-list', async (_event, projectId) => localDb.canvasProjectFilesList(projectId));
-ipcMain.handle('canvas-project-files-add', async (_event, projectId, file) => localDb.canvasProjectFilesAdd(projectId, file));
-ipcMain.handle('canvas-project-files-update', async (_event, id, patch) => localDb.canvasProjectFilesUpdate(id, patch));
-ipcMain.handle('canvas-project-files-delete', async (_event, id) => localDb.canvasProjectFilesDelete(id));
-ipcMain.handle('canvas-project-files-scan', async (_event, projectId) => localDb.canvasProjectFilesScan(projectId));
-ipcMain.handle('canvas-project-consolidate', async (_event, projectId) => localDb.canvasProjectConsolidate(projectId));
-
-ipcMain.handle('workspace-links-list', async (_event, filter) => localDb.workspaceLinksList(filter));
-ipcMain.handle('workspace-links-create', async (_event, input) => localDb.workspaceLinksCreate(input));
-ipcMain.handle('workspace-links-delete', async (_event, id) => localDb.workspaceLinksDelete(id));
-ipcMain.handle('workspace-open-path', async (_event, filePath) => {
-  if (!filePath || typeof filePath !== 'string') return { ok: false, error: 'Missing path' };
-  const error = await shell.openPath(filePath);
-  return { ok: !error, error: error || null };
 });
 
 // === Weather IPC Handler ===
