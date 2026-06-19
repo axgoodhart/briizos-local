@@ -138,12 +138,22 @@ function writeToFirestore(entry) {
 // display without waiting for Firestore round-trip
 // ---------------------------------------------------------------------------
 const LOG_BUFFER_MAX = 500;
+const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 let logBuffer = [];
 let logListeners = new Set();
+let activeBufferLevel = LEVELS[
+  typeof window !== 'undefined' ? window.api?.terminalLogLevel : null
+] ?? LEVELS.info;
 
 let notifyScheduled = false;
 
+function shouldBufferLog(entry) {
+  const entryLevel = LEVELS[entry?.level] ?? LEVELS.info;
+  return entryLevel >= activeBufferLevel;
+}
+
 function addToBuffer(entry) {
+  if (!shouldBufferLog(entry)) return;
   if (logBuffer.some(log => log.id === entry.id)) return;
   logBuffer.unshift(entry); // newest first
   logBuffer.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -195,6 +205,28 @@ export function clearLogs() {
   }
 }
 
+function applyBufferLevel(levelName) {
+  if (LEVELS[levelName] != null) {
+    const nextLevel = LEVELS[levelName];
+    if (nextLevel !== activeBufferLevel) {
+      activeBufferLevel = nextLevel;
+      logBuffer = logBuffer.filter(shouldBufferLog);
+      for (const listener of logListeners) {
+        try { listener(logBuffer); } catch (e) { /* noop */ }
+      }
+    }
+  }
+}
+
+async function hydrateTerminalLogLevel() {
+  try {
+    const levelName = await window.api?.getTerminalLogLevel?.();
+    applyBufferLevel(levelName);
+  } catch (e) {
+    // The panel defaults to info if the main-process level is unavailable.
+  }
+}
+
 async function hydrateTerminalLogs() {
   try {
     const terminalLogs = await window.api?.getTerminalLogs?.();
@@ -207,7 +239,7 @@ async function hydrateTerminalLogs() {
 }
 
 if (typeof window !== 'undefined' && window.api?.onTerminalLog) {
-  hydrateTerminalLogs();
+  hydrateTerminalLogLevel().then(hydrateTerminalLogs);
   window.api.onTerminalLog((entry) => {
     if (entry?.id && entry?.timestamp) {
       addToBuffer(entry);

@@ -13,6 +13,7 @@ const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 
 // Resolve active level from env (default: info in dev, warn in production)
 const activeLevel = LEVELS[process.env.LOG_LEVEL] ?? (isDev ? LEVELS.info : LEVELS.warn);
+const activeLevelName = Object.keys(LEVELS).find(level => LEVELS[level] === activeLevel) || 'info';
 const LOG_BUFFER_MAX = 500;
 let logBuffer = [];
 let idCounter = 0;
@@ -114,6 +115,7 @@ const logger = {
  */
 function registerLoggerIPC(ipcMain) {
   ipcMain.handle('get-terminal-logs', () => logBuffer);
+  ipcMain.handle('get-terminal-log-level', () => activeLevelName);
 
   ipcMain.on('log-to-terminal', (_event, payload) => {
     const { level, category, message, data } = payload || {};

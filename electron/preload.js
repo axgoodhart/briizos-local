@@ -74,8 +74,10 @@ contextBridge.exposeInMainWorld('api', {
   skillsToggle: (name, enabled) => ipcRenderer.invoke('skills-toggle', name, enabled),
 
   // Logger API (fire-and-forget — logging must never block)
+  terminalLogLevel: process.env.LOG_LEVEL || null,
   logToTerminal: (payload) => ipcRenderer.send('log-to-terminal', payload),
   getTerminalLogs: () => ipcRenderer.invoke('get-terminal-logs'),
+  getTerminalLogLevel: () => ipcRenderer.invoke('get-terminal-log-level'),
   onTerminalLog: (callback) => {
     const handler = (_event, entry) => callback(entry);
     ipcRenderer.on('terminal-log-entry', handler);
