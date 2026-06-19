@@ -75,6 +75,12 @@ contextBridge.exposeInMainWorld('api', {
 
   // Logger API (fire-and-forget — logging must never block)
   logToTerminal: (payload) => ipcRenderer.send('log-to-terminal', payload),
+  getTerminalLogs: () => ipcRenderer.invoke('get-terminal-logs'),
+  onTerminalLog: (callback) => {
+    const handler = (_event, entry) => callback(entry);
+    ipcRenderer.on('terminal-log-entry', handler);
+    return () => ipcRenderer.removeListener('terminal-log-entry', handler);
+  },
 
   // Canvas API
   canvasSave: (title, html) => ipcRenderer.invoke('canvas-save', title, html),

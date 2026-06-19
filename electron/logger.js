@@ -4,7 +4,7 @@
  * Receives renderer logs via IPC (fire-and-forget).
  */
 
-const { app } = require('electron');
+const { app, BrowserWindow } = require('electron');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -13,6 +13,9 @@ const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 
 // Resolve active level from env (default: info in dev, warn in production)
 const activeLevel = LEVELS[process.env.LOG_LEVEL] ?? (isDev ? LEVELS.info : LEVELS.warn);
+const LOG_BUFFER_MAX = 500;
+let logBuffer = [];
+let idCounter = 0;
 
 // ANSI color codes
 const COLORS = {
@@ -41,8 +44,42 @@ function timestamp() {
 /**
  * Format and write a single log line to the terminal.
  */
-function write(level, category, message, data) {
+function createEntry(level, category, message, data) {
+  return {
+    id: `main_${Date.now()}_${(idCounter++).toString(36)}`,
+    type: category,
+    source: category === 'agent' || category.startsWith('agent.') ? 'agent' : 'system',
+    category,
+    message,
+    data: data || null,
+    level,
+    timestamp: new Date().toISOString(),
+    threadId: null,
+    sessionId: null,
+  };
+}
+
+function broadcastEntry(entry) {
+  BrowserWindow.getAllWindows().forEach((window) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('terminal-log-entry', entry);
+    }
+  });
+}
+
+function rememberEntry(entry, shouldBroadcast) {
+  logBuffer.unshift(entry);
+  if (logBuffer.length > LOG_BUFFER_MAX) {
+    logBuffer = logBuffer.slice(0, LOG_BUFFER_MAX);
+  }
+  if (shouldBroadcast) {
+    broadcastEntry(entry);
+  }
+}
+
+function write(level, category, message, data, opts = {}) {
   if (LEVELS[level] == null || LEVELS[level] < activeLevel) return;
+  const entry = createEntry(level, category, message, data);
 
   const ts = `${COLORS.dim}[${timestamp()}]${COLORS.reset}`;
   const cat = `${COLORS.category}[${category}]${COLORS.reset}`;
@@ -58,14 +95,17 @@ function write(level, category, message, data) {
 
   const stream = level === 'error' || level === 'warn' ? process.stderr : process.stdout;
   stream.write(line + '\n');
+  if (opts.remember !== false) {
+    rememberEntry(entry, opts.broadcast !== false);
+  }
 }
 
 // Public API — matches renderer logger signature
 const logger = {
-  debug: (category, message, data) => write('debug', category, message, data),
-  info:  (category, message, data) => write('info',  category, message, data),
-  warn:  (category, message, data) => write('warn',  category, message, data),
-  error: (category, message, data) => write('error', category, message, data),
+  debug: (category, message, data, opts) => write('debug', category, message, data, opts),
+  info:  (category, message, data, opts) => write('info',  category, message, data, opts),
+  warn:  (category, message, data, opts) => write('warn',  category, message, data, opts),
+  error: (category, message, data, opts) => write('error', category, message, data, opts),
 };
 
 /**
@@ -73,11 +113,13 @@ const logger = {
  * Uses ipcMain.on (fire-and-forget) — logging must never block the renderer.
  */
 function registerLoggerIPC(ipcMain) {
+  ipcMain.handle('get-terminal-logs', () => logBuffer);
+
   ipcMain.on('log-to-terminal', (_event, payload) => {
     const { level, category, message, data } = payload || {};
     if (!level || !category || !message) return;
     if (typeof logger[level] === 'function') {
-      logger[level](category, message, data);
+      logger[level](category, message, data, { broadcast: false, remember: false });
     }
   });
 }

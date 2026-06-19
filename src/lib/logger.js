@@ -144,7 +144,9 @@ let logListeners = new Set();
 let notifyScheduled = false;
 
 function addToBuffer(entry) {
+  if (logBuffer.some(log => log.id === entry.id)) return;
   logBuffer.unshift(entry); // newest first
+  logBuffer.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   if (logBuffer.length > LOG_BUFFER_MAX) {
     logBuffer = logBuffer.slice(0, LOG_BUFFER_MAX);
   }
@@ -191,6 +193,26 @@ export function clearLogs() {
   for (const listener of logListeners) {
     try { listener(logBuffer); } catch (e) { /* noop */ }
   }
+}
+
+async function hydrateTerminalLogs() {
+  try {
+    const terminalLogs = await window.api?.getTerminalLogs?.();
+    if (Array.isArray(terminalLogs)) {
+      terminalLogs.forEach(addToBuffer);
+    }
+  } catch (e) {
+    // Terminal log hydration should never affect app startup.
+  }
+}
+
+if (typeof window !== 'undefined' && window.api?.onTerminalLog) {
+  hydrateTerminalLogs();
+  window.api.onTerminalLog((entry) => {
+    if (entry?.id && entry?.timestamp) {
+      addToBuffer(entry);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

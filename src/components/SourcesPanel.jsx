@@ -3,11 +3,9 @@ import { useDrag } from 'react-dnd';
 import FileTree, { SOURCE_FILE_TYPE } from './FileTree';
 import {
   getSelectedFiles,
-  subscribeLogs,
   getSetting,
 } from '../lib/firestore';
-import { useAuth } from '../context/AuthContext';
-import logger from '../lib/logger';
+import logger, { subscribeLogs } from '../lib/logger';
 
 /**
  * DraggableGithubFile - A draggable GitHub file item for the source panel
@@ -76,7 +74,6 @@ function SourcesPanel() {
 
   const [logs, setLogs] = useState([]);
   const logContainerRef = useRef(null);
-  const { isAuthenticated, user } = useAuth();
 
   // Fetch home directories on mount
   useEffect(() => {
@@ -324,23 +321,19 @@ function SourcesPanel() {
     return () => clearInterval(interval);
   }, []);
 
-  // Subscribe to logs from Firestore (real-time)
+  // Subscribe to the unified local log stream (renderer + Electron main).
   useEffect(() => {
-    if (!isAuthenticated) {
-      setLogs([]);
-      return () => {};
-    }
     const unsubscribe = subscribeLogs((logData) => {
-      setLogs(logData);
-    }, 15);
+      setLogs(logData.slice(0, 80));
+    });
 
     return () => unsubscribe();
-  }, [isAuthenticated, user?.uid]);
+  }, []);
 
-  // Auto-scroll to bottom when logs change
+  // Keep newest logs visible.
   useEffect(() => {
     if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+      logContainerRef.current.scrollTop = 0;
     }
   }, [logs]);
 
@@ -396,7 +389,7 @@ function SourcesPanel() {
                 <div key={log.id} className="log-entry">
                   <span className="log-date">{formatLogDate(log.timestamp)}</span>
                   <span className="log-time">{formatLogTime(log.timestamp)}</span>
-                  <span className="log-action">[{log.action}]</span>
+                  <span className="log-action">[{log.level || 'info'}:{log.category || log.action || 'system'}]</span>
                   {log.message && <span className="log-message">{log.message}</span>}
                 </div>
               ))
