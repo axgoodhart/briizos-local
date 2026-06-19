@@ -25,6 +25,7 @@ The Skills CLI (`npx skills`) is the package manager for the open agent skills e
 **Key commands:**
 
 - `npx skills find [query]` - Search for skills interactively or by keyword
+- `npx skills add <package>` - Install a skill from GitHub or other sources
 - `npx skills check` - Check for skill updates
 - `npx skills update` - Update all installed skills
 
@@ -57,7 +58,7 @@ For example:
 The command will return results like:
 
 ```
-Install with bash /path/to/skill/scripts/install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
+Install with npx skills add <owner/repo@skill>
 
 vercel-labs/agent-skills@vercel-react-best-practices
 └ https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices
@@ -78,26 +79,20 @@ I found a skill that might help! The "vercel-react-best-practices" skill provide
 React and Next.js performance optimization guidelines from Vercel Engineering.
 
 To install it:
-bash /path/to/skill/scripts/install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
+npx skills add vercel-labs/agent-skills@vercel-react-best-practices
 
 Learn more: https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices
 ```
 
-### Step 4: Install the Skill
+### Step 4: Offer to Install
 
-If the user wants to proceed, use the `install-skill.sh` script to install the skill and automatically link it to the project:
-
-```bash
-bash /path/to/skill/scripts/install-skill.sh <owner/repo@skill-name>
-```
-
-For example, if the user wants to install `vercel-react-best-practices`:
+If the user wants to proceed, you can install the skill for them:
 
 ```bash
-bash /path/to/skill/scripts/install-skill.sh vercel-labs/agent-skills@vercel-react-best-practices
+npx skills add <owner/repo@skill> -g -y
 ```
 
-The script will install the skill globally to `skills/custom/`
+The `-g` flag installs globally (user-level) and `-y` skips confirmation prompts.
 
 ## Common Skill Categories
 
