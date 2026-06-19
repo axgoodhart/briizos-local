@@ -9,8 +9,6 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron": "electron .",
-    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "npm run rebuild:native",
     "tools:catalog": "node scripts/generate-tool-catalog.mjs"
   },
   "dependencies": {
@@ -43,7 +41,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
     "vite": "^6.0.5",
