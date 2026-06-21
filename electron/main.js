@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
@@ -17,6 +17,11 @@ const modelConfig = require('./model-config');
 // localhost HTTP tool-bridge; the renderer is reached via IPC.
 const langgraph = require('./agent');
 const localDb = require('./local-db');
+// Forest (journals, notefalls, infinite-forest project board) — ported from
+// Projungle. Storage is local-only for now (forest.db + forest.library.json
+// in userData), not routed through Firestore/SyncContract.
+const forestDb = require('./forest-db');
+const forestFs = require('./forest-fs');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
@@ -811,6 +816,104 @@ ipcMain.handle('langgraph-send-message', async (_event, threadId, message, confi
 ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, config, threadId) => {
   return langgraph.fetchSuggestions(recentMessages || [], n || 3, config || {}, threadId || null);
 });
+
+// === Forest (journals, notefalls, infinite-forest project board) ===
+// Ported from Projungle. All local-only storage (forest.db, forest.library.json) —
+// see forest-db.js / forest-fs.js. Logged under the 'forest' category so these
+// actions show up in the Log Overlay per project rule (CLAUDE.md hard rule #1).
+
+ipcMain.handle('forest-journals-list', async () => forestDb.journalsList());
+ipcMain.handle('forest-journals-create', async (_event, input) => {
+  const result = forestDb.journalsCreate(input);
+  logger.info('forest', 'Journal created', { id: result.id, title: result.title });
+  return result;
+});
+ipcMain.handle('forest-journals-delete', async (_event, id) => {
+  const result = forestDb.journalsDelete(id);
+  logger.info('forest', 'Journal deleted', { id });
+  return result;
+});
+
+ipcMain.handle('forest-folios-list', async (_event, journalId) => forestDb.foliosList(journalId));
+ipcMain.handle('forest-folios-create', async (_event, journalId, folio, opts) => {
+  const result = forestDb.foliosCreate(journalId, folio, opts);
+  logger.info('forest', 'Folio created', { journalId, folioId: result.id, type: result.type });
+  return result;
+});
+ipcMain.handle('forest-folios-delete', async (_event, id) => {
+  const result = forestDb.foliosDelete(id);
+  logger.info('forest', 'Folio deleted', { id });
+  return result;
+});
+ipcMain.handle('forest-folios-update', async (_event, id, patch) => {
+  const result = forestDb.foliosUpdate(id, patch);
+  logger.debug('forest', 'Folio updated', { id });
+  return result;
+});
+
+ipcMain.handle('forest-notefalls-list', async () => forestDb.notefallsList());
+ipcMain.handle('forest-notefalls-create', async (_event, input) => {
+  const result = forestDb.notefallsCreate(input);
+  logger.info('forest', 'Notefalls post created', { id: result.id });
+  return result;
+});
+ipcMain.handle('forest-notefalls-update', async (_event, id, patch) => {
+  const result = forestDb.notefallsUpdate(id, patch);
+  logger.debug('forest', 'Notefalls post updated', { id });
+  return result;
+});
+ipcMain.handle('forest-notefalls-delete', async (_event, id) => {
+  const result = forestDb.notefallsDelete(id);
+  logger.info('forest', 'Notefalls post deleted', { id });
+  return result;
+});
+ipcMain.handle('forest-notefalls-attach-media', async () => forestDb.notefallsAttachMedia());
+
+ipcMain.handle('forest-library-load', async () => forestFs.loadState());
+ipcMain.handle('forest-library-save', async (_event, state) => {
+  const result = await forestFs.saveState(state);
+  logger.debug('forest', 'Board state saved', { projectCount: state?.projects?.length ?? 0 });
+  return result;
+});
+ipcMain.handle('forest-library-import-paths', async (_event, inputPaths) => {
+  const result = await forestFs.importDroppedPaths(inputPaths);
+  logger.info('forest', 'Files imported into board', { groups: result.length, paths: inputPaths?.length ?? 0 });
+  return result;
+});
+
+ipcMain.handle('forest-shell-open-path', async (_event, targetPath) => {
+  if (!targetPath) return '';
+  return shell.openPath(targetPath);
+});
+ipcMain.handle('forest-shell-show-item-in-folder', async (_event, targetPath) => {
+  if (targetPath) shell.showItemInFolder(targetPath);
+  return { ok: true };
+});
+
+ipcMain.handle('forest-hunter-search', async (_event, keywords, excludePaths, customDirs) =>
+  forestFs.hunterSearch(keywords, excludePaths, customDirs),
+);
+ipcMain.handle('forest-hunter-default-dirs', async () => forestFs.hunterDefaultDirs());
+ipcMain.handle('forest-hunter-query', async (_event, opts) => forestFs.huntFiles(opts || {}));
+
+ipcMain.handle('forest-dialog-open-directory', async () => {
+  const win = BrowserWindow.getFocusedWindow();
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openDirectory'],
+    title: 'Add Hunter search directory',
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('forest-filehawk-check', async (_event, filePaths) => forestFs.filehawkCheck(filePaths));
+ipcMain.handle('forest-filehawk-locate', async (_event, name, excludePaths, dirs) =>
+  forestFs.filehawkLocate(name, excludePaths, dirs),
+);
+
+ipcMain.handle('forest-consolidate-project', async (_event, projectName, filePaths) =>
+  forestFs.consolidateProject(projectName, filePaths),
+);
 
 // === App Lifecycle ===
 

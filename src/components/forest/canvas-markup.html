@@ -1,0 +1,84 @@
+<!--
+  Ported from Projungle's legacy canvas DOM. Element IDs and a handful of
+  collision-prone class names (.hidden, .empty-state, .drop-overlay, the
+  .app-shell root) were prefixed with forest- during the briizOS.local
+  hardening pass, since this markup now shares a document with the rest of
+  the app instead of living in its own standalone window. app.js was updated
+  to match — keep the two in sync if either changes.
+-->
+<div class="forest-shell">
+  <div class="aurora aurora-a"></div>
+  <div class="aurora aurora-b"></div>
+  <div class="aurora aurora-c"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <h1>project canvas</h1>
+      </div>
+      <div class="status-pills">
+        <span id="forest-projectCount" class="stat-pill">0 projects</span>
+        <span id="forest-fileCount" class="stat-pill">0 files</span>
+        <span id="forest-zoomReadout" class="stat-pill">100%</span>
+        <span id="forest-saveState" class="stat-pill subtle">Ready</span>
+        <button id="forest-sortActivityBtn" class="stat-pill sort-btn" title="Sort by recent file activity">↕ Activity</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <input
+          id="forest-searchInput"
+          type="text"
+          autocomplete="off"
+          placeholder="Search projects, file names, or #tags"
+        />
+      </div>
+      <button id="forest-resetViewBtn" class="ghost-btn" type="button">
+        Reset view
+      </button>
+      <button id="forest-fitBtn" class="ghost-btn" type="button">
+        Fit projects
+      </button>
+      <button id="forest-filehawkBtn" class="ghost-btn" type="button" title="FileHawk — file integrity">FileHawk</button>
+    </div>
+  </header>
+
+  <main id="forest-stage" class="stage">
+    <div id="forest-grid" class="grid"></div>
+    <div id="forest-world" class="world"></div>
+    <div id="forest-emptyState" class="forest-empty-state"></div>
+
+    <div id="forest-dropOverlay" class="forest-drop-overlay forest-hidden">
+      <div class="drop-panel">
+        <div class="drop-icon">+</div>
+        <h2>Drop files or folders to build your space</h2>
+        <p>
+          Projungle will create expandable projects, infer tags automatically,
+          and keep your original files right where they are.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <aside id="forest-tagStrip" class="tag-strip"></aside>
+
+  <button id="forest-dimToggle" class="dim-toggle" title="Toggle dim mode">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18h6"/>
+      <path d="M10 22h4"/>
+      <path d="M12 2v1"/>
+      <path d="M12 7a4 4 0 0 1 4 4c0 2.76-2 5-4 6-2-1-4-3.24-4-6a4 4 0 0 1 4-4z"/>
+    </svg>
+  </button>
+
+  <!-- Project Viewer overlay -->
+  <div id="forest-projectViewer" class="viewer-overlay forest-hidden"></div>
+
+  <!-- Hunter results panel -->
+  <div id="forest-hunterPanel" class="hunter-panel cv-slideout forest-hidden"></div>
+
+  <!-- FileHawk integrity panel -->
+  <div id="forest-filehawkPanel" class="cv-slideout forest-hidden"></div>
+</div>

@@ -4,6 +4,9 @@ import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
 import MediaPanel from './components/MediaPanel';
+import { JournalPanel } from './components/journals/JournalPanel.jsx';
+import { NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
+import Forest from './components/forest/Forest.jsx';
 import LoginOverlay from './components/LoginOverlay';
 import { TileLayout } from './components/layout/TileLayout';
 import { useLayout } from './hooks/useLayout';
@@ -291,6 +294,9 @@ function AppContent({ layout }) {
   const panels = getVisiblePanels();
   logger.debug('ui', 'App panels', panels.map(p => p.id));
   const actionDeckPanel = getPanelByType('actiondeck');
+  const journalPanel = getPanelByType('journal');
+  const notefallsPanel = getPanelByType('notefalls');
+  const forestPanel = getPanelByType('forest');
   const actionDeckOpen = actionDeckFloating || actionDeckPanel?.visible === true;
 
   const getActionDeckPanelSettings = useCallback(() => (
@@ -321,6 +327,36 @@ function AppContent({ layout }) {
       visible: true
     });
   }, [actionDeckPanel, togglePanelVisibility, addPanel, saveActionDeckPanelSettings]);
+
+  const openJournalPanel = useCallback(() => {
+    if (journalPanel?.visible) return;
+    if (journalPanel) {
+      togglePanelVisibility(journalPanel.id);
+      return;
+    }
+    addPanel({ id: 'journal', type: 'journal', size: 25, visible: true });
+    logger.info('journal', 'Journal panel opened');
+  }, [journalPanel, togglePanelVisibility, addPanel]);
+
+  const openNotefallsPanel = useCallback(() => {
+    if (notefallsPanel?.visible) return;
+    if (notefallsPanel) {
+      togglePanelVisibility(notefallsPanel.id);
+      return;
+    }
+    addPanel({ id: 'notefalls', type: 'notefalls', size: 25, visible: true });
+    logger.info('notefalls', 'Notefalls panel opened');
+  }, [notefallsPanel, togglePanelVisibility, addPanel]);
+
+  const openForestPanel = useCallback(() => {
+    if (forestPanel?.visible) return;
+    if (forestPanel) {
+      togglePanelVisibility(forestPanel.id);
+      return;
+    }
+    addPanel({ id: 'forest', type: 'forest', size: 25, visible: true });
+    logger.info('forest', 'Forest panel opened');
+  }, [forestPanel, togglePanelVisibility, addPanel]);
 
   const hideActionDeckColumn = useCallback(() => {
     if (actionDeckPanel?.visible) {
@@ -770,6 +806,18 @@ function AppContent({ layout }) {
             e.preventDefault();
             setCanvasesPopoverOpen(prev => !prev);
             break;
+          case 'j': // Cmd+Shift+J - Open Journal
+            e.preventDefault();
+            openJournalPanel();
+            break;
+          case 'l': // Cmd+Shift+L - Open Notefalls
+            e.preventDefault();
+            openNotefallsPanel();
+            break;
+          case 'f': // Cmd+Shift+F - Open Forest
+            e.preventDefault();
+            openForestPanel();
+            break;
         }
       }
 
@@ -797,7 +845,7 @@ function AppContent({ layout }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, mediaOpen, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, toggleActionDeck]);
+  }, [organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, mediaOpen, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, toggleActionDeck, openJournalPanel, openNotefallsPanel, openForestPanel]);
 
   // Listen for canvas events from tool system
   useEffect(() => {
@@ -831,6 +879,12 @@ function AppContent({ layout }) {
         return <TasksPanel />;
       case 'media':
         return <MediaPanel />;
+      case 'journal':
+        return <JournalPanel />;
+      case 'notefalls':
+        return <NotefallsPanel />;
+      case 'forest':
+        return <Forest />;
       case 'actiondeck':
         return <ActionDeckColumn embedded onClose={closeActionDeck} onPopOut={popOutActionDeck} />;
       case 'canvas': {
