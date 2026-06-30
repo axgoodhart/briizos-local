@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import logger from '../lib/logger';
-import { addChatMessage, addLog, addRemoteChatMessage } from '../lib/firestore';
+import { addLog, addRemoteChatMessage } from '../lib/firestore';
 import { getCurrentUid } from '../lib/firebase';
 import { startAgentWorkers, stopAgentWorkers } from '../lib/agentJobsFirestore';
 
@@ -36,8 +36,6 @@ export function useAgentWorkers(executeTool, appContext) {
             if (job?.source?.kind !== 'chat-tool-call') return;
 
             const resultText = result?.summary || result?.message || JSON.stringify(result);
-            await addChatMessage('assistant', `[${job.tool}] ${resultText}`);
-
             addLog('tool_result', `${job.tool}: ${String(resultText)}`.slice(0, 1200))
               .catch(err => logger.debug('agent-jobs', 'Failed to write tool_result log', err?.message));
 
@@ -55,8 +53,6 @@ export function useAgentWorkers(executeTool, appContext) {
             if (job?.source?.kind !== 'chat-tool-call') return;
 
             const msg = error?.message || String(error);
-            await addChatMessage('assistant', `[Error: ${job?.tool || 'job'}] ${msg}`, true);
-
             addLog('tool_error', `${job?.tool || 'job'}: ${msg}`.slice(0, 1200))
               .catch(err => logger.debug('agent-jobs', 'Failed to write tool_error log', err?.message));
           },

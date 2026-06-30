@@ -67,8 +67,12 @@ function getStatus() {
   };
 }
 
-async function createThread() {
-  return crypto.randomUUID();
+async function createThread(kind = 'chat') {
+  const threadId = crypto.randomUUID();
+  const service = leadAgent.getLocalDataService();
+  if (!service) throw new Error('Local data is not ready');
+  service.createThread({ id: threadId, kind });
+  return threadId;
 }
 
 async function streamMessage(threadId, message, config, onEvent) {

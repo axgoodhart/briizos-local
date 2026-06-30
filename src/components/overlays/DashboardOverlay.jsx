@@ -474,13 +474,14 @@ function IntegrationsTab({
 
 function MemoryTab({ isOpen }) {
   const [agentContext, setAgentContext] = useState('');
+  const [memorySections, setMemorySections] = useState([]);
   const [contextLoading, setContextLoading] = useState(true);
   const [chunks, setChunks] = useState([]);
   const [chunksLoading, setChunksLoading] = useState(true);
   const [selectedChunk, setSelectedChunk] = useState(null);
   const [chunkContent, setChunkContent] = useState('');
   const [chunkContentLoading, setChunkContentLoading] = useState(false);
-  const [chunksToInclude, setChunksToInclude] = useState(3);
+  const [facts, setFacts] = useState([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -491,8 +492,9 @@ function MemoryTab({ isOpen }) {
     // Load agent context
     setContextLoading(true);
     try {
-      const content = await window.api.memoryReadAgentContext();
-      setAgentContext(content || '');
+      const sections = await window.api.localData.memory.sections.list();
+      setAgentContext(sections.find((section) => section.key === 'agentContext')?.body || '');
+      setMemorySections(sections.filter((section) => section.key !== 'agentContext'));
     } catch (err) {
       logger.error('config', 'Failed to load agent context', err?.message);
     } finally {
@@ -509,23 +511,23 @@ function MemoryTab({ isOpen }) {
     } finally {
       setChunksLoading(false);
     }
-
-    // Load config for chunksToInclude
-    try {
-      const config = await window.api.agentGetConfig();
-      if (config?.memory?.chunksToInclude !== undefined) {
-        setChunksToInclude(config.memory.chunksToInclude);
-      }
-    } catch (err) {
-      logger.error('config', 'Failed to load agent config', err?.message);
-    }
+    window.api.localData.memory.facts.list().then(setFacts)
+      .catch((err) => logger.error('config', 'Failed to load memory facts', err?.message));
   };
 
   const handleContextBlur = async () => {
     try {
-      await window.api.memoryWriteAgentContext(agentContext);
+      await window.api.localData.memory.sections.update('agentContext', agentContext);
     } catch (err) {
       logger.error('config', 'Failed to save agent context', err?.message);
+    }
+  };
+
+  const handleSectionBlur = async (section) => {
+    try {
+      await window.api.localData.memory.sections.update(section.key, section.body);
+    } catch (err) {
+      logger.error('config', 'Failed to save learned context', err?.message);
     }
   };
 
@@ -548,13 +550,12 @@ function MemoryTab({ isOpen }) {
     }
   };
 
-  const handleChunksToIncludeChange = async (val) => {
-    const n = Math.max(0, parseInt(val) || 0);
-    setChunksToInclude(n);
+  const handleFactDelete = async (factId) => {
     try {
-      await window.api.agentUpdateConfig({ memory: { chunksToInclude: n } });
+      await window.api.localData.memory.facts.archive(factId);
+      setFacts((current) => current.filter((fact) => fact.id !== factId));
     } catch (err) {
-      logger.error('config', 'Failed to update chunksToInclude', err?.message);
+      logger.error('config', 'Failed to remove memory fact', err?.message);
     }
   };
 
@@ -570,7 +571,7 @@ function MemoryTab({ isOpen }) {
       <h3 className="settings-section-title">Agent Context</h3>
       <div className="settings-field">
         <p className="settings-hint" style={{ fontStyle: 'normal' }}>
-          This file (agent-context.md) is included in every AI request as persistent memory.
+          This local context is included in every AI request as persistent memory.
         </p>
         {contextLoading ? (
           <p className="settings-hint">Loading...</p>
@@ -587,28 +588,45 @@ function MemoryTab({ isOpen }) {
 
       <div className="settings-divider" />
 
-      {/* Chunk Inclusion Setting */}
-      <h3 className="settings-section-title">Chat Log Context</h3>
+      <h3 className="settings-section-title">Learned Context</h3>
+      {memorySections.map((section) => (
+        <div className="settings-field" key={section.key}>
+          <label className="settings-label">{section.title}</label>
+          <textarea
+            className="settings-input settings-textarea"
+            value={section.body}
+            onChange={(event) => setMemorySections((current) => current.map((item) => (
+              item.key === section.key ? { ...item, body: event.target.value } : item
+            )))}
+            onBlur={() => handleSectionBlur(section)}
+            placeholder="The agent has not learned anything for this section yet."
+          />
+        </div>
+      ))}
+
+      <div className="settings-divider" />
+
+      <h3 className="settings-section-title">Remembered Facts</h3>
       <div className="settings-field">
-        <label className="settings-label">Include N most recent chunks in context</label>
-        <input
-          type="number"
-          className="settings-input dashboard-chunks-input"
-          min="0"
-          value={chunksToInclude}
-          onChange={(e) => handleChunksToIncludeChange(e.target.value)}
-        />
+        {facts.length === 0 ? (
+          <p className="settings-hint">No durable facts learned yet.</p>
+        ) : facts.map((fact) => (
+          <div className="memory-fact-item" key={fact.id}>
+            <span className="memory-fact-category">{fact.category}</span>
+            <span>{fact.content}</span>
+            <button type="button" className="memory-fact-delete" onClick={() => handleFactDelete(fact.id)}>Remove</button>
+          </div>
+        ))}
       </div>
 
       <div className="settings-divider" />
 
-      {/* Chat Log Chunks */}
-      <h3 className="settings-section-title">Chat Log Chunks</h3>
+      <h3 className="settings-section-title">Conversation Summaries</h3>
       <div className="settings-field">
         {chunksLoading ? (
-          <p className="settings-hint">Loading chunks...</p>
+          <p className="settings-hint">Loading summaries...</p>
         ) : chunks.length === 0 ? (
-          <p className="settings-hint">No chat log chunks found.</p>
+          <p className="settings-hint">No long-conversation summaries yet.</p>
         ) : (
           <div className="dashboard-chunk-list">
             {chunks.map(chunk => (
@@ -618,7 +636,7 @@ function MemoryTab({ isOpen }) {
                 onClick={() => handleChunkClick(chunk.filename)}
                 type="button"
               >
-                <span className="dashboard-chunk-name">{chunk.filename}</span>
+                <span className="dashboard-chunk-name">{chunk.threadId || chunk.filename}</span>
                 <span className="dashboard-chunk-size">{formatSize(chunk.size)}</span>
               </button>
             ))}
@@ -629,7 +647,7 @@ function MemoryTab({ isOpen }) {
       {/* Chunk Preview */}
       {selectedChunk && (
         <div className="settings-field">
-          <label className="settings-label">Preview: {selectedChunk}</label>
+          <label className="settings-label">Summary preview</label>
           {chunkContentLoading ? (
             <p className="settings-hint">Loading content...</p>
           ) : (

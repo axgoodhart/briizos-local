@@ -19,12 +19,13 @@ const { createChatModel } = require('./models');
 
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
 const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
-const DEFAULT_DEER_HOME = process.env.DEER_FLOW_HOME
-  ? path.resolve(process.env.DEER_FLOW_HOME)
-  : path.join(AGENT_DIR, '.deer-flow');
-const SUMMARY_CACHE_PATH = path.join(DEFAULT_DEER_HOME, 'conversation-summaries.json');
 const UPLOAD_BLOCK_RE = /<uploaded_files>[\s\S]*?<\/uploaded_files>\n*/gi;
 const UPLOAD_SENTENCE_RE = /[^.!?]*\b(?:upload(?:ed|ing)?(?:\s+\w+){0,3}\s+(?:file|files?|document|documents?|attachment|attachments?)|file\s+upload|\/mnt\/user-data\/uploads\/|<uploaded_files>)[^.!?]*[.!?]?\s*/gi;
+let localDataService = null;
+
+function setLocalDataService(service) {
+  localDataService = service;
+}
 
 const MEMORY_UPDATE_PROMPT = `You are a memory management system. Analyze the conversation and update the user's memory profile.
 
@@ -71,22 +72,8 @@ function readYaml(filePath) {
   try { return yaml.load(fs.readFileSync(filePath, 'utf8')) || {}; } catch { return {}; }
 }
 
-function readJson(filePath, fallback) {
-  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return fallback; }
-}
-
 function getConfig() {
   return readYaml(CONFIG_PATH);
-}
-
-function resolveDataPath(rawPath, fallbackName) {
-  const raw = rawPath || fallbackName;
-  return path.isAbsolute(raw) ? raw : path.resolve(DEFAULT_DEER_HOME, raw);
-}
-
-function memoryFilePath(agentName = null, config = getConfig()) {
-  if (agentName) return path.join(DEFAULT_DEER_HOME, 'agents', String(agentName).toLowerCase(), 'memory.json');
-  return resolveDataPath(config?.memory?.storage_path, 'memory.json');
 }
 
 function createEmptyMemory() {
@@ -109,17 +96,13 @@ function createEmptyMemory() {
 }
 
 function loadMemory(agentName = null) {
-  return readJson(memoryFilePath(agentName), createEmptyMemory());
+  return localDataService?.getMemoryProfile(agentName) || createEmptyMemory();
 }
 
 function saveMemory(memoryData, agentName = null) {
-  const filePath = memoryFilePath(agentName);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const next = { ...memoryData, lastUpdated: new Date().toISOString() };
-  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmpPath, JSON.stringify(next, null, 2), 'utf8');
-  fs.renameSync(tmpPath, filePath);
-  return next;
+  if (!localDataService) throw new Error('Local data is not ready for memory persistence');
+  return localDataService.saveMemoryProfile(next, agentName).row;
 }
 
 function messageRole(message) {
@@ -350,9 +333,9 @@ function summaryCacheKey(messages = []) {
 
 async function summarizeMessages(messages, { threadId, modelName = null } = {}) {
   const config = summarizationConfig();
-  const cache = readJson(SUMMARY_CACHE_PATH, {});
-  const key = `${threadId || 'unknown'}:${summaryCacheKey(messages)}`;
-  if (cache[key]) return cache[key];
+  const contentHash = summaryCacheKey(messages);
+  const cached = threadId && localDataService?.getConversationSummary(threadId, contentHash);
+  if (cached) return cached.summary;
 
   const text = messages.map((msg) => `${messageRole(msg)}: ${messageContent(msg).slice(0, 2000)}`).join('\n\n');
   const prompt = config.summary_prompt || `Summarize this conversation history for an assistant that will continue the same task. Preserve user goals, decisions, constraints, file paths, tool results, open questions, and unresolved work. Be concise but specific.\n\n<conversation>\n${text}\n</conversation>`;
@@ -360,9 +343,15 @@ async function summarizeMessages(messages, { threadId, modelName = null } = {}) 
   const response = await model.invoke(prompt);
   const summary = String(response.content || '').trim();
 
-  fs.mkdirSync(path.dirname(SUMMARY_CACHE_PATH), { recursive: true });
-  cache[key] = summary;
-  fs.writeFileSync(SUMMARY_CACHE_PATH, JSON.stringify(cache, null, 2), 'utf8');
+  if (threadId && localDataService) {
+    localDataService.saveConversationSummary({
+      threadId,
+      firstSequence: 0,
+      lastSequence: Math.max(0, messages.length - 1),
+      contentHash,
+      summary,
+    });
+  }
   return summary;
 }
 
@@ -420,4 +409,5 @@ module.exports = {
   flushMemoryQueue,
   applyMemoryUpdates,
   shouldSummarize,
+  setLocalDataService,
 };

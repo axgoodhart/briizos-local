@@ -91,6 +91,25 @@ contextBridge.exposeInMainWorld('api', {
     threads: {
       list: (filters) => invokeLocalData('local-data:threads:list', filters),
       create: (input) => invokeLocalData('local-data:threads:create', input),
+      update: (threadId, patch) => invokeLocalData('local-data:threads:update', threadId, patch),
+      archive: (threadId) => invokeLocalData('local-data:threads:archive', threadId),
+      messages: {
+        list: (threadId) => invokeLocalData('local-data:messages:list', threadId),
+        append: (threadId, input) => invokeLocalData('local-data:messages:append', threadId, input),
+      },
+    },
+    memory: {
+      sections: {
+        list: () => invokeLocalData('local-data:memory:sections:list'),
+        update: (key, body) => invokeLocalData('local-data:memory:sections:update', key, body),
+      },
+      facts: {
+        list: () => invokeLocalData('local-data:memory:facts:list'),
+        archive: (factId) => invokeLocalData('local-data:memory:facts:archive', factId),
+      },
+      summaries: {
+        list: (limit) => invokeLocalData('local-data:memory:summaries:list', limit),
+      },
     },
     recorder: {
       list: () => invokeLocalData('local-data:recorder:list'),
@@ -221,7 +240,7 @@ contextBridge.exposeInMainWorld('api', {
   // The renderer never talks to model providers directly; all chat
   // flows through the Electron in-process LangGraph agent via these.
   langgraphGetStatus: () => ipcRenderer.invoke('langgraph-get-status'),
-  langgraphCreateThread: () => ipcRenderer.invoke('langgraph-create-thread'),
+  langgraphCreateThread: (kind) => ipcRenderer.invoke('langgraph-create-thread', kind),
   langgraphStreamMessage: (streamId, threadId, message, config) =>
     ipcRenderer.invoke('langgraph-stream-message', streamId, threadId, message, config),
   langgraphResumeRun: (streamId, threadId, response, config) =>

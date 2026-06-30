@@ -150,7 +150,7 @@ export function useTaskAutomation() {
     const existing = threadMapRef.current.get(taskId);
     if (existing) return existing;
 
-    const res = await api.langgraphCreateThread();
+    const res = await api.langgraphCreateThread('task');
     const threadId = res?.thread_id || res?.threadId || res;
     if (!threadId) throw new Error('Failed to create LangGraph thread');
 

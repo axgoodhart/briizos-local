@@ -415,80 +415,37 @@ ipcMain.handle('agent-jobs-execute', async (event, job) => {
 
 // === Memory IPC Handlers ===
 
-ipcMain.handle('memory-append-log', async (event, chunkFilename, entry) => {
-  const fs = require('fs');
-  const logPath = path.join(agentConfig.DIRS.chatLogs, chunkFilename);
-  fs.appendFileSync(logPath, entry + '\n', 'utf8');
-  return { success: true };
-});
+ipcMain.handle('memory-append-log', async () => ({ success: true }));
 
 ipcMain.handle('memory-get-context', async () => {
-  const fs = require('fs');
   const config = readLocalAgentConfig();
   const chunksToInclude = config.memory?.chunksToInclude || 1;
-
-  let agentContext = '';
-  try {
-    agentContext = fs.readFileSync(agentConfig.AGENT_CONTEXT_PATH, 'utf8');
-  } catch (e) { logger.warn('memory', 'Failed to read context', e?.message); }
-
-  let chatLogChunks = '';
-  try {
-    const logDir = agentConfig.DIRS.chatLogs;
-    if (fs.existsSync(logDir)) {
-      const files = fs.readdirSync(logDir)
-        .filter(f => f.endsWith('.txt'))
-        .sort()
-        .reverse()
-        .slice(0, chunksToInclude);
-
-      const chunks = files.map(f => {
-        try { return fs.readFileSync(path.join(logDir, f), 'utf8'); } catch { return ''; }
-      }).filter(Boolean);
-
-      if (chunks.length > 0) {
-        chatLogChunks = chunks.join('\n---\n');
-      }
-    }
-  } catch (e) { logger.warn('memory', 'Failed to read context', e?.message); }
-
-  return { agentContext, chatLogChunks };
+  const profile = localDataService.getMemoryProfile();
+  const summaries = localDataService.listConversationSummaries(Math.max(1, chunksToInclude));
+  return { agentContext: profile.agentContext || '', chatLogChunks: summaries.map((item) => item.summary).join('\n---\n') };
 });
 
 ipcMain.handle('memory-read-agent-context', async () => {
-  const fs = require('fs');
-  try {
-    return fs.readFileSync(agentConfig.AGENT_CONTEXT_PATH, 'utf8');
-  } catch { return ''; }
+  return localDataService.getMemoryProfile().agentContext || '';
 });
 
-ipcMain.handle('memory-write-agent-context', async (event, content) => {
-  const fs = require('fs');
-  fs.writeFileSync(agentConfig.AGENT_CONTEXT_PATH, content, 'utf8');
+ipcMain.handle('memory-write-agent-context', async (_event, content) => {
+  localDataService.updateMemorySection('agentContext', content);
   return { success: true };
 });
 
 ipcMain.handle('memory-list-chunks', async () => {
-  const fs = require('fs');
-  try {
-    const logDir = agentConfig.DIRS.chatLogs;
-    if (!fs.existsSync(logDir)) return [];
-    return fs.readdirSync(logDir)
-      .filter(f => f.endsWith('.txt'))
-      .sort()
-      .reverse()
-      .map(f => ({
-        filename: f,
-        size: fs.statSync(path.join(logDir, f)).size,
-      }));
-  } catch { return []; }
+  return localDataService.listConversationSummaries(100).map((item) => ({
+    filename: item.id,
+    size: Buffer.byteLength(item.summary, 'utf8'),
+    threadId: item.thread_id,
+    updatedAt: item.updated_at,
+  }));
 });
 
-ipcMain.handle('memory-read-chunk', async (event, filename) => {
-  const fs = require('fs');
-  try {
-    return fs.readFileSync(path.join(agentConfig.DIRS.chatLogs, filename), 'utf8');
-  } catch { return ''; }
+ipcMain.handle('memory-read-chunk', async (_event, summaryId) => {
+  const idValue = String(summaryId || '');
+  return localDataService.listConversationSummaries(1000).find((item) => item.id === idValue)?.summary || '';
 });
 
 // === Canvas IPC Handlers ===
@@ -665,18 +622,13 @@ ipcMain.handle('health-check', async () => {
   };
 });
 
-// === Memory IPC Handlers (Phase 8) - DISABLED ===
-// Memory functionality disconnected as per requirements
-// These handlers previously depended on langgraphProcess
-
 ipcMain.handle('memory-get-data', async () => {
-  logger.warn('memory', 'Memory functionality is currently disabled');
-  return { facts: [], enabled: false };
+  return { ...localDataService.getMemoryProfile(), enabled: true };
 });
 
-ipcMain.handle('memory-delete-fact', async (event, factId) => {
-  logger.warn('memory', 'Memory delete functionality is currently disabled');
-  return { success: false, error: 'Memory functionality is currently disabled' };
+ipcMain.handle('memory-delete-fact', async (_event, factId) => {
+  localDataService.archiveMemoryFact(factId);
+  return { success: true };
 });
 
 // === Skills IPC Handlers ===
@@ -781,8 +733,8 @@ ipcMain.handle('langgraph-get-status', async () => {
   return langgraph.getStatus();
 });
 
-ipcMain.handle('langgraph-create-thread', async () => {
-  const threadId = await langgraph.createThread();
+ipcMain.handle('langgraph-create-thread', async (_event, kind) => {
+  const threadId = await langgraph.createThread(kind || 'chat');
   return { thread_id: threadId };
 });
 

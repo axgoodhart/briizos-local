@@ -28,10 +28,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import logger, { setActiveThread } from '../lib/logger';
 import { registerSurfaceForThread, unregisterThread, restrictivePolicy } from '../lib/agentSurfaces';
 import {
-  subscribeChatMessages,
-  addChatMessage,
   addLog,
-  clearChatMessages,
   subscribeRemoteChat,
   addRemoteChatMessage,
   markRemoteChatRead,
@@ -156,10 +153,35 @@ export function useChat({ selectedModel } = {}) {
   const uid = getCurrentUid();
 
   useEffect(() => {
-    if (!uid) return;
-    const unsubscribe = subscribeChatMessages((firestoreMessages) => setMessages(firestoreMessages));
-    return () => unsubscribe();
-  }, [uid]);
+    let active = true;
+    const loadLatestThread = async () => {
+      const threads = await api.localData.threads.list({ kind: 'chat', limit: 1 });
+      if (!active || !threads.length) return;
+      const thread = threads[0];
+      threadIdRef.current = thread.id;
+      setActiveThread(thread.id);
+      threadTitleRef.current = thread.title || null;
+      setThreadTitle(thread.title || null);
+      setMessages(await api.localData.threads.messages.list(thread.id));
+      try {
+        chatPolicyRef.current = await registerSurfaceForThread(thread.id, 'chat');
+      } catch {
+        chatPolicyRef.current = restrictivePolicy('chat');
+      }
+    };
+    loadLatestThread().catch((error) => logger.error('chat', 'Failed to load local chat history', { error: error?.message }));
+    const unsubscribe = api.localData.onChanged((change) => {
+      const threadId = threadIdRef.current;
+      if (!threadId || !change?.domains?.includes('threads')) return;
+      api.localData.threads.messages.list(threadId).then((next) => {
+        if (active) setMessages(next);
+      }).catch(() => {});
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   // ---------------------------------------------------------------------
   // Backend status → isConfigured (agent reachable, not "API keys set").
@@ -277,15 +299,19 @@ export function useChat({ selectedModel } = {}) {
       }
       case 'thread_title': {
         if (payload.title) {
+          const titleChanged = threadTitleRef.current !== payload.title;
           threadTitleRef.current = payload.title;
           setThreadTitle((prev) => prev || payload.title);
+          if (titleChanged && threadIdRef.current) api.localData.threads.update(threadIdRef.current, { title: payload.title }).catch(() => {});
         }
         break;
       }
       case 'values': {
         if (payload?.title) {
+          const titleChanged = threadTitleRef.current !== payload.title;
           threadTitleRef.current = payload.title;
           setThreadTitle((prev) => prev || payload.title);
+          if (titleChanged && threadIdRef.current) api.localData.threads.update(threadIdRef.current, { title: payload.title }).catch(() => {});
         }
         break;
       }
@@ -403,7 +429,7 @@ export function useChat({ selectedModel } = {}) {
   const finalizeAssistantTurn = useCallback(async ({ isRemote, skipSuggestions = false }) => {
     const content = streamContentRef.current;
     if (content) {
-      await addChatMessage('assistant', content);
+      await api.localData.threads.messages.append(threadIdRef.current, { role: 'assistant', content });
       if (isRemote) {
         try { await addRemoteChatMessage('assistant', content); } catch {}
       }
@@ -435,13 +461,14 @@ export function useChat({ selectedModel } = {}) {
   const sendMessage = useCallback(async (message, { isRemote = false } = {}) => {
     if (!message?.trim() || isLoading) return null;
     if (!hasApi || typeof api.langgraphStreamMessage !== 'function') {
-      await addChatMessage('assistant', 'Error: the AI agent backend is not available.', true);
       return null;
     }
 
     setSuggestions([]);
     const pendingClarificationAnswer = pendingClarificationRef.current;
-    await addChatMessage('user', message);
+    const activeThreadId = pendingClarificationAnswer ? threadIdRef.current : await ensureThread();
+    if (!activeThreadId) throw new Error('Cannot save a message without an agent thread');
+    await api.localData.threads.messages.append(activeThreadId, { role: 'user', content: message });
     setIsLoading(true);
 
     try {
@@ -487,7 +514,7 @@ export function useChat({ selectedModel } = {}) {
       const selectedFiles = await loadSelectedFiles();
       actualMessage += buildFileContextAddendum(selectedFiles);
 
-      const threadId = await ensureThread();
+      const threadId = activeThreadId;
 
       // Reset per-turn accumulators.
       streamContentRef.current = '';
@@ -517,7 +544,13 @@ export function useChat({ selectedModel } = {}) {
       await finalizeAssistantTurn({ isRemote });
     } catch (error) {
       logger.error('chat', 'Agent turn failed', { error: error?.message });
-      await addChatMessage('assistant', `Error: ${error?.message || 'Unknown error'}`, true);
+      if (threadIdRef.current) {
+        await api.localData.threads.messages.append(threadIdRef.current, {
+          role: 'assistant',
+          content: `Error: ${error?.message || 'Unknown error'}`,
+          isError: true,
+        });
+      }
     } finally {
       if (!pendingConfirmRef.current) {
         setIsLoading(false);
@@ -566,7 +599,11 @@ export function useChat({ selectedModel } = {}) {
       await finalizeAssistantTurn({ isRemote: false });
     } catch (error) {
       logger.error('agent.confirm', 'Resume after confirmation failed', { error: error?.message });
-      await addChatMessage('assistant', `Error: ${error?.message || 'Unknown error'}`, true);
+      await api.localData.threads.messages.append(threadId, {
+        role: 'assistant',
+        content: `Error: ${error?.message || 'Unknown error'}`,
+        isError: true,
+      });
     } finally {
       if (!pendingConfirmRef.current) {
         setIsLoading(false);
@@ -589,7 +626,6 @@ export function useChat({ selectedModel } = {}) {
 
   const sendRemoteResponse = useCallback(async (remoteMsg) => {
     if (isLoadingRef.current || !remoteMsg?.content) return;
-    await addChatMessage('user', `[Remote] ${remoteMsg.content}`);
     try { await markRemoteChatRead(remoteMsg.id); } catch {}
     await sendMessage(`[Remote message] ${remoteMsg.content}`, { isRemote: true });
   }, [sendMessage]);
@@ -605,7 +641,7 @@ export function useChat({ selectedModel } = {}) {
 
   const clearHistory = useCallback(async () => {
     try {
-      await clearChatMessages();
+      if (threadIdRef.current) await api.localData.threads.archive(threadIdRef.current);
       setMessages([]);
       setTokenUsage(null);
       setStreamingContent('');
@@ -658,7 +694,12 @@ export function useChat({ selectedModel } = {}) {
     threadTitleRef,
     sendMessage,
     clearHistory,
-    loadHistory: () => {},
+    loadHistory: async () => {
+      if (!threadIdRef.current) return [];
+      const next = await api.localData.threads.messages.list(threadIdRef.current);
+      setMessages(next);
+      return next;
+    },
     checkConfig,
     refreshFilesInContext,
     approveToolConfirmation,

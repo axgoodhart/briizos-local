@@ -22,8 +22,12 @@ const { ALL_TOOLS } = require('./tools');
 const { ThreadState } = require('./state');
 const { createChatModel, setLocalDataService: setModelLocalDataService } = require('./models');
 const { applyPromptTemplate, setLocalDataService: setPromptLocalDataService } = require('./system-prompt');
-const { getCheckpointer } = require('./checkpointer');
-const { createMemoryPostModelHook, createSummarizationPreModelHook } = require('./memory');
+const { getCheckpointer, setLocalDataService: setCheckpointLocalDataService } = require('./checkpointer');
+const {
+  createMemoryPostModelHook,
+  createSummarizationPreModelHook,
+  setLocalDataService: setMemoryLocalDataService,
+} = require('./memory');
 const { createTitlePostModelHook } = require('./title');
 const { createViewImagePreModelHook } = require('./media');
 
@@ -37,6 +41,8 @@ function setLocalDataService(service) {
   localDataService = service;
   setModelLocalDataService(service);
   setPromptLocalDataService(service);
+  setCheckpointLocalDataService(service);
+  setMemoryLocalDataService(service);
 }
 
 function getLocalDataService() {

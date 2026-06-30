@@ -32,6 +32,12 @@ const DEFAULT_DEER_HOME = process.env.DEER_FLOW_HOME
   : path.join(AGENT_DIR, '.deer-flow');
 
 let singleton = null;
+let localDataService = null;
+
+function setLocalDataService(service) {
+  localDataService = service;
+  resetCheckpointer();
+}
 
 function readConfig() {
   try {
@@ -54,85 +60,36 @@ function generateWriteKey(threadId, checkpointNamespace, checkpointId) {
 }
 
 function rowToWrite(row) {
-  return [row.task_id, row.channel, row.value];
+  return [row.task_id, row.channel, row.value_json];
+}
+
+function serializedJsonText(value) {
+  return typeof value === 'string' ? value : Buffer.from(value).toString('utf8');
+}
+
+function serializedJsonBytes(value) {
+  return Buffer.from(String(value), 'utf8');
 }
 
 class SqliteCheckpointSaver extends BaseCheckpointSaver {
-  constructor(filePath, serde) {
+  constructor(service, serde) {
     super(serde);
-    this.filePath = filePath;
-
-    let sqlite;
-    try {
-      sqlite = require('node:sqlite');
-    } catch (err) {
-      err.message = `SQLite checkpointer unavailable in this Node/Electron runtime: ${err.message}`;
-      throw err;
-    }
-
-    if (filePath !== ':memory:' && !filePath.startsWith('file:')) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
-
-    this.db = new sqlite.DatabaseSync(filePath);
-    this.setup();
-  }
-
-  setup() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS checkpoints (
-        thread_id TEXT NOT NULL,
-        checkpoint_ns TEXT NOT NULL DEFAULT '',
-        checkpoint_id TEXT NOT NULL,
-        parent_checkpoint_id TEXT,
-        checkpoint TEXT NOT NULL,
-        metadata TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
-      );
-      CREATE TABLE IF NOT EXISTS checkpoint_writes (
-        thread_id TEXT NOT NULL,
-        checkpoint_ns TEXT NOT NULL DEFAULT '',
-        checkpoint_id TEXT NOT NULL,
-        inner_key TEXT NOT NULL,
-        task_id TEXT NOT NULL,
-        channel TEXT NOT NULL,
-        value TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, inner_key)
-      );
-      CREATE INDEX IF NOT EXISTS idx_checkpoints_thread_ns
-        ON checkpoints (thread_id, checkpoint_ns, checkpoint_id);
-      CREATE INDEX IF NOT EXISTS idx_checkpoint_writes_lookup
-        ON checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id);
-    `);
+    if (!service) throw new Error('LocalDataService is required for checkpoint persistence');
+    this.service = service;
   }
 
   _getCheckpointRow(threadId, checkpointNamespace, checkpointId) {
-    return this.db.prepare(`
-      SELECT checkpoint_id, checkpoint, metadata, parent_checkpoint_id
-      FROM checkpoints
-      WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ?
-    `).get(threadId, checkpointNamespace || '', checkpointId);
+    const row = this.service.getCheckpoint(threadId, checkpointNamespace, checkpointId);
+    return row && { ...row, checkpoint: row.checkpoint_json, metadata: row.metadata_json };
   }
 
   _getLatestCheckpointRow(threadId, checkpointNamespace) {
-    return this.db.prepare(`
-      SELECT checkpoint_id, checkpoint, metadata, parent_checkpoint_id
-      FROM checkpoints
-      WHERE thread_id = ? AND checkpoint_ns = ?
-      ORDER BY checkpoint_id DESC
-      LIMIT 1
-    `).get(threadId, checkpointNamespace || '');
+    const row = this.service.getCheckpoint(threadId, checkpointNamespace);
+    return row && { ...row, checkpoint: row.checkpoint_json, metadata: row.metadata_json };
   }
 
   _getWriteRows(threadId, checkpointNamespace, checkpointId) {
-    return this.db.prepare(`
-      SELECT task_id, channel, value
-      FROM checkpoint_writes
-      WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ?
-      ORDER BY inner_key ASC
-    `).all(threadId, checkpointNamespace || '', checkpointId);
+    return this.service.listCheckpointWrites(threadId, checkpointNamespace, checkpointId);
   }
 
   async _pendingWrites(threadId, checkpointNamespace, checkpointId) {
@@ -140,7 +97,7 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
     return Promise.all(rows.map(async (row) => [
       row.task_id,
       row.channel,
-      await this.serde.loadsTyped('json', row.value),
+      await this.serde.loadsTyped('json', serializedJsonBytes(row.value_json)),
     ]));
   }
 
@@ -150,7 +107,7 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
       rows
         .map(rowToWrite)
         .filter(([, channel]) => channel === TASKS)
-        .map(async ([, , value]) => this.serde.loadsTyped('json', value))
+        .map(async ([, , value]) => this.serde.loadsTyped('json', serializedJsonBytes(value)))
     );
 
     const checkpoint = mutableCheckpoint;
@@ -164,7 +121,7 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
 
   async _rowToTuple(row, threadId, checkpointNamespace, config = null) {
     if (!row) return undefined;
-    const checkpoint = await this.serde.loadsTyped('json', row.checkpoint);
+    const checkpoint = await this.serde.loadsTyped('json', serializedJsonBytes(row.checkpoint));
     if (checkpoint.v < 4 && row.parent_checkpoint_id !== null && row.parent_checkpoint_id !== undefined) {
       await this._migratePendingSends(checkpoint, threadId, checkpointNamespace, row.parent_checkpoint_id);
     }
@@ -178,7 +135,7 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
         },
       },
       checkpoint,
-      metadata: await this.serde.loadsTyped('json', row.metadata),
+      metadata: await this.serde.loadsTyped('json', serializedJsonBytes(row.metadata)),
       pendingWrites: await this._pendingWrites(threadId, checkpointNamespace, row.checkpoint_id),
     };
 
@@ -215,28 +172,27 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
     let { limit } = options;
     const threadIds = config.configurable?.thread_id
       ? [config.configurable.thread_id]
-      : this.db.prepare('SELECT DISTINCT thread_id FROM checkpoints ORDER BY thread_id ASC').all().map((row) => row.thread_id);
+      : this.service.listCheckpointThreadIds();
     const configuredNamespace = config.configurable?.checkpoint_ns;
     const configuredCheckpointId = config.configurable?.checkpoint_id;
 
     for (const threadId of threadIds) {
       const namespaces = configuredNamespace !== undefined
         ? [configuredNamespace]
-        : this.db.prepare('SELECT DISTINCT checkpoint_ns FROM checkpoints WHERE thread_id = ? ORDER BY checkpoint_ns ASC').all(threadId).map((row) => row.checkpoint_ns);
+        : this.service.listCheckpointNamespaces(threadId);
 
       for (const checkpointNamespace of namespaces) {
-        const rows = this.db.prepare(`
-          SELECT checkpoint_id, checkpoint, metadata, parent_checkpoint_id
-          FROM checkpoints
-          WHERE thread_id = ? AND checkpoint_ns = ?
-          ORDER BY checkpoint_id DESC
-        `).all(threadId, checkpointNamespace || '');
+        const rows = this.service.listCheckpoints(threadId, checkpointNamespace).map((row) => ({
+          ...row,
+          checkpoint: row.checkpoint_json,
+          metadata: row.metadata_json,
+        }));
 
         for (const row of rows) {
           if (configuredCheckpointId && row.checkpoint_id !== configuredCheckpointId) continue;
           if (before?.configurable?.checkpoint_id && row.checkpoint_id >= before.configurable.checkpoint_id) continue;
 
-          const metadata = await this.serde.loadsTyped('json', row.metadata);
+          const metadata = await this.serde.loadsTyped('json', serializedJsonBytes(row.metadata));
           if (filter && !Object.entries(filter).every(([key, value]) => metadata[key] === value)) continue;
           if (limit !== undefined) {
             if (limit <= 0) break;
@@ -263,18 +219,14 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
       this.serde.dumpsTyped(metadata),
     ]);
 
-    this.db.prepare(`
-      INSERT OR REPLACE INTO checkpoints
-        (thread_id, checkpoint_ns, checkpoint_id, parent_checkpoint_id, checkpoint, metadata)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
+    this.service.putCheckpoint({
       threadId,
       checkpointNamespace,
-      preparedCheckpoint.id,
-      config.configurable?.checkpoint_id ?? null,
-      serializedCheckpoint,
-      serializedMetadata
-    );
+      checkpointId: preparedCheckpoint.id,
+      parentCheckpointId: config.configurable?.checkpoint_id ?? null,
+      checkpointJson: serializedJsonText(serializedCheckpoint),
+      metadataJson: serializedJsonText(serializedMetadata),
+    });
 
     return {
       configurable: {
@@ -296,35 +248,24 @@ class SqliteCheckpointSaver extends BaseCheckpointSaver {
       throw new Error('Failed to put writes. RunnableConfig is missing configurable.checkpoint_id.');
     }
 
-    const selectExisting = this.db.prepare(`
-      SELECT inner_key FROM checkpoint_writes
-      WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? AND inner_key = ?
-    `);
-    const insertWrite = this.db.prepare(`
-      INSERT OR REPLACE INTO checkpoint_writes
-        (thread_id, checkpoint_ns, checkpoint_id, inner_key, task_id, channel, value)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
+    const preparedWrites = [];
     for (let idx = 0; idx < writes.length; idx += 1) {
       const [channel, value] = writes[idx];
       const [, serializedValue] = await this.serde.dumpsTyped(value);
-      const writeIndex = WRITES_IDX_MAP[channel] || idx;
-      const innerKey = `${taskId},${writeIndex}`;
-      if (writeIndex >= 0 && selectExisting.get(threadId, checkpointNamespace, checkpointId, innerKey)) {
-        continue;
-      }
-      insertWrite.run(threadId, checkpointNamespace, checkpointId, innerKey, taskId, channel, serializedValue);
+      const writeIndex = WRITES_IDX_MAP[channel] ?? idx;
+      preparedWrites.push({
+        taskId,
+        index: writeIndex,
+        channel,
+        valueJson: serializedJsonText(serializedValue),
+        skipExisting: writeIndex >= 0,
+      });
     }
+    this.service.putCheckpointWrites({ threadId, checkpointNamespace, checkpointId, writes: preparedWrites });
   }
 
   async deleteThread(threadId) {
-    this.db.prepare('DELETE FROM checkpoint_writes WHERE thread_id = ?').run(threadId);
-    this.db.prepare('DELETE FROM checkpoints WHERE thread_id = ?').run(threadId);
-  }
-
-  close() {
-    this.db.close();
+    this.service.deleteThreadCheckpoints(threadId);
   }
 }
 
@@ -398,42 +339,9 @@ class JsonCheckpointSaver extends MemorySaver {
 }
 
 function createCheckpointer() {
-  const config = readConfig();
-  const checkpointerConfig = config.checkpointer || { type: 'memory' };
-  const type = checkpointerConfig.type || 'memory';
-
-  if (type === 'memory') {
-    logger.info('agent.checkpointer', 'Using in-memory LangGraph checkpointer');
-    return new MemorySaver();
-  }
-
-  if (type === 'sqlite') {
-    const filePath = resolveDataPath(checkpointerConfig.connection_string || 'checkpoints.db');
-    if (filePath === ':memory:') {
-      logger.info('agent.checkpointer', 'Using SQLite-compatible in-memory LangGraph checkpointer');
-      return new MemorySaver();
-    }
-
-    try {
-      const saver = new SqliteCheckpointSaver(filePath);
-      logger.info('agent.checkpointer', 'Using SQLite LangGraph checkpointer', { filePath });
-      return saver;
-    } catch (err) {
-      const fallbackPath = `${filePath}.json`;
-      logger.warn('agent.checkpointer', 'Falling back to JSON checkpoint persistence', {
-        filePath,
-        fallbackPath,
-        error: err.message,
-      });
-      return new JsonCheckpointSaver(fallbackPath);
-    }
-  }
-
-  if (type === 'postgres') {
-    throw new Error('Postgres checkpointer is configured, but the Electron JS runtime only supports memory and sqlite backends.');
-  }
-
-  throw new Error(`Unknown checkpointer type: ${type}`);
+  if (!localDataService) throw new Error('LocalDataService has not been attached to the agent checkpointer');
+  logger.info('agent.checkpointer', 'Using briizos.db LangGraph checkpointer');
+  return new SqliteCheckpointSaver(localDataService);
 }
 
 function getCheckpointer() {
@@ -442,20 +350,14 @@ function getCheckpointer() {
 }
 
 function resetCheckpointer() {
-  if (singleton && typeof singleton.close === 'function') singleton.close();
   singleton = null;
 }
 
 function getCheckpointerStatus() {
-  const config = readConfig();
-  const checkpointerConfig = config.checkpointer || { type: 'memory' };
-  const type = checkpointerConfig.type || 'memory';
   return {
-    type,
-    path: type === 'sqlite'
-      ? resolveDataPath(checkpointerConfig.connection_string || 'checkpoints.db')
-      : null,
-    durable: type === 'sqlite' && checkpointerConfig.connection_string !== ':memory:',
+    type: 'local-data',
+    path: localDataService?.databasePath || null,
+    durable: !!localDataService,
   };
 }
 
@@ -465,5 +367,6 @@ module.exports = {
   getCheckpointer,
   resetCheckpointer,
   getCheckpointerStatus,
+  setLocalDataService,
   resolveDataPath,
 };

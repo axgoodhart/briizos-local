@@ -1891,9 +1891,9 @@ class LocalDataService extends EventEmitter {
   }
 
   createThread(input = {}) {
-    v.object(input, 'thread', ['kind', 'title', 'modelProfileId']);
+    v.object(input, 'thread', ['id', 'kind', 'title', 'modelProfileId']);
     const thread = {
-      id: id(),
+      id: input.id === undefined ? id() : v.identifier(input.id, 'id'),
       kind: v.optional(input.kind, (value) => v.string(value, 'kind', { required: true, max: 100 })) ?? 'chat',
       title: v.optional(input.title, (value) => v.string(value, 'title', { max: 1000 })) ?? '',
       modelProfileId: v.optional(input.modelProfileId, (value) => v.identifier(value, 'modelProfileId', { nullable: true })) ?? null,
@@ -1905,6 +1905,429 @@ class LocalDataService extends EventEmitter {
       `).run(thread.id, thread.kind, thread.title, thread.modelProfileId, timestamp, timestamp);
       return { row: this.db.prepare('SELECT * FROM threads WHERE id = ?').get(thread.id) };
     });
+  }
+
+  _ensureThreadRecord(threadId, kind, timestamp) {
+    this.db.prepare(`
+      INSERT INTO threads (id, kind, title, status, created_at, updated_at, revision, deleted_at)
+      VALUES (?, ?, '', 'active', ?, ?, 1, NULL)
+      ON CONFLICT(id) DO NOTHING
+    `).run(threadId, kind, timestamp, timestamp);
+  }
+
+  updateThread(threadId, patch = {}) {
+    threadId = v.identifier(threadId, 'threadId');
+    v.object(patch, 'thread changes', ['title', 'status', 'modelProfileId']);
+    if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one thread change is required');
+    const title = patch.title === undefined ? undefined : v.string(patch.title, 'title', { max: 1000 });
+    const status = patch.status === undefined ? undefined : v.string(patch.status, 'status', { required: true, max: 100 });
+    const modelProfileId = patch.modelProfileId === undefined
+      ? undefined
+      : v.identifier(patch.modelProfileId, 'modelProfileId', { nullable: true });
+    return this._write('threads', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId);
+      if (!current) v.fail('NOT_FOUND', 'Thread not found');
+      this.db.prepare(`
+        UPDATE threads SET title = ?, status = ?, model_profile_id = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(title ?? current.title, status ?? current.status,
+        modelProfileId === undefined ? current.model_profile_id : modelProfileId, timestamp, threadId);
+      return { row: this.db.prepare('SELECT * FROM threads WHERE id = ?').get(threadId) };
+    });
+  }
+
+  listMessages(threadId) {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    return this.db.prepare(`
+      SELECT id, thread_id, sequence, role, content_text, is_error, created_at, updated_at, revision
+      FROM messages WHERE thread_id = ? AND deleted_at IS NULL ORDER BY sequence
+    `).all(threadId).map((row) => ({
+      id: row.id,
+      threadId: row.thread_id,
+      sequence: row.sequence,
+      role: row.role,
+      content: row.content_text,
+      isError: row.is_error === 1,
+      timestamp: new Date(row.created_at).toISOString(),
+      revision: row.revision,
+    }));
+  }
+
+  appendMessage(threadId, input = {}) {
+    threadId = v.identifier(threadId, 'threadId');
+    v.object(input, 'message', ['role', 'content', 'isError']);
+    const role = v.oneOf(input.role, 'role', ['system', 'user', 'assistant', 'tool']);
+    const content = v.string(input.content, 'content', { max: 2000000 });
+    const isError = input.isError === undefined ? false : v.boolean(input.isError, 'isError');
+    const messageId = id();
+    return this._write('threads', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId)) {
+        v.fail('NOT_FOUND', 'Thread not found');
+      }
+      const sequence = this.db.prepare('SELECT COALESCE(MAX(sequence), -1) + 1 AS sequence FROM messages WHERE thread_id = ?').get(threadId).sequence;
+      this.db.prepare(`
+        INSERT INTO messages (id, thread_id, sequence, role, content_text, is_error, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(messageId, threadId, sequence, role, content, isError ? 1 : 0, timestamp, timestamp);
+      this.db.prepare('UPDATE threads SET updated_at = ?, revision = revision + 1 WHERE id = ?').run(timestamp, threadId);
+      return { row: this.listMessages(threadId).find((message) => message.id === messageId) };
+    });
+  }
+
+  archiveThread(threadId) {
+    threadId = v.identifier(threadId, 'threadId');
+    return this._writeDomains(['threads', 'checkpoints'], (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId)) {
+        v.fail('NOT_FOUND', 'Thread not found');
+      }
+      this.db.prepare('DELETE FROM checkpoint_writes WHERE thread_id = ?').run(threadId);
+      this.db.prepare('DELETE FROM checkpoints WHERE thread_id = ?').run(threadId);
+      this.db.prepare('UPDATE messages SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE thread_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, threadId);
+      this.db.prepare('UPDATE conversation_summaries SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE thread_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, threadId);
+      this.db.prepare("UPDATE threads SET status = 'archived', deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?")
+        .run(timestamp, timestamp, threadId);
+      return { ok: true };
+    });
+  }
+
+  _serializedJson(value, label, maxBytes = 20000000) {
+    value = v.string(value, label, { required: true, max: maxBytes });
+    try {
+      JSON.parse(value);
+    } catch {
+      v.fail('INVALID_INPUT', `${label} must contain valid JSON`);
+    }
+    return value;
+  }
+
+  getCheckpoint(threadId, checkpointNamespace = '', checkpointId = null) {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    checkpointNamespace = v.string(checkpointNamespace || '', 'checkpointNamespace', { max: 1000 });
+    if (checkpointId != null) {
+      checkpointId = v.string(checkpointId, 'checkpointId', { required: true, max: 1000 });
+      return this.db.prepare(`
+        SELECT checkpoint_id, checkpoint_json, metadata_json, parent_checkpoint_id
+        FROM checkpoints WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ?
+      `).get(threadId, checkpointNamespace, checkpointId);
+    }
+    return this.db.prepare(`
+      SELECT checkpoint_id, checkpoint_json, metadata_json, parent_checkpoint_id
+      FROM checkpoints WHERE thread_id = ? AND checkpoint_ns = ? ORDER BY checkpoint_id DESC LIMIT 1
+    `).get(threadId, checkpointNamespace);
+  }
+
+  listCheckpointThreadIds() {
+    this._assertReady();
+    return this.db.prepare('SELECT DISTINCT thread_id FROM checkpoints ORDER BY thread_id').all().map((row) => row.thread_id);
+  }
+
+  listCheckpointNamespaces(threadId) {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    return this.db.prepare('SELECT DISTINCT checkpoint_ns FROM checkpoints WHERE thread_id = ? ORDER BY checkpoint_ns')
+      .all(threadId).map((row) => row.checkpoint_ns);
+  }
+
+  listCheckpoints(threadId, checkpointNamespace = '') {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    checkpointNamespace = v.string(checkpointNamespace || '', 'checkpointNamespace', { max: 1000 });
+    return this.db.prepare(`
+      SELECT checkpoint_id, checkpoint_json, metadata_json, parent_checkpoint_id
+      FROM checkpoints WHERE thread_id = ? AND checkpoint_ns = ? ORDER BY checkpoint_id DESC
+    `).all(threadId, checkpointNamespace);
+  }
+
+  listCheckpointWrites(threadId, checkpointNamespace, checkpointId) {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    checkpointNamespace = v.string(checkpointNamespace || '', 'checkpointNamespace', { max: 1000 });
+    checkpointId = v.string(checkpointId, 'checkpointId', { required: true, max: 1000 });
+    return this.db.prepare(`
+      SELECT task_id, idx, channel, value_json FROM checkpoint_writes
+      WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? ORDER BY task_id, idx
+    `).all(threadId, checkpointNamespace, checkpointId);
+  }
+
+  putCheckpoint(input) {
+    v.object(input, 'checkpoint', [
+      'threadId', 'checkpointNamespace', 'checkpointId', 'parentCheckpointId', 'checkpointJson', 'metadataJson',
+    ]);
+    const threadId = v.identifier(input.threadId, 'threadId');
+    const checkpointNamespace = v.string(input.checkpointNamespace || '', 'checkpointNamespace', { max: 1000 });
+    const checkpointId = v.string(input.checkpointId, 'checkpointId', { required: true, max: 1000 });
+    const parentCheckpointId = input.parentCheckpointId == null
+      ? null
+      : v.string(input.parentCheckpointId, 'parentCheckpointId', { required: true, max: 1000 });
+    const checkpointJson = this._serializedJson(input.checkpointJson, 'checkpointJson');
+    const metadataJson = this._serializedJson(input.metadataJson, 'metadataJson', 5000000);
+    return this._write('checkpoints', (timestamp) => {
+      this._ensureThreadRecord(threadId, 'agent', timestamp);
+      this.db.prepare(`
+        INSERT INTO checkpoints (
+          thread_id, checkpoint_ns, checkpoint_id, parent_checkpoint_id, checkpoint_json, metadata_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(thread_id, checkpoint_ns, checkpoint_id) DO UPDATE SET
+          parent_checkpoint_id = excluded.parent_checkpoint_id,
+          checkpoint_json = excluded.checkpoint_json,
+          metadata_json = excluded.metadata_json,
+          created_at = excluded.created_at
+      `).run(threadId, checkpointNamespace, checkpointId, parentCheckpointId, checkpointJson, metadataJson, timestamp);
+      return { ok: true };
+    });
+  }
+
+  putCheckpointWrites(input) {
+    v.object(input, 'checkpoint writes', ['threadId', 'checkpointNamespace', 'checkpointId', 'writes']);
+    const threadId = v.identifier(input.threadId, 'threadId');
+    const checkpointNamespace = v.string(input.checkpointNamespace || '', 'checkpointNamespace', { max: 1000 });
+    const checkpointId = v.string(input.checkpointId, 'checkpointId', { required: true, max: 1000 });
+    if (!Array.isArray(input.writes) || input.writes.length > 10000) v.fail('INVALID_INPUT', 'writes must be a bounded list');
+    const writes = input.writes.map((write, index) => {
+      v.object(write, `writes[${index}]`, ['taskId', 'index', 'channel', 'valueJson', 'skipExisting']);
+      return {
+        taskId: v.string(write.taskId, `writes[${index}].taskId`, { required: true, max: 1000 }),
+        index: v.integer(write.index, `writes[${index}].index`),
+        channel: v.string(write.channel, `writes[${index}].channel`, { required: true, max: 1000 }),
+        valueJson: this._serializedJson(write.valueJson, `writes[${index}].valueJson`, 10000000),
+        skipExisting: write.skipExisting === undefined ? false : v.boolean(write.skipExisting, `writes[${index}].skipExisting`),
+      };
+    });
+    return this._write('checkpoints', (timestamp) => {
+      if (!this.db.prepare('SELECT checkpoint_id FROM checkpoints WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ?')
+        .get(threadId, checkpointNamespace, checkpointId)) {
+        v.fail('NOT_FOUND', 'Checkpoint not found');
+      }
+      const exists = this.db.prepare(`
+        SELECT 1 FROM checkpoint_writes WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? AND task_id = ? AND idx = ?
+      `);
+      const insert = this.db.prepare(`
+        INSERT OR REPLACE INTO checkpoint_writes
+          (thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel, value_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      writes.forEach((write) => {
+        if (write.skipExisting && exists.get(threadId, checkpointNamespace, checkpointId, write.taskId, write.index)) return;
+        insert.run(threadId, checkpointNamespace, checkpointId, write.taskId, write.index, write.channel, write.valueJson, timestamp);
+      });
+      return { ok: true };
+    });
+  }
+
+  deleteThreadCheckpoints(threadId) {
+    threadId = v.identifier(threadId, 'threadId');
+    return this._write('checkpoints', () => {
+      this.db.prepare('DELETE FROM checkpoint_writes WHERE thread_id = ?').run(threadId);
+      this.db.prepare('DELETE FROM checkpoints WHERE thread_id = ?').run(threadId);
+      return { ok: true };
+    });
+  }
+
+  getConversationSummary(threadId, contentHash) {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    contentHash = v.string(contentHash, 'contentHash', { required: true, max: 128 });
+    return this.db.prepare(`
+      SELECT * FROM conversation_summaries
+      WHERE thread_id = ? AND content_hash = ? AND deleted_at IS NULL
+      ORDER BY updated_at DESC LIMIT 1
+    `).get(threadId, contentHash) || null;
+  }
+
+  saveConversationSummary(input) {
+    v.object(input, 'conversation summary', ['threadId', 'firstSequence', 'lastSequence', 'contentHash', 'summary']);
+    const threadId = v.identifier(input.threadId, 'threadId');
+    const firstSequence = v.integer(input.firstSequence, 'firstSequence', { min: 0 });
+    const lastSequence = v.integer(input.lastSequence, 'lastSequence', { min: firstSequence });
+    const contentHash = v.string(input.contentHash, 'contentHash', { required: true, max: 128 });
+    const summary = v.string(input.summary, 'summary', { required: true, max: 1000000 });
+    return this._write('memory', (timestamp) => {
+      this._ensureThreadRecord(threadId, 'agent', timestamp);
+      const existing = this.db.prepare(`
+        SELECT id FROM conversation_summaries
+        WHERE thread_id = ? AND first_sequence = ? AND last_sequence = ? AND content_hash = ?
+      `).get(threadId, firstSequence, lastSequence, contentHash);
+      const summaryId = existing?.id || id();
+      this.db.prepare(`
+        INSERT INTO conversation_summaries (
+          id, thread_id, first_sequence, last_sequence, content_hash, summary, created_at, updated_at, revision, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)
+        ON CONFLICT(thread_id, first_sequence, last_sequence, content_hash) DO UPDATE SET
+          summary = excluded.summary, updated_at = excluded.updated_at,
+          revision = conversation_summaries.revision + 1, deleted_at = NULL
+      `).run(summaryId, threadId, firstSequence, lastSequence, contentHash, summary, timestamp, timestamp);
+      return { row: this.db.prepare('SELECT * FROM conversation_summaries WHERE id = ?').get(summaryId) };
+    });
+  }
+
+  listConversationSummaries(limit = 100) {
+    this._assertReady();
+    limit = v.integer(limit, 'limit', { min: 1, max: 1000 });
+    return this.db.prepare(`
+      SELECT id, thread_id, first_sequence, last_sequence, content_hash, summary, created_at, updated_at, revision
+      FROM conversation_summaries WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?
+    `).all(limit);
+  }
+
+  _memoryAgentKey(agentName = null) {
+    if (agentName == null || String(agentName).trim() === '') return 'main';
+    const normalized = String(agentName).trim().toLowerCase().replace(/[^a-z0-9._:-]+/g, '-').slice(0, 100);
+    return normalized || 'main';
+  }
+
+  _memorySectionDefinitions(agentKey) {
+    return [
+      ['user.workContext', 'Work Context'],
+      ['user.personalContext', 'Personal Context'],
+      ['user.topOfMind', 'Current Focus'],
+      ['history.recentMonths', 'Recent Months'],
+      ['history.earlierContext', 'Earlier Context'],
+      ['history.longTermBackground', 'Long-term Background'],
+      ['agentContext', 'Additional Agent Context'],
+    ].map(([key, title], position) => ({ id: `${agentKey}:${key}`, key: `${agentKey}:${key}`, profileKey: key, title, position }));
+  }
+
+  listMemorySections(agentName = null) {
+    this._assertReady();
+    const agentKey = this._memoryAgentKey(agentName);
+    const definitions = this._memorySectionDefinitions(agentKey);
+    const rows = this.db.prepare(`
+      SELECT * FROM memory_sections WHERE key LIKE ? AND deleted_at IS NULL ORDER BY position
+    `).all(`${agentKey}:%`);
+    const byKey = new Map(rows.map((row) => [row.key, row]));
+    return definitions.map((definition) => {
+      const row = byKey.get(definition.key);
+      return {
+        id: row?.id || definition.id,
+        key: definition.profileKey,
+        title: definition.title,
+        body: row?.body || '',
+        position: definition.position,
+        updatedAt: row?.updated_at || null,
+        revision: row?.revision || 0,
+      };
+    });
+  }
+
+  listMemoryFacts(agentName = null) {
+    this._assertReady();
+    const agentKey = this._memoryAgentKey(agentName);
+    return this.db.prepare(`
+      SELECT id, fact_text, source_thread_id, category, confidence, created_at, updated_at, revision
+      FROM memory_facts WHERE agent_key = ? AND deleted_at IS NULL ORDER BY created_at DESC
+    `).all(agentKey).map((row) => ({
+      id: row.id,
+      content: row.fact_text,
+      source: row.source_thread_id,
+      category: row.category,
+      confidence: row.confidence,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    }));
+  }
+
+  getMemoryProfile(agentName = null) {
+    const sections = this.listMemorySections(agentName);
+    const section = (key) => sections.find((item) => item.key === key);
+    const updatedAt = sections.reduce((latest, item) => Math.max(latest, item.updatedAt || 0), 0);
+    return {
+      version: '2.0',
+      lastUpdated: updatedAt ? new Date(updatedAt).toISOString() : new Date(0).toISOString(),
+      user: {
+        workContext: { summary: section('user.workContext').body, updatedAt: section('user.workContext').updatedAt || '' },
+        personalContext: { summary: section('user.personalContext').body, updatedAt: section('user.personalContext').updatedAt || '' },
+        topOfMind: { summary: section('user.topOfMind').body, updatedAt: section('user.topOfMind').updatedAt || '' },
+      },
+      history: {
+        recentMonths: { summary: section('history.recentMonths').body, updatedAt: section('history.recentMonths').updatedAt || '' },
+        earlierContext: { summary: section('history.earlierContext').body, updatedAt: section('history.earlierContext').updatedAt || '' },
+        longTermBackground: { summary: section('history.longTermBackground').body, updatedAt: section('history.longTermBackground').updatedAt || '' },
+      },
+      agentContext: section('agentContext').body,
+      facts: this.listMemoryFacts(agentName),
+    };
+  }
+
+  saveMemoryProfile(memoryData, agentName = null) {
+    v.object(memoryData, 'memory profile', ['version', 'lastUpdated', 'user', 'history', 'agentContext', 'facts']);
+    const agentKey = this._memoryAgentKey(agentName);
+    const definitions = this._memorySectionDefinitions(agentKey);
+    const bodies = {
+      'user.workContext': memoryData.user?.workContext?.summary || '',
+      'user.personalContext': memoryData.user?.personalContext?.summary || '',
+      'user.topOfMind': memoryData.user?.topOfMind?.summary || '',
+      'history.recentMonths': memoryData.history?.recentMonths?.summary || '',
+      'history.earlierContext': memoryData.history?.earlierContext?.summary || '',
+      'history.longTermBackground': memoryData.history?.longTermBackground?.summary || '',
+      agentContext: memoryData.agentContext || '',
+    };
+    Object.entries(bodies).forEach(([key, body]) => {
+      bodies[key] = v.string(body, key, { max: 1000000 });
+    });
+    const facts = memoryData.facts || [];
+    if (!Array.isArray(facts) || facts.length > 1000) v.fail('INVALID_INPUT', 'Memory facts must be a bounded list');
+    return this._write('memory', (timestamp) => {
+      const insertSection = this.db.prepare(`
+        INSERT INTO memory_sections (id, key, title, body, position, created_at, updated_at, revision, deleted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NULL)
+        ON CONFLICT(key) DO UPDATE SET title = excluded.title, body = excluded.body, position = excluded.position,
+          updated_at = excluded.updated_at, revision = memory_sections.revision + 1, deleted_at = NULL
+      `);
+      const sectionIds = {};
+      definitions.forEach((definition) => {
+        insertSection.run(definition.id, definition.key, definition.title, bodies[definition.profileKey], definition.position, timestamp, timestamp);
+        sectionIds[definition.profileKey] = definition.id;
+      });
+      this.db.prepare('UPDATE memory_facts SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE agent_key = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, agentKey);
+      const insertFact = this.db.prepare(`
+        INSERT INTO memory_facts (
+          id, section_id, fact_text, source_thread_id, agent_key, category, confidence,
+          created_at, updated_at, revision, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)
+        ON CONFLICT(id) DO UPDATE SET section_id = excluded.section_id, fact_text = excluded.fact_text,
+          source_thread_id = excluded.source_thread_id, agent_key = excluded.agent_key, category = excluded.category,
+          confidence = excluded.confidence, updated_at = excluded.updated_at,
+          revision = memory_facts.revision + 1, deleted_at = NULL
+      `);
+      facts.forEach((fact, index) => {
+        const factId = fact.id && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(fact.id) ? fact.id : id();
+        const content = v.string(fact.content, `facts[${index}].content`, { required: true, max: 100000 });
+        const category = v.optional(fact.category, (value) => v.string(value, `facts[${index}].category`, { required: true, max: 100 })) || 'context';
+        const confidence = fact.confidence === undefined ? 1 : v.number(Number(fact.confidence), `facts[${index}].confidence`, { min: 0, max: 1 });
+        const source = fact.source && this.db.prepare('SELECT id FROM threads WHERE id = ?').get(fact.source) ? fact.source : null;
+        insertFact.run(factId, sectionIds['agentContext'], content, source, agentKey, category, confidence, timestamp, timestamp);
+      });
+      return { row: this.getMemoryProfile(agentName) };
+    });
+  }
+
+  updateMemorySection(key, body, agentName = null) {
+    const agentKey = this._memoryAgentKey(agentName);
+    const definition = this._memorySectionDefinitions(agentKey).find((item) => item.profileKey === key);
+    if (!definition) v.fail('INVALID_INPUT', 'Unsupported memory section');
+    body = v.string(body, 'body', { max: 1000000 });
+    return this._write('memory', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO memory_sections (id, key, title, body, position, created_at, updated_at, revision, deleted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NULL)
+        ON CONFLICT(key) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at,
+          revision = memory_sections.revision + 1, deleted_at = NULL
+      `).run(definition.id, definition.key, definition.title, body, definition.position, timestamp, timestamp);
+      return { row: this.listMemorySections(agentName).find((section) => section.key === key) };
+    });
+  }
+
+  archiveMemoryFact(factId) {
+    factId = v.identifier(factId, 'factId');
+    const current = this.db.prepare('SELECT revision FROM memory_facts WHERE id = ? AND deleted_at IS NULL').get(factId);
+    if (!current) v.fail('NOT_FOUND', 'Memory fact not found');
+    return this._archiveRow('memory', 'memory_facts', factId, current.revision);
   }
 
   _normalizeProjectId(value) {

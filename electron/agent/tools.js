@@ -15,8 +15,9 @@ const fs = require('fs');
 const path = require('path');
 const { tool } = require('@langchain/core/tools');
 const { HumanMessage, ToolMessage } = require('@langchain/core/messages');
-const { Command, interrupt, MemorySaver, writer } = require('@langchain/langgraph');
+const { Command, interrupt, writer } = require('@langchain/langgraph');
 const { createReactAgent } = require('@langchain/langgraph/prebuilt');
+const { getCheckpointer } = require('./checkpointer');
 const { z } = require('zod');
 const yaml = require('js-yaml');
 const { callRendererTool } = require('./bridge');
@@ -722,7 +723,7 @@ const task = tool(
         tools: filterSubagentTools(BASE_TOOLS, subagentConfig),
         prompt: systemPrompt,
         stateSchema: ThreadState,
-        checkpointer: new MemorySaver(),
+        checkpointer: getCheckpointer(),
       });
 
       let finalText = '';

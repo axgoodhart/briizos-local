@@ -34,14 +34,6 @@ function readYaml(filePath) {
   }
 }
 
-function readJson(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return {};
-  }
-}
-
 function getConfig() {
   return readYaml(CONFIG_PATH);
 }
@@ -197,15 +189,6 @@ function getAgentSoul(agentName = null) {
   }
 }
 
-function getMemoryPath(agentName = null, config = getConfig()) {
-  if (agentName) return path.join(getAgentDir(agentName), 'memory.json');
-  const configured = config?.memory?.storage_path;
-  if (!configured) return path.join(DEFAULT_DEER_HOME, 'memory.json');
-  return path.isAbsolute(configured)
-    ? configured
-    : path.resolve(DEFAULT_DEER_HOME, configured);
-}
-
 function estimateTokens(text) {
   return Math.ceil(String(text || '').length / 4);
 }
@@ -231,6 +214,15 @@ function formatMemoryForInjection(memoryData, maxTokens = 2000) {
     sections.push(`History:\n${historySections.map((s) => `- ${s}`).join('\n')}`);
   }
 
+  if (memoryData.agentContext) {
+    sections.push(`Additional Context:\n${memoryData.agentContext}`);
+  }
+
+  const facts = Array.isArray(memoryData.facts) ? memoryData.facts.slice(0, 30) : [];
+  if (facts.length > 0) {
+    sections.push(`Remembered Facts:\n${facts.map((fact) => `- ${fact.content}`).join('\n')}`);
+  }
+
   if (sections.length === 0) return '';
   let result = sections.join('\n\n');
   const tokenCount = estimateTokens(result);
@@ -247,7 +239,7 @@ function getMemoryContext(agentName = null, injectMemory = true) {
   const memoryConfig = config.memory || {};
   if (memoryConfig.enabled === false || memoryConfig.injection_enabled === false) return '';
   try {
-    const memoryData = readJson(getMemoryPath(agentName, config));
+    const memoryData = localDataService?.getMemoryProfile?.(agentName);
     const memoryContent = formatMemoryForInjection(memoryData, memoryConfig.max_injection_tokens || 2000);
     return memoryContent.trim() ? `<memory>\n${memoryContent}\n</memory>\n` : '';
   } catch {
