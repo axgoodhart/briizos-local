@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import './App.css';
 import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
@@ -160,7 +160,7 @@ function HeaderDateTimeWeather() {
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+      setTime(now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }));
       const day = now.getDate();
       const ord = day % 10 === 1 && day !== 11 ? 'ST' :
                   day % 10 === 2 && day !== 12 ? 'ND' :
@@ -200,9 +200,9 @@ function HeaderDateTimeWeather() {
 
   return (
     <div className="header-datetime-weather" style={{ WebkitAppRegion: 'no-drag' }}>
-      <span className="header-time">{time}</span>
+      <span className="header-time">{time}     <span className="header-weather">{weather}</span></span>
       <span className="header-date">{date}</span>
-      <span className="header-weather">{weather}</span>
+  
     </div>
   );
 }
@@ -329,7 +329,6 @@ function AppContent({ layout }) {
   }, [actionDeckPanel, togglePanelVisibility, addPanel, saveActionDeckPanelSettings]);
 
   const openJournalPanel = useCallback(() => {
-    if (journalPanel?.visible) return;
     if (journalPanel) {
       togglePanelVisibility(journalPanel.id);
       return;
@@ -339,7 +338,6 @@ function AppContent({ layout }) {
   }, [journalPanel, togglePanelVisibility, addPanel]);
 
   const openNotefallsPanel = useCallback(() => {
-    if (notefallsPanel?.visible) return;
     if (notefallsPanel) {
       togglePanelVisibility(notefallsPanel.id);
       return;
@@ -349,7 +347,6 @@ function AppContent({ layout }) {
   }, [notefallsPanel, togglePanelVisibility, addPanel]);
 
   const openForestPanel = useCallback(() => {
-    if (forestPanel?.visible) return;
     if (forestPanel) {
       togglePanelVisibility(forestPanel.id);
       return;
@@ -768,56 +765,39 @@ function AppContent({ layout }) {
     };
   }, []);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — declarative table (key/label/run) iterated by one
+  // handler, instead of a growing switch(e.key) block. Each entry's `run` is
+  // symmetric with the others: all the "Toggle X" shortcuts actually toggle,
+  // including Journal/Forest/Notefalls (openJournalPanel/openNotefallsPanel/
+  // openForestPanel now flip visibility instead of no-op'ing when already
+  // open). 'o'/'c' stay open-only on purpose — they always open, never close.
+  const shortcuts = useMemo(() => [
+    { key: 'b', label: 'Toggle briiZtorm', run: () => setBriiztormOpen((prev) => !prev) },
+    { key: 'a', label: 'Toggle ActionDeck', run: () => toggleActionDeck() },
+    { key: 'o', label: 'Open Organizer', run: () => setOrganizerOpen(true) },
+    { key: 'c', label: 'Open Calendar', run: () => setCalendarOpen(true) },
+    { key: 'm', label: 'Toggle Media', run: () => setMediaOpen((prev) => !prev) },
+    { key: 'n', label: 'Toggle Notes', run: () => setNotesOpen((prev) => !prev) },
+    { key: 'v', label: 'Toggle Canvas', run: () => setCanvasOpen((prev) => !prev) },
+    { key: 'k', label: 'Toggle Canvases library', run: () => setCanvasesPopoverOpen((prev) => !prev) },
+    { key: 'j', label: 'Toggle Journal', run: () => openJournalPanel() },
+    { key: 'l', label: 'Toggle Notefalls', run: () => openNotefallsPanel() },
+    { key: 'f', label: 'Toggle Forest', run: () => openForestPanel() },
+  ], [toggleActionDeck, openJournalPanel, openNotefallsPanel, openForestPanel]);
+
   useEffect(() => {
+    // Don't hijack Cmd/Ctrl+Shift+<letter> while the user is typing —
+    // same guard JournalView uses for its own arrow/Escape handling.
+    const isTypingTarget = (el) =>
+      !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
     const handleKeyDown = (e) => {
       // Check for Cmd/Ctrl + Shift combinations
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
-        switch (e.key.toLowerCase()) {
-          case 'b': // Cmd+Shift+B - Toggle briiZtorm
-            e.preventDefault();
-            setBriiztormOpen(prev => !prev);
-            break;
-          case 'a': // Cmd+Shift+A - Toggle ActionDeck
-            e.preventDefault();
-            toggleActionDeck();
-            break;
-          case 'o': // Cmd+Shift+O - Open Organizer
-            e.preventDefault();
-            setOrganizerOpen(true);
-            break;
-          case 'c': // Cmd+Shift+C - Open Calendar
-            e.preventDefault();
-            setCalendarOpen(true);
-            break;
-          case 'm': // Cmd+Shift+M - Toggle Media
-            e.preventDefault();
-            setMediaOpen(prev => !prev);
-            break;
-          case 'n': // Cmd+Shift+N - Toggle Notes
-            e.preventDefault();
-            setNotesOpen(prev => !prev);
-            break;
-          case 'v': // Cmd+Shift+V - Toggle Canvas
-            e.preventDefault();
-            setCanvasOpen(prev => !prev);
-            break;
-          case 'k': // Cmd+Shift+K - Toggle Canvases library
-            e.preventDefault();
-            setCanvasesPopoverOpen(prev => !prev);
-            break;
-          case 'j': // Cmd+Shift+J - Open Journal
-            e.preventDefault();
-            openJournalPanel();
-            break;
-          case 'l': // Cmd+Shift+L - Open Notefalls
-            e.preventDefault();
-            openNotefallsPanel();
-            break;
-          case 'f': // Cmd+Shift+F - Open Forest
-            e.preventDefault();
-            openForestPanel();
-            break;
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && !isTypingTarget(document.activeElement)) {
+        const shortcut = shortcuts.find((s) => s.key === e.key.toLowerCase());
+        if (shortcut) {
+          e.preventDefault();
+          shortcut.run();
         }
       }
 
@@ -845,7 +825,7 @@ function AppContent({ layout }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, mediaOpen, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, toggleActionDeck, openJournalPanel, openNotefallsPanel, openForestPanel]);
+  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen]);
 
   // Listen for canvas events from tool system
   useEffect(() => {

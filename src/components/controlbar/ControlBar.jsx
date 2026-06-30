@@ -28,6 +28,17 @@ function ControlBar({
         type="button"
         className={`cb-toggle ${briiztormOpen ? 'active' : ''}`}
         onClick={onToggleBriiztorm}
+        title="AI Chat Panel"
+        aria-pressed={briiztormOpen}
+      >
+        <span className="cb-icon" id="chatpanel-icon">􀌮</span>
+        <span className="cb-label">Chats</span>
+      </button>
+
+      <button
+        type="button"
+        className={`cb-toggle ${briiztormOpen ? 'active' : ''}`}
+        onClick={onToggleBriiztorm}
         title="briiZtorm - 3D Project View"
         aria-pressed={briiztormOpen}
       >
@@ -75,7 +86,7 @@ function ControlBar({
         title="Media"
         aria-pressed={mediaOpen}
       >
-        <span className="cb-icon" id="media-icon">􀑪</span>
+        <span className="cb-icon" id="media-icon">􀢺</span>
         <span className="cb-label">Media</span>
       </button>
 
@@ -86,7 +97,7 @@ function ControlBar({
         title="Notes - Quick Notes"
         aria-pressed={notesOpen}
       >
-        <span className="cb-icon" id="notes-icon">􀓕􀈊</span>
+        <span className="cb-icon" id="notes-icon">􁕍</span>
         <span className="cb-label">Notes</span>
       </button>
 

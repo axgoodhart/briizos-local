@@ -85,9 +85,9 @@ const I = {
       <circle cx="9" cy="18" r="1.4" /><circle cx="15" cy="18" r="1.4" />
     </svg>
   ),
-  bold: <span className="rt-glyph" style="font-weight:700">B</span>,
-  italic: <span className="rt-glyph" style="font-style:italic;font-family:Georgia,serif">I</span>,
-  underline: <span className="rt-glyph" style="text-decoration:underline">U</span>,
+  bold: <span className="rt-glyph" style={{ fontWeight: 700 }}>B</span>,
+  italic: <span className="rt-glyph" style={{ fontStyle: 'italic', fontFamily: 'Georgia,serif' }}>I</span>,
+  underline: <span className="rt-glyph" style={{ textDecoration: 'underline' }}>U</span>,
   link: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M10 14a4 4 0 0 0 6 .4l2.5-2.5a4 4 0 1 0-5.7-5.7L11.5 7.5" />
@@ -99,7 +99,7 @@ const I = {
       <path d="m9 8-5 4 5 4M15 8l5 4-5 4" />
     </svg>
   ),
-  quote: <span className="rt-glyph" style="font-family:Georgia,serif;font-weight:700">”</span>,
+  quote: <span className="rt-glyph" style={{ fontFamily: 'Georgia,serif', fontWeight: 700 }}>”</span>,
   alignL: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M4 6h16M4 11h10M4 16h16M4 21h10" transform="translate(0,-1.5)" />

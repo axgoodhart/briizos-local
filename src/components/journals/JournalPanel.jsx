@@ -278,82 +278,88 @@ export function JournalPanel() {
   };
 
   const openJournal = journals.find((j) => j.id === openId);
-  if (openJournal) {
-    return (
-      <JournalView
-        journal={openJournal}
-        pageUrl={PAGES[openJournal.page]}
-        coverUrl={COVERS[openJournal.cover]}
-        onBack={() => setOpenId(null)}
-      />
-    );
-  }
 
   return (
-    <div className="journals-home" onClick={() => setSelectedId(null)}>
-      <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="jr-action" title="New journal" onClick={() => setCreating(true)}>
-          {Icon.plus}
-        </button>
-        <button
-          type="button"
-          className={'jr-action' + (searchOpen ? ' is-active' : '')}
-          title="Search journals"
-          onClick={() => {
-            if (searchOpen) setQuery('');
-            setSearchOpen(!searchOpen);
-          }}
-        >
-          {Icon.search}
-        </button>
-        <button type="button" className="jr-action is-stub" title="Chat (coming soon)" disabled>
-          {Icon.chat}
-        </button>
-        <button type="button" className="jr-action jr-action--current" title="Home" disabled>
-          {Icon.home}
-        </button>
-
-        <div className={'jr-searchbar' + (searchOpen ? ' is-open' : '')}>
-          <input
-            ref={searchRef}
-            className="jr-input jr-searchbar__input"
-            type="text"
-            value={query}
-            placeholder="Filter by title or globaltag…"
-            onInput={(e) => setQuery(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setQuery('');
-                setSearchOpen(false);
-              }
-            }}
-          />
-        </div>
+    <div className="panel journal-panel">
+      <div className="panel-header">
+        <span className="panel-header-title">Journal</span>
       </div>
-
-      <div className="jr-grid">
-        {visible.map((j) => (
-          <JournalCard
-            key={j.id}
-            journal={j}
-            selected={selectedId === j.id}
-            onSelect={(e) => {
-              e.stopPropagation();
-              // First click selects (lights up the cover); second click opens.
-              if (selectedId === j.id) setOpenId(j.id);
-              else setSelectedId(j.id);
-            }}
+      <div className="panel-content">
+        {openJournal ? (
+          <JournalView
+            journal={openJournal}
+            pageUrl={PAGES[openJournal.page]}
+            coverUrl={COVERS[openJournal.cover]}
+            onBack={() => setOpenId(null)}
           />
-        ))}
-        {!journals.length && (
-          <p className="jr-empty">No journals yet — press <strong>+</strong> to make your first one.</p>
-        )}
-        {journals.length > 0 && !visible.length && (
-          <p className="jr-empty">Nothing matches “{query}”.</p>
+        ) : (
+          <div className="journals-home" onClick={() => setSelectedId(null)}>
+            <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="jr-action" title="New journal" onClick={() => setCreating(true)}>
+                {Icon.plus}
+              </button>
+              <button
+                type="button"
+                className={'jr-action' + (searchOpen ? ' is-active' : '')}
+                title="Search journals"
+                onClick={() => {
+                  if (searchOpen) setQuery('');
+                  setSearchOpen(!searchOpen);
+                }}
+              >
+                {Icon.search}
+              </button>
+              <button type="button" className="jr-action is-stub" title="Chat (coming soon)" disabled>
+                {Icon.chat}
+              </button>
+              <button type="button" className="jr-action jr-action--current" title="Home" disabled>
+                {Icon.home}
+              </button>
+
+              <div className={'jr-searchbar' + (searchOpen ? ' is-open' : '')}>
+                <input
+                  ref={searchRef}
+                  className="jr-input jr-searchbar__input"
+                  type="text"
+                  value={query}
+                  placeholder="Filter by title or globaltag…"
+                  onInput={(e) => setQuery(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setQuery('');
+                      setSearchOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="jr-grid">
+              {visible.map((j) => (
+                <JournalCard
+                  key={j.id}
+                  journal={j}
+                  selected={selectedId === j.id}
+                  onSelect={(e) => {
+                    e.stopPropagation();
+                    // First click selects (lights up the cover); second click opens.
+                    if (selectedId === j.id) setOpenId(j.id);
+                    else setSelectedId(j.id);
+                  }}
+                />
+              ))}
+              {!journals.length && (
+                <p className="jr-empty">No journals yet — press <strong>+</strong> to make your first one.</p>
+              )}
+              {journals.length > 0 && !visible.length && (
+                <p className="jr-empty">Nothing matches “{query}”.</p>
+              )}
+            </div>
+
+            {creating && <CreateJournalModal onClose={() => setCreating(false)} onCreate={handleCreate} />}
+          </div>
         )}
       </div>
-
-      {creating && <CreateJournalModal onClose={() => setCreating(false)} onCreate={handleCreate} />}
     </div>
   );
 }

@@ -4,8 +4,9 @@
    selected, when they light up with a cool glow + title plaque. */
 
 .journals-home {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow-y: auto;
   padding: 28px 48px 64px;
   box-sizing: border-box;
@@ -513,8 +514,9 @@ transition: all .5s ease;
 /* ── Journal viewer — open book ─────────────────────────────────────── */
 
 .jv-root {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   /* Contain the backdrop's negative z-index so it can't slip behind
      the app shell. */
   isolation: isolate;

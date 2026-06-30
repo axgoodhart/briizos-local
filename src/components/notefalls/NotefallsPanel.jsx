@@ -424,40 +424,47 @@ export function NotefallsPanel() {
   const expandedPost = posts.find((p) => p.id === expandedId) || null;
 
   return (
-    <div className="nf-tab">
-      <DateRail posts={posts} activeDay={activeDay} todayKey={todayKey} onJump={jumpToDay} />
+    <div className="panel notefalls-panel">
+      <div className="panel-header">
+        <span className="panel-header-title">Notefalls</span>
+      </div>
+      <div className="panel-content">
+        <div className="nf-tab">
+          <DateRail posts={posts} activeDay={activeDay} todayKey={todayKey} onJump={jumpToDay} />
 
-      <div className="nf-main">
-        <div className="nf-feed" ref={feedRef} onScroll={onFeedScroll}>
-          <Composer onPost={handlePost} />
+          <div className="nf-main">
+            <div className="nf-feed" ref={feedRef} onScroll={onFeedScroll}>
+              <Composer onPost={handlePost} />
 
-          {(() => {
-            // Only the topmost row for each day gets registered in rowRefs,
-            // so jump-to-date / scroll-tracking land on the start of a day's group.
-            rowRefs.current.clear();
-            const seenDays = new Set();
-            return posts.map((post) => {
-              const key = dayKey(post.createdAt);
-              const isFirst = !seenDays.has(key);
-              seenDays.add(key);
-              return (
-                <FeedRow
-                  key={post.id}
-                  post={post}
-                  expanded={expandedId === post.id}
-                  onToggle={() => toggleExpand(post.id)}
-                  rowRef={isFirst ? (el) => { if (el) rowRefs.current.set(key, el); } : undefined}
-                />
-              );
-            });
-          })()}
+              {(() => {
+                // Only the topmost row for each day gets registered in rowRefs,
+                // so jump-to-date / scroll-tracking land on the start of a day's group.
+                rowRefs.current.clear();
+                const seenDays = new Set();
+                return posts.map((post) => {
+                  const key = dayKey(post.createdAt);
+                  const isFirst = !seenDays.has(key);
+                  seenDays.add(key);
+                  return (
+                    <FeedRow
+                      key={post.id}
+                      post={post}
+                      expanded={expandedId === post.id}
+                      onToggle={() => toggleExpand(post.id)}
+                      rowRef={isFirst ? (el) => { if (el) rowRefs.current.set(key, el); } : undefined}
+                    />
+                  );
+                });
+              })()}
 
-          {!posts.length && <p className="nf-empty">Nothing here yet — say what's up above.</p>}
+              {!posts.length && <p className="nf-empty">Nothing here yet — say what's up above.</p>}
+            </div>
+
+            {expandedPost && (
+              <SessionDrawer post={expandedPost} onClose={() => setExpandedId(null)} onSave={handleSaveDrawer} />
+            )}
+          </div>
         </div>
-
-        {expandedPost && (
-          <SessionDrawer post={expandedPost} onClose={() => setExpandedId(null)} onSave={handleSaveDrawer} />
-        )}
       </div>
     </div>
   );

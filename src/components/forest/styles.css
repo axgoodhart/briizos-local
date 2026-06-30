@@ -286,7 +286,7 @@ display:flex;  gap: 18px;
 
 .stage {
   position: absolute;
-  inset: 0px 18px 76px;
+  inset: 0px;
   overflow: hidden;
   border-radius: 30px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -894,7 +894,7 @@ filter:saturate(.5);
   color: var(--muted);
 }
 
-.project-controls {
+.project-xs {
   display: flex;
   gap: 8px;
 }

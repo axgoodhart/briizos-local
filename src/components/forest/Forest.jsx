@@ -57,5 +57,14 @@ export default function Forest() {
     };
   }, []);
 
-  return <div className="forest-host" ref={hostRef} />;
+  return (
+    <div className="panel forest-panel">
+      <div className="panel-header">
+        <span className="panel-header-title">Forest</span>
+      </div>
+      <div className="panel-content">
+        <div className="forest-host" ref={hostRef} style={{ width: '100%', height: '100%' }} />
+      </div>
+    </div>
+  );
 }
