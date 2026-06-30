@@ -51,6 +51,9 @@ contextBridge.exposeInMainWorld('api', {
     },
     tasks: {
       list: (filters) => invokeLocalData('local-data:tasks:list', filters),
+      get: (taskId) => invokeLocalData('local-data:tasks:get', taskId),
+      appendLog: (taskId, entryType, message) =>
+        invokeLocalData('local-data:tasks:append-log', taskId, entryType, message),
       create: (input) => invokeLocalData('local-data:tasks:create', input),
       update: (taskId, expectedRevision, patch) =>
         invokeLocalData('local-data:tasks:update', taskId, expectedRevision, patch),
@@ -72,6 +75,12 @@ contextBridge.exposeInMainWorld('api', {
         invokeLocalData('local-data:organizer:update', itemId, expectedRevision, patch),
       archive: (itemId, expectedRevision) =>
         invokeLocalData('local-data:organizer:archive', itemId, expectedRevision),
+    },
+    stickyNotes: {
+      list: () => invokeLocalData('local-data:sticky-notes:list'),
+      create: (input) => invokeLocalData('local-data:sticky-notes:create', input),
+      update: (noteId, input) => invokeLocalData('local-data:sticky-notes:update', noteId, input),
+      archive: (noteId) => invokeLocalData('local-data:sticky-notes:archive', noteId),
     },
     workspacePanels: {
       list: (filters) => invokeLocalData('local-data:workspace-panels:list', filters),

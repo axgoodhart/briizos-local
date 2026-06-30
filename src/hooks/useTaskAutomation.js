@@ -3,7 +3,7 @@
  *
  * Wired into the single canonical agent runtime (see AGENT_REWIRE):
  *
- *   subscribeAutomatedTasks (Firestore)            [producer]
+ *   subscribeAutomatedTasks (SQLite notifications) [producer]
  *     → processTask  (decision tree, taskAutomation.js state machine)
  *       → window.api.langgraphSendMessage(threadId, prompt, config)   [IPC]
  *         → electron/main.js → electron/agent.sendMessage
@@ -35,8 +35,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { subscribeAutomatedTasks, getTask, updateTask } from '../lib/firestore';
-import { getCurrentUid } from '../lib/firebase';
+import { subscribeAutomatedTasks, getTask, updateTask } from '../lib/localTasks';
 import {
   evaluateTask,
   logBreakdownStart,
@@ -74,9 +73,8 @@ class TaskGatedError extends Error {
 }
 
 export function useTaskAutomation() {
-  const uid = getCurrentUid();
   // Tasks currently being processed — guards against re-entry from
-  // Firestore snapshot echoes while a task's chain is still running.
+  // local change echoes while a task's chain is still running.
   const processingRef = useRef(new Set());
   // One LangGraph thread per task so the agent keeps context across steps.
   const threadMapRef = useRef(new Map());
@@ -84,7 +82,7 @@ export function useTaskAutomation() {
   // Set once the user resolves the pre-send Margerin permission hold.
   const taskPolicyRef = useRef(new Map());
   // taskIds with an in-flight permission Margerin (don't double-prompt
-  // on Firestore snapshot echoes).
+  // on local change echoes).
   const pendingPermissionRef = useRef(new Set());
 
   // -------------------------------------------------------------------
@@ -238,7 +236,7 @@ export function useTaskAutomation() {
 
   // Process an automated task through the decision tree. Loops internally
   // so breakdown → step → step → verify chains complete in one invocation
-  // rather than relying on Firestore re-fires between steps.
+  // rather than relying on change re-fires between steps.
   const processTask = useCallback(async (task) => {
     if (processingRef.current.has(task.id)) return;
     processingRef.current.add(task.id);
@@ -333,8 +331,6 @@ export function useTaskAutomation() {
 
   // Subscribe to automated tasks (mirrors useChat's remote-chat listener).
   useEffect(() => {
-    if (!uid) return undefined;
-
     if (!hasApi || typeof api.langgraphSendMessage !== 'function') {
       logger.warn('task-automation', 'Task automation idle (no LangGraph IPC bindings)');
       return undefined;
@@ -361,7 +357,7 @@ export function useTaskAutomation() {
     });
 
     return () => unsubscribe();
-  }, [uid, processTask, requestTaskPermission]);
+  }, [processTask, requestTaskPermission]);
 }
 
 // ── Prompt builders ──────────────────────────────────────────

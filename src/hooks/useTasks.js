@@ -1,14 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  subscribeTasks,
-  addTask as addTaskFirestore,
-  addSubtasks as addSubtasksFirestore,
-  updateTask as updateTaskFirestore,
-  deleteTask as deleteTaskFirestore,
-  getTask as getTaskFirestore,
-  addLog,
-} from '../lib/firestore';
-import { getCurrentUid } from '../lib/firebase';
 import logger from '../lib/logger';
 
 // AI breakdown still needs Electron main process
@@ -20,27 +10,38 @@ export function useTasks() {
   const [isLoading, setIsLoading] = useState(true);
   const [isBreakingDown, setIsBreakingDown] = useState(false);
 
-  // Subscribe to tasks from Firestore
-  useEffect(() => {
-    const uid = getCurrentUid();
-    if (!uid) {
+  const fetchTasks = useCallback(async () => {
+    try {
+      const rows = await api.localData.tasks.list();
+      setTasks(rows || []);
+    } catch (error) {
+      logger.error('ui', 'Failed to load local tasks', error?.message);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const unsubscribe = subscribeTasks((firestoreTasks) => {
-      setTasks(firestoreTasks);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
   }, []);
+
+  // Re-query after committed task-domain changes.
+  useEffect(() => {
+    fetchTasks();
+    return api.localData.onChanged((change) => {
+      if (change?.domains?.includes('tasks')) fetchTasks();
+    });
+  }, [fetchTasks]);
 
   // Add a new task
   const addTask = useCallback(async (title, options = {}) => {
     try {
-      const id = await addTaskFirestore(title, options);
-      return id;
+      const result = await api.localData.tasks.create({
+        title,
+        description: options.description || '',
+        status: options.status || 'pending',
+        priority: options.priority || 'normal',
+        dueAt: options.dueAt || null,
+        automated: !!options.automated,
+        projectId: options.projectId || null,
+      });
+      return result.row.id;
     } catch (error) {
       logger.error('ui', 'Failed to add task', error?.message);
       throw error;
@@ -50,8 +51,13 @@ export function useTasks() {
   // Add a subtask to a parent task
   const addSubtask = useCallback(async (parentId, title, options = {}) => {
     try {
-      const ids = await addSubtasksFirestore(parentId, [{ title, ...options }]);
-      return ids[0];
+      const parent = await api.localData.tasks.get(parentId);
+      const result = await api.localData.tasks.steps.create(parentId, {
+        title,
+        status: options.status || 'pending',
+        position: options.position ?? parent?.subtasks?.length ?? 0,
+      });
+      return result.row.id;
     } catch (error) {
       logger.error('ui', 'Failed to add subtask', error?.message);
       throw error;
@@ -61,7 +67,18 @@ export function useTasks() {
   // Add multiple subtasks at once (used by AI breakdown)
   const addSubtasks = useCallback(async (parentId, subtasks) => {
     try {
-      const ids = await addSubtasksFirestore(parentId, subtasks);
+      const parent = await api.localData.tasks.get(parentId);
+      const start = parent?.subtasks?.length || 0;
+      const ids = [];
+      for (let index = 0; index < subtasks.length; index += 1) {
+        const subtask = subtasks[index];
+        const result = await api.localData.tasks.steps.create(parentId, {
+          title: subtask.title,
+          status: subtask.status || 'pending',
+          position: start + index,
+        });
+        ids.push(result.row.id);
+      }
       return ids;
     } catch (error) {
       logger.error('ui', 'Failed to add subtasks', error?.message);
@@ -72,7 +89,24 @@ export function useTasks() {
   // Update a task
   const updateTask = useCallback(async (id, updates) => {
     try {
-      await updateTaskFirestore(id, updates);
+      if (updates._parentId) {
+        const parent = await api.localData.tasks.get(updates._parentId);
+        const step = parent?.subtasks?.find((candidate) => candidate.id === id);
+        if (!step) throw new Error('Task step not found');
+        const patch = {};
+        if (updates.title !== undefined) patch.title = updates.title;
+        if (updates.status !== undefined) patch.status = updates.status;
+        if (updates.position !== undefined) patch.position = updates.position;
+        await api.localData.tasks.steps.update(id, step.revision, patch);
+        return;
+      }
+      const current = await api.localData.tasks.get(id);
+      if (!current) throw new Error('Task not found');
+      const patch = {};
+      ['title', 'description', 'status', 'priority', 'dueAt', 'automated', 'projectId'].forEach((key) => {
+        if (updates[key] !== undefined) patch[key] = updates[key];
+      });
+      if (Object.keys(patch).length) await api.localData.tasks.update(id, current.revision, patch);
     } catch (error) {
       logger.error('ui', 'Failed to update task', error?.message);
       throw error;
@@ -93,7 +127,14 @@ export function useTasks() {
   // Delete a task or action (actions need parent ID)
   const deleteTask = useCallback(async (id, parentId = null) => {
     try {
-      await deleteTaskFirestore(id, parentId ? { _parentId: parentId } : {});
+      if (parentId) {
+        const parent = await api.localData.tasks.get(parentId);
+        const step = parent?.subtasks?.find((candidate) => candidate.id === id);
+        if (step) await api.localData.tasks.steps.archive(id, step.revision);
+      } else {
+        const current = await api.localData.tasks.get(id);
+        if (current) await api.localData.tasks.archive(id, current.revision);
+      }
     } catch (error) {
       logger.error('ui', 'Failed to delete task', error?.message);
       throw error;
@@ -103,7 +144,7 @@ export function useTasks() {
   // Get a single task with its subtasks
   const getTask = useCallback(async (id) => {
     try {
-      return await getTaskFirestore(id);
+      return await api.localData.tasks.get(id);
     } catch (error) {
       logger.error('ui', 'Failed to get task', error?.message);
       throw error;
@@ -176,7 +217,7 @@ export function useTasks() {
     tasks,
     isLoading,
     isBreakingDown,
-    fetchTasks: () => {}, // No-op; real-time subscription handles this
+    fetchTasks,
     addTask,
     addSubtask,
     addSubtasks,

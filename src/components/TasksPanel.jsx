@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTasks } from '../hooks/useTasks';
-import { addLog, updateTask as updateTaskFirestore } from '../lib/firestore';
+import { updateTask as updateLocalTask } from '../lib/localTasks';
 import { automateTask, handleUserResponse } from '../lib/taskAutomation';
 import logger from '../lib/logger';
 import PhantomSection from './PhantomSection';
@@ -87,7 +87,6 @@ function TasksPanel() {
       setExpandedTasks(prev => new Set([...prev, task.id]));
     } catch (error) {
       logger.error('ui', 'Failed to breakdown task', error?.message);
-      await addLog('ai_breakdown_error', error.message);
     }
   };
 
@@ -100,7 +99,7 @@ function TasksPanel() {
 
     setAutomatingTasks(prev => new Set([...prev, task.id]));
     try {
-      // Flag the task — the useTaskAutomation hook picks it up via Firestore listener
+      // Flag the task — the local task change notification starts automation.
       await automateTask(task.id);
       // Open the card so the user can watch progress in the log
       setOpenCards(prev => new Set([...prev, task.id]));
@@ -144,7 +143,7 @@ function TasksPanel() {
     const current = order.indexOf(task.status);
     const next = order[(current + 1) % order.length];
     try {
-      await updateTaskFirestore(task.id, { status: next });
+      await updateLocalTask(task.id, { status: next });
     } catch (error) {
       logger.error('ui', 'Failed to update status', error?.message);
     }

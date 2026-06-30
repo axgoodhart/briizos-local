@@ -6,8 +6,11 @@ const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
 
-const TASK_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled', 'blocked'];
-const TASK_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
+const TASK_STATUSES = [
+  'pending', 'created', 'running', 'in_progress', 'active', 'waiting',
+  'deferred', 'completed', 'cancelled', 'blocked',
+];
+const TASK_PRIORITIES = ['low', 'normal', 'medium', 'high', 'urgent'];
 const ORGANIZER_TYPES = ['note', 'project', 'event', 'timer'];
 const CONTINUITY_DOMAINS = new Set(['tasks', 'organizer', 'retainedText']);
 const SETTING_KEYS = new Set([
@@ -319,7 +322,9 @@ class LocalDataService extends EventEmitter {
     this._assertReady();
     const panelRows = this.db.prepare(`
       SELECT id, feature_key, column_id, position, size_json, visible, updated_at
-      FROM workspace_panels WHERE deleted_at IS NULL ORDER BY position, created_at
+      FROM workspace_panels
+      WHERE deleted_at IS NULL AND feature_key != 'sticky-note'
+      ORDER BY position, created_at
     `).all();
     if (!panelRows.length) return null;
     const columnsById = new Map();
@@ -436,12 +441,12 @@ class LocalDataService extends EventEmitter {
         const placeholders = activeIds.map(() => '?').join(', ');
         this.db.prepare(`
           UPDATE workspace_panels SET deleted_at = ?, updated_at = ?, revision = revision + 1
-          WHERE deleted_at IS NULL AND id NOT IN (${placeholders})
+          WHERE deleted_at IS NULL AND feature_key != 'sticky-note' AND id NOT IN (${placeholders})
         `).run(timestamp, timestamp, ...activeIds);
       } else {
         this.db.prepare(`
           UPDATE workspace_panels SET deleted_at = ?, updated_at = ?, revision = revision + 1
-          WHERE deleted_at IS NULL
+          WHERE deleted_at IS NULL AND feature_key != 'sticky-note'
         `).run(timestamp, timestamp);
       }
       this.db.prepare(`
@@ -751,37 +756,45 @@ class LocalDataService extends EventEmitter {
   }
 
   _write(domain, work) {
+    return this._writeDomains([domain], work);
+  }
+
+  _writeDomains(domains, work) {
     this._assertReady();
     const timestamp = now();
     const committed = this.db.transaction(() => {
       const value = work(timestamp);
-      const revisionRow = this.db.prepare(`
-        INSERT INTO domain_revisions (domain, revision, updated_at)
-        VALUES (?, 1, ?)
-        ON CONFLICT(domain) DO UPDATE SET
-          revision = domain_revisions.revision + 1,
-          updated_at = excluded.updated_at
-        RETURNING revision
-      `).get(domain, timestamp);
-
-      if (CONTINUITY_DOMAINS.has(domain)) {
-        this.db.prepare(`
-          INSERT INTO sync_outbox (domain, dirty_revision, status, attempts, created_at, updated_at)
-          VALUES (?, ?, 'pending', 0, ?, ?)
+      const revisions = {};
+      domains.forEach((domain) => {
+        const revisionRow = this.db.prepare(`
+          INSERT INTO domain_revisions (domain, revision, updated_at)
+          VALUES (?, 1, ?)
           ON CONFLICT(domain) DO UPDATE SET
-            dirty_revision = excluded.dirty_revision,
-            status = 'pending',
-            attempts = 0,
-            next_attempt_at = NULL,
-            last_error_code = NULL,
+            revision = domain_revisions.revision + 1,
             updated_at = excluded.updated_at
-        `).run(domain, revisionRow.revision, timestamp, timestamp);
-      }
-      return { value, revision: revisionRow.revision };
+          RETURNING revision
+        `).get(domain, timestamp);
+        revisions[domain] = revisionRow.revision;
+        if (CONTINUITY_DOMAINS.has(domain)) {
+          this.db.prepare(`
+            INSERT INTO sync_outbox (domain, dirty_revision, status, attempts, created_at, updated_at)
+            VALUES (?, ?, 'pending', 0, ?, ?)
+            ON CONFLICT(domain) DO UPDATE SET
+              dirty_revision = excluded.dirty_revision,
+              status = 'pending', attempts = 0, next_attempt_at = NULL,
+              last_error_code = NULL, updated_at = excluded.updated_at
+          `).run(domain, revisionRow.revision, timestamp, timestamp);
+        }
+      });
+      return { value, revisions };
     })();
 
-    this.emit('changed', { domains: [domain], revision: committed.revision });
-    return { ...committed.value, domainRevision: committed.revision };
+    this.emit('changed', { domains, revision: committed.revisions[domains[0]] });
+    return {
+      ...committed.value,
+      domainRevision: committed.revisions[domains[0]],
+      domainRevisions: committed.revisions,
+    };
   }
 
   _requireCurrent(table, rowId, expectedRevision) {
@@ -819,6 +832,57 @@ class LocalDataService extends EventEmitter {
       FROM tasks ${where}
       ORDER BY created_at DESC LIMIT ?
     `).all(...params, limit).map((row) => toBooleanRow(row, ['automated']));
+  }
+
+  listTasksDetailed(input = {}) {
+    return this.listTasks(input).map((task) => this._decorateTask(task));
+  }
+
+  getTask(taskId) {
+    this._assertReady();
+    taskId = v.identifier(taskId, 'taskId');
+    const task = this.db.prepare(`
+      SELECT id, project_id, title, description, status, priority, due_at, automated,
+             created_at, updated_at, revision, deleted_at
+      FROM tasks WHERE id = ? AND deleted_at IS NULL
+    `).get(taskId);
+    return task ? this._decorateTask(toBooleanRow(task, ['automated'])) : null;
+  }
+
+  _decorateTask(task) {
+    const subtasks = this.db.prepare(`
+      SELECT id, task_id AS parent_id, title, status, position, completed_at,
+             created_at, updated_at, revision, deleted_at
+      FROM task_steps WHERE task_id = ? AND deleted_at IS NULL ORDER BY position, created_at
+    `).all(task.id);
+    const taskLog = this.db.prepare(`
+      SELECT id, message, data_json, created_at
+      FROM logs WHERE task_id = ? AND type = 'task_activity' ORDER BY created_at, id
+    `).all(task.id).map((entry) => ({
+      id: entry.id,
+      timestamp: entry.created_at,
+      type: entry.data_json ? JSON.parse(entry.data_json).entryType : 'status',
+      message: entry.message,
+    }));
+    return { ...task, subtasks, actions: subtasks, taskLog };
+  }
+
+  appendTaskLog(taskId, entryType, message) {
+    taskId = v.identifier(taskId, 'taskId');
+    entryType = v.oneOf(entryType, 'entryType', ['status', 'question', 'response', 'error']);
+    message = v.string(message, 'message', { required: true, max: 100000 });
+    return this._write('tasks', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL').get(taskId)) {
+        v.fail('NOT_FOUND', 'The task does not exist');
+      }
+      const logId = id();
+      this.db.prepare(`
+        INSERT INTO logs (
+          id, type, source, category, message, data_json, level, task_id, created_at
+        ) VALUES (?, 'task_activity', 'automation', 'tasks', ?, ?, ?, ?, ?)
+      `).run(logId, message, JSON.stringify({ entryType }), entryType === 'error' ? 'error' : 'info', taskId, timestamp);
+      return { row: { id: logId, taskId, timestamp, type: entryType, message } };
+    });
   }
 
   createTask(input) {
@@ -1016,10 +1080,30 @@ class LocalDataService extends EventEmitter {
 
   _stringifyRecurrence(value) {
     if (value == null) return null;
-    v.object(value, 'recurrence', ['frequency', 'interval', 'untilAt']);
+    v.object(value, 'recurrence', [
+      'enabled', 'type', 'frequency', 'interval', 'daysOfWeek', 'dayOfMonth',
+      'anchorDate', 'endDate', 'untilAt',
+    ]);
+    const frequency = value.frequency || value.type;
     const normalized = {
-      frequency: v.oneOf(value.frequency, 'recurrence.frequency', ['daily', 'weekly', 'monthly', 'yearly']),
+      enabled: value.enabled === undefined ? true : v.boolean(value.enabled, 'recurrence.enabled'),
+      type: v.oneOf(frequency, 'recurrence.type', ['daily', 'weekly', 'monthly', 'yearly']),
       interval: value.interval === undefined ? 1 : v.integer(value.interval, 'recurrence.interval', { min: 1, max: 1000 }),
+      daysOfWeek: value.daysOfWeek == null
+        ? null
+        : (() => {
+          if (!Array.isArray(value.daysOfWeek) || value.daysOfWeek.length > 7) {
+            v.fail('INVALID_INPUT', 'recurrence.daysOfWeek must be a day list');
+          }
+          return value.daysOfWeek.map((day, index) => (
+            v.integer(day, `recurrence.daysOfWeek[${index}]`, { min: 0, max: 6 })
+          ));
+        })(),
+      dayOfMonth: value.dayOfMonth == null
+        ? null
+        : v.integer(value.dayOfMonth, 'recurrence.dayOfMonth', { min: 1, max: 31 }),
+      anchorDate: value.anchorDate == null ? null : v.string(value.anchorDate, 'recurrence.anchorDate', { max: 10 }),
+      endDate: value.endDate == null ? null : v.string(value.endDate, 'recurrence.endDate', { max: 10 }),
       untilAt: value.untilAt === undefined ? null : v.integer(value.untilAt, 'recurrence.untilAt', { nullable: true, min: 0 }),
     };
     return JSON.stringify(normalized);
@@ -1034,6 +1118,138 @@ class LocalDataService extends EventEmitter {
       recurrence_json: undefined,
       tags_json: undefined,
     } : null;
+  }
+
+  listStickyNotes() {
+    this._assertReady();
+    return this.db.prepare(`
+      SELECT o.id, o.title, o.body, o.created_at, o.updated_at, o.revision,
+             p.id AS panel_id, p.view_mode, p.size_json, p.placement_json, p.style_json,
+             p.revision AS panel_revision
+      FROM organizer_items o
+      LEFT JOIN workspace_panels p
+        ON p.linked_organizer_id = o.id AND p.feature_key = 'sticky-note' AND p.deleted_at IS NULL
+      WHERE o.type = 'note' AND o.deleted_at IS NULL
+      ORDER BY o.updated_at DESC
+    `).all().map((row) => {
+      const size = row.size_json ? JSON.parse(row.size_json) : {};
+      const placement = row.placement_json ? JSON.parse(row.placement_json) : {};
+      const style = row.style_json ? JSON.parse(row.style_json) : {};
+      return {
+        id: row.id,
+        title: row.title,
+        content: row.body,
+        color: style.color || '#fef08a',
+        floating: row.view_mode === 'floating',
+        x: placement.x ?? 100,
+        y: placement.y ?? 100,
+        width: size.width ?? 250,
+        height: size.height ?? 200,
+        revision: row.revision,
+        panelRevision: row.panel_revision || 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+  }
+
+  createStickyNote(input) {
+    v.object(input, 'sticky note', ['title', 'content', 'color', 'floating', 'x', 'y', 'width', 'height']);
+    const note = this._normalizeStickyNote(input, true);
+    return this._writeDomains(['organizer', 'workspace'], (timestamp) => {
+      const noteId = id();
+      this.db.prepare(`
+        INSERT INTO organizer_items (
+          id, type, title, body, tags_json, created_at, updated_at, revision
+        ) VALUES (?, 'note', ?, ?, '[]', ?, ?, 1)
+      `).run(noteId, note.title, note.content, timestamp, timestamp);
+      this._upsertStickyPanel(noteId, note, timestamp);
+      return { row: this.listStickyNotes().find((entry) => entry.id === noteId) };
+    });
+  }
+
+  updateStickyNote(noteId, input) {
+    noteId = v.identifier(noteId, 'noteId');
+    v.object(input, 'sticky note patch', ['title', 'content', 'color', 'floating', 'x', 'y', 'width', 'height']);
+    if (!Object.keys(input).length) v.fail('INVALID_INPUT', 'At least one sticky note change is required');
+    const note = this._normalizeStickyNote(input, false);
+    return this._writeDomains(['organizer', 'workspace'], (timestamp) => {
+      const current = this.db.prepare(`
+        SELECT id FROM organizer_items WHERE id = ? AND type = 'note' AND deleted_at IS NULL
+      `).get(noteId);
+      if (!current) v.fail('NOT_FOUND', 'The note does not exist');
+      const sets = [];
+      const values = [];
+      if (note.title !== undefined) { sets.push('title = ?'); values.push(note.title); }
+      if (note.content !== undefined) { sets.push('body = ?'); values.push(note.content); }
+      sets.push('updated_at = ?', 'revision = revision + 1');
+      values.push(timestamp, noteId);
+      this.db.prepare(`UPDATE organizer_items SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+      const existing = this.listStickyNotes().find((entry) => entry.id === noteId);
+      this._upsertStickyPanel(noteId, {
+        color: note.color ?? existing.color,
+        floating: note.floating ?? existing.floating,
+        x: note.x ?? existing.x,
+        y: note.y ?? existing.y,
+        width: note.width ?? existing.width,
+        height: note.height ?? existing.height,
+      }, timestamp);
+      return { row: this.listStickyNotes().find((entry) => entry.id === noteId) };
+    });
+  }
+
+  archiveStickyNote(noteId) {
+    noteId = v.identifier(noteId, 'noteId');
+    return this._writeDomains(['organizer', 'workspace'], (timestamp) => {
+      const result = this.db.prepare(`
+        UPDATE organizer_items SET deleted_at = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ? AND type = 'note' AND deleted_at IS NULL
+      `).run(timestamp, timestamp, noteId);
+      if (!result.changes) v.fail('NOT_FOUND', 'The note does not exist');
+      this.db.prepare(`
+        UPDATE workspace_panels SET deleted_at = ?, updated_at = ?, revision = revision + 1
+        WHERE linked_organizer_id = ? AND feature_key = 'sticky-note' AND deleted_at IS NULL
+      `).run(timestamp, timestamp, noteId);
+      return { noteId };
+    });
+  }
+
+  _normalizeStickyNote(input, creating) {
+    const field = (key, validate, fallback) => {
+      if (input[key] === undefined) return creating ? fallback : undefined;
+      return validate(input[key]);
+    };
+    return {
+      title: field('title', (value) => v.string(value, 'title', { max: 1000 }), 'New Note'),
+      content: field('content', (value) => v.string(value, 'content', { max: 1000000 }), ''),
+      color: field('color', (value) => v.string(value, 'color', { required: true, max: 30 }), '#fef08a'),
+      floating: field('floating', (value) => v.boolean(value, 'floating'), false),
+      x: field('x', (value) => v.number(value, 'x', { min: -100000, max: 100000 }), 100),
+      y: field('y', (value) => v.number(value, 'y', { min: -100000, max: 100000 }), 100),
+      width: field('width', (value) => v.number(value, 'width', { min: 1, max: 10000 }), 250),
+      height: field('height', (value) => v.number(value, 'height', { min: 1, max: 10000 }), 200),
+    };
+  }
+
+  _upsertStickyPanel(noteId, note, timestamp) {
+    const panelId = `sticky:${noteId}`;
+    this.db.prepare(`
+      INSERT INTO workspace_panels (
+        id, feature_key, linked_organizer_id, position, size_json, placement_json,
+        style_json, visible, view_mode, created_at, updated_at, revision, deleted_at
+      ) VALUES (?, 'sticky-note', ?, 0, ?, ?, ?, 1, ?, ?, ?, 1, NULL)
+      ON CONFLICT(id) DO UPDATE SET
+        size_json = excluded.size_json,
+        placement_json = excluded.placement_json,
+        style_json = excluded.style_json,
+        visible = 1,
+        view_mode = excluded.view_mode,
+        updated_at = excluded.updated_at,
+        revision = workspace_panels.revision + 1,
+        deleted_at = NULL
+    `).run(panelId, noteId, JSON.stringify({ width: note.width, height: note.height }),
+      JSON.stringify({ x: note.x, y: note.y }), JSON.stringify({ color: note.color }),
+      note.floating ? 'floating' : 'docked', timestamp, timestamp);
   }
 
   listWorkspacePanels(input = {}) {

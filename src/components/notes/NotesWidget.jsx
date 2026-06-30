@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { subscribeNotes, upsertNote, deleteNote as deleteNoteFirestore } from '../../lib/firestore';
-import { ensureAuth } from '../../lib/firebase';
 import { computeFloatingShellChrome } from '../../lib/floatingShell';
 import logger from '../../lib/logger';
 import './NotesWidget.css';
@@ -9,7 +7,7 @@ import './NotesWidget.css';
  * NotesWidget - Floating sticky notes system
  * - Drawer mode: Notes stacked on the right
  * - Floating mode: Notes can be torn off and dragged around
- * Connected to Firebase Firestore for sync with briizOS-Dev
+ * Content and placement are committed together through LocalDataService.
  */
 function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDrawerChange }) {
   const [notes, setNotes] = useState([]);
@@ -55,14 +53,14 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     return computeFloatingShellChrome(rect);
   }, [drawerPos, drawerSize]);
 
-  const transformFirebaseNotes = useCallback((firebaseNotes) => firebaseNotes.map(note => ({
-    id: note.id,
+  const transformLocalNotes = useCallback((localNotes) => localNotes.map(note => ({
+    ...note,
     title: note.title || '',
     content: note.content || '',
     color: note.color || '#fef08a',
-    floating: !note.is_docked,
-    x: note.position_x || 100,
-    y: note.position_y || 100,
+    floating: !!note.floating,
+    x: note.x || 100,
+    y: note.y || 100,
     width: Math.max(note.width || 250, MIN_NOTE_WIDTH),
     height: Math.max(note.height || 200, MIN_NOTE_HEIGHT)
   })), []);
@@ -91,8 +89,8 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     remoteRefreshTimerRef.current = setTimeout(applyPendingRemoteNotes, REMOTE_REFRESH_DEBOUNCE_MS);
   }, [applyPendingRemoteNotes]);
 
-  const queueIncomingNotes = useCallback((firebaseNotes) => {
-    const transformed = transformFirebaseNotes(firebaseNotes);
+  const queueIncomingNotes = useCallback((localNotes) => {
+    const transformed = transformLocalNotes(localNotes);
     if (isEditingTextRef.current) {
       pendingRemoteNotesRef.current = transformed;
       schedulePendingRemoteApply();
@@ -107,16 +105,15 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     pendingRemoteNotesRef.current = null;
     setNotes(transformed);
     setLoading(false);
-  }, [schedulePendingRemoteApply, transformFirebaseNotes]);
+  }, [schedulePendingRemoteApply, transformLocalNotes]);
 
-  const buildFirestoreUpdates = useCallback((id, updates) => ({
-    id,
+  const buildLocalUpdates = useCallback((id, updates) => ({
     ...(updates.title !== undefined && { title: updates.title }),
     ...(updates.content !== undefined && { content: updates.content }),
     ...(updates.color !== undefined && { color: updates.color }),
-    ...(updates.floating !== undefined && { is_docked: updates.floating ? 0 : 1 }),
-    ...(updates.x !== undefined && { position_x: updates.x }),
-    ...(updates.y !== undefined && { position_y: updates.y }),
+    ...(updates.floating !== undefined && { floating: updates.floating }),
+    ...(updates.x !== undefined && { x: updates.x }),
+    ...(updates.y !== undefined && { y: updates.y }),
     ...(updates.width !== undefined && { width: updates.width }),
     ...(updates.height !== undefined && { height: updates.height })
   }), []);
@@ -131,21 +128,22 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     const pending = pendingTextSavesRef.current.get(id);
     if (!pending) return;
     pendingTextSavesRef.current.delete(id);
-    upsertNote(pending).catch(error => {
+    const { id: noteId, ...patch } = pending;
+    window.api.localData.stickyNotes.update(noteId, patch).catch(error => {
       logger.error('ui', 'Failed to update note', error?.message);
     });
   }, []);
 
   const scheduleTextSave = useCallback((id, updates) => {
-    const firestoreUpdates = buildFirestoreUpdates(id, updates);
+    const localUpdates = buildLocalUpdates(id, updates);
     const current = pendingTextSavesRef.current.get(id) || { id };
-    pendingTextSavesRef.current.set(id, { ...current, ...firestoreUpdates });
+    pendingTextSavesRef.current.set(id, { ...current, ...localUpdates });
 
     const existingTimer = textSaveTimersRef.current.get(id);
     if (existingTimer) clearTimeout(existingTimer);
     const timer = setTimeout(() => flushTextSave(id), TEXT_SAVE_DEBOUNCE_MS);
     textSaveTimersRef.current.set(id, timer);
-  }, [buildFirestoreUpdates, flushTextSave]);
+  }, [buildLocalUpdates, flushTextSave]);
 
   const handleTextEditFocus = useCallback(() => {
     isEditingTextRef.current = true;
@@ -166,20 +164,21 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     }, 0);
   }, [flushTextSave, schedulePendingRemoteApply]);
 
-  // Subscribe to notes from Firebase
+  // Re-query committed notes after local organizer/workspace changes.
   useEffect(() => {
-    let unsubscribe = () => {};
-
-    const setupSubscription = async () => {
+    const loadNotes = async () => {
       setLoading(true);
-      await ensureAuth();
-
-      unsubscribe = subscribeNotes((firebaseNotes) => {
-        queueIncomingNotes(firebaseNotes);
-      });
+      try {
+        queueIncomingNotes(await window.api.localData.stickyNotes.list());
+      } catch (error) {
+        logger.error('ui', 'Failed to load local notes', error?.message);
+        setLoading(false);
+      }
     };
-
-    setupSubscription();
+    loadNotes();
+    const unsubscribe = window.api.localData.onChanged((change) => {
+      if (change?.domains?.some((domain) => domain === 'organizer' || domain === 'workspace')) loadNotes();
+    });
 
     return () => {
       unsubscribe();
@@ -194,16 +193,23 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
       title: 'New Note',
       content: '',
       color: colors[notes.length % colors.length],
-      is_docked: 1,
-      position_x: 100 + (notes.length * 20),
-      position_y: 100 + (notes.length * 20),
+      x: 100 + (notes.length * 20),
+      y: 100 + (notes.length * 20),
       width: 250,
       height: 200
     };
 
     try {
-      await upsertNote(newNoteData);
-      // Note: Real-time subscription will update the state
+      await window.api.localData.stickyNotes.create({
+        title: newNoteData.title,
+        content: newNoteData.content,
+        color: newNoteData.color,
+        floating: false,
+        x: newNoteData.x,
+        y: newNoteData.y,
+        width: newNoteData.width,
+        height: newNoteData.height,
+      });
     } catch (error) {
       logger.error('ui', 'Failed to add note', error?.message);
     }
@@ -221,7 +227,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
       return;
     }
 
-    upsertNote(buildFirestoreUpdates(id, updates)).catch(error => {
+    window.api.localData.stickyNotes.update(id, buildLocalUpdates(id, updates)).catch(error => {
       logger.error('ui', 'Failed to update note', error?.message);
     });
   };
@@ -231,7 +237,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     setNotes(notes.filter(note => note.id !== id));
 
     try {
-      await deleteNoteFirestore(id);
+      await window.api.localData.stickyNotes.archive(id);
     } catch (error) {
       logger.error('ui', 'Failed to delete note', error?.message);
     }
@@ -390,10 +396,9 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     if (draggingId) {
       const note = notes.find(n => n.id === draggingId);
       if (note) {
-        upsertNote({
-          id: draggingId,
-          position_x: note.x,
-          position_y: note.y,
+        window.api.localData.stickyNotes.update(draggingId, {
+          x: note.x,
+          y: note.y,
           width: note.width,
           height: note.height
         }).catch(err => logger.error('ui', 'Failed to save position', err?.message));
@@ -403,10 +408,9 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     if (resizingId) {
       const note = notes.find(n => n.id === resizingId);
       if (note) {
-        upsertNote({
-          id: resizingId,
-          position_x: note.x,
-          position_y: note.y,
+        window.api.localData.stickyNotes.update(resizingId, {
+          x: note.x,
+          y: note.y,
           width: Math.max(MIN_NOTE_WIDTH, Math.round(note.width)),
           height: Math.max(MIN_NOTE_HEIGHT, Math.round(note.height))
         }).catch(err => logger.error('ui', 'Failed to save note size', err?.message));

@@ -2,7 +2,7 @@
  * Recurrence logic for organizer events.
  * Ported from briizOS-Dev v1's eventOccursOnDate (index.html:8125).
  */
-import { parseDateYMD, formatDateYMD, normalizeDateStr } from './firestore';
+import { parseDateYMD, formatDateYMD, normalizeDateStr } from './dates';
 
 /**
  * Determine if an event occurs on a given date, considering recurrence rules.

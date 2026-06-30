@@ -1,9 +1,73 @@
-import {
-  getNotes, upsertNote, deleteNote,
-  addTask, updateTask,
-  getScheduleItems, addScheduleItem, updateScheduleItem,
-} from './firestore';
+import { updateTask } from './localTasks';
 import logger from './logger';
+
+const localData = () => window.api.localData;
+
+async function getNotes() {
+  return localData().stickyNotes.list();
+}
+
+async function upsertNote(input) {
+  if (input.id) {
+    const { id, ...patch } = input;
+    await localData().stickyNotes.update(id, patch);
+    return id;
+  }
+  const result = await localData().stickyNotes.create(input);
+  return result.row.id;
+}
+
+async function deleteNote(noteId) {
+  return localData().stickyNotes.archive(noteId);
+}
+
+async function addTask(title, options = {}) {
+  const dueAt = options.dueDate ? new Date(`${options.dueDate}T00:00:00`).getTime() : null;
+  const result = await localData().tasks.create({
+    title,
+    priority: options.priority || 'medium',
+    dueAt,
+  });
+  return result.row.id;
+}
+
+async function addScheduleItem(item) {
+  const [hours, minutes] = String(item.start_time || '09:00').split(':').map(Number);
+  const startMinutes = hours * 60 + minutes;
+  const startAt = new Date(`${item.date}T00:00:00`).getTime() + startMinutes * 60000;
+  const endMinutes = item.end_time
+    ? (() => {
+      const [endHours, endMins] = String(item.end_time).split(':').map(Number);
+      return endHours * 60 + endMins;
+    })()
+    : startMinutes + 60;
+  const endAt = new Date(`${item.date}T00:00:00`).getTime() + endMinutes * 60000;
+  let recurrence = null;
+  if (item.recurrence) {
+    const rule = String(item.recurrence).toLowerCase();
+    const type = rule.includes('month') ? 'monthly' : rule.includes('day') ? 'daily' : 'weekly';
+    recurrence = { enabled: true, type, interval: 1, anchorDate: item.date };
+  }
+  const result = await localData().organizer.create({
+    type: 'event', title: item.title, status: 'pending',
+    scheduledStartAt: startAt, scheduledEndAt: endAt, recurrence, tags: [],
+  });
+  return result.row.id;
+}
+
+async function updateScheduleItem(eventId, _currentDate, updates) {
+  const items = await localData().organizer.list();
+  const event = items.find((item) => item.id === eventId);
+  if (!event) throw new Error('Event not found');
+  const currentStart = new Date(event.scheduled_start_at || Date.now());
+  const nextStart = new Date(`${updates.date}T00:00:00`);
+  nextStart.setHours(currentStart.getHours(), currentStart.getMinutes());
+  const duration = (event.scheduled_end_at || event.scheduled_start_at) - event.scheduled_start_at;
+  return localData().organizer.update(eventId, event.revision, {
+    scheduledStartAt: nextStart.getTime(),
+    scheduledEndAt: nextStart.getTime() + Math.max(duration || 0, 0),
+  });
+}
 
 // Tool definitions - each has handler, requiresConfirmation, description, parameters
 // Layout-incompatible tools return explanatory messages

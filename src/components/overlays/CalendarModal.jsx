@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useOrganizer } from '../../context/OrganizerContext';
-import { formatDateYMD, parseDateYMD } from '../../lib/firestore';
+import { formatDateYMD, parseDateYMD } from '../../lib/dates';
 import { eventOccursOnDate, buildMonthEventMap } from '../../lib/recurrence';
 import logger from '../../lib/logger';
 import './CalendarModal.css';

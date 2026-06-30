@@ -7,21 +7,11 @@
  * 3. All steps checked? → verify completion, mark done or ask user
  */
 
-import { updateTask, addSubtasks, getTask } from './firestore';
+import { updateTask, addSubtasks, getTask, appendTaskLog as appendLocalTaskLog } from './localTasks';
 
 // Append an entry to a task's taskLog array
 export async function appendTaskLog(taskId, type, message) {
-  const task = await getTask(taskId);
-  if (!task) return;
-
-  const log = task.taskLog || [];
-  log.push({
-    timestamp: Date.now(),
-    type,  // 'status' | 'question' | 'response' | 'error'
-    message,
-  });
-
-  await updateTask(taskId, { taskLog: log });
+  await appendLocalTaskLog(taskId, type, message);
 }
 
 // Flag a task for automation and determine next action
@@ -146,8 +136,7 @@ export async function completeStep(taskId, stepId, summary) {
     await logStepDone(taskId, step.title, summary);
   }
 
-  // Actually mark the action as completed in Firestore.
-  // updateTask with _parentId triggers the embedded-actions update path.
+  // Mark the normalized SQLite step complete.
   await updateTask(stepId, { status: 'completed', _parentId: taskId });
 
   // Re-evaluate what to do next
