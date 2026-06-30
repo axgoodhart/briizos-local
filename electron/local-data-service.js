@@ -1328,6 +1328,547 @@ class LocalDataService extends EventEmitter {
     return this._archiveRow('workspace', 'workspace_panels', panelId, expectedRevision, ['visible']);
   }
 
+  _folioRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      journalId: row.journal_id,
+      type: row.type,
+      title: row.title,
+      content: JSON.parse(row.content_json),
+      position: row.position,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  _journalRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      title: row.title,
+      tags: JSON.parse(row.tags_json),
+      cover: row.cover_key || '',
+      page: row.page_key || '',
+      folioCount: row.folio_count,
+      position: row.position,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  listJournals() {
+    this._assertReady();
+    return this.db.prepare(`
+      SELECT j.*,
+             (SELECT COUNT(*) FROM folios f WHERE f.journal_id = j.id AND f.deleted_at IS NULL) AS folio_count
+      FROM journals j
+      WHERE j.deleted_at IS NULL
+      ORDER BY j.position, j.created_at
+    `).all().map((row) => this._journalRow(row));
+  }
+
+  createJournal(input = {}) {
+    v.object(input, 'journal', ['title', 'tags', 'cover', 'page', 'folios']);
+    const journalId = id();
+    const title = v.string(input.title, 'title', { required: true, max: 1000 });
+    const tags = input.tags === undefined ? [] : v.stringArray(input.tags, 'tags', { maxItems: 100, maxLength: 200 });
+    const cover = v.optional(input.cover, (value) => v.string(value, 'cover', { max: 500 })) ?? '';
+    const page = v.optional(input.page, (value) => v.string(value, 'page', { max: 500 })) ?? '';
+    const folios = input.folios === undefined ? [] : input.folios;
+    if (!Array.isArray(folios) || folios.length > 500) v.fail('INVALID_INPUT', 'folios must be a list with at most 500 items');
+    const normalizedFolios = folios.map((folio, index) => {
+      v.object(folio, `folios[${index}]`, ['type', 'title', 'content']);
+      return {
+        id: id(),
+        type: v.optional(folio.type, (value) => v.string(value, `folios[${index}].type`, { required: true, max: 100 })) ?? 'notes',
+        title: v.optional(folio.title, (value) => v.string(value, `folios[${index}].title`, { max: 1000 })) ?? '',
+        contentJson: this._jsonValue(folio.content ?? {}, `folios[${index}].content`, 5000000),
+      };
+    });
+
+    return this._write('forest', (timestamp) => {
+      const position = this.db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS position FROM journals WHERE deleted_at IS NULL').get().position;
+      this.db.prepare(`
+        INSERT INTO journals (id, title, cover_key, tags_json, page_key, position, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(journalId, title, cover, JSON.stringify(tags), page, position, timestamp, timestamp);
+      const insert = this.db.prepare(`
+        INSERT INTO folios (id, journal_id, type, title, content_json, position, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `);
+      normalizedFolios.forEach((folio, index) => {
+        insert.run(folio.id, journalId, folio.type, folio.title, folio.contentJson, index, timestamp + index, timestamp + index);
+      });
+      const row = this.db.prepare(`
+        SELECT j.*, (SELECT COUNT(*) FROM folios f WHERE f.journal_id = j.id AND f.deleted_at IS NULL) AS folio_count
+        FROM journals j WHERE j.id = ?
+      `).get(journalId);
+      return { row: this._journalRow(row) };
+    });
+  }
+
+  archiveJournal(journalId) {
+    journalId = v.identifier(journalId, 'journalId');
+    return this._write('forest', (timestamp) => {
+      const journal = this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
+      if (!journal) v.fail('NOT_FOUND', 'Journal not found');
+      this.db.prepare('UPDATE folios SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE journal_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, journalId);
+      this.db.prepare('UPDATE journals SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, journalId);
+      return { ok: true };
+    });
+  }
+
+  listFolios(journalId) {
+    this._assertReady();
+    journalId = v.identifier(journalId, 'journalId');
+    return this.db.prepare(`
+      SELECT * FROM folios WHERE journal_id = ? AND deleted_at IS NULL ORDER BY position, created_at
+    `).all(journalId).map((row) => this._folioRow(row));
+  }
+
+  createFolio(journalId, folio = {}, opts = {}) {
+    journalId = v.identifier(journalId, 'journalId');
+    v.object(folio, 'folio', ['type', 'title', 'content']);
+    v.object(opts || {}, 'folio options', ['afterId']);
+    const afterId = opts?.afterId == null ? null : v.identifier(opts.afterId, 'afterId');
+    const folioId = id();
+    const type = v.optional(folio.type, (value) => v.string(value, 'type', { required: true, max: 100 })) ?? 'notes';
+    const title = v.optional(folio.title, (value) => v.string(value, 'title', { max: 1000 })) ?? '';
+    const contentJson = this._jsonValue(folio.content ?? {}, 'content', 5000000);
+    return this._write('forest', (timestamp) => {
+      const journal = this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
+      if (!journal) v.fail('NOT_FOUND', 'Journal not found');
+      const after = afterId
+        ? this.db.prepare('SELECT position FROM folios WHERE id = ? AND journal_id = ? AND deleted_at IS NULL').get(afterId, journalId)
+        : null;
+      const position = after
+        ? after.position + 1
+        : this.db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS position FROM folios WHERE journal_id = ? AND deleted_at IS NULL').get(journalId).position;
+      if (after) {
+        this.db.prepare('UPDATE folios SET position = position + 1, updated_at = ?, revision = revision + 1 WHERE journal_id = ? AND position > ? AND deleted_at IS NULL')
+          .run(timestamp, journalId, after.position);
+      }
+      this.db.prepare(`
+        INSERT INTO folios (id, journal_id, type, title, content_json, position, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(folioId, journalId, type, title, contentJson, position, timestamp, timestamp);
+      this.db.prepare('UPDATE journals SET updated_at = ?, revision = revision + 1 WHERE id = ?').run(timestamp, journalId);
+      return { row: this._folioRow(this.db.prepare('SELECT * FROM folios WHERE id = ?').get(folioId)) };
+    });
+  }
+
+  updateFolio(folioId, patch = {}) {
+    folioId = v.identifier(folioId, 'folioId');
+    v.object(patch, 'folio changes', ['title', 'content']);
+    if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one folio change is required');
+    const title = patch.title === undefined ? undefined : v.string(patch.title, 'title', { max: 1000 });
+    const contentJson = patch.content === undefined ? undefined : this._jsonValue(patch.content, 'content', 5000000);
+    return this._write('forest', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM folios WHERE id = ? AND deleted_at IS NULL').get(folioId);
+      if (!current) v.fail('NOT_FOUND', 'Folio not found');
+      this.db.prepare(`
+        UPDATE folios SET title = ?, content_json = ?, updated_at = ?, revision = revision + 1 WHERE id = ?
+      `).run(title ?? current.title, contentJson ?? current.content_json, timestamp, folioId);
+      return { row: this._folioRow(this.db.prepare('SELECT * FROM folios WHERE id = ?').get(folioId)) };
+    });
+  }
+
+  archiveFolio(folioId) {
+    folioId = v.identifier(folioId, 'folioId');
+    return this._write('forest', (timestamp) => {
+      const current = this.db.prepare('SELECT journal_id FROM folios WHERE id = ? AND deleted_at IS NULL').get(folioId);
+      if (!current) v.fail('NOT_FOUND', 'Folio not found');
+      this.db.prepare('UPDATE folios SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, folioId);
+      this.db.prepare('UPDATE journals SET updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, current.journal_id);
+      return { ok: true };
+    });
+  }
+
+  _postAttachments(postId, role) {
+    return this.db.prepare(`
+      SELECT a.id, f.path, f.kind, f.display_name AS name
+      FROM post_attachments a JOIN external_files f ON f.id = a.file_id
+      WHERE a.post_id = ? AND a.role = ? AND a.deleted_at IS NULL AND f.deleted_at IS NULL
+      ORDER BY a.position, a.created_at
+    `).all(postId, role);
+  }
+
+  _notefallRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      authorType: row.author_type,
+      authorAgentId: row.author_agent_id,
+      body: row.body,
+      media: this._postAttachments(row.id, 'media'),
+      journalId: row.journal_id,
+      tags: JSON.parse(row.tags_json),
+      statusDot: row.status_dot,
+      sourceApp: row.source_app,
+      sourceIcon: row.source_icon,
+      captureMode: row.capture_mode,
+      sessionStart: row.session_start,
+      sessionEnd: row.session_end,
+      screenshots: this._postAttachments(row.id, 'screenshot'),
+      notes: row.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  listNotefallPosts() {
+    this._assertReady();
+    return this.db.prepare('SELECT * FROM notefall_posts WHERE deleted_at IS NULL ORDER BY created_at DESC')
+      .all().map((row) => this._notefallRow(row));
+  }
+
+  _normalizeAttachment(value, label) {
+    v.object(value, label, ['id', 'path', 'kind', 'name', 'size', 'modifiedAt']);
+    let modifiedAt = value.modifiedAt;
+    if (typeof modifiedAt === 'string') modifiedAt = Date.parse(modifiedAt);
+    if (!Number.isFinite(modifiedAt)) modifiedAt = null;
+    return this._normalizeExternalFile({
+      path: value.path,
+      displayName: value.name || path.basename(value.path || ''),
+      kind: value.kind || 'file',
+      size: value.size ?? null,
+      modifiedAt,
+    });
+  }
+
+  _replacePostAttachments(postId, role, attachments, timestamp) {
+    if (!Array.isArray(attachments) || attachments.length > 200) {
+      v.fail('INVALID_INPUT', `${role} attachments must be a list with at most 200 items`);
+    }
+    this.db.prepare(`
+      UPDATE post_attachments SET deleted_at = ?, updated_at = ?, revision = revision + 1
+      WHERE post_id = ? AND role = ? AND deleted_at IS NULL
+    `).run(timestamp, timestamp, postId, role);
+    const insert = this.db.prepare(`
+      INSERT INTO post_attachments (id, post_id, file_id, role, position, created_at, updated_at, revision)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    `);
+    attachments.forEach((attachment, position) => {
+      const file = this._normalizeAttachment(attachment, `${role}[${position}]`);
+      insert.run(id(), postId, this._upsertExternalFile(file, timestamp), role, position, timestamp, timestamp);
+    });
+  }
+
+  createNotefallPost(input = {}) {
+    v.object(input, 'Notefalls post', ['body', 'media', 'journalId', 'tags', 'statusDot']);
+    const postId = id();
+    const body = v.optional(input.body, (value) => v.string(value, 'body', { max: 200000 })) ?? '';
+    const tags = input.tags === undefined ? [] : v.stringArray(input.tags, 'tags', { maxItems: 100, maxLength: 200 });
+    const journalId = input.journalId == null ? null : v.identifier(input.journalId, 'journalId');
+    const statusDot = input.statusDot == null ? null : v.string(input.statusDot, 'statusDot', { max: 100 });
+    const media = input.media ?? [];
+    return this._write('forest', (timestamp) => {
+      if (journalId && !this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId)) {
+        v.fail('INVALID_RELATION', 'journalId must refer to an active journal');
+      }
+      this.db.prepare(`
+        INSERT INTO notefall_posts (
+          id, title, body, author_type, journal_id, tags_json, status_dot, source_icon,
+          capture_mode, created_at, updated_at, revision
+        ) VALUES (?, '', ?, 'user', ?, ?, ?, 'note', 'manual', ?, ?, 1)
+      `).run(postId, body, journalId, JSON.stringify(tags), statusDot, timestamp, timestamp);
+      this._replacePostAttachments(postId, 'media', media, timestamp);
+      return { row: this._notefallRow(this.db.prepare('SELECT * FROM notefall_posts WHERE id = ?').get(postId)) };
+    });
+  }
+
+  updateNotefallPost(postId, patch = {}) {
+    postId = v.identifier(postId, 'postId');
+    v.object(patch, 'Notefalls changes', ['body', 'tags', 'media', 'notes', 'screenshots']);
+    if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one post change is required');
+    const body = patch.body === undefined ? undefined : v.string(patch.body, 'body', { max: 200000 });
+    const tagsJson = patch.tags === undefined ? undefined : JSON.stringify(v.stringArray(patch.tags, 'tags', { maxItems: 100, maxLength: 200 }));
+    const notes = patch.notes === undefined ? undefined : v.string(patch.notes, 'notes', { nullable: true, max: 500000 });
+    return this._write('forest', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM notefall_posts WHERE id = ? AND deleted_at IS NULL').get(postId);
+      if (!current) v.fail('NOT_FOUND', 'Notefalls post not found');
+      this.db.prepare(`
+        UPDATE notefall_posts SET body = ?, tags_json = ?, notes = ?, updated_at = ?, revision = revision + 1 WHERE id = ?
+      `).run(body ?? current.body, tagsJson ?? current.tags_json, notes === undefined ? current.notes : notes, timestamp, postId);
+      if (patch.media !== undefined) this._replacePostAttachments(postId, 'media', patch.media, timestamp);
+      if (patch.screenshots !== undefined) this._replacePostAttachments(postId, 'screenshot', patch.screenshots, timestamp);
+      return { row: this._notefallRow(this.db.prepare('SELECT * FROM notefall_posts WHERE id = ?').get(postId)) };
+    });
+  }
+
+  archiveNotefallPost(postId) {
+    postId = v.identifier(postId, 'postId');
+    return this._write('forest', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM notefall_posts WHERE id = ? AND deleted_at IS NULL').get(postId)) {
+        v.fail('NOT_FOUND', 'Notefalls post not found');
+      }
+      this.db.prepare('UPDATE post_attachments SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE post_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, postId);
+      this.db.prepare('UPDATE notefall_posts SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, postId);
+      return { ok: true };
+    });
+  }
+
+  getForestState() {
+    this._assertReady();
+    const saved = this.db.prepare('SELECT value_json FROM forest_view_state WHERE singleton_id = 1').get();
+    const view = saved ? JSON.parse(saved.value_json) : {};
+    const projects = this.db.prepare('SELECT * FROM forest_projects WHERE deleted_at IS NULL ORDER BY created_at')
+      .all().map((project) => {
+        const data = JSON.parse(project.data_json);
+        const files = this.db.prepare(`
+          SELECT ff.*, ef.path, ef.display_name, ef.kind, ef.size, ef.modified_at
+          FROM forest_files ff JOIN external_files ef ON ef.id = ff.file_id
+          WHERE ff.project_id = ? AND ff.deleted_at IS NULL AND ef.deleted_at IS NULL
+          ORDER BY ff.position, ff.created_at
+        `).all(project.id).map((file) => ({
+          ...JSON.parse(file.data_json),
+          id: file.board_file_id,
+          name: file.display_name,
+          path: file.path,
+          size: file.size,
+          modifiedAt: file.modified_at == null ? null : new Date(file.modified_at).toISOString(),
+          typeGroup: file.kind,
+          tags: JSON.parse(file.tags_json),
+        }));
+        return { ...data, id: project.id, name: project.title, x: project.position_x, y: project.position_y, files };
+      });
+    return {
+      version: 1,
+      viewport: { x: 260, y: 160, scale: 1, ...(view.viewport || {}) },
+      hunterDirs: Array.isArray(view.hunterDirs) ? view.hunterDirs : [],
+      projects,
+    };
+  }
+
+  saveForestState(state = {}) {
+    v.object(state, 'Forest state', ['version', 'viewport', 'hunterDirs', 'projects']);
+    v.object(state.viewport || {}, 'viewport', ['x', 'y', 'scale']);
+    const viewport = {
+      x: v.number(state.viewport?.x ?? 260, 'viewport.x', { min: -10000000, max: 10000000 }),
+      y: v.number(state.viewport?.y ?? 160, 'viewport.y', { min: -10000000, max: 10000000 }),
+      scale: v.number(state.viewport?.scale ?? 1, 'viewport.scale', { min: 0.01, max: 100 }),
+    };
+    const hunterDirs = state.hunterDirs === undefined ? [] : v.stringArray(state.hunterDirs, 'hunterDirs', { maxItems: 100, maxLength: 4096 });
+    const projects = state.projects ?? [];
+    if (!Array.isArray(projects) || projects.length > 2000) v.fail('INVALID_INPUT', 'projects must be a list with at most 2000 items');
+    const normalized = projects.map((project, projectIndex) => {
+      if (!project || typeof project !== 'object' || Array.isArray(project)) v.fail('INVALID_INPUT', `projects[${projectIndex}] must be an object`);
+      const projectId = v.identifier(project.id, `projects[${projectIndex}].id`);
+      const projectFiles = project.files ?? [];
+      if (!Array.isArray(projectFiles) || projectFiles.length > 10000) v.fail('INVALID_INPUT', `projects[${projectIndex}].files is too large`);
+      const projectData = { ...project };
+      delete projectData.id;
+      delete projectData.name;
+      delete projectData.x;
+      delete projectData.y;
+      delete projectData.files;
+      return {
+        id: projectId,
+        title: v.string(project.name, `projects[${projectIndex}].name`, { required: true, max: 1000 }),
+        x: v.number(Number(project.x), `projects[${projectIndex}].x`, { min: -10000000, max: 10000000 }),
+        y: v.number(Number(project.y), `projects[${projectIndex}].y`, { min: -10000000, max: 10000000 }),
+        dataJson: this._jsonValue(projectData, `projects[${projectIndex}]`, 5000000),
+        files: projectFiles.map((file, fileIndex) => {
+          if (!file || typeof file !== 'object' || Array.isArray(file)) v.fail('INVALID_INPUT', `projects[${projectIndex}].files[${fileIndex}] must be an object`);
+          let modifiedAt = file.modifiedAt;
+          if (typeof modifiedAt === 'string') modifiedAt = Date.parse(modifiedAt);
+          if (!Number.isFinite(modifiedAt)) modifiedAt = null;
+          const fileData = { ...file };
+          delete fileData.id;
+          delete fileData.name;
+          delete fileData.path;
+          delete fileData.size;
+          delete fileData.modifiedAt;
+          delete fileData.tags;
+          delete fileData.typeGroup;
+          return {
+            boardId: v.identifier(file.id, `projects[${projectIndex}].files[${fileIndex}].id`),
+            external: this._normalizeExternalFile({
+              path: file.path,
+              displayName: file.name || path.basename(file.path || ''),
+              kind: file.typeGroup || 'other',
+              size: file.size ?? null,
+              modifiedAt,
+            }),
+            tagsJson: JSON.stringify(file.tags === undefined ? [] : v.stringArray(file.tags, `projects[${projectIndex}].files[${fileIndex}].tags`, { maxItems: 100, maxLength: 200 })),
+            dataJson: this._jsonValue(fileData, `projects[${projectIndex}].files[${fileIndex}]`, 1000000),
+          };
+        }),
+      };
+    });
+
+    return this._write('forest', (timestamp) => {
+      const activeProjectIds = [];
+      normalized.forEach((project) => {
+        activeProjectIds.push(project.id);
+        this.db.prepare(`
+          INSERT INTO forest_projects (id, title, position_x, position_y, data_json, created_at, updated_at, revision, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, NULL)
+          ON CONFLICT(id) DO UPDATE SET title = excluded.title, position_x = excluded.position_x,
+            position_y = excluded.position_y, data_json = excluded.data_json, updated_at = excluded.updated_at,
+            revision = forest_projects.revision + 1, deleted_at = NULL
+        `).run(project.id, project.title, project.x, project.y, project.dataJson, timestamp, timestamp);
+        const activeBoardIds = [];
+        project.files.forEach((file, position) => {
+          activeBoardIds.push(file.boardId);
+          const externalId = this._upsertExternalFile(file.external, timestamp);
+          const existing = this.db.prepare('SELECT id FROM forest_files WHERE project_id = ? AND board_file_id = ?').get(project.id, file.boardId);
+          const relationId = existing?.id || id();
+          this.db.prepare(`
+            INSERT INTO forest_files (id, project_id, file_id, board_file_id, position, tags_json, data_json, created_at, updated_at, revision, deleted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)
+            ON CONFLICT(project_id, board_file_id) DO UPDATE SET file_id = excluded.file_id, position = excluded.position,
+              tags_json = excluded.tags_json, data_json = excluded.data_json, updated_at = excluded.updated_at,
+              revision = forest_files.revision + 1, deleted_at = NULL
+          `).run(relationId, project.id, externalId, file.boardId, position, file.tagsJson, file.dataJson, timestamp, timestamp);
+        });
+        if (activeBoardIds.length) {
+          const placeholders = activeBoardIds.map(() => '?').join(', ');
+          this.db.prepare(`UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL AND board_file_id NOT IN (${placeholders})`)
+            .run(timestamp, timestamp, project.id, ...activeBoardIds);
+        } else {
+          this.db.prepare('UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL')
+            .run(timestamp, timestamp, project.id);
+        }
+      });
+      if (activeProjectIds.length) {
+        const placeholders = activeProjectIds.map(() => '?').join(', ');
+        this.db.prepare(`UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL AND project_id NOT IN (${placeholders})`)
+          .run(timestamp, timestamp, ...activeProjectIds);
+        this.db.prepare(`UPDATE forest_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL AND id NOT IN (${placeholders})`)
+          .run(timestamp, timestamp, ...activeProjectIds);
+      } else {
+        this.db.prepare('UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
+        this.db.prepare('UPDATE forest_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
+      }
+      const viewJson = JSON.stringify({ version: 1, viewport, hunterDirs });
+      this.db.prepare(`
+        INSERT INTO forest_view_state (singleton_id, value_json, updated_at, revision) VALUES (1, ?, ?, 1)
+        ON CONFLICT(singleton_id) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at,
+          revision = forest_view_state.revision + 1
+      `).run(viewJson, timestamp);
+      return { ok: true };
+    });
+  }
+
+  _recorderSession(row, includeEvents = false) {
+    if (!row) return null;
+    const session = {
+      id: row.id,
+      name: row.name,
+      start_time: new Date(row.started_at).toISOString(),
+      end_time: row.ended_at == null ? null : new Date(row.ended_at).toISOString(),
+      revision: row.revision,
+    };
+    if (includeEvents) {
+      session.data = {
+        events: this.db.prepare(`
+          SELECT * FROM recorder_events WHERE session_id = ? AND deleted_at IS NULL ORDER BY sequence
+        `).all(row.id).map((event) => ({
+          id: event.id,
+          type: event.event_type,
+          timestamp: new Date(event.occurred_at).toISOString(),
+          data: JSON.parse(event.data_json),
+        })),
+      };
+    }
+    return session;
+  }
+
+  listRecorderSessions() {
+    this._assertReady();
+    return this.db.prepare('SELECT * FROM recorder_sessions WHERE deleted_at IS NULL ORDER BY started_at DESC')
+      .all().map((row) => this._recorderSession(row));
+  }
+
+  getRecorderSession(sessionId) {
+    this._assertReady();
+    sessionId = v.identifier(sessionId, 'sessionId');
+    const row = this.db.prepare('SELECT * FROM recorder_sessions WHERE id = ? AND deleted_at IS NULL').get(sessionId);
+    if (!row) v.fail('NOT_FOUND', 'Recorder session not found');
+    return this._recorderSession(row, true);
+  }
+
+  createRecorderSession(name) {
+    name = v.string(name, 'name', { required: true, max: 1000 });
+    const sessionId = id();
+    return this._write('recorder', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO recorder_sessions (id, name, started_at, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, 1)
+      `).run(sessionId, name, timestamp, timestamp, timestamp);
+      return { row: this._recorderSession(this.db.prepare('SELECT * FROM recorder_sessions WHERE id = ?').get(sessionId), true) };
+    });
+  }
+
+  endRecorderSession(sessionId) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    return this._write('recorder', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM recorder_sessions WHERE id = ? AND deleted_at IS NULL').get(sessionId)) {
+        v.fail('NOT_FOUND', 'Recorder session not found');
+      }
+      this.db.prepare('UPDATE recorder_sessions SET ended_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, sessionId);
+      return { row: this._recorderSession(this.db.prepare('SELECT * FROM recorder_sessions WHERE id = ?').get(sessionId), true) };
+    });
+  }
+
+  addRecorderEvent(sessionId, eventType, data) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    eventType = v.string(eventType, 'eventType', { required: true, max: 200 });
+    const dataJson = this._jsonValue(data ?? {}, 'event data', 2000000);
+    const eventId = id();
+    return this._write('recorder', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM recorder_sessions WHERE id = ? AND deleted_at IS NULL').get(sessionId)) {
+        v.fail('NOT_FOUND', 'Recorder session not found');
+      }
+      const sequence = this.db.prepare('SELECT COALESCE(MAX(sequence), -1) + 1 AS sequence FROM recorder_events WHERE session_id = ?').get(sessionId).sequence;
+      this.db.prepare(`
+        INSERT INTO recorder_events (id, session_id, sequence, event_type, data_json, occurred_at, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(eventId, sessionId, sequence, eventType, dataJson, timestamp, timestamp, timestamp);
+      this.db.prepare('UPDATE recorder_sessions SET updated_at = ?, revision = revision + 1 WHERE id = ?').run(timestamp, sessionId);
+      return { row: { id: eventId, type: eventType, timestamp: new Date(timestamp).toISOString(), data } };
+    });
+  }
+
+  renameRecorderSession(sessionId, name) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    name = v.string(name, 'name', { required: true, max: 1000 });
+    return this._write('recorder', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM recorder_sessions WHERE id = ? AND deleted_at IS NULL').get(sessionId)) {
+        v.fail('NOT_FOUND', 'Recorder session not found');
+      }
+      this.db.prepare('UPDATE recorder_sessions SET name = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(name, timestamp, sessionId);
+      return { row: this._recorderSession(this.db.prepare('SELECT * FROM recorder_sessions WHERE id = ?').get(sessionId)) };
+    });
+  }
+
+  archiveRecorderSession(sessionId) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    return this._write('recorder', (timestamp) => {
+      if (!this.db.prepare('SELECT id FROM recorder_sessions WHERE id = ? AND deleted_at IS NULL').get(sessionId)) {
+        v.fail('NOT_FOUND', 'Recorder session not found');
+      }
+      this.db.prepare('UPDATE recorder_events SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE session_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, sessionId);
+      this.db.prepare('UPDATE recorder_sessions SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, sessionId);
+      return { ok: true };
+    });
+  }
+
   listThreads(input = {}) {
     this._assertReady();
     v.object(input, 'thread filters', ['kind', 'includeDeleted', 'limit']);

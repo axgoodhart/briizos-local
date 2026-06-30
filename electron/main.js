@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('electron');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
@@ -18,10 +19,8 @@ const langgraph = require('./agent');
 const localDb = require('./local-db');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
-// Forest (journals, notefalls, infinite-forest project board) — ported from
-// Projungle. Storage is local-only for now (forest.db + forest.library.json
-// in userData), not routed through Firestore/SyncContract.
-const forestDb = require('./forest-db');
+// Forest filesystem discovery remains a bounded Main-process capability;
+// all persistent Forest state is owned by LocalDataService.
 const forestFs = require('./forest-fs');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
@@ -810,60 +809,71 @@ ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, 
 });
 
 // === Forest (journals, notefalls, infinite-forest project board) ===
-// Ported from Projungle. All local-only storage (forest.db, forest.library.json) —
-// see forest-db.js / forest-fs.js. Logged under the 'forest' category so these
-// actions show up in the Log Overlay per project rule (CLAUDE.md hard rule #1).
+// Legacy renderer channel names stay stable while briizos.db is the sole
+// structured-data authority behind them.
 
-ipcMain.handle('forest-journals-list', async () => forestDb.journalsList());
+ipcMain.handle('forest-journals-list', async () => localDataService.listJournals());
 ipcMain.handle('forest-journals-create', async (_event, input) => {
-  const result = forestDb.journalsCreate(input);
+  const result = localDataService.createJournal(input).row;
   logger.info('forest', 'Journal created', { id: result.id, title: result.title });
   return result;
 });
 ipcMain.handle('forest-journals-delete', async (_event, id) => {
-  const result = forestDb.journalsDelete(id);
+  const result = localDataService.archiveJournal(id);
   logger.info('forest', 'Journal deleted', { id });
   return result;
 });
 
-ipcMain.handle('forest-folios-list', async (_event, journalId) => forestDb.foliosList(journalId));
+ipcMain.handle('forest-folios-list', async (_event, journalId) => localDataService.listFolios(journalId));
 ipcMain.handle('forest-folios-create', async (_event, journalId, folio, opts) => {
-  const result = forestDb.foliosCreate(journalId, folio, opts);
+  const result = localDataService.createFolio(journalId, folio, opts).row;
   logger.info('forest', 'Folio created', { journalId, folioId: result.id, type: result.type });
   return result;
 });
 ipcMain.handle('forest-folios-delete', async (_event, id) => {
-  const result = forestDb.foliosDelete(id);
+  const result = localDataService.archiveFolio(id);
   logger.info('forest', 'Folio deleted', { id });
   return result;
 });
 ipcMain.handle('forest-folios-update', async (_event, id, patch) => {
-  const result = forestDb.foliosUpdate(id, patch);
+  const result = localDataService.updateFolio(id, patch).row;
   logger.debug('forest', 'Folio updated', { id });
   return result;
 });
 
-ipcMain.handle('forest-notefalls-list', async () => forestDb.notefallsList());
+ipcMain.handle('forest-notefalls-list', async () => localDataService.listNotefallPosts());
 ipcMain.handle('forest-notefalls-create', async (_event, input) => {
-  const result = forestDb.notefallsCreate(input);
+  const result = localDataService.createNotefallPost(input).row;
   logger.info('forest', 'Notefalls post created', { id: result.id });
   return result;
 });
 ipcMain.handle('forest-notefalls-update', async (_event, id, patch) => {
-  const result = forestDb.notefallsUpdate(id, patch);
+  const result = localDataService.updateNotefallPost(id, patch).row;
   logger.debug('forest', 'Notefalls post updated', { id });
   return result;
 });
 ipcMain.handle('forest-notefalls-delete', async (_event, id) => {
-  const result = forestDb.notefallsDelete(id);
+  const result = localDataService.archiveNotefallPost(id);
   logger.info('forest', 'Notefalls post deleted', { id });
   return result;
 });
-ipcMain.handle('forest-notefalls-attach-media', async () => forestDb.notefallsAttachMedia());
+ipcMain.handle('forest-notefalls-attach-media', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'] }],
+  });
+  if (result.canceled) return [];
+  return result.filePaths.map((filePath) => ({
+    id: crypto.randomUUID(),
+    path: filePath,
+    kind: 'image',
+    name: path.basename(filePath),
+  }));
+});
 
-ipcMain.handle('forest-library-load', async () => forestFs.loadState());
+ipcMain.handle('forest-library-load', async () => localDataService.getForestState());
 ipcMain.handle('forest-library-save', async (_event, state) => {
-  const result = await forestFs.saveState(state);
+  const result = localDataService.saveForestState(state);
   logger.debug('forest', 'Board state saved', { projectCount: state?.projects?.length ?? 0 });
   return result;
 });

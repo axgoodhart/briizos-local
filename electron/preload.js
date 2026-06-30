@@ -92,6 +92,16 @@ contextBridge.exposeInMainWorld('api', {
       list: (filters) => invokeLocalData('local-data:threads:list', filters),
       create: (input) => invokeLocalData('local-data:threads:create', input),
     },
+    recorder: {
+      list: () => invokeLocalData('local-data:recorder:list'),
+      get: (sessionId) => invokeLocalData('local-data:recorder:get', sessionId),
+      create: (name) => invokeLocalData('local-data:recorder:create', name),
+      end: (sessionId) => invokeLocalData('local-data:recorder:end', sessionId),
+      addEvent: (sessionId, eventType, data) =>
+        invokeLocalData('local-data:recorder:add-event', sessionId, eventType, data),
+      rename: (sessionId, name) => invokeLocalData('local-data:recorder:rename', sessionId, name),
+      archive: (sessionId) => invokeLocalData('local-data:recorder:archive', sessionId),
+    },
     onChanged: (callback) => {
       const handler = (_event, change) => callback(change);
       ipcRenderer.on('data:changed', handler);

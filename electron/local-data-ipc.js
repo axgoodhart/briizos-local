@@ -44,6 +44,13 @@ const CHANNELS = Object.freeze({
   workspacePanelsArchive: 'local-data:workspace-panels:archive',
   threadsList: 'local-data:threads:list',
   threadsCreate: 'local-data:threads:create',
+  recorderList: 'local-data:recorder:list',
+  recorderGet: 'local-data:recorder:get',
+  recorderCreate: 'local-data:recorder:create',
+  recorderEnd: 'local-data:recorder:end',
+  recorderAddEvent: 'local-data:recorder:add-event',
+  recorderRename: 'local-data:recorder:rename',
+  recorderArchive: 'local-data:recorder:archive',
   changed: 'data:changed',
 });
 
@@ -99,6 +106,13 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
     [CHANNELS.workspacePanelsArchive, (panelId, expectedRevision) => service.archiveWorkspacePanel(panelId, expectedRevision)],
     [CHANNELS.threadsList, (filters) => service.listThreads(filters)],
     [CHANNELS.threadsCreate, (input) => service.createThread(input)],
+    [CHANNELS.recorderList, () => service.listRecorderSessions()],
+    [CHANNELS.recorderGet, (sessionId) => service.getRecorderSession(sessionId)],
+    [CHANNELS.recorderCreate, (name) => service.createRecorderSession(name)],
+    [CHANNELS.recorderEnd, (sessionId) => service.endRecorderSession(sessionId)],
+    [CHANNELS.recorderAddEvent, (sessionId, eventType, data) => service.addRecorderEvent(sessionId, eventType, data)],
+    [CHANNELS.recorderRename, (sessionId, name) => service.renameRecorderSession(sessionId, name)],
+    [CHANNELS.recorderArchive, (sessionId) => service.archiveRecorderSession(sessionId)],
   ];
 
   for (const [channel, operation] of registrations) {
