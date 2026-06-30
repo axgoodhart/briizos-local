@@ -31,6 +31,15 @@ const { createViewImagePreModelHook } = require('./media');
 // thread_id and persists according to agent/config.yaml. Created lazily so
 // importing helpers like mapEvent has no storage side effects.
 let checkpointer = null;
+let localDataService = null;
+
+function setLocalDataService(service) {
+  localDataService = service;
+}
+
+function getLocalDataService() {
+  return localDataService;
+}
 
 function getRuntimeCheckpointer() {
   if (!checkpointer) checkpointer = getCheckpointer();
@@ -419,4 +428,14 @@ function resetCache() {
   agentCache.clear();
 }
 
-module.exports = { streamTurn, sendTurn, resumeTurn, generateSuggestions, parseSuggestions, resetCache, mapEvent };
+module.exports = {
+  streamTurn,
+  sendTurn,
+  resumeTurn,
+  generateSuggestions,
+  parseSuggestions,
+  resetCache,
+  mapEvent,
+  setLocalDataService,
+  getLocalDataService,
+};

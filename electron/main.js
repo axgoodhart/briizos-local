@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
@@ -17,6 +17,8 @@ const modelConfig = require('./model-config');
 // localhost HTTP tool-bridge; the renderer is reached via IPC.
 const langgraph = require('./agent');
 const localDb = require('./local-db');
+const { LocalDataService } = require('./local-data-service');
+const { registerLocalDataIPC } = require('./local-data-ipc');
 // Forest (journals, notefalls, infinite-forest project board) — ported from
 // Projungle. Storage is local-only for now (forest.db + forest.library.json
 // in userData), not routed through Firestore/SyncContract.
@@ -24,6 +26,8 @@ const forestDb = require('./forest-db');
 const forestFs = require('./forest-fs');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
+let localDataService = null;
+let unregisterLocalDataIPC = null;
 
 function redactUrlApiKey(rawUrl) {
   try {
@@ -931,6 +935,22 @@ app.whenReady().then(() => {
   // Initialize agent App Support directories
   agentConfig.ensureDirectories();
 
+  // Generation-2 structured state is owned by this one Main-process service.
+  // Existing feature stores remain untouched until their reviewed cutover phase.
+  localDataService = new LocalDataService({
+    databasePath: path.join(app.getPath('userData'), 'briizos.db'),
+    safeStorage,
+    logger,
+  });
+  localDataService.initialize();
+  unregisterLocalDataIPC = registerLocalDataIPC({
+    ipcMain,
+    BrowserWindow,
+    service: localDataService,
+    logger,
+  });
+  langgraph.setLocalDataService(localDataService);
+
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {
     // Send USB change event to all windows
@@ -969,6 +989,10 @@ app.on('window-all-closed', () => {
 // to spawn-kill since the agent lives inside this process).
 app.on('before-quit', () => {
   langgraph.stop();
+  unregisterLocalDataIPC?.();
+  unregisterLocalDataIPC = null;
+  localDataService?.close();
+  localDataService = null;
 });
 
 // Clean up watchers on quit

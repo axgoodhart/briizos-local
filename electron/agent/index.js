@@ -38,6 +38,10 @@ function setMainWindow(win) {
   bridge.setMainWindow(win);
 }
 
+function setLocalDataService(service) {
+  leadAgent.setLocalDataService(service);
+}
+
 async function start() {
   state.status = 'running';
   state.startedAt = Date.now();
@@ -92,6 +96,7 @@ async function fetchSuggestions(recentMessages, n = 3, config = {}, threadId = n
 
 module.exports = {
   setMainWindow,
+  setLocalDataService,
   start,
   stop,
   getStatus,

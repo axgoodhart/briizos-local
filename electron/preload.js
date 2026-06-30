@@ -1,8 +1,62 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+async function invokeLocalData(channel, ...args) {
+  const response = await ipcRenderer.invoke(channel, ...args);
+  if (response?.ok) return response.value;
+  const error = new Error(response?.error?.message || 'Local data operation failed');
+  error.code = response?.error?.code || 'LOCAL_DATA_ERROR';
+  throw error;
+}
+
 contextBridge.exposeInMainWorld('api', {
   // Platform info
   platform: process.platform,
+
+  // Generation-2 local data. Each method maps to one validated Main-process
+  // command; the renderer never receives a SQL or filesystem escape hatch.
+  localData: {
+    getStatus: () => invokeLocalData('local-data:status'),
+    getDomainRevisions: () => invokeLocalData('local-data:revisions'),
+    tasks: {
+      list: (filters) => invokeLocalData('local-data:tasks:list', filters),
+      create: (input) => invokeLocalData('local-data:tasks:create', input),
+      update: (taskId, expectedRevision, patch) =>
+        invokeLocalData('local-data:tasks:update', taskId, expectedRevision, patch),
+      archive: (taskId, expectedRevision) =>
+        invokeLocalData('local-data:tasks:archive', taskId, expectedRevision),
+      steps: {
+        list: (taskId, filters) => invokeLocalData('local-data:task-steps:list', taskId, filters),
+        create: (taskId, input) => invokeLocalData('local-data:task-steps:create', taskId, input),
+        update: (stepId, expectedRevision, patch) =>
+          invokeLocalData('local-data:task-steps:update', stepId, expectedRevision, patch),
+        archive: (stepId, expectedRevision) =>
+          invokeLocalData('local-data:task-steps:archive', stepId, expectedRevision),
+      },
+    },
+    organizer: {
+      list: (filters) => invokeLocalData('local-data:organizer:list', filters),
+      create: (input) => invokeLocalData('local-data:organizer:create', input),
+      update: (itemId, expectedRevision, patch) =>
+        invokeLocalData('local-data:organizer:update', itemId, expectedRevision, patch),
+      archive: (itemId, expectedRevision) =>
+        invokeLocalData('local-data:organizer:archive', itemId, expectedRevision),
+    },
+    workspacePanels: {
+      list: (filters) => invokeLocalData('local-data:workspace-panels:list', filters),
+      save: (input) => invokeLocalData('local-data:workspace-panels:save', input),
+      archive: (panelId, expectedRevision) =>
+        invokeLocalData('local-data:workspace-panels:archive', panelId, expectedRevision),
+    },
+    threads: {
+      list: (filters) => invokeLocalData('local-data:threads:list', filters),
+      create: (input) => invokeLocalData('local-data:threads:create', input),
+    },
+    onChanged: (callback) => {
+      const handler = (_event, change) => callback(change);
+      ipcRenderer.on('data:changed', handler);
+      return () => ipcRenderer.removeListener('data:changed', handler);
+    },
+  },
 
   // File System API
   listDirectory: (dirPath) => ipcRenderer.invoke('fs-list-directory', dirPath),
