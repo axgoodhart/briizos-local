@@ -17,10 +17,14 @@ const yaml = require('js-yaml');
 
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
 const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
-const EXTENSIONS_CONFIG_PATH = path.join(AGENT_DIR, 'extensions_config.json');
 const DEFAULT_DEER_HOME = process.env.DEER_FLOW_HOME
   ? path.resolve(process.env.DEER_FLOW_HOME)
   : path.join(AGENT_DIR, '.deer-flow');
+let localDataService = null;
+
+function setLocalDataService(service) {
+  localDataService = service;
+}
 
 function readYaml(filePath) {
   try {
@@ -109,7 +113,7 @@ function walkSkills(categoryRoot, category) {
   return out;
 }
 
-function isSkillEnabled(skill, extensions = readJson(EXTENSIONS_CONFIG_PATH)) {
+function isSkillEnabled(skill, extensions = {}) {
   const entry = extensions?.skills?.[skill.name];
   return entry ? entry.enabled !== false : true;
 }
@@ -121,7 +125,10 @@ function loadSkills({ enabledOnly = false } = {}) {
     ...walkSkills(path.join(root, 'public'), 'public'),
     ...walkSkills(path.join(root, 'custom'), 'custom'),
   ];
-  const extensions = readJson(EXTENSIONS_CONFIG_PATH);
+  const localSkills = localDataService?.getSetting?.('skills_config')?.value || {};
+  const extensions = { skills: Object.fromEntries(
+    Object.entries(localSkills).map(([name, enabled]) => [name, { enabled }]),
+  ) };
   return skills
     .map((skill) => ({ ...skill, enabled: isSkillEnabled(skill, extensions) }))
     .filter((skill) => !enabledOnly || skill.enabled)
@@ -404,4 +411,5 @@ module.exports = {
   loadSkills,
   getMemoryContext,
   formatMemoryForInjection,
+  setLocalDataService,
 };

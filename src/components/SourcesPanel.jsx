@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDrag } from 'react-dnd';
 import FileTree, { SOURCE_FILE_TYPE } from './FileTree';
-import {
-  getSelectedFiles,
-  getSetting,
-} from '../lib/firestore';
 import logger, { subscribeLogs } from '../lib/logger';
 
 /**
@@ -163,12 +159,12 @@ function SourcesPanel() {
     return cleanup || (() => {});
   }, []);
 
-  // Load selected files from Firestore on mount
+  // Load selected files from the local authority on mount.
   useEffect(() => {
     const loadSelectedFiles = async () => {
       try {
-        const files = await getSelectedFiles();
-        const paths = new Set(files.map(f => f.file_path));
+        const files = await window.api.localData.selectedFiles.list('chat');
+        const paths = new Set(files.map(f => f.path));
         setSelectedFiles(paths);
       } catch (error) {
         logger.error('fs', 'Failed to load selected files', error?.message);
@@ -205,11 +201,6 @@ function SourcesPanel() {
 
     const checkGithubConfig = async () => {
       try {
-        // Load GitHub token from Firestore and push to main process
-        const token = await getSetting('github_token');
-        if (token && api.githubSetToken) {
-          api.githubSetToken(token);
-        }
         const result = await api.githubIsConfigured();
         setGithubConfigured(result.configured);
         if (result.configured && result.user) {
@@ -309,8 +300,8 @@ function SourcesPanel() {
   useEffect(() => {
     const refreshSelectedFiles = async () => {
       try {
-        const files = await getSelectedFiles();
-        const paths = new Set(files.map(f => f.file_path));
+        const files = await window.api.localData.selectedFiles.list('chat');
+        const paths = new Set(files.map(f => f.path));
         setSelectedFiles(paths);
       } catch (error) {
         logger.error('fs', 'Failed to refresh selected files', error?.message);

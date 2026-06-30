@@ -8,7 +8,7 @@ import { useTools } from '../context/ToolContext';
 import ConfirmationToast from './ConfirmationToast';
 import { onChatReturn } from '../lib/bfast-queue';
 import { formatMargerinLabel } from '../lib/bfast-format';
-import { addLog, addSelectedFile, removeSelectedFile } from '../lib/firestore';
+import { addLog } from '../lib/firestore';
 import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
 import { useModelSelection } from '../hooks/useModelSelection';
@@ -246,7 +246,12 @@ function InteractionPanel() {
     accept: SOURCE_FILE_TYPE,
     drop: async (item) => {
       try {
-        await addSelectedFile(item.path, item.name);
+        await window.api.localData.selectedFiles.add({
+          path: item.path,
+          displayName: item.name,
+          kind: 'file',
+          purpose: 'chat',
+        });
         await refreshFilesInContext();
       } catch (error) {
         logger.error('chat', 'Failed to add file to context', error?.message);
@@ -259,9 +264,9 @@ function InteractionPanel() {
   });
 
   // Remove a file from context
-  const handleRemoveFromContext = useCallback(async (filePath) => {
+  const handleRemoveFromContext = useCallback(async (fileId) => {
     try {
-      await removeSelectedFile(filePath);
+      await window.api.localData.selectedFiles.remove(fileId, 'chat');
       await refreshFilesInContext();
     } catch (error) {
       logger.error('chat', 'Failed to remove file from context', error?.message);
@@ -512,7 +517,7 @@ function InteractionPanel() {
                 <span className="context-file-name">{file.name}</span>
                 <button
                   className="context-file-remove"
-                  onClick={() => handleRemoveFromContext(file.path)}
+                  onClick={() => handleRemoveFromContext(file.id)}
                   title="Remove from context"
                 >
                   &times;

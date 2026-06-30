@@ -17,6 +17,38 @@ contextBridge.exposeInMainWorld('api', {
   localData: {
     getStatus: () => invokeLocalData('local-data:status'),
     getDomainRevisions: () => invokeLocalData('local-data:revisions'),
+    settings: {
+      list: () => invokeLocalData('local-data:settings:list'),
+      get: (key) => invokeLocalData('local-data:settings:get', key),
+      set: (key, value) => invokeLocalData('local-data:settings:set', key, value),
+    },
+    workspace: {
+      getLayout: () => invokeLocalData('local-data:workspace:get-layout'),
+      saveLayout: (layout) => invokeLocalData('local-data:workspace:save-layout', layout),
+    },
+    selectedFiles: {
+      list: (purpose) => invokeLocalData('local-data:selected-files:list', purpose),
+      add: (input) => invokeLocalData('local-data:selected-files:add', input),
+      remove: (fileId, purpose) => invokeLocalData('local-data:selected-files:remove', fileId, purpose),
+      clear: (purpose) => invokeLocalData('local-data:selected-files:clear', purpose),
+    },
+    media: {
+      get: () => invokeLocalData('local-data:media:get'),
+      save: (input) => invokeLocalData('local-data:media:save', input),
+    },
+    canvases: {
+      list: (filters) => invokeLocalData('local-data:canvases:list', filters),
+      get: (canvasId) => invokeLocalData('local-data:canvases:get', canvasId),
+      create: (input) => invokeLocalData('local-data:canvases:create', input),
+      update: (canvasId, expectedRevision, patch) =>
+        invokeLocalData('local-data:canvases:update', canvasId, expectedRevision, patch),
+      archive: (canvasId, expectedRevision) =>
+        invokeLocalData('local-data:canvases:archive', canvasId, expectedRevision),
+    },
+    briiztorm: {
+      get: () => invokeLocalData('local-data:briiztorm:get'),
+      set: (key, value) => invokeLocalData('local-data:briiztorm:set', key, value),
+    },
     tasks: {
       list: (filters) => invokeLocalData('local-data:tasks:list', filters),
       create: (input) => invokeLocalData('local-data:tasks:create', input),
@@ -151,6 +183,7 @@ contextBridge.exposeInMainWorld('api', {
   getModels: () => ipcRenderer.invoke('models-get-list'),
   getModelConfig: (name) => ipcRenderer.invoke('models-get-config', name),
   checkApiKeys: () => ipcRenderer.invoke('models-check-api-keys'),
+  setProviderApiKey: (provider, apiKey) => ipcRenderer.invoke('models-set-api-key', provider, apiKey),
   isAIConfigured: () => ipcRenderer.invoke('ai-is-configured'),
 
   // Tool execution bridge

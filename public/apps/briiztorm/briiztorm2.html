@@ -2143,11 +2143,50 @@
         // PHASE 1.1: LOCALSTORAGE PERSISTENCE WITH VERSIONING
         // ============================================================
 
+        const BriizStorage = (() => {
+            let state = {};
+            let readyPromise = null;
+            let nextRequestId = 1;
+
+            function ready() {
+                if (readyPromise) return readyPromise;
+                readyPromise = new Promise((resolve, reject) => {
+                    const requestId = nextRequestId++;
+                    const handler = (event) => {
+                        if (event.source !== window.parent || event.origin !== window.location.origin) return;
+                        if (event.data?.requestId !== requestId) return;
+                        if (event.data.type === 'briiztorm:state:loaded') {
+                            state = event.data.state || {};
+                            window.removeEventListener('message', handler);
+                            resolve(state);
+                        } else if (event.data.type === 'briiztorm:state:error') {
+                            window.removeEventListener('message', handler);
+                            reject(new Error(event.data.message || 'Unable to load briiZtorm state'));
+                        }
+                    };
+                    window.addEventListener('message', handler);
+                    window.parent.postMessage({ type: 'briiztorm:state:load', requestId }, window.location.origin);
+                });
+                return readyPromise;
+            }
+
+            function get(key, fallback = null) {
+                return state[key] === undefined ? fallback : state[key];
+            }
+
+            function set(key, value) {
+                state[key] = value;
+                window.parent.postMessage({ type: 'briiztorm:state:set', key, value }, window.location.origin);
+            }
+
+            return { ready, get, set };
+        })();
+
         const Storage = {
             STORAGE_KEY: 'celestia_projects',
             SCHEMA_VERSION: 1,
 
-            // Save projects to localStorage
+            // Save projects through the parent app's SQLite bridge.
             save() {
                 try {
                     const projectData = projects.map(group => ({
@@ -2172,7 +2211,7 @@
                         projects: projectData
                     };
 
-                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
+                    BriizStorage.set('projects', payload);
                     return true;
                 } catch (e) {
                     ErrorLogger.log('STORAGE', 'Failed to save projects', { error: e.message });
@@ -2180,13 +2219,11 @@
                 }
             },
 
-            // Load projects from localStorage
+            // Load projects from the parent app's SQLite bridge.
             load() {
                 try {
-                    const raw = localStorage.getItem(this.STORAGE_KEY);
-                    if (!raw) return null;
-
-                    const data = JSON.parse(raw);
+                    const data = BriizStorage.get('projects');
+                    if (!data) return null;
 
                     // Handle schema migrations
                     if (data.version !== this.SCHEMA_VERSION) {
@@ -2218,19 +2255,19 @@
 
             // Clear all saved data
             clear() {
-                localStorage.removeItem(this.STORAGE_KEY);
+                BriizStorage.set('projects', { version: this.SCHEMA_VERSION, savedAt: Date.now(), projects: [] });
                 showToast('Storage cleared', 'info');
             },
 
             // Export projects as JSON file
             exportToFile() {
-                const data = localStorage.getItem(this.STORAGE_KEY);
+                const data = BriizStorage.get('projects');
                 if (!data) {
                     showToast('No projects to export', 'warning');
                     return;
                 }
 
-                const blob = new Blob([data], { type: 'application/json' });
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -2247,7 +2284,7 @@
                     reader.onload = (e) => {
                         try {
                             const data = JSON.parse(e.target.result);
-                            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+                            BriizStorage.set('projects', data);
                             resolve(data);
                             showToast('Projects imported - refresh to see changes', 'success');
                         } catch (err) {
@@ -2382,17 +2419,19 @@
         ];
 
         // Initialize with error boundary
-        try {
-            init();
-            animate();
-        } catch (e) {
-            ErrorLogger.log('INIT', 'Failed to initialize 3D scene', { error: e.message, stack: e.stack });
-            showErrorModal(
-                'INITIALIZATION FAILED',
-                'The 3D environment could not be created. ' + e.message,
-                () => location.reload()
-            );
-        }
+        BriizStorage.ready().then(() => {
+            try {
+                init();
+                animate();
+            } catch (e) {
+                ErrorLogger.log('INIT', 'Failed to initialize 3D scene', { error: e.message, stack: e.stack });
+                showErrorModal(
+                    'INITIALIZATION FAILED',
+                    'The 3D environment could not be created. ' + e.message,
+                    () => location.reload()
+                );
+            }
+        }).catch((e) => ErrorLogger.log('STORAGE', 'Failed to initialize local state', { error: e.message }));
 
         function init() {
             // Scene Setup
@@ -2895,8 +2934,8 @@
             document.documentElement.classList.add('theme-' + themeName);
             currentTheme = themeName;
 
-            // Save to localStorage
-            localStorage.setItem(THEME_KEY, themeName);
+            // Save through the parent app's SQLite bridge.
+            BriizStorage.set('theme', themeName);
 
             // Update 3D scene colors
             updateSceneTheme(themeName);
@@ -2913,7 +2952,7 @@
         };
 
         function loadSavedTheme() {
-            const saved = localStorage.getItem(THEME_KEY);
+            const saved = BriizStorage.get('theme');
             if (saved && ['vaporwave', 'onyx', 'dusk', 'rose'].includes(saved)) {
                 setTheme(saved);
             } else {
@@ -3002,7 +3041,7 @@
         }
 
         // Load theme on startup (deferred)
-        setTimeout(loadSavedTheme, 0);
+        BriizStorage.ready().then(loadSavedTheme);
 
         // ============================================================
         // WEATHER SYSTEM CONTROLS
@@ -3076,15 +3115,14 @@
 
         function saveCurrentFlightSettings() {
             const settings = getCurrentFlightSettings();
-            localStorage.setItem(FLIGHT_SETTINGS_KEY, JSON.stringify(settings));
+            BriizStorage.set('flightSettings', settings);
         }
 
         function loadSavedFlightSettings() {
-            const saved = localStorage.getItem(FLIGHT_SETTINGS_KEY);
+            const saved = BriizStorage.get('flightSettings');
             if (saved) {
                 try {
-                    const settings = JSON.parse(saved);
-                    applyFlightSettings(settings);
+                    applyFlightSettings(saved);
                 } catch(e) {
                     console.warn('Failed to load flight settings:', e);
                 }
@@ -3098,10 +3136,10 @@
         }
 
         function getPresets() {
-            const saved = localStorage.getItem(FLIGHT_PRESETS_KEY);
+            const saved = BriizStorage.get('flightPresets');
             if (saved) {
                 try {
-                    return JSON.parse(saved);
+                    return saved;
                 } catch(e) {
                     return [...defaultPresets];
                 }
@@ -3110,7 +3148,7 @@
         }
 
         function savePresets(presets) {
-            localStorage.setItem(FLIGHT_PRESETS_KEY, JSON.stringify(presets));
+            BriizStorage.set('flightPresets', presets);
         }
 
         function renderPresetsList() {

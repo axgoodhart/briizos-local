@@ -133,20 +133,6 @@ function ensureDirectories() {
   for (const dir of Object.values(DIRS)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  if (!fs.existsSync(CONFIG_PATH)) {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(defaultConfig(), null, 2));
-  } else {
-    // Migrate-in-place on startup so the file settles into the new shape.
-    try {
-      const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-      const migrated = migrate(raw);
-      if (JSON.stringify(migrated) !== JSON.stringify(raw)) {
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(migrated, null, 2));
-      }
-    } catch {
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(defaultConfig(), null, 2));
-    }
-  }
   if (!fs.existsSync(AGENT_CONTEXT_PATH)) {
     fs.writeFileSync(AGENT_CONTEXT_PATH, '# Agent Memory\n\nNo memories stored yet.\n');
   }

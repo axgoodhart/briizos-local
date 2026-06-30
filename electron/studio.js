@@ -53,7 +53,7 @@ const studioTools = {
  * @param {string} toolId - The tool identifier (e.g., 'video', 'suno')
  * @returns {Promise<{success: boolean, message: string}>}
  */
-async function launchTool(toolId) {
+async function launchTool(toolId, customUrl = '') {
   const tool = studioTools[toolId];
 
   if (!tool) {
@@ -64,6 +64,10 @@ async function launchTool(toolId) {
   }
 
   try {
+    if (customUrl) {
+      await shell.openExternal(customUrl);
+      return { success: true, message: `Opened ${customUrl}` };
+    }
     switch (tool.type) {
       case 'url':
         // Open URL in default browser

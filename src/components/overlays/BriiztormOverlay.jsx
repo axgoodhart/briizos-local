@@ -27,6 +27,26 @@ function BriiztormOverlay({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleStorageMessage = async (event) => {
+      if (event.source !== iframeRef.current?.contentWindow || event.origin !== window.location.origin) return;
+      const message = event.data;
+      if (message?.type === 'briiztorm:state:load') {
+        try {
+          const state = await window.api.localData.briiztorm.get();
+          event.source.postMessage({ type: 'briiztorm:state:loaded', requestId: message.requestId, state }, event.origin);
+        } catch (error) {
+          event.source.postMessage({ type: 'briiztorm:state:error', requestId: message.requestId, message: error.message }, event.origin);
+        }
+      }
+      if (message?.type === 'briiztorm:state:set') {
+        window.api.localData.briiztorm.set(message.key, message.value).catch(() => {});
+      }
+    };
+    window.addEventListener('message', handleStorageMessage);
+    return () => window.removeEventListener('message', handleStorageMessage);
+  }, []);
+
 
   const handleClose = () => {
     setState('closing');

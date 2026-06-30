@@ -2,7 +2,6 @@
 // (chatBackground, chatBgBlur) still active. Provider/model settings superseded
 // by LangGraph model-config.js. Remove when all consumers migrated.
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { setSetting, getSetting } from '../lib/firestore';
 import logger from '../lib/logger';
 
 const ChatSettingsContext = createContext(null);
@@ -27,44 +26,33 @@ const DEFAULT_STATE = {
   themeChatBackgrounds: {},
 };
 
-const LS_KEY = 'briizos2.chatSettings.v1';
-
 export function ChatSettingsProvider({ children }) {
-  const [state, setState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LS_KEY);
-      return saved ? { ...DEFAULT_STATE, ...JSON.parse(saved) } : DEFAULT_STATE;
-    } catch (e) {
-      logger.debug('config', 'localStorage read failed', e?.message);
-      return DEFAULT_STATE;
-    }
-  });
+  const [state, setState] = useState(DEFAULT_STATE);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const syncTimeoutRef = useRef(null);
 
-  // Persist to localStorage immediately, debounce Firestore sync
+  // Persist to the local authority after initial hydration.
   useEffect(() => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(state));
-    } catch (e) { logger.debug('config', 'localStorage write failed', e?.message); }
+    if (!isHydrated) return undefined;
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
-      setSetting('chatConfig', state).catch(err => logger.error('config', 'Firestore chatConfig sync failed', err?.message));
+      window.api.localData.settings.set('chat_config', state)
+        .catch(err => logger.error('config', 'Local chat settings save failed', err?.message));
     }, 2000);
 
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, [state]);
+  }, [state, isHydrated]);
 
-  // Load from Firestore on mount (merge with localStorage)
+  // Clean-slate load from briizos.db only.
   useEffect(() => {
-    getSetting('chatConfig').then((remote) => {
-      if (remote) {
-        setState(prev => ({ ...DEFAULT_STATE, ...remote, ...prev }));
-      }
-    }).catch(err => logger.error('config', 'Firestore chatConfig load failed', err?.message));
+    window.api.localData.settings.get('chat_config').then((saved) => {
+      if (saved?.value) setState({ ...DEFAULT_STATE, ...saved.value });
+    }).catch(err => logger.error('config', 'Local chat settings load failed', err?.message))
+      .finally(() => setIsHydrated(true));
   }, []);
 
   const setProvider = useCallback((provider) => {

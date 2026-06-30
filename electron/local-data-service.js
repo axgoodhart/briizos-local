@@ -10,6 +10,24 @@ const TASK_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled', 'bloc
 const TASK_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 const ORGANIZER_TYPES = ['note', 'project', 'event', 'timer'];
 const CONTINUITY_DOMAINS = new Set(['tasks', 'organizer', 'retainedText']);
+const SETTING_KEYS = new Set([
+  'ui_theme',
+  'chat_config',
+  'actiondeck_panel_settings',
+  'selected_model',
+  'suggestions_enabled',
+  'agent_config',
+  'skills_config',
+  'studio_video_url',
+  'studio_website_url',
+  'studio_replicate_url',
+  'studio_suno_url',
+  'studio_dalle_url',
+  'studio_ideogram_url',
+  'studio_myaudio_url',
+  'studio_briizclerk_url',
+]);
+const BRIIZTORM_KEYS = new Set(['projects', 'theme', 'flightSettings', 'flightPresets']);
 
 function now() {
   return Date.now();
@@ -123,6 +141,613 @@ class LocalDataService extends EventEmitter {
   getDomainRevisions() {
     this._assertReady();
     return this.db.prepare('SELECT domain, revision, updated_at FROM domain_revisions ORDER BY domain').all();
+  }
+
+  _jsonValue(value, label, maxBytes = 1000000) {
+    let json;
+    try {
+      json = JSON.stringify(value);
+    } catch {
+      v.fail('INVALID_INPUT', `${label} must be JSON-compatible`);
+    }
+    if (json === undefined || Buffer.byteLength(json, 'utf8') > maxBytes) {
+      v.fail('INVALID_INPUT', `${label} is too large or invalid`);
+    }
+    return json;
+  }
+
+  _validateSetting(key, value) {
+    if (!SETTING_KEYS.has(key)) v.fail('INVALID_INPUT', 'Unsupported setting key');
+    if (key === 'ui_theme') return v.string(value, key, { required: true, max: 100 });
+    if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
+    if (key === 'suggestions_enabled') return v.boolean(value, key);
+    if (key.endsWith('_url')) {
+      const candidate = v.string(value, key, { max: 2000 });
+      if (candidate && !/^https?:\/\//i.test(candidate)) v.fail('INVALID_INPUT', `${key} must be an HTTP URL`);
+      return candidate;
+    }
+    if (key === 'agent_config') {
+      v.object(value, key, ['permissions', 'memory']);
+      const normalizeSurface = (surface, label) => {
+        v.object(surface, label, ['mode', 'blacklist']);
+        v.object(surface.blacklist, `${label}.blacklist`, ['paths', 'filetypes']);
+        return {
+          mode: v.oneOf(surface.mode, `${label}.mode`, ['ask-always', 'ask-destructive', 'no-asking']),
+          blacklist: {
+            paths: v.stringArray(surface.blacklist.paths, `${label}.blacklist.paths`, { maxItems: 500, maxLength: 4096 }),
+            filetypes: v.stringArray(surface.blacklist.filetypes, `${label}.blacklist.filetypes`, { maxItems: 200, maxLength: 100 }),
+          },
+        };
+      };
+      v.object(value.permissions, 'agent_config.permissions', ['chat', 'task']);
+      v.object(value.memory, 'agent_config.memory', ['chunksToInclude']);
+      return {
+        permissions: {
+          chat: normalizeSurface(value.permissions.chat, 'agent_config.permissions.chat'),
+          task: normalizeSurface(value.permissions.task, 'agent_config.permissions.task'),
+        },
+        memory: {
+          chunksToInclude: v.integer(value.memory.chunksToInclude, 'agent_config.memory.chunksToInclude', { min: 1, max: 20 }),
+        },
+      };
+    }
+    if (key === 'skills_config') {
+      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length > 500) {
+        v.fail('INVALID_INPUT', 'skills_config must be a skill map');
+      }
+      const normalized = {};
+      Object.entries(value).forEach(([name, enabled]) => {
+        normalized[v.string(name, 'skill name', { required: true, max: 200 })] = v.boolean(enabled, `skill ${name}`);
+      });
+      return normalized;
+    }
+    if (key === 'actiondeck_panel_settings') {
+      v.object(value, key, ['filters', 'startAs', 'lastUsedView', 'pinToCurrentLocation', 'pinnedPosition', 'headerBg']);
+      return value;
+    }
+    if (key === 'chat_config') {
+      v.object(value, key, ['provider', 'providers', 'snapshots', 'chatBackground', 'chatBgBlur', 'themeChatBackgrounds']);
+      return value;
+    }
+    return value;
+  }
+
+  listSettings() {
+    this._assertReady();
+    const result = {};
+    this.db.prepare('SELECT key, value_json FROM settings ORDER BY key').all().forEach((row) => {
+      if (SETTING_KEYS.has(row.key)) result[row.key] = JSON.parse(row.value_json);
+    });
+    return result;
+  }
+
+  getSetting(key) {
+    this._assertReady();
+    key = v.string(key, 'setting key', { required: true, max: 100 });
+    if (!SETTING_KEYS.has(key)) v.fail('INVALID_INPUT', 'Unsupported setting key');
+    const row = this.db.prepare('SELECT value_json, revision FROM settings WHERE key = ?').get(key);
+    return row ? { key, value: JSON.parse(row.value_json), revision: row.revision } : null;
+  }
+
+  setSetting(key, value) {
+    key = v.string(key, 'setting key', { required: true, max: 100 });
+    const normalized = this._validateSetting(key, value);
+    const valueJson = this._jsonValue(normalized, key, 2000000);
+    return this._write('settings', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO settings (key, value_json, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, 1)
+        ON CONFLICT(key) DO UPDATE SET
+          value_json = excluded.value_json,
+          updated_at = excluded.updated_at,
+          revision = settings.revision + 1
+      `).run(key, valueJson, timestamp, timestamp);
+      const row = this.db.prepare('SELECT key, value_json, revision, updated_at FROM settings WHERE key = ?').get(key);
+      return { row: { key: row.key, value: JSON.parse(row.value_json), revision: row.revision, updated_at: row.updated_at } };
+    });
+  }
+
+  ensureDefaultModelProfiles() {
+    this._assertReady();
+    const count = this.db.prepare('SELECT COUNT(*) AS count FROM model_profiles WHERE deleted_at IS NULL').get().count;
+    if (count) return this.listModelProfiles();
+    const defaults = [
+      { name: 'gemini-2.5-flash', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 8192, supportsThinking: false },
+      { name: 'claude-sonnet-4-5', provider: 'claude', model: 'claude-sonnet-4-5-20250929', maxTokens: 8192, supportsThinking: true },
+      { name: 'gpt-5.4', provider: 'openai', model: 'gpt-5.4', maxTokens: 8192, supportsThinking: true },
+    ];
+    return this._write('settings', (timestamp) => {
+      defaults.forEach((profile, index) => {
+        this.db.prepare(`
+          INSERT INTO model_profiles (
+            id, name, provider, model, settings_json, is_default, created_at, updated_at, revision
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `).run(id(), profile.name, profile.provider, profile.model, JSON.stringify({
+          maxTokens: profile.maxTokens,
+          supportsThinking: profile.supportsThinking,
+        }), index === 0 ? 1 : 0, timestamp, timestamp);
+      });
+      return { rows: this.listModelProfiles() };
+    });
+  }
+
+  listModelProfiles() {
+    this._assertReady();
+    return this.db.prepare(`
+      SELECT id, name, provider, model, settings_json, is_default, revision
+      FROM model_profiles WHERE deleted_at IS NULL ORDER BY is_default DESC, name
+    `).all().map((row) => ({
+      id: row.id,
+      name: row.name,
+      display_name: row.name,
+      provider: row.provider,
+      model: row.model,
+      isDefault: row.is_default === 1,
+      ...JSON.parse(row.settings_json),
+      max_tokens: JSON.parse(row.settings_json).maxTokens || null,
+      supports_thinking: !!JSON.parse(row.settings_json).supportsThinking,
+      supports_vision: !!JSON.parse(row.settings_json).supportsVision,
+      revision: row.revision,
+    }));
+  }
+
+  getModelProfile(name) {
+    name = v.string(name, 'model name', { required: true, max: 200 });
+    return this.listModelProfiles().find((profile) => profile.name === name || profile.model === name) || null;
+  }
+
+  setProviderApiKey(provider, plaintext) {
+    provider = v.oneOf(provider, 'provider', ['openai', 'claude', 'gemini']);
+    return this.setSecret(`provider.${provider}`, plaintext);
+  }
+
+  getProviderApiKey(provider) {
+    provider = v.oneOf(provider, 'provider', ['openai', 'claude', 'gemini']);
+    return this.getSecret(`provider.${provider}`);
+  }
+
+  getProviderKeyStatus() {
+    this._assertReady();
+    const status = {};
+    ['openai', 'claude', 'gemini'].forEach((provider) => {
+      status[provider] = !!this.db.prepare('SELECT 1 FROM secrets WHERE key = ?').get(`provider.${provider}`);
+    });
+    return { ...status, anthropic: status.claude, google: status.gemini };
+  }
+
+  getWorkspaceLayout() {
+    this._assertReady();
+    const panelRows = this.db.prepare(`
+      SELECT id, feature_key, column_id, position, size_json, visible, updated_at
+      FROM workspace_panels WHERE deleted_at IS NULL ORDER BY position, created_at
+    `).all();
+    if (!panelRows.length) return null;
+    const columnsById = new Map();
+    const hiddenPanels = [];
+    panelRows.forEach((row) => {
+      const sizing = row.size_json ? JSON.parse(row.size_json) : {};
+      if (!row.visible || !row.column_id) {
+        hiddenPanels.push({ panelId: row.id, type: row.feature_key });
+        return;
+      }
+      if (!columnsById.has(row.column_id)) {
+        columnsById.set(row.column_id, {
+          id: row.column_id,
+          size: sizing.columnSize ?? 20,
+          columnPosition: sizing.columnPosition ?? columnsById.size,
+          panels: [],
+        });
+      }
+      columnsById.get(row.column_id).panels.push({
+        panelId: row.id,
+        type: row.feature_key,
+        size: sizing.panelSize ?? 100,
+      });
+    });
+    const columns = Array.from(columnsById.values())
+      .sort((a, b) => a.columnPosition - b.columnPosition)
+      .map(({ columnPosition, ...column }) => column);
+    const workspaceRow = this.db.prepare("SELECT value_json, revision, updated_at FROM workspace_state WHERE key = 'workspace'").get();
+    const domain = this.db.prepare("SELECT revision, updated_at FROM domain_revisions WHERE domain = 'workspace'").get();
+    return {
+      config: {
+        version: 2,
+        columns,
+        hiddenPanels,
+        workspace: workspaceRow ? JSON.parse(workspaceRow.value_json) : {},
+      },
+      revision: domain?.revision || workspaceRow?.revision || 0,
+      updatedAt: domain?.updated_at || workspaceRow?.updated_at || null,
+    };
+  }
+
+  saveWorkspaceLayout(layout) {
+    v.object(layout, 'layout', ['version', 'columns', 'hiddenPanels', 'workspace']);
+    if (layout.version !== 2 || !Array.isArray(layout.columns) || layout.columns.length > 100) {
+      v.fail('INVALID_INPUT', 'layout must be a version-2 column layout');
+    }
+    layout.columns.forEach((column, columnIndex) => {
+      v.object(column, `columns[${columnIndex}]`, ['id', 'size', 'panels']);
+      v.string(column.id, `columns[${columnIndex}].id`, { required: true, max: 200 });
+      v.number(column.size, `columns[${columnIndex}].size`, { min: 0, max: 100 });
+      if (!Array.isArray(column.panels) || column.panels.length > 100) v.fail('INVALID_INPUT', 'layout column panels are invalid');
+      column.panels.forEach((panel, panelIndex) => {
+        v.object(panel, `columns[${columnIndex}].panels[${panelIndex}]`, ['panelId', 'type', 'size', 'visible']);
+        v.string(panel.panelId, 'panelId', { required: true, max: 200 });
+        v.string(panel.type, 'panel type', { required: true, max: 100 });
+        v.number(panel.size, 'panel size', { min: 0, max: 100 });
+        if (panel.visible !== undefined) v.boolean(panel.visible, 'panel visible');
+      });
+    });
+    if (layout.hiddenPanels !== undefined && !Array.isArray(layout.hiddenPanels)) {
+      v.fail('INVALID_INPUT', 'hiddenPanels must be a list');
+    }
+    if (layout.workspace !== undefined && (!layout.workspace || typeof layout.workspace !== 'object' || Array.isArray(layout.workspace))) {
+      v.fail('INVALID_INPUT', 'workspace must be an object');
+    }
+    const workspaceJson = this._jsonValue(layout.workspace || {}, 'workspace', 1000000);
+    return this._write('workspace', (timestamp) => {
+      const activeIds = [];
+      layout.columns.forEach((column, columnPosition) => {
+        column.panels.forEach((panel, panelPosition) => {
+          activeIds.push(panel.panelId);
+          const sizing = JSON.stringify({
+            panelSize: panel.size,
+            columnSize: column.size,
+            columnPosition,
+          });
+          this.db.prepare(`
+            INSERT INTO workspace_panels (
+              id, feature_key, column_id, position, size_json, visible,
+              created_at, updated_at, revision, deleted_at
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 1, NULL)
+            ON CONFLICT(id) DO UPDATE SET
+              feature_key = excluded.feature_key,
+              column_id = excluded.column_id,
+              position = excluded.position,
+              size_json = excluded.size_json,
+              visible = 1,
+              updated_at = excluded.updated_at,
+              revision = workspace_panels.revision + 1,
+              deleted_at = NULL
+          `).run(panel.panelId, panel.type, column.id, panelPosition, sizing, timestamp, timestamp);
+        });
+      });
+      (layout.hiddenPanels || []).forEach((panel, hiddenPosition) => {
+        v.object(panel, `hiddenPanels[${hiddenPosition}]`, ['panelId', 'type']);
+        const panelId = v.identifier(panel.panelId, 'hidden panel id');
+        const type = v.string(panel.type, 'hidden panel type', { required: true, max: 100 });
+        activeIds.push(panelId);
+        this.db.prepare(`
+          INSERT INTO workspace_panels (
+            id, feature_key, column_id, position, visible, created_at, updated_at, revision, deleted_at
+          ) VALUES (?, ?, NULL, ?, 0, ?, ?, 1, NULL)
+          ON CONFLICT(id) DO UPDATE SET
+            feature_key = excluded.feature_key,
+            column_id = NULL,
+            position = excluded.position,
+            visible = 0,
+            updated_at = excluded.updated_at,
+            revision = workspace_panels.revision + 1,
+            deleted_at = NULL
+        `).run(panelId, type, hiddenPosition, timestamp, timestamp);
+      });
+      if (activeIds.length) {
+        const placeholders = activeIds.map(() => '?').join(', ');
+        this.db.prepare(`
+          UPDATE workspace_panels SET deleted_at = ?, updated_at = ?, revision = revision + 1
+          WHERE deleted_at IS NULL AND id NOT IN (${placeholders})
+        `).run(timestamp, timestamp, ...activeIds);
+      } else {
+        this.db.prepare(`
+          UPDATE workspace_panels SET deleted_at = ?, updated_at = ?, revision = revision + 1
+          WHERE deleted_at IS NULL
+        `).run(timestamp, timestamp);
+      }
+      this.db.prepare(`
+        INSERT INTO workspace_state (key, value_json, created_at, updated_at, revision)
+        VALUES ('workspace', ?, ?, ?, 1)
+        ON CONFLICT(key) DO UPDATE SET
+          value_json = excluded.value_json,
+          updated_at = excluded.updated_at,
+          revision = workspace_state.revision + 1
+      `).run(workspaceJson, timestamp, timestamp);
+      return { row: this.getWorkspaceLayout() };
+    });
+  }
+
+  listSelectedFiles(purpose = 'chat') {
+    this._assertReady();
+    purpose = v.oneOf(purpose, 'purpose', ['chat', 'attachment']);
+    return this.db.prepare(`
+      SELECT f.id, f.path, f.display_name, f.kind, f.size, f.modified_at, f.availability,
+             s.purpose, s.selected_at
+      FROM selected_files s
+      JOIN external_files f ON f.id = s.file_id
+      WHERE s.purpose = ? AND f.deleted_at IS NULL
+      ORDER BY s.selected_at DESC
+    `).all(purpose);
+  }
+
+  addSelectedFile(input) {
+    v.object(input, 'selected file', ['path', 'displayName', 'kind', 'size', 'modifiedAt', 'purpose']);
+    const file = this._normalizeExternalFile(input);
+    const purpose = input.purpose === undefined ? 'chat' : v.oneOf(input.purpose, 'purpose', ['chat', 'attachment']);
+    return this._write('files', (timestamp) => {
+      const fileId = this._upsertExternalFile(file, timestamp);
+      this.db.prepare(`
+        INSERT INTO selected_files (file_id, purpose, selected_at) VALUES (?, ?, ?)
+        ON CONFLICT(file_id, purpose) DO UPDATE SET selected_at = excluded.selected_at
+      `).run(fileId, purpose, timestamp);
+      return { row: this.listSelectedFiles(purpose).find((entry) => entry.id === fileId) };
+    });
+  }
+
+  removeSelectedFile(fileId, purpose = 'chat') {
+    fileId = v.identifier(fileId, 'fileId');
+    purpose = v.oneOf(purpose, 'purpose', ['chat', 'attachment']);
+    return this._write('files', () => {
+      this.db.prepare('DELETE FROM selected_files WHERE file_id = ? AND purpose = ?').run(fileId, purpose);
+      return { fileId, purpose };
+    });
+  }
+
+  clearSelectedFiles(purpose = 'chat') {
+    purpose = v.oneOf(purpose, 'purpose', ['chat', 'attachment']);
+    return this._write('files', () => {
+      const result = this.db.prepare('DELETE FROM selected_files WHERE purpose = ?').run(purpose);
+      return { removed: result.changes };
+    });
+  }
+
+  _normalizeExternalFile(input) {
+    return {
+      path: v.string(input.path, 'path', { required: true, max: 4096 }),
+      displayName: v.string(input.displayName, 'displayName', { required: true, max: 1000 }),
+      kind: v.optional(input.kind, (value) => v.string(value, 'kind', { required: true, max: 100 })) ?? 'file',
+      size: v.optional(input.size, (value) => v.integer(value, 'size', { nullable: true, min: 0 })) ?? null,
+      modifiedAt: v.optional(input.modifiedAt, (value) => (
+        value == null ? null : v.integer(Math.floor(value), 'modifiedAt', { min: 0 })
+      )) ?? null,
+    };
+  }
+
+  _upsertExternalFile(file, timestamp) {
+    const existing = this.db.prepare('SELECT id FROM external_files WHERE path = ?').get(file.path);
+    const fileId = existing?.id || id();
+    this.db.prepare(`
+      INSERT INTO external_files (
+        id, path, display_name, kind, size, modified_at, availability, created_at, updated_at, revision, deleted_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'available', ?, ?, 1, NULL)
+      ON CONFLICT(path) DO UPDATE SET
+        display_name = excluded.display_name,
+        kind = excluded.kind,
+        size = excluded.size,
+        modified_at = excluded.modified_at,
+        availability = 'available',
+        updated_at = excluded.updated_at,
+        revision = external_files.revision + 1,
+        deleted_at = NULL
+    `).run(fileId, file.path, file.displayName, file.kind, file.size, file.modifiedAt, timestamp, timestamp);
+    return fileId;
+  }
+
+  getMediaState() {
+    this._assertReady();
+    const tracks = this.db.prepare(`
+      SELECT q.id AS queue_id, q.position, f.id AS file_id, f.path, f.display_name, f.kind,
+             f.size, f.modified_at, f.availability
+      FROM media_queue_items q
+      JOIN external_files f ON f.id = q.file_id
+      WHERE q.deleted_at IS NULL AND f.deleted_at IS NULL
+      ORDER BY q.position
+    `).all();
+    const state = this.db.prepare('SELECT * FROM media_state WHERE singleton_id = 1').get();
+    return {
+      tracks,
+      currentItemId: state?.current_item_id || null,
+      currentTime: state?.position_seconds || 0,
+      volume: Math.round((state?.volume ?? 1) * 100),
+      isMuted: state?.muted === 1,
+      repeatMode: state?.repeat_mode || 'off',
+      shuffle: state?.shuffle === 1,
+      panelState: state ? JSON.parse(state.panel_state_json) : { queueOpen: true, shellHidden: false },
+      revision: state?.revision || 0,
+    };
+  }
+
+  saveMediaState(input) {
+    v.object(input, 'media state', ['tracks', 'currentIndex', 'currentTime', 'volume', 'isMuted', 'repeatMode', 'shuffle', 'queueOpen', 'shellHidden']);
+    if (!Array.isArray(input.tracks) || input.tracks.length > 2000) v.fail('INVALID_INPUT', 'tracks must be a list');
+    const tracks = input.tracks.map((track, index) => {
+      v.object(track, `tracks[${index}]`, ['path', 'displayName', 'kind', 'size', 'modifiedAt']);
+      return this._normalizeExternalFile(track);
+    });
+    const currentIndex = v.integer(input.currentIndex, 'currentIndex', { min: 0, max: Math.max(tracks.length - 1, 0) });
+    const currentTime = v.number(input.currentTime, 'currentTime', { min: 0, max: Number.MAX_SAFE_INTEGER });
+    const volume = v.number(input.volume, 'volume', { min: 0, max: 100 });
+    const isMuted = v.boolean(input.isMuted, 'isMuted');
+    const repeatMode = v.oneOf(input.repeatMode, 'repeatMode', ['off', 'one', 'all']);
+    const shuffle = v.boolean(input.shuffle, 'shuffle');
+    const queueOpen = v.boolean(input.queueOpen, 'queueOpen');
+    const shellHidden = v.boolean(input.shellHidden, 'shellHidden');
+    return this._write('files', (timestamp) => {
+      this.db.prepare('UPDATE media_queue_items SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL')
+        .run(timestamp, timestamp);
+      const queueIds = [];
+      tracks.forEach((track, position) => {
+        const fileId = this._upsertExternalFile(track, timestamp);
+        const existingQueueItem = this.db.prepare(`
+          SELECT id FROM media_queue_items WHERE file_id = ? ORDER BY updated_at DESC LIMIT 1
+        `).get(fileId);
+        const queueId = existingQueueItem?.id || id();
+        if (existingQueueItem) {
+          this.db.prepare(`
+            UPDATE media_queue_items SET position = ?, deleted_at = NULL, updated_at = ?, revision = revision + 1
+            WHERE id = ?
+          `).run(position, timestamp, queueId);
+        } else {
+          this.db.prepare(`
+            INSERT INTO media_queue_items (id, file_id, position, created_at, updated_at, revision)
+            VALUES (?, ?, ?, ?, ?, 1)
+          `).run(queueId, fileId, position, timestamp, timestamp);
+        }
+        queueIds.push(queueId);
+      });
+      const currentItemId = queueIds[currentIndex] || null;
+      const panelJson = JSON.stringify({ queueOpen, shellHidden });
+      this.db.prepare(`
+        INSERT INTO media_state (
+          singleton_id, current_item_id, position_seconds, volume, muted, repeat_mode,
+          shuffle, panel_state_json, updated_at, revision
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(singleton_id) DO UPDATE SET
+          current_item_id = excluded.current_item_id,
+          position_seconds = excluded.position_seconds,
+          volume = excluded.volume,
+          muted = excluded.muted,
+          repeat_mode = excluded.repeat_mode,
+          shuffle = excluded.shuffle,
+          panel_state_json = excluded.panel_state_json,
+          updated_at = excluded.updated_at,
+          revision = media_state.revision + 1
+      `).run(currentItemId, currentTime, volume / 100, isMuted ? 1 : 0, repeatMode,
+        shuffle ? 1 : 0, panelJson, timestamp);
+      return { row: this.getMediaState() };
+    });
+  }
+
+  listCanvases(input = {}) {
+    this._assertReady();
+    v.object(input, 'canvas filters', ['includeDeleted']);
+    const includeDeleted = input.includeDeleted === undefined
+      ? false
+      : v.boolean(input.includeDeleted, 'includeDeleted');
+    return this.db.prepare(`
+      SELECT id, title, length(html_text) AS size, source_kind, source_url, render_engine,
+             form_factor, panel_settings_json, created_at, updated_at, revision, deleted_at
+      FROM canvases ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'}
+      ORDER BY updated_at DESC
+    `).all().map((row) => this._canvasSummary(row));
+  }
+
+  _canvasSummary(row) {
+    return {
+      id: row.id,
+      filename: row.id,
+      title: row.title,
+      size: row.size || 0,
+      source: row.source_kind || 'ai',
+      url: row.source_url || '',
+      renderEngine: row.render_engine || 'iframe',
+      formFactor: row.form_factor || 'float',
+      panelSettings: row.panel_settings_json ? JSON.parse(row.panel_settings_json) : {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+      deletedAt: row.deleted_at,
+    };
+  }
+
+  getCanvas(canvasId) {
+    this._assertReady();
+    canvasId = v.identifier(canvasId, 'canvasId');
+    const row = this.db.prepare('SELECT * FROM canvases WHERE id = ? AND deleted_at IS NULL').get(canvasId);
+    if (!row) v.fail('NOT_FOUND', 'Canvas not found');
+    return {
+      ...this._canvasSummary({ ...row, size: Buffer.byteLength(row.html_text, 'utf8') }),
+      html: row.html_text,
+    };
+  }
+
+  createCanvas(input) {
+    v.object(input, 'canvas', ['title', 'html', 'source', 'url', 'renderEngine', 'formFactor', 'panelSettings']);
+    const canvas = {
+      id: id(),
+      title: v.string(input.title, 'title', { required: true, max: 1000 }),
+      html: v.optional(input.html, (value) => v.string(value, 'html', { max: 10000000 })) ?? '',
+      source: v.optional(input.source, (value) => v.oneOf(value, 'source', ['ai', 'url', 'user'])) ?? 'ai',
+      url: v.optional(input.url, (value) => v.string(value, 'url', { max: 10000 })) ?? '',
+      renderEngine: v.optional(input.renderEngine, (value) => v.oneOf(value, 'renderEngine', ['iframe', 'browser'])) ?? 'iframe',
+      formFactor: v.optional(input.formFactor, (value) => v.oneOf(value, 'formFactor', ['float', 'tile', 'hybrid', 'widget'])) ?? 'float',
+      panelSettingsJson: this._jsonValue(input.panelSettings || {}, 'panelSettings', 100000),
+    };
+    return this._write('canvases', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO canvases (
+          id, title, html_text, source_kind, source_url, render_engine, form_factor,
+          panel_settings_json, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(canvas.id, canvas.title, canvas.html, canvas.source, canvas.url, canvas.renderEngine,
+        canvas.formFactor, canvas.panelSettingsJson, timestamp, timestamp);
+      return { row: this.getCanvas(canvas.id) };
+    });
+  }
+
+  updateCanvas(canvasId, expectedRevision, patch) {
+    v.object(patch, 'canvas patch', ['title', 'html', 'source', 'url', 'renderEngine', 'formFactor', 'panelSettings']);
+    const columnMap = {
+      title: ['title', (value) => v.string(value, 'title', { required: true, max: 1000 })],
+      html: ['html_text', (value) => v.string(value, 'html', { max: 10000000 })],
+      source: ['source_kind', (value) => v.oneOf(value, 'source', ['ai', 'url', 'user'])],
+      url: ['source_url', (value) => v.string(value, 'url', { max: 10000 })],
+      renderEngine: ['render_engine', (value) => v.oneOf(value, 'renderEngine', ['iframe', 'browser'])],
+      formFactor: ['form_factor', (value) => v.oneOf(value, 'formFactor', ['float', 'tile', 'hybrid', 'widget'])],
+      panelSettings: ['panel_settings_json', (value) => this._jsonValue(value, 'panelSettings', 100000)],
+    };
+    return this._updateRow('canvases', 'canvases', canvasId, expectedRevision, patch, columnMap, [], null,
+      (rowId) => this.getCanvas(rowId));
+  }
+
+  archiveCanvas(canvasId, expectedRevision) {
+    return this._archiveRow('canvases', 'canvases', canvasId, expectedRevision, [],
+      (rowId) => {
+        const row = this.db.prepare('SELECT * FROM canvases WHERE id = ?').get(rowId);
+        return this._canvasSummary({ ...row, size: Buffer.byteLength(row.html_text, 'utf8') });
+      });
+  }
+
+  getBriiztormState() {
+    this._assertReady();
+    const result = {};
+    this.db.prepare(`
+      SELECT key, value_json FROM embedded_app_state WHERE app_id = 'briiztorm'
+    `).all().forEach((row) => {
+      if (BRIIZTORM_KEYS.has(row.key)) result[row.key] = JSON.parse(row.value_json);
+    });
+    return result;
+  }
+
+  setBriiztormState(key, value) {
+    key = v.string(key, 'briiZtorm key', { required: true, max: 100 });
+    if (!BRIIZTORM_KEYS.has(key)) v.fail('INVALID_INPUT', 'Unsupported briiZtorm state key');
+    if (key === 'theme') {
+      value = v.oneOf(value, 'theme', ['vaporwave', 'onyx', 'dusk', 'rose']);
+    } else if (key === 'projects') {
+      const projects = Array.isArray(value) ? value : value?.projects;
+      if (!Array.isArray(projects) || projects.length > 1000) {
+        v.fail('INVALID_INPUT', 'briiZtorm projects are invalid');
+      }
+    } else if (key === 'flightPresets' && (!Array.isArray(value) || value.length > 200)) {
+      v.fail('INVALID_INPUT', 'briiZtorm flight presets are invalid');
+    } else if (key === 'flightSettings') {
+      v.object(value, 'flightSettings', ['acceleration', 'deceleration', 'maxSpeed', 'fov', 'lookSpeed']);
+      ['acceleration', 'deceleration', 'maxSpeed', 'fov', 'lookSpeed'].forEach((field) => {
+        v.number(value[field], `flightSettings.${field}`, { min: 0, max: 1000 });
+      });
+    }
+    const valueJson = this._jsonValue(value, `briiZtorm ${key}`, 5000000);
+    return this._write('embeddedApps', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO embedded_app_state (app_id, key, value_json, created_at, updated_at, revision)
+        VALUES ('briiztorm', ?, ?, ?, ?, 1)
+        ON CONFLICT(app_id, key) DO UPDATE SET
+          value_json = excluded.value_json,
+          updated_at = excluded.updated_at,
+          revision = embedded_app_state.revision + 1
+      `).run(key, valueJson, timestamp, timestamp);
+      return { key, value };
+    });
   }
 
   _write(domain, work) {

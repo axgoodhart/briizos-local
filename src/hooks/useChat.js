@@ -32,7 +32,6 @@ import {
   addChatMessage,
   addLog,
   clearChatMessages,
-  getSelectedFiles as getSelectedFilesFirestore,
   subscribeRemoteChat,
   addRemoteChatMessage,
   markRemoteChatRead,
@@ -41,8 +40,6 @@ import { getCurrentUid } from '../lib/firebase';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 const hasApi = typeof window !== 'undefined' && !!window.api;
-
-const MODEL_STORAGE_KEY = 'briizos-selected-model';
 
 const MODALITY_SKILL_MAP = {
   chat: null,
@@ -110,12 +107,8 @@ export function useChat({ selectedModel } = {}) {
   const [modality, setModality] = useState('chat');
   const [subAgentTasks, setSubAgentTasks] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [suggestionsEnabled, setSuggestionsEnabled] = useState(() => {
-    try {
-      const stored = localStorage.getItem('briizos-suggestions-enabled');
-      return stored !== null ? JSON.parse(stored) : true;
-    } catch { return true; }
-  });
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(true);
+  const suggestionsHydratedRef = useRef(false);
 
   // Streaming/session refs (stable across renders).
   const streamContentRef = useRef('');
@@ -143,12 +136,22 @@ export function useChat({ selectedModel } = {}) {
   useEffect(() => { modalityRef.current = modality; }, [modality]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('briizos-suggestions-enabled', JSON.stringify(suggestionsEnabled));
-    } catch {}
     suggestionsEnabledRef.current = suggestionsEnabled;
     if (!suggestionsEnabled) setSuggestions([]);
+    if (suggestionsHydratedRef.current) {
+      api.localData?.settings?.set('suggestions_enabled', suggestionsEnabled)
+        .catch((error) => logger.warn('config', 'Failed to save suggestion preference', error?.message));
+    }
   }, [suggestionsEnabled]);
+
+  useEffect(() => {
+    api.localData?.settings?.get('suggestions_enabled')
+      .then((saved) => {
+        if (typeof saved?.value === 'boolean') setSuggestionsEnabled(saved.value);
+      })
+      .catch((error) => logger.warn('config', 'Failed to load suggestion preference', error?.message))
+      .finally(() => { suggestionsHydratedRef.current = true; });
+  }, []);
 
   const uid = getCurrentUid();
 
@@ -185,8 +188,8 @@ export function useChat({ selectedModel } = {}) {
 
   const loadSelectedFiles = useCallback(async () => {
     try {
-      const files = await getSelectedFilesFirestore();
-      const normalized = files.map((f) => ({ name: f.file_name, path: f.file_path }));
+      const files = await api.localData.selectedFiles.list('chat');
+      const normalized = files.map((file) => ({ id: file.id, name: file.display_name, path: file.path }));
       setFilesInContext(normalized);
       return normalized;
     } catch (error) {
@@ -203,11 +206,7 @@ export function useChat({ selectedModel } = {}) {
   const getSelectedModel = useCallback(() => {
     const fromProp = selectedModelRef.current;
     if (fromProp) return fromProp;
-    try {
-      return localStorage.getItem(MODEL_STORAGE_KEY) || null;
-    } catch {
-      return null;
-    }
+    return null;
   }, []);
 
   // ---------------------------------------------------------------------

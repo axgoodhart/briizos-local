@@ -36,13 +36,13 @@ import {
   DEFAULT_ACTIONDECK_PANEL_SETTINGS,
   DEFAULT_CANVAS_PANEL_SETTINGS,
   PANEL_VIEW_OPTIONS,
+  hydratePanelSettings,
   loadPanelSettings,
   normalizePanelSettings,
   resolvePanelStartView,
   savePanelSettings,
 } from './lib/floatingPanelPrefs';
 
-const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
 const ACTIONDECK_SETTINGS_KEY = 'briizos.actiondeck.panel-settings';
 
 function applyUiTheme(theme) {
@@ -263,11 +263,16 @@ function AppContent({ layout }) {
   const canvasesHook = useCanvases();
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem(UI_THEME_STORAGE_KEY) || 'default';
-    applyUiTheme(savedTheme);
+    hydratePanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS);
   }, []);
 
-  // Restore workspace state once layout loads from Firestore
+  useEffect(() => {
+    window.api?.localData?.settings?.get('ui_theme')
+      .then((saved) => applyUiTheme(saved?.value || 'default'))
+      .catch(() => applyUiTheme('default'));
+  }, []);
+
+  // Restore workspace state once the local layout loads.
   const workspaceRestoredRef = useRef(false);
   useEffect(() => {
     if (!layoutLoading && !workspaceRestoredRef.current) {

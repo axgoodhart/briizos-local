@@ -11,7 +11,6 @@ const agentConfig = require('./agent-config');
 const agentFs = require('./agent-fs');
 const agentTerminal = require('./agent-terminal');
 const agentJobs = require('./agent-jobs-firestore');
-const modelConfig = require('./model-config');
 // In-process agent runtime — Electron main hosts the lead_agent graph
 // directly (LangChain.js + LangGraph.js). No Python subprocess, no
 // localhost HTTP tool-bridge; the renderer is reached via IPC.
@@ -235,7 +234,8 @@ ipcMain.handle('fs-get-usb-drives', async () => {
 // === Studio IPC Handlers ===
 
 ipcMain.handle('studio-launch-tool', async (event, toolId) => {
-  return studio.launchTool(toolId);
+  const customUrl = localDataService?.getSetting(`studio_${toolId}_url`)?.value || '';
+  return studio.launchTool(toolId, customUrl);
 });
 
 ipcMain.handle('studio-get-tools-info', async () => {
@@ -246,6 +246,7 @@ ipcMain.handle('studio-get-tools-info', async () => {
 
 ipcMain.handle('github-set-token', async (event, token) => {
   github.setToken(token);
+  localDataService?.setSecret('github_token', token);
   return true;
 });
 
@@ -310,19 +311,65 @@ ipcMain.handle('gdrive-open-setup', async () => {
 
 // === Agent Config IPC Handlers ===
 
-ipcMain.handle('agent-get-config', async () => {
-  return agentConfig.readConfig();
+const DEFAULT_AGENT_CONFIG = Object.freeze({
+  permissions: {
+    chat: { mode: 'ask-always', blacklist: { paths: [], filetypes: [] } },
+    task: { mode: 'ask-always', blacklist: { paths: [], filetypes: [] } },
+  },
+  memory: { chunksToInclude: 1 },
+});
+const DEFAULT_SKILLS_CONFIG = Object.freeze({
+  'deep-research': true, bootstrap: true, 'skill-creator': true,
+  'frontend-design': true, 'web-design-guidelines': true,
+  'consulting-analysis': true, 'data-analysis': true,
+  'chart-visualization': false, 'image-generation': false,
+  'video-generation': false, 'podcast-generation': false,
+  'ppt-generation': false, 'github-deep-research': false,
+  'find-skills': false, 'surprise-me': false,
+  'claude-to-deerflow': false, 'vercel-deploy': false,
 });
 
-ipcMain.handle('agent-update-config', async (event, partial) => {
-  return agentConfig.updateConfig(partial);
+function readLocalAgentConfig() {
+  const canonical = localDataService?.getSetting('agent_config')?.value || DEFAULT_AGENT_CONFIG;
+  const { chat, task } = canonical.permissions;
+  return {
+    ...canonical,
+    terminal: { mode: agentConfig.moreRestrictive(chat.mode, task.mode) },
+    filesystem: {
+      blacklist: {
+        paths: Array.from(new Set([...(chat.blacklist.paths || []), ...(task.blacklist.paths || [])])),
+        filetypes: Array.from(new Set([...(chat.blacklist.filetypes || []), ...(task.blacklist.filetypes || [])])),
+      },
+    },
+  };
+}
+
+ipcMain.handle('agent-get-config', async () => {
+  return readLocalAgentConfig();
+});
+
+ipcMain.handle('agent-update-config', async (_event, partial) => {
+  const current = readLocalAgentConfig();
+  const canonical = agentConfig.migrate({
+    permissions: {
+      chat: { ...current.permissions.chat, ...(partial?.permissions?.chat || {}) },
+      task: { ...current.permissions.task, ...(partial?.permissions?.task || {}) },
+    },
+    memory: { ...current.memory, ...(partial?.memory || {}) },
+  });
+  localDataService.setSetting('agent_config', canonical);
+  return readLocalAgentConfig();
 });
 
 // Resolve the effective permission policy for a surface ('chat' | 'task').
 // Used by the renderer hard gate and per-task clamping. Unknown surface
 // returns the most restrictive policy (fail-closed).
-ipcMain.handle('agent-get-surface-policy', async (event, surface) => {
-  return agentConfig.getSurfacePolicy(surface);
+ipcMain.handle('agent-get-surface-policy', async (_event, surface) => {
+  const config = readLocalAgentConfig();
+  const policy = config.permissions[surface];
+  return policy
+    ? { surface, mode: policy.mode, blacklist: policy.blacklist }
+    : { surface: 'unknown', mode: 'ask-always', blacklist: { paths: [], filetypes: [] } };
 });
 
 // === Agent Filesystem IPC Handlers ===
@@ -378,7 +425,7 @@ ipcMain.handle('memory-append-log', async (event, chunkFilename, entry) => {
 
 ipcMain.handle('memory-get-context', async () => {
   const fs = require('fs');
-  const config = agentConfig.readConfig();
+  const config = readLocalAgentConfig();
   const chunksToInclude = config.memory?.chunksToInclude || 1;
 
   let agentContext = '';
@@ -447,124 +494,63 @@ ipcMain.handle('memory-read-chunk', async (event, filename) => {
 
 // === Canvas IPC Handlers ===
 
-ipcMain.handle('canvas-save', async (event, title, html) => {
-  const fs = require('fs');
-  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const filename = `${Date.now()}-${slug}.html`;
-  const filepath = path.join(agentConfig.DIRS.canvas, filename);
-  fs.writeFileSync(filepath, html, 'utf8');
-  return { success: true, filename, path: filepath };
+function legacyCanvasMeta(row) {
+  return {
+    displayName: row.title,
+    formFactor: row.formFactor,
+    source: row.source,
+    renderEngine: row.renderEngine,
+    url: row.url,
+    ...(row.panelSettings || {}),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    revision: row.revision,
+  };
+}
+
+ipcMain.handle('canvas-save', async (_event, title, html) => {
+  const result = localDataService.createCanvas({ title, html, source: 'ai' });
+  return { success: true, filename: result.row.id };
 });
 
 ipcMain.handle('canvas-list', async () => {
-  const fs = require('fs');
-  try {
-    const dir = agentConfig.DIRS.canvas;
-    if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir)
-      .filter(f => f.endsWith('.html'))
-      .sort()
-      .reverse()
-      .map(f => {
-        const htmlPath = path.join(dir, f);
-        let meta = {};
-        try {
-          const metaPath = path.join(dir, `${f}.meta.json`);
-          if (fs.existsSync(metaPath)) {
-            meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) || {};
-          }
-        } catch { meta = {}; }
-        const derivedTitle = f.replace(/^\d+-/, '').replace(/-/g, ' ').replace('.html', '');
-        return {
-          filename: f,
-          title: meta.displayName || derivedTitle,
-          size: fs.statSync(htmlPath).size,
-          formFactor: meta.formFactor || 'float',
-          source: meta.source || 'ai',
-          renderEngine: meta.renderEngine || 'iframe',
-          url: meta.url || '',
-          createdAt: meta.createdAt || null,
-          updatedAt: meta.updatedAt || null,
-        };
-      });
-  } catch { return []; }
+  return localDataService.listCanvases();
 });
 
-ipcMain.handle('canvas-load', async (event, filename) => {
-  const fs = require('fs');
-  try {
-    return fs.readFileSync(path.join(agentConfig.DIRS.canvas, filename), 'utf8');
-  } catch { return ''; }
+ipcMain.handle('canvas-load', async (_event, canvasId) => {
+  return localDataService.getCanvas(canvasId).html;
 });
 
-ipcMain.handle('canvas-delete', async (event, filename) => {
-  const fs = require('fs');
-  try {
-    const dir = agentConfig.DIRS.canvas;
-    const htmlPath = path.join(dir, filename);
-    const metaPath = path.join(dir, `${filename}.meta.json`);
-    if (fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
-    if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: String(err) };
-  }
+ipcMain.handle('canvas-delete', async (_event, canvasId) => {
+  const current = localDataService.getCanvas(canvasId);
+  localDataService.archiveCanvas(canvasId, current.revision);
+  return { success: true };
 });
 
-ipcMain.handle('canvas-save-meta', async (event, filename, meta) => {
-  const fs = require('fs');
-  try {
-    const metaPath = path.join(agentConfig.DIRS.canvas, `${filename}.meta.json`);
-    const payload = { ...(meta || {}), updatedAt: Date.now() };
-    if (!payload.createdAt) payload.createdAt = payload.updatedAt;
-    fs.writeFileSync(metaPath, JSON.stringify(payload, null, 2), 'utf8');
-    return { success: true, meta: payload };
-  } catch (err) {
-    return { success: false, error: String(err) };
-  }
+ipcMain.handle('canvas-save-meta', async (_event, canvasId, meta = {}) => {
+  const current = localDataService.getCanvas(canvasId);
+  const known = new Set(['displayName', 'formFactor', 'source', 'renderEngine', 'url', 'createdAt', 'updatedAt', 'revision']);
+  const panelSettings = Object.fromEntries(Object.entries(meta).filter(([key]) => !known.has(key)));
+  const patch = {
+    title: meta.displayName || current.title,
+    formFactor: meta.formFactor || current.formFactor,
+    source: meta.source || current.source,
+    renderEngine: meta.renderEngine || current.renderEngine,
+    url: meta.url ?? current.url,
+    panelSettings,
+  };
+  const result = localDataService.updateCanvas(canvasId, current.revision, patch);
+  return { success: true, meta: legacyCanvasMeta(result.row) };
 });
 
-ipcMain.handle('canvas-load-meta', async (event, filename) => {
-  const fs = require('fs');
-  try {
-    const metaPath = path.join(agentConfig.DIRS.canvas, `${filename}.meta.json`);
-    if (!fs.existsSync(metaPath)) return {};
-    return JSON.parse(fs.readFileSync(metaPath, 'utf8')) || {};
-  } catch { return {}; }
+ipcMain.handle('canvas-load-meta', async (_event, canvasId) => {
+  return legacyCanvasMeta(localDataService.getCanvas(canvasId));
 });
 
-ipcMain.handle('canvas-rename', async (event, oldFilename, newTitle) => {
-  const fs = require('fs');
-  try {
-    const dir = agentConfig.DIRS.canvas;
-    const oldHtml = path.join(dir, oldFilename);
-    if (!fs.existsSync(oldHtml)) {
-      return { success: false, error: 'Source canvas not found' };
-    }
-    const slug = String(newTitle || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
-    const stampMatch = oldFilename.match(/^(\d+)-/);
-    const stamp = stampMatch ? stampMatch[1] : String(Date.now());
-    const newFilename = `${stamp}-${slug}.html`;
-    const newHtml = path.join(dir, newFilename);
-    if (newFilename !== oldFilename) {
-      fs.renameSync(oldHtml, newHtml);
-    }
-    // Move sidecar
-    const oldMeta = path.join(dir, `${oldFilename}.meta.json`);
-    const newMeta = path.join(dir, `${newFilename}.meta.json`);
-    let metaObj = {};
-    if (fs.existsSync(oldMeta)) {
-      try { metaObj = JSON.parse(fs.readFileSync(oldMeta, 'utf8')) || {}; } catch { metaObj = {}; }
-      if (newFilename !== oldFilename) fs.unlinkSync(oldMeta);
-    }
-    metaObj.displayName = newTitle;
-    metaObj.updatedAt = Date.now();
-    if (!metaObj.createdAt) metaObj.createdAt = metaObj.updatedAt;
-    fs.writeFileSync(newMeta, JSON.stringify(metaObj, null, 2), 'utf8');
-    return { success: true, filename: newFilename, meta: metaObj };
-  } catch (err) {
-    return { success: false, error: String(err) };
-  }
+ipcMain.handle('canvas-rename', async (_event, canvasId, newTitle) => {
+  const current = localDataService.getCanvas(canvasId);
+  const result = localDataService.updateCanvas(canvasId, current.revision, { title: newTitle });
+  return { success: true, filename: canvasId, meta: legacyCanvasMeta(result.row) };
 });
 
 // === Weather IPC Handler ===
@@ -668,7 +654,11 @@ ipcMain.handle('health-check', async () => {
   return {
     timestamp: new Date().toISOString(),
     directories: dirStatus,
-    aiConfigured: modelConfig.isAIConfigured(),
+    aiConfigured: Object.values(localDataService.getProviderKeyStatus()).some(Boolean)
+      || !!process.env.OPENAI_API_KEY
+      || !!process.env.ANTHROPIC_API_KEY
+      || !!process.env.GEMINI_API_KEY
+      || !!process.env.GOOGLE_API_KEY,
     electronVersion: process.versions.electron,
     nodeVersion: process.versions.node,
     platform: process.platform,
@@ -693,37 +683,14 @@ ipcMain.handle('memory-delete-fact', async (event, factId) => {
 // === Skills IPC Handlers ===
 
 ipcMain.handle('skills-get-list', async () => {
-  const fs = require('fs');
-  const configPath = path.resolve(__dirname, '../agent/extensions_config.json');
-  try {
-    const raw = fs.readFileSync(configPath, 'utf8');
-    const data = JSON.parse(raw);
-    const skills = data.skills || {};
-    return Object.entries(skills).map(([name, config]) => ({
-      name,
-      enabled: !!config.enabled,
-    }));
-  } catch (error) {
-    logger.warn('skills', 'Failed to read extensions_config.json', error?.message);
-    return [];
-  }
+  const skills = localDataService.getSetting('skills_config')?.value || DEFAULT_SKILLS_CONFIG;
+  return Object.entries(skills).map(([name, enabled]) => ({ name, enabled }));
 });
 
-ipcMain.handle('skills-toggle', async (event, skillName, enabled) => {
-  const fs = require('fs');
-  const configPath = path.resolve(__dirname, '../agent/extensions_config.json');
-  try {
-    const raw = fs.readFileSync(configPath, 'utf8');
-    const data = JSON.parse(raw);
-    if (data.skills && data.skills[skillName]) {
-      data.skills[skillName].enabled = enabled;
-    }
-    fs.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf8');
-    return { success: true };
-  } catch (error) {
-    logger.warn('skills', 'Failed to toggle skill', { skillName, error: error?.message });
-    return { success: false, error: error?.message || 'Failed to toggle skill' };
-  }
+ipcMain.handle('skills-toggle', async (_event, skillName, enabled) => {
+  const skills = localDataService.getSetting('skills_config')?.value || { ...DEFAULT_SKILLS_CONFIG };
+  localDataService.setSetting('skills_config', { ...skills, [skillName]: !!enabled });
+  return { success: true };
 });
 
 // === Tool Execution Fallback (DEPRECATED, inert) ===
@@ -761,10 +728,31 @@ ipcMain.handle('execute-tool', async (event, toolName, params) => {
 
 // === Model Config IPC Handlers ===
 
-ipcMain.handle('models-get-list', async () => modelConfig.getModels());
-ipcMain.handle('models-get-config', async (_, name) => modelConfig.getModelConfig(name));
-ipcMain.handle('models-check-api-keys', async () => modelConfig.checkApiKeyStatus());
-ipcMain.handle('ai-is-configured', async () => modelConfig.isAIConfigured());
+ipcMain.handle('models-get-list', async () => localDataService.listModelProfiles());
+ipcMain.handle('models-get-config', async (_, name) => localDataService.getModelProfile(name));
+ipcMain.handle('models-check-api-keys', async () => {
+  const local = localDataService.getProviderKeyStatus();
+  return {
+    ...local,
+    openai: local.openai || !!process.env.OPENAI_API_KEY,
+    claude: local.claude || !!process.env.ANTHROPIC_API_KEY,
+    anthropic: local.claude || !!process.env.ANTHROPIC_API_KEY,
+    gemini: local.gemini || !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY,
+    google: local.gemini || !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY,
+  };
+});
+ipcMain.handle('models-set-api-key', async (_event, provider, apiKey) => {
+  localDataService.setProviderApiKey(provider, apiKey);
+  return { success: true };
+});
+ipcMain.handle('ai-is-configured', async () => {
+  const status = localDataService.getProviderKeyStatus();
+  return Object.values(status).some(Boolean)
+    || !!process.env.OPENAI_API_KEY
+    || !!process.env.ANTHROPIC_API_KEY
+    || !!process.env.GEMINI_API_KEY
+    || !!process.env.GOOGLE_API_KEY;
+});
 
 // === LangGraph Agent Backend IPC ===
 //
@@ -943,6 +931,15 @@ app.whenReady().then(() => {
     logger,
   });
   localDataService.initialize();
+  localDataService.ensureDefaultModelProfiles();
+  if (!localDataService.getSetting('agent_config')) {
+    localDataService.setSetting('agent_config', DEFAULT_AGENT_CONFIG);
+  }
+  if (!localDataService.getSetting('skills_config')) {
+    localDataService.setSetting('skills_config', DEFAULT_SKILLS_CONFIG);
+  }
+  const storedGithubToken = localDataService.getSecret('github_token');
+  if (storedGithubToken) github.setToken(storedGithubToken);
   unregisterLocalDataIPC = registerLocalDataIPC({
     ipcMain,
     BrowserWindow,

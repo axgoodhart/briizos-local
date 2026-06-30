@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useChatSettings } from '../../context/ChatSettingsContext';
-import { getAllSettings, setSetting, addLog } from '../../lib/firestore';
+import { addLog } from '../../lib/firestore';
 import logger from '../../lib/logger';
 import './DashboardOverlay.css';
-
-const UI_THEME_STORAGE_KEY = 'briizos.ui_theme';
 
 // Chat background lists (mirrors InteractionPanel)
 const CHAT_BACKGROUNDS = [
@@ -70,7 +68,9 @@ function ModelTab({ isOpen }) {
   const [modelList, setModelList] = useState([]);
   const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false });
   const [loading, setLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('briizos-selected-model') || null);
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [keyDrafts, setKeyDrafts] = useState({ openai: '', claude: '', gemini: '' });
+  const [savingProvider, setSavingProvider] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -80,11 +80,13 @@ function ModelTab({ isOpen }) {
   const loadModels = async () => {
     setLoading(true);
     try {
-      const [models, keys] = await Promise.all([
+      const [models, keys, savedModel] = await Promise.all([
         window.api.getModels(),
         window.api.checkApiKeys(),
+        window.api.localData.settings.get('selected_model'),
       ]);
       setModelList(models || []);
+      setSelectedModel(savedModel?.value || null);
       // Normalize provider key map to support both legacy and new slugs
       const normalized = {
         ...(keys || {}),
@@ -113,6 +115,20 @@ function ModelTab({ isOpen }) {
 
   const providerCount = Object.keys(modelsByProvider).length;
   const selectedModelObj = modelList.find(m => m.name === selectedModel);
+
+  const saveProviderKey = async (provider) => {
+    const apiKey = keyDrafts[provider]?.trim();
+    if (!apiKey) return;
+    setSavingProvider(provider);
+    try {
+      await window.api.setProviderApiKey(provider, apiKey);
+      setKeyDrafts(prev => ({ ...prev, [provider]: '' }));
+      const keys = await window.api.checkApiKeys();
+      setApiKeyStatus(keys || {});
+    } finally {
+      setSavingProvider(null);
+    }
+  };
 
   if (loading) {
     return <div className="settings-loading">Loading model configuration...</div>;
@@ -164,6 +180,35 @@ function ModelTab({ isOpen }) {
           </div>
         </div>
       )}
+
+      <div className="settings-divider" />
+
+      <h3 className="settings-section-title">Provider Credentials</h3>
+      {['openai', 'claude', 'gemini'].map(provider => (
+        <div className="settings-field" key={`key-${provider}`}>
+          <label className="settings-label">
+            {provider === 'claude' ? 'Anthropic' : provider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key
+            {apiKeyStatus[provider] ? ' · saved locally' : ''}
+          </label>
+          <div className="settings-input-group">
+            <input
+              type="password"
+              className="settings-input"
+              value={keyDrafts[provider]}
+              onChange={(event) => setKeyDrafts(prev => ({ ...prev, [provider]: event.target.value }))}
+              placeholder={apiKeyStatus[provider] ? 'Enter a replacement key' : 'Enter API key'}
+            />
+            <button
+              type="button"
+              className="settings-btn"
+              disabled={!keyDrafts[provider]?.trim() || savingProvider === provider}
+              onClick={() => saveProviderKey(provider)}
+            >
+              {savingProvider === provider ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ))}
 
       <div className="settings-divider" />
 
@@ -1075,15 +1120,10 @@ function DashboardOverlay({ isOpen, onClose }) {
   const loadSettings = async () => {
     setIsLoading(true);
     try {
-      const allSettings = await getAllSettings();
-      const savedTheme = allSettings.ui_theme || localStorage.getItem(UI_THEME_STORAGE_KEY) || 'default';
+      const allSettings = await window.api.localData.settings.list();
+      const savedTheme = allSettings.ui_theme || 'default';
       setSettings({ ...allSettings, ui_theme: savedTheme });
-      localStorage.setItem(UI_THEME_STORAGE_KEY, savedTheme);
       applyUiTheme(savedTheme);
-
-      if (allSettings.github_token && window.api?.githubSetToken) {
-        window.api.githubSetToken(allSettings.github_token);
-      }
     } catch (error) {
       logger.error('config', 'Failed to load settings', error?.message);
     } finally {
@@ -1106,7 +1146,6 @@ function DashboardOverlay({ isOpen, onClose }) {
 
   const handleThemeChange = useCallback((theme) => {
     handleSettingChange('ui_theme', theme);
-    localStorage.setItem(UI_THEME_STORAGE_KEY, theme);
     applyUiTheme(theme);
   }, [handleSettingChange]);
 
@@ -1122,7 +1161,7 @@ function DashboardOverlay({ isOpen, onClose }) {
     setIsSaving(true);
     try {
       for (const [key, value] of Object.entries(settings)) {
-        await setSetting(key, value);
+        if (key !== 'github_token') await window.api.localData.settings.set(key, value);
       }
       if (settings.github_token && window.api?.githubSetToken) {
         window.api.githubSetToken(settings.github_token);

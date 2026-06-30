@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { computeFloatingShellChrome } from '../lib/floatingShell';
 import logger from '../lib/logger';
 
-const MEDIA_STORAGE_KEY = 'briizos.media.player.v2';
 const DEFAULT_FLOATING_SIZE = {
   width: 720,
   height: 620,
@@ -159,40 +158,52 @@ function MediaPanel({
   }, []);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(MEDIA_STORAGE_KEY) || '{}');
-      const savedTracks = Array.isArray(saved.tracks)
-        ? saved.tracks.map(normalizeTrack).filter((track) => track?.path)
-        : [];
-      const savedSourceLocations = savedTracks.map((track) => track.sourceLocation || track.path).filter(Boolean);
+    const restore = async () => {
+      try {
+        const saved = await window.api.localData.media.get();
+        const savedTracks = Array.isArray(saved?.tracks)
+          ? saved.tracks.map((track) => normalizeTrack({
+            ...track,
+            id: track.queue_id,
+            name: track.display_name,
+            lastModified: track.modified_at,
+            persistable: true,
+          })).filter((track) => track?.path)
+          : [];
+        const savedSourceLocations = savedTracks.map((track) => track.sourceLocation || track.path).filter(Boolean);
 
-      setTracks(savedTracks);
-      setCurrentIndex(Math.min(Math.max(Number(saved.currentIndex) || 0, 0), Math.max(savedTracks.length - 1, 0)));
-      setVolume(Number.isFinite(saved.volume) ? saved.volume : 100);
-      setIsMuted(!!saved.isMuted);
-      setRepeatMode(REPEAT_ORDER.includes(saved.repeatMode) ? saved.repeatMode : 'off');
-      setShuffle(!!saved.shuffle);
-      setLibraryOpen(saved.queueOpen !== false);
-      setShellHidden(!!saved.shellHidden);
-      pendingResumeTimeRef.current = Number(saved.currentTime) || 0;
+        const restoredIndex = saved?.currentItemId
+          ? savedTracks.findIndex((track) => track.id === saved.currentItemId)
+          : 0;
+        setTracks(savedTracks);
+        setCurrentIndex(Math.min(Math.max(restoredIndex, 0), Math.max(savedTracks.length - 1, 0)));
+        setVolume(Number.isFinite(saved.volume) ? saved.volume : 100);
+        setIsMuted(!!saved.isMuted);
+        setRepeatMode(REPEAT_ORDER.includes(saved.repeatMode) ? saved.repeatMode : 'off');
+        setShuffle(!!saved.shuffle);
+        setLibraryOpen(saved.panelState?.queueOpen !== false);
+        setShellHidden(!!saved.panelState?.shellHidden);
+        pendingResumeTimeRef.current = Number(saved.currentTime) || 0;
 
-      const api = typeof window !== 'undefined' ? window.api : null;
-      if (savedSourceLocations.length && api?.mediaDescribeFiles) {
-        api.mediaDescribeFiles(savedSourceLocations)
-          .then((result) => {
-            const refreshedTracks = (result?.files || []).map(normalizeTrack).filter(Boolean);
-            if (refreshedTracks.length) {
-              const bySource = new Map(refreshedTracks.map((track) => [track.sourceLocation || track.path, track]));
-              setTracks((currentTracks) => currentTracks.map((track) => bySource.get(track.sourceLocation || track.path) || track));
-            }
-          })
-          .catch((err) => logger.warn('media', 'Unable to refresh stored media library', err?.message));
+        const api = typeof window !== 'undefined' ? window.api : null;
+        if (savedSourceLocations.length && api?.mediaDescribeFiles) {
+          api.mediaDescribeFiles(savedSourceLocations)
+            .then((result) => {
+              const refreshedTracks = (result?.files || []).map(normalizeTrack).filter(Boolean);
+              if (refreshedTracks.length) {
+                const bySource = new Map(refreshedTracks.map((track) => [track.sourceLocation || track.path, track]));
+                setTracks((currentTracks) => currentTracks.map((track) => bySource.get(track.sourceLocation || track.path) || track));
+              }
+            })
+            .catch((err) => logger.warn('media', 'Unable to refresh stored media library', err?.message));
+        }
+      } catch (err) {
+        logger.warn('media', 'Unable to restore media state', err?.message);
+      } finally {
+        setHasRestoredState(true);
       }
-    } catch (err) {
-      logger.warn('media', 'Unable to restore media state', err?.message);
-    } finally {
-      setHasRestoredState(true);
-    }
+    };
+    restore();
   }, []);
 
   useEffect(() => {
@@ -217,8 +228,14 @@ function MediaPanel({
       ? persistableTracks.findIndex((track) => track.sourceLocation === activeSourceLocation)
       : -1;
 
-    localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify({
-      tracks: persistableTracks,
+    window.api.localData.media.save({
+      tracks: persistableTracks.map((track) => ({
+        path: track.sourceLocation,
+        displayName: track.name,
+        kind: track.kind,
+        size: track.size || null,
+        modifiedAt: track.lastModified || null,
+      })),
       currentIndex: Math.max(activePersistedIndex, 0),
       currentTime: currentSecond,
       volume,
@@ -227,7 +244,7 @@ function MediaPanel({
       shuffle,
       queueOpen: libraryOpen,
       shellHidden,
-    }));
+    }).catch((err) => logger.warn('media', 'Unable to save media state', err?.message));
   }, [
     activeTrack,
     currentSecond,

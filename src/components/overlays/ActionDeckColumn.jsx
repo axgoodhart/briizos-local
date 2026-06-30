@@ -3,6 +3,7 @@ import './ActionDeckColumn.css';
 import {
   buildPanelFilter,
   DEFAULT_ACTIONDECK_PANEL_SETTINGS,
+  hydratePanelSettings,
   loadPanelSettings,
   PANEL_FILTER_LIMITS,
   PANEL_START_AS_OPTIONS,
@@ -43,6 +44,13 @@ function ActionDeckColumn({
       savePanelSettings(ACTIONDECK_SETTINGS_KEY, next, DEFAULT_ACTIONDECK_PANEL_SETTINGS);
       return next;
     });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    hydratePanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS)
+      .then((saved) => { if (active) setPanelSettings(saved); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {

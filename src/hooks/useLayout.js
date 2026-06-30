@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import logger from '../lib/logger';
-import { getLayout, saveLayout as saveLayoutFirestore } from '../lib/firestore';
-import { ensureAuth } from '../lib/firebase';
 import {
   migrateFlatToColumns,
   simplifyLayout,
@@ -40,18 +38,10 @@ export function useLayout() {
   // Derived flat panels array for backward compatibility
   const panels = useMemo(() => flattenLayoutToPanels(layoutRow), [layoutRow]);
 
-  // Load layout from Firestore
+  // Load the authoritative workspace layout from briizos.db.
   const loadLayout = useCallback(async () => {
-    const user = await ensureAuth();
-    if (!user) {
-      setLayoutRow(DEFAULT_LAYOUT_V2);
-      setIsLoading(false);
-      hasLoadedRef.current = true;
-      return;
-    }
-
     try {
-      const result = await getLayout();
+      const result = await window.api?.localData?.workspace?.getLayout();
       if (result && result.config) {
         if (result.config.version === 2 && result.config.columns) {
           // v2 format — use directly
@@ -76,11 +66,11 @@ export function useLayout() {
     }
   }, []);
 
-  // Save layout to Firestore
+  // Save layout locally; cloud availability and auth are irrelevant.
   const saveLayout = useCallback(async (layoutToSave) => {
     setIsSaving(true);
     try {
-      await saveLayoutFirestore(layoutToSave);
+      await window.api.localData.workspace.saveLayout(layoutToSave);
       setLastSaved(new Date().toISOString());
     } catch (error) {
       logger.error('ui', 'Failed to save layout', error?.message);

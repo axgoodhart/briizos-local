@@ -124,26 +124,27 @@ export function resolvePanelStartView(settings, fallback = PANEL_VIEW_OPTIONS.TI
 }
 
 export function loadPanelSettings(storageKey, fallback = DEFAULT_ACTIONDECK_PANEL_SETTINGS) {
-  if (typeof window === 'undefined') {
-    return normalizePanelSettings({}, fallback);
-  }
-
-  try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return normalizePanelSettings({}, fallback);
-    return normalizePanelSettings(JSON.parse(raw), fallback);
-  } catch {
-    return normalizePanelSettings({}, fallback);
-  }
+  return panelSettingsCache.get(storageKey) || normalizePanelSettings({}, fallback);
 }
 
 export function savePanelSettings(storageKey, settings, fallback = DEFAULT_ACTIONDECK_PANEL_SETTINGS) {
-  if (typeof window === 'undefined') return;
+  const normalized = normalizePanelSettings(settings, fallback);
+  panelSettingsCache.set(storageKey, normalized);
+  if (storageKey === 'briizos.actiondeck.panel-settings') {
+    window.api?.localData?.settings?.set('actiondeck_panel_settings', normalized).catch(() => {});
+  }
+}
 
+const panelSettingsCache = new Map();
+
+export async function hydratePanelSettings(storageKey, fallback = DEFAULT_ACTIONDECK_PANEL_SETTINGS) {
+  if (storageKey !== 'briizos.actiondeck.panel-settings') return loadPanelSettings(storageKey, fallback);
   try {
-    const normalized = normalizePanelSettings(settings, fallback);
-    window.localStorage.setItem(storageKey, JSON.stringify(normalized));
+    const saved = await window.api?.localData?.settings?.get('actiondeck_panel_settings');
+    const normalized = normalizePanelSettings(saved?.value || {}, fallback);
+    panelSettingsCache.set(storageKey, normalized);
+    return normalized;
   } catch {
-    // ignore storage write failures
+    return normalizePanelSettings({}, fallback);
   }
 }

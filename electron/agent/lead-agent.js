@@ -20,8 +20,8 @@ const { createReactAgent } = require('@langchain/langgraph/prebuilt');
 const { logger } = require('../logger');
 const { ALL_TOOLS } = require('./tools');
 const { ThreadState } = require('./state');
-const { createChatModel } = require('./models');
-const { applyPromptTemplate } = require('./system-prompt');
+const { createChatModel, setLocalDataService: setModelLocalDataService } = require('./models');
+const { applyPromptTemplate, setLocalDataService: setPromptLocalDataService } = require('./system-prompt');
 const { getCheckpointer } = require('./checkpointer');
 const { createMemoryPostModelHook, createSummarizationPreModelHook } = require('./memory');
 const { createTitlePostModelHook } = require('./title');
@@ -35,6 +35,8 @@ let localDataService = null;
 
 function setLocalDataService(service) {
   localDataService = service;
+  setModelLocalDataService(service);
+  setPromptLocalDataService(service);
 }
 
 function getLocalDataService() {

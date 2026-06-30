@@ -174,8 +174,7 @@ export function useTaskAutomation() {
     const threadId = await getThreadForTask(taskId);
 
     // Reuse the globally selected model from the InteractionPanel picker.
-    let model;
-    try { model = localStorage.getItem('briizos-selected-model') || undefined; } catch { model = undefined; }
+    const model = (await api.localData?.settings?.get('selected_model'))?.value || undefined;
 
     // Per-task policy drives BOTH the agent config and the renderer gate.
     // NOT hardcoded 'no-asking' — the user's

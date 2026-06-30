@@ -1,10 +1,8 @@
 /**
  * JS model factory — replaces agent/src/models/factory.py.
  *
- * The Python factory used config.yaml-driven reflection to pick a chat
- * model class. This JS port reads the same agent/config.yaml model list
- * so the Electron in-process runtime honors the model picker, model
- * aliases, max-token settings, and credentials that Settings reports.
+ * The Electron runtime resolves model profiles and encrypted credentials
+ * through LocalDataService, keeping the agent on the same SQLite authority.
  *
  * Supported providers (mirrors the renderer model picker):
  *   - claude-* → @langchain/anthropic
@@ -19,28 +17,13 @@
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { ChatOpenAI } = require('@langchain/openai');
 const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
 const { logger } = require('../logger');
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
-const CONFIG_PATH = path.resolve(__dirname, '../../agent/config.yaml');
+let localDataService = null;
 
-let cachedConfig = null;
-let cachedMtime = null;
-
-function loadConfig() {
-  try {
-    const stat = fs.statSync(CONFIG_PATH);
-    if (cachedConfig && cachedMtime === stat.mtimeMs) return cachedConfig;
-    cachedConfig = yaml.load(fs.readFileSync(CONFIG_PATH, 'utf8')) || {};
-    cachedMtime = stat.mtimeMs;
-    return cachedConfig;
-  } catch (err) {
-    logger.warn('agent.models', 'Failed to read agent/config.yaml', { error: err?.message });
-    return null;
-  }
+function setLocalDataService(service) {
+  localDataService = service;
 }
 
 function detectProvider(name) {
@@ -56,8 +39,7 @@ function providerForEntry(entry) {
 }
 
 function getConfiguredModels() {
-  const config = loadConfig();
-  return Array.isArray(config?.models) ? config.models : [];
+  return localDataService?.listModelProfiles?.() || [];
 }
 
 function resolveModelConfig(requestedName) {
@@ -83,9 +65,9 @@ function resolveModelConfig(requestedName) {
     name: entry.name || entry.model || DEFAULT_MODEL,
     model: entry.model || entry.name || DEFAULT_MODEL,
     provider: providerForEntry(entry),
-    maxTokens: Number.isFinite(entry.max_tokens) ? entry.max_tokens : null,
-    supportsThinking: !!entry.when_thinking_enabled,
-    thinking: entry.when_thinking_enabled?.thinking || null,
+    maxTokens: Number.isFinite(entry.maxTokens) ? entry.maxTokens : null,
+    supportsThinking: !!entry.supportsThinking,
+    thinking: entry.thinking || null,
     raw: entry,
   };
 }
@@ -93,11 +75,11 @@ function resolveModelConfig(requestedName) {
 function getApiKey(provider, modelEntry = null) {
   switch (provider) {
     case 'claude':
-      return process.env.ANTHROPIC_API_KEY || modelEntry?.api_key || '';
+      return process.env.ANTHROPIC_API_KEY || localDataService?.getProviderApiKey?.('claude') || '';
     case 'openai':
-      return process.env.OPENAI_API_KEY || modelEntry?.api_key || '';
+      return process.env.OPENAI_API_KEY || localDataService?.getProviderApiKey?.('openai') || '';
     case 'gemini':
-      return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || modelEntry?.google_api_key || modelEntry?.api_key || '';
+      return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || localDataService?.getProviderApiKey?.('gemini') || '';
     default: return '';
   }
 }
@@ -151,4 +133,4 @@ function createChatModel({ name = null, thinkingEnabled = false, reasoningEffort
   }
 }
 
-module.exports = { createChatModel, detectProvider, DEFAULT_MODEL };
+module.exports = { createChatModel, detectProvider, DEFAULT_MODEL, setLocalDataService };
