@@ -12,7 +12,6 @@ import {
   browserLocalPersistence,
   inMemoryPersistence
 } from 'firebase/auth';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -44,20 +43,6 @@ const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch
     logger.error('auth', 'Failed to set auth persistence fallback', fallbackError?.code || fallbackError?.message);
   }
 });
-
-// Initialize Firestore with persistent cache (modern API for Firebase v10+)
-let db;
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
-} catch (e) {
-  // Firestore already initialized (happens in dev with HMR)
-  db = getFirestore(app);
-  logger.info('auth', 'Using existing Firestore instance');
-}
 
 // Auth state tracking
 let currentUser = null;
@@ -125,4 +110,4 @@ export function isAuthenticated() {
   return !!currentUser;
 }
 
-export { app, auth, db };
+export { app, auth };

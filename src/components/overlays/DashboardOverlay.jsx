@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useChatSettings } from '../../context/ChatSettingsContext';
-import { addLog } from '../../lib/firestore';
 import logger from '../../lib/logger';
 import './DashboardOverlay.css';
 
@@ -306,7 +305,7 @@ function ModelTab({ isOpen }) {
       <div className="settings-divider" />
 
       <p className="settings-hint" style={{ fontStyle: 'normal' }}>
-        Model selection is available in the chat toolbar. Edit agent/config.yaml to add or modify models.
+        Model selection and provider credentials are stored locally in briizos.db.
       </p>
     </div>
   );
@@ -351,6 +350,14 @@ function IntegrationsTab({
         )}
       </div>
       <div className="settings-btn-group">
+        <button
+          className="settings-btn"
+          onClick={() => window.api.cloud.promoteThisDevice().catch((error) => logger.warn('sync', 'Primary-device selection failed', error?.message))}
+          disabled={!isAuthenticated}
+          type="button"
+        >
+          Make This Mac Primary
+        </button>
         <button
           className="settings-btn settings-btn-logout"
           onClick={handleLogout}
@@ -1184,7 +1191,7 @@ function DashboardOverlay({ isOpen, onClose }) {
       if (settings.github_token && window.api?.githubSetToken) {
         window.api.githubSetToken(settings.github_token);
       }
-      await addLog('settings_saved', 'Settings updated');
+      logger.info('settings.saved', 'Settings updated');
       onClose();
     } catch (error) {
       logger.error('config', 'Failed to save settings', error?.message);
@@ -1201,7 +1208,7 @@ function DashboardOverlay({ isOpen, onClose }) {
         await window.api.gdriveOpenSetup();
       }
       await loadGdriveStatus();
-      await addLog('gdrive_connect', result.error || 'Connection attempted');
+      logger.info('gdrive.connect', result.error || 'Connection attempted');
     } catch (error) {
       logger.error('config', 'Failed to connect to Google Drive', error?.message);
     } finally {
@@ -1213,7 +1220,7 @@ function DashboardOverlay({ isOpen, onClose }) {
     try {
       await window.api.gdriveDisconnect();
       await loadGdriveStatus();
-      await addLog('gdrive_disconnect', 'Disconnected from Google Drive');
+      logger.info('gdrive.disconnect', 'Disconnected from Google Drive');
     } catch (error) {
       logger.error('config', 'Failed to disconnect from Google Drive', error?.message);
     }

@@ -13,7 +13,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const yaml = require('js-yaml');
 const {
   BaseCheckpointSaver,
   MemorySaver,
@@ -26,7 +25,6 @@ const {
 const { logger } = require('../logger');
 
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
-const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
 const DEFAULT_DEER_HOME = process.env.DEER_FLOW_HOME
   ? path.resolve(process.env.DEER_FLOW_HOME)
   : path.join(AGENT_DIR, '.deer-flow');
@@ -37,14 +35,6 @@ let localDataService = null;
 function setLocalDataService(service) {
   localDataService = service;
   resetCheckpointer();
-}
-
-function readConfig() {
-  try {
-    return yaml.load(fs.readFileSync(CONFIG_PATH, 'utf8')) || {};
-  } catch {
-    return {};
-  }
 }
 
 function resolveDataPath(rawPath) {

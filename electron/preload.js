@@ -121,12 +121,35 @@ contextBridge.exposeInMainWorld('api', {
       rename: (sessionId, name) => invokeLocalData('local-data:recorder:rename', sessionId, name),
       archive: (sessionId) => invokeLocalData('local-data:recorder:archive', sessionId),
     },
+    automation: {
+      acceptCommand: (input) => invokeLocalData('local-data:commands:accept', input),
+      listRuns: (filters) => invokeLocalData('local-data:runs:list', filters),
+      getRun: (runId) => invokeLocalData('local-data:runs:get', runId),
+      transitionRun: (runId, status, input) => invokeLocalData('local-data:runs:transition', runId, status, input),
+    },
+    sharedText: {
+      listMirrors: (ownerAppId) => invokeLocalData('local-data:shared-text:list', ownerAppId),
+      importCopy: (ownerAppId, remoteId) => invokeLocalData('local-data:shared-text:import', ownerAppId, remoteId),
+    },
+    logs: {
+      append: (input) => invokeLocalData('local-data:logs:append', input),
+    },
     onChanged: (callback) => {
       const handler = (_event, change) => callback(change);
       ipcRenderer.on('data:changed', handler);
       return () => ipcRenderer.removeListener('data:changed', handler);
     },
   },
+
+  cloud: {
+    setSession: (session) => ipcRenderer.invoke('cloud:set-session', session),
+    clearSession: () => ipcRenderer.invoke('cloud:clear-session'),
+    getStatus: () => ipcRenderer.invoke('cloud:get-status'),
+    getRecoveryOffer: () => ipcRenderer.invoke('cloud:recovery-offer'),
+    restoreContinuity: (domains) => ipcRenderer.invoke('cloud:restore-continuity', domains),
+    promoteThisDevice: () => ipcRenderer.invoke('cloud:promote-device'),
+  },
+  automationExecuteRun: (runId, policy) => ipcRenderer.invoke('automation:execute-run', runId, policy),
 
   // File System API
   listDirectory: (dirPath) => ipcRenderer.invoke('fs-list-directory', dirPath),
@@ -179,9 +202,6 @@ contextBridge.exposeInMainWorld('api', {
 
   // Agent Terminal API
   agentRunCommand: (command, cwd, opId) => ipcRenderer.invoke('agent-terminal-run', command, cwd, opId),
-
-  // Agent Jobs API
-  agentExecuteJob: (job) => ipcRenderer.invoke('agent-jobs-execute', job),
 
   // Memory API
   memoryAppendLog: (chunkFilename, entry) => ipcRenderer.invoke('memory-append-log', chunkFilename, entry),

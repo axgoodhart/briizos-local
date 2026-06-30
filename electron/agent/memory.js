@@ -9,16 +9,11 @@
  *   - agent/src/config/summarization_config.py
  */
 
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
-const yaml = require('js-yaml');
 const { SystemMessage } = require('@langchain/core/messages');
 const { logger } = require('../logger');
 const { createChatModel } = require('./models');
 
-const AGENT_DIR = path.resolve(__dirname, '../../agent');
-const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
 const UPLOAD_BLOCK_RE = /<uploaded_files>[\s\S]*?<\/uploaded_files>\n*/gi;
 const UPLOAD_SENTENCE_RE = /[^.!?]*\b(?:upload(?:ed|ing)?(?:\s+\w+){0,3}\s+(?:file|files?|document|documents?|attachment|attachments?)|file\s+upload|\/mnt\/user-data\/uploads\/|<uploaded_files>)[^.!?]*[.!?]?\s*/gi;
 let localDataService = null;
@@ -68,12 +63,20 @@ Return ONLY valid JSON:
   "factsToRemove": ["fact_id"]
 }`;
 
-function readYaml(filePath) {
-  try { return yaml.load(fs.readFileSync(filePath, 'utf8')) || {}; } catch { return {}; }
-}
-
 function getConfig() {
-  return readYaml(CONFIG_PATH);
+  const local = localDataService?.getSetting?.('agent_config')?.value || {};
+  return {
+    memory: {
+      enabled: true,
+      injection_enabled: true,
+      max_injection_tokens: 2000,
+      fact_confidence_threshold: 0.7,
+      max_facts: 100,
+      debounce_seconds: 30,
+      ...(local.memory || {}),
+    },
+    summarization: { enabled: false },
+  };
 }
 
 function createEmptyMemory() {

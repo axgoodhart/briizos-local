@@ -32,7 +32,7 @@ const { createTitlePostModelHook } = require('./title');
 const { createViewImagePreModelHook } = require('./media');
 
 // Single checkpointer across the process — keys multi-turn context by
-// thread_id and persists according to agent/config.yaml. Created lazily so
+// thread_id and persists in briizos.db. Created lazily so
 // importing helpers like mapEvent has no storage side effects.
 let checkpointer = null;
 let localDataService = null;

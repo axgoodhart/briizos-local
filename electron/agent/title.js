@@ -6,17 +6,11 @@
  *   - agent/src/config/title_config.py
  */
 
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
 const { createChatModel } = require('./models');
-
-const AGENT_DIR = path.resolve(__dirname, '../../agent');
-const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
 const DEFAULT_PROMPT = 'Generate a concise title (max {max_words} words) for this conversation.\nUser: {user_msg}\nAssistant: {assistant_msg}\n\nReturn ONLY the title, no quotes, no explanation.';
 
 function readConfig() {
-  try { return yaml.load(fs.readFileSync(CONFIG_PATH, 'utf8')) || {}; } catch { return {}; }
+  return { title: { enabled: true, max_words: 6, max_chars: 60 } };
 }
 
 function messageRole(message) {

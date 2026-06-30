@@ -4,7 +4,7 @@
  */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
-  onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut
@@ -76,11 +76,34 @@ export function AuthProvider({ children }) {
 
   // Listen to auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
+    const unsubscribe = onIdTokenChanged(
       auth,
-      (firebaseUser) => {
+      async (firebaseUser) => {
         setUser(firebaseUser);
         setLoading(false);
+        if (!window.api?.cloud) return;
+        if (!firebaseUser) {
+          await window.api.cloud.clearSession();
+          return;
+        }
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const cloud = await window.api.cloud.setSession({
+            uid: firebaseUser.uid,
+            idToken,
+            projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+          });
+          if (cloud?.rebindDeclined) return;
+          const offer = await window.api.cloud.getRecoveryOffer();
+          if (offer?.domains) {
+            const summary = Object.entries(offer.domains).map(([domain, info]) => `${domain}: ${info.itemCount}`).join('\n');
+            if (window.confirm(`Restore your local workspace from continuity?\n\n${summary}`)) {
+              await window.api.cloud.restoreContinuity(Object.keys(offer.domains));
+            }
+          }
+        } catch (cloudError) {
+          logger.warn('sync', 'Cloud gateway is offline; local work remains available', cloudError?.message);
+        }
       },
       (authError) => {
         logger.error('auth', 'onAuthStateChanged error', authError?.message);

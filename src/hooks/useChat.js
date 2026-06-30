@@ -27,13 +27,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import logger, { setActiveThread } from '../lib/logger';
 import { registerSurfaceForThread, unregisterThread, restrictivePolicy } from '../lib/agentSurfaces';
-import {
-  addLog,
-  subscribeRemoteChat,
-  addRemoteChatMessage,
-  markRemoteChatRead,
-} from '../lib/firestore';
-import { getCurrentUid } from '../lib/firebase';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 const hasApi = typeof window !== 'undefined' && !!window.api;
@@ -149,8 +142,6 @@ export function useChat({ selectedModel } = {}) {
       .catch((error) => logger.warn('config', 'Failed to load suggestion preference', error?.message))
       .finally(() => { suggestionsHydratedRef.current = true; });
   }, []);
-
-  const uid = getCurrentUid();
 
   useEffect(() => {
     let active = true;
@@ -430,10 +421,7 @@ export function useChat({ selectedModel } = {}) {
     const content = streamContentRef.current;
     if (content) {
       await api.localData.threads.messages.append(threadIdRef.current, { role: 'assistant', content });
-      if (isRemote) {
-        try { await addRemoteChatMessage('assistant', content); } catch {}
-      }
-      addLog('assistant_message', content.slice(0, 1200)).catch(() => {});
+      logger.info('chat.assistant_message', content.slice(0, 1200));
     }
 
     // Follow-up suggestions are a local-user affordance only.
@@ -617,27 +605,6 @@ export function useChat({ selectedModel } = {}) {
 
   const approveToolConfirmation = useCallback(() => resolveConfirmation(true), [resolveConfirmation]);
   const rejectToolConfirmation = useCallback(() => resolveConfirmation(false), [resolveConfirmation]);
-
-  // ---------------------------------------------------------------------
-  // Remote chat relay (unchanged contract)
-  // ---------------------------------------------------------------------
-  const isLoadingRef = useRef(false);
-  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
-
-  const sendRemoteResponse = useCallback(async (remoteMsg) => {
-    if (isLoadingRef.current || !remoteMsg?.content) return;
-    try { await markRemoteChatRead(remoteMsg.id); } catch {}
-    await sendMessage(`[Remote message] ${remoteMsg.content}`, { isRemote: true });
-  }, [sendMessage]);
-
-  useEffect(() => {
-    if (!uid) return;
-    const unsubscribe = subscribeRemoteChat(
-      () => {},
-      (remoteMsg) => { sendRemoteResponse(remoteMsg); }
-    );
-    return () => unsubscribe();
-  }, [uid, sendRemoteResponse]);
 
   const clearHistory = useCallback(async () => {
     try {

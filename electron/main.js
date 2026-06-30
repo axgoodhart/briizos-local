@@ -11,14 +11,15 @@ const gdrive = require('./gdrive');
 const agentConfig = require('./agent-config');
 const agentFs = require('./agent-fs');
 const agentTerminal = require('./agent-terminal');
-const agentJobs = require('./agent-jobs-firestore');
 // In-process agent runtime — Electron main hosts the lead_agent graph
 // directly (LangChain.js + LangGraph.js). No Python subprocess, no
 // localhost HTTP tool-bridge; the renderer is reached via IPC.
 const langgraph = require('./agent');
-const localDb = require('./local-db');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
+const { CloudGateway } = require('./cloud-gateway');
+const { AutomationRunner } = require('./automation-runner');
+const operationReceipts = require('./agent-op-receipts');
 // Forest filesystem discovery remains a bounded Main-process capability;
 // all persistent Forest state is owned by LocalDataService.
 const forestFs = require('./forest-fs');
@@ -26,6 +27,9 @@ const forestFs = require('./forest-fs');
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
 let unregisterLocalDataIPC = null;
+let cloudGateway = null;
+let automationRunner = null;
+let shutdownStarted = false;
 
 function redactUrlApiKey(rawUrl) {
   try {
@@ -409,8 +413,42 @@ ipcMain.handle('agent-terminal-run', async (event, command, cwd, opId) => {
 
 // === Agent Job Executor IPC Handlers ===
 
-ipcMain.handle('agent-jobs-execute', async (event, job) => {
-  return agentJobs.executeAgentJob(job);
+ipcMain.handle('cloud:set-session', async (_event, session) => {
+  let result = await cloudGateway.setSession(session);
+  if (result?.requiresRebindConfirmation) {
+    const choice = await dialog.showMessageBox({
+      type: 'warning',
+      buttons: ['Keep current local binding', 'Rebind continuity'],
+      defaultId: 0,
+      cancelId: 0,
+      message: 'This local workspace is linked to a different cloud account.',
+      detail: 'Rebinding changes which account receives recovery snapshots. Local data will not be erased.',
+    });
+    if (choice.response !== 1) return { connected: false, rebindDeclined: true };
+    result = await cloudGateway.setSession({ ...session, confirmRebind: true });
+  }
+  return result;
+});
+ipcMain.handle('cloud:clear-session', async () => cloudGateway.clearSession());
+ipcMain.handle('cloud:get-status', async () => cloudGateway.status);
+ipcMain.handle('cloud:recovery-offer', async () => cloudGateway.getRecoveryOffer());
+ipcMain.handle('cloud:restore-continuity', async (_event, domains) => cloudGateway.restoreContinuity(domains || []));
+ipcMain.handle('cloud:promote-device', async () => {
+  const choice = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Cancel', 'Make this Mac primary'],
+    defaultId: 0,
+    cancelId: 0,
+    message: 'Make this Mac the primary briizOS device?',
+    detail: 'It will process remote task requests and publish continuity snapshots.',
+  });
+  return choice.response === 1 ? cloudGateway.promoteThisDevice() : cloudGateway.status;
+});
+ipcMain.handle('automation:execute-run', async (_event, runId, policy) => {
+  const run = localDataService.getRun(runId);
+  if (!run) throw new Error('Run not found');
+  automationRunner.execute(run, policy || null);
+  return run;
 });
 
 // === Memory IPC Handlers ===
@@ -882,9 +920,6 @@ app.whenReady().then(() => {
     startedAt: new Date().toISOString(),
   });
 
-  // Initialize agent App Support directories
-  agentConfig.ensureDirectories();
-
   // Generation-2 structured state is owned by this one Main-process service.
   // Existing feature stores remain untouched until their reviewed cutover phase.
   localDataService = new LocalDataService({
@@ -909,6 +944,19 @@ app.whenReady().then(() => {
     logger,
   });
   langgraph.setLocalDataService(localDataService);
+  operationReceipts.setLocalDataService(localDataService);
+  cloudGateway = new CloudGateway({
+    service: localDataService,
+    logger,
+    appVersion: app.getVersion(),
+    executeRemoteCommand: (run) => automationRunner.execute(run),
+  });
+  automationRunner = new AutomationRunner({
+    service: localDataService,
+    agent: langgraph,
+    logger,
+    onRunChanged: (run) => cloudGateway.publishRun(run),
+  });
 
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {
@@ -946,8 +994,20 @@ app.on('window-all-closed', () => {
 
 // Stop the in-process agent runtime before quit (clears caches; nothing
 // to spawn-kill since the agent lives inside this process).
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  if (!shutdownStarted) {
+    event.preventDefault();
+    shutdownStarted = true;
+    Promise.race([
+      cloudGateway?.flushContinuity() || Promise.resolve(),
+      new Promise((resolve) => setTimeout(resolve, 1500)),
+    ]).finally(() => app.quit());
+    return;
+  }
   langgraph.stop();
+  cloudGateway?.close();
+  cloudGateway = null;
+  automationRunner = null;
   unregisterLocalDataIPC?.();
   unregisterLocalDataIPC = null;
   localDataService?.close();

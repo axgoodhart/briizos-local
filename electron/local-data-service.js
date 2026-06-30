@@ -31,6 +31,10 @@ const SETTING_KEYS = new Set([
   'studio_briizclerk_url',
 ]);
 const BRIIZTORM_KEYS = new Set(['projects', 'theme', 'flightSettings', 'flightPresets']);
+const COMMAND_STATUSES = ['accepted', 'queued', 'running', 'waiting_for_user', 'completed', 'failed', 'cancelled', 'expired', 'rejected'];
+const RUN_STATUSES = new Set(COMMAND_STATUSES);
+const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'expired', 'rejected']);
+const SHARED_TEXT_TYPES = ['task', 'note', 'project', 'event', 'timer', 'retained_text'];
 
 function now() {
   return Date.now();
@@ -2328,6 +2332,352 @@ class LocalDataService extends EventEmitter {
     const current = this.db.prepare('SELECT revision FROM memory_facts WHERE id = ? AND deleted_at IS NULL').get(factId);
     if (!current) v.fail('NOT_FOUND', 'Memory fact not found');
     return this._archiveRow('memory', 'memory_facts', factId, current.revision);
+  }
+
+  getDeviceIdentity() {
+    this._assertReady();
+    return this.db.prepare(`
+      SELECT device_id AS deviceId, label, created_at AS createdAt, updated_at AS updatedAt
+      FROM device_identity WHERE singleton_id = 1
+    `).get();
+  }
+
+  getAppMeta(key) {
+    this._assertReady();
+    key = v.identifier(key, 'meta key');
+    return this.db.prepare('SELECT value FROM app_meta WHERE key = ?').get(key)?.value ?? null;
+  }
+
+  setAppMeta(key, value) {
+    key = v.identifier(key, 'meta key');
+    value = v.string(String(value), 'meta value', { max: 100000 });
+    const timestamp = now();
+    this.db.prepare(`
+      INSERT INTO app_meta (key, value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, value, timestamp);
+    return { key, value, updatedAt: timestamp };
+  }
+
+  acceptCommand(input = {}) {
+    const remoteCommandId = v.string(input.remoteCommandId, 'remoteCommandId', { nullable: true, max: 200 }) ?? null;
+    const idempotencyKey = v.string(input.idempotencyKey, 'idempotencyKey', { required: true, max: 200 });
+    const source = v.oneOf(input.source || 'local', 'source', ['local', 'remote']);
+    const instruction = v.string(input.instruction, 'instruction', { required: true, max: 20000 });
+    const contextText = v.string(input.contextText, 'contextText', { nullable: true, max: 50000 }) ?? null;
+    const requestedAt = v.integer(input.requestedAt || now(), 'requestedAt', { min: 1 });
+    const taskId = v.string(input.taskId, 'taskId', { nullable: true, max: 200 }) ?? null;
+    this._assertReady();
+    const duplicate = this.db.prepare(`
+      SELECT r.id AS run_id FROM commands c JOIN runs r ON r.command_id = c.id
+      WHERE (c.idempotency_key = ? OR (? IS NOT NULL AND c.remote_command_id = ?)) AND c.deleted_at IS NULL
+      LIMIT 1
+    `).get(idempotencyKey, remoteCommandId, remoteCommandId);
+    if (duplicate) return { duplicate: true, run: this.getRun(duplicate.run_id) };
+
+    return this._write('automation', (timestamp) => {
+      const commandId = id();
+      const runId = remoteCommandId || id();
+      this.db.prepare(`
+        INSERT INTO commands (id, remote_command_id, idempotency_key, source, instruction, context_text,
+          status, requested_at, accepted_at, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?, ?, 1)
+      `).run(commandId, remoteCommandId, idempotencyKey, source, instruction, contextText,
+        requestedAt, timestamp, timestamp, timestamp);
+      this.db.prepare(`
+        INSERT INTO runs (id, command_id, task_id, status, created_at, updated_at, revision)
+        VALUES (?, ?, ?, 'accepted', ?, ?, 1)
+      `).run(runId, commandId, taskId, timestamp, timestamp);
+      this._appendRunEvent(runId, 'accepted', 'Request accepted', null, timestamp);
+      return { duplicate: false, run: this.getRun(runId) };
+    });
+  }
+
+  listRuns(input = {}) {
+    this._assertReady();
+    const statuses = Array.isArray(input.statuses) ? input.statuses : [];
+    statuses.forEach((status) => v.oneOf(status, 'run status', COMMAND_STATUSES));
+    const clauses = ['r.deleted_at IS NULL'];
+    const args = [];
+    if (statuses.length) {
+      clauses.push(`r.status IN (${statuses.map(() => '?').join(', ')})`);
+      args.push(...statuses);
+    }
+    return this.db.prepare(`
+      SELECT r.id, r.command_id AS commandId, r.task_id AS taskId, r.thread_id AS threadId,
+        r.status, r.progress_current AS progressCurrent, r.progress_total AS progressTotal,
+        r.result_summary AS resultSummary, r.error_code AS errorCode, r.error_message AS errorMessage,
+        r.started_at AS startedAt, r.finished_at AS finishedAt, r.created_at AS createdAt,
+        r.updated_at AS updatedAt, r.revision, c.remote_command_id AS remoteCommandId,
+        c.source, c.instruction, c.context_text AS contextText
+      FROM runs r LEFT JOIN commands c ON c.id = r.command_id
+      WHERE ${clauses.join(' AND ')} ORDER BY r.created_at DESC
+    `).all(...args);
+  }
+
+  getRun(runId) {
+    runId = v.string(runId, 'runId', { required: true, max: 200 });
+    const run = this.listRuns().find((candidate) => candidate.id === runId);
+    if (!run) return null;
+    run.events = this.db.prepare(`
+      SELECT id, sequence, event_type AS eventType, message, payload_json AS payloadJson,
+        created_at AS createdAt FROM run_events
+      WHERE run_id = ? AND deleted_at IS NULL ORDER BY sequence
+    `).all(runId).map((event) => ({ ...event, payload: event.payloadJson ? JSON.parse(event.payloadJson) : null }));
+    return run;
+  }
+
+  transitionRun(runId, status, input = {}) {
+    runId = v.string(runId, 'runId', { required: true, max: 200 });
+    status = v.oneOf(status, 'status', COMMAND_STATUSES);
+    const progressCurrent = input.progressCurrent == null ? null : v.integer(input.progressCurrent, 'progressCurrent', { min: 0 });
+    const progressTotal = input.progressTotal == null ? null : v.integer(input.progressTotal, 'progressTotal', { min: 0 });
+    const resultSummary = v.string(input.resultSummary, 'resultSummary', { nullable: true, max: 20000 });
+    const errorCode = v.string(input.errorCode, 'errorCode', { nullable: true, max: 100 });
+    const errorMessage = v.string(input.errorMessage, 'errorMessage', { nullable: true, max: 20000 });
+    const eventMessage = v.string(input.eventMessage, 'eventMessage', { nullable: true, max: 1000 });
+    return this._write('automation', (timestamp) => {
+      const current = this.db.prepare('SELECT command_id, status FROM runs WHERE id = ? AND deleted_at IS NULL').get(runId);
+      if (!current) v.fail('NOT_FOUND', 'Run not found');
+      if (TERMINAL_RUN_STATUSES.has(current.status) && current.status !== status) v.fail('INVALID_STATE', 'A finished run cannot be reopened');
+      const fields = ['status = ?', 'updated_at = ?', 'revision = revision + 1'];
+      const values = [status, timestamp];
+      if (progressCurrent != null) { fields.push('progress_current = ?'); values.push(progressCurrent); }
+      if (progressTotal != null) { fields.push('progress_total = ?'); values.push(progressTotal); }
+      if (resultSummary != null) { fields.push('result_summary = ?'); values.push(resultSummary); }
+      if (errorCode != null) { fields.push('error_code = ?'); values.push(errorCode); }
+      if (errorMessage != null) { fields.push('error_message = ?'); values.push(errorMessage); }
+      if (status === 'running') fields.push('started_at = COALESCE(started_at, updated_at)');
+      if (TERMINAL_RUN_STATUSES.has(status)) { fields.push('finished_at = ?'); values.push(timestamp); }
+      values.push(runId);
+      this.db.prepare(`UPDATE runs SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+      if (current.command_id) this.db.prepare(`UPDATE commands SET status = ?, updated_at = ?, revision = revision + 1 WHERE id = ?`)
+        .run(status, timestamp, current.command_id);
+      this._appendRunEvent(runId, status, eventMessage || status.replaceAll('_', ' '), input.payload, timestamp);
+      return { row: this.getRun(runId) };
+    });
+  }
+
+  attachRun(runId, { taskId = null, threadId = null } = {}) {
+    runId = v.string(runId, 'runId', { required: true, max: 200 });
+    taskId = v.string(taskId, 'taskId', { nullable: true, max: 200 }) ?? null;
+    threadId = v.string(threadId, 'threadId', { nullable: true, max: 200 }) ?? null;
+    return this._write('automation', (timestamp) => {
+      const current = this.db.prepare('SELECT id FROM runs WHERE id = ? AND deleted_at IS NULL').get(runId);
+      if (!current) v.fail('NOT_FOUND', 'Run not found');
+      this.db.prepare('UPDATE runs SET task_id = ?, thread_id = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(taskId, threadId, timestamp, runId);
+      return { row: this.getRun(runId) };
+    });
+  }
+
+  _appendRunEvent(runId, eventType, message, payload, timestamp = now()) {
+    const sequence = this.db.prepare('SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?').get(runId).sequence;
+    this.db.prepare(`
+      INSERT INTO run_events (id, run_id, sequence, event_type, message, payload_json, created_at, updated_at, revision)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(id(), runId, sequence, eventType, message, payload == null ? null : this._jsonValue(payload, 'run event payload', 100000), timestamp, timestamp);
+  }
+
+  getOperationReceipt(opId) {
+    this._assertReady();
+    opId = v.string(opId, 'opId', { required: true, max: 200 });
+    const row = this.db.prepare('SELECT status, result_json AS resultJson FROM operation_receipts WHERE op_id = ? AND deleted_at IS NULL').get(opId);
+    return row ? { status: row.status, result: row.resultJson ? JSON.parse(row.resultJson) : null } : null;
+  }
+
+  recordOperationReceipt(opId, input = {}) {
+    opId = v.string(opId, 'opId', { required: true, max: 200 });
+    const toolName = v.string(input.toolName || 'unknown', 'toolName', { required: true, max: 200 });
+    const requestHash = v.string(input.requestHash || crypto.createHash('sha256').update(opId).digest('hex'), 'requestHash', { required: true, max: 200 });
+    const status = v.oneOf(input.status || 'completed', 'status', ['pending', 'completed', 'failed']);
+    const resultJson = input.result == null ? null : this._jsonValue(input.result, 'operation result', 1000000);
+    return this._write('automation', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO operation_receipts (op_id, run_id, tool_name, request_hash, status, result_json, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(op_id) DO UPDATE SET status = excluded.status, result_json = excluded.result_json,
+          updated_at = excluded.updated_at, revision = operation_receipts.revision + 1
+      `).run(opId, input.runId || null, toolName, requestHash, status, resultJson, timestamp, timestamp);
+      return { opId, status };
+    });
+  }
+
+  appendLog(input = {}) {
+    const timestamp = input.timestamp ? new Date(input.timestamp).getTime() : now();
+    const row = {
+      id: v.string(input.id || id(), 'log id', { required: true, max: 200 }),
+      type: v.string(input.type || 'system.event', 'log type', { required: true, max: 200 }),
+      source: v.string(input.source || 'system', 'log source', { required: true, max: 100 }),
+      category: v.string(input.category || 'system', 'log category', { required: true, max: 100 }),
+      message: v.string(input.message || '', 'log message', { max: 20000 }),
+      level: v.oneOf(input.level || 'info', 'log level', ['debug', 'info', 'warn', 'error']),
+    };
+    this.db.prepare(`
+      INSERT OR IGNORE INTO logs (id, type, source, category, message, data_json, level, thread_id, session_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(row.id, row.type, row.source, row.category, row.message,
+      input.data == null ? null : this._jsonValue(input.data, 'log data', 500000), row.level,
+      input.threadId || null, input.sessionId || null, Number.isFinite(timestamp) ? timestamp : now());
+    return row;
+  }
+
+  getPendingSyncDomains() {
+    this._assertReady();
+    return this.db.prepare(`
+      SELECT domain, dirty_revision AS dirtyRevision, attempts, next_attempt_at AS nextAttemptAt
+      FROM sync_outbox WHERE status IN ('pending', 'failed') AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+      ORDER BY updated_at
+    `).all(now());
+  }
+
+  markSyncResult(domain, revision, errorCode = null) {
+    domain = v.oneOf(domain, 'domain', [...CONTINUITY_DOMAINS]);
+    revision = v.integer(revision, 'revision', { min: 1 });
+    const timestamp = now();
+    if (!errorCode) {
+      this.db.transaction(() => {
+        this.db.prepare('DELETE FROM sync_outbox WHERE domain = ? AND dirty_revision <= ?').run(domain, revision);
+        this.db.prepare(`
+          INSERT INTO sync_state (domain, last_uploaded_revision, updated_at) VALUES (?, ?, ?)
+          ON CONFLICT(domain) DO UPDATE SET last_uploaded_revision = excluded.last_uploaded_revision, updated_at = excluded.updated_at
+        `).run(domain, revision, timestamp);
+      })();
+      return;
+    }
+    this.db.prepare(`
+      UPDATE sync_outbox SET status = 'failed', attempts = attempts + 1, next_attempt_at = ?,
+        last_error_code = ?, updated_at = ? WHERE domain = ?
+    `).run(timestamp + 30000, String(errorCode).slice(0, 100), timestamp, domain);
+  }
+
+  buildContinuitySnapshot(domain) {
+    domain = v.oneOf(domain, 'domain', [...CONTINUITY_DOMAINS]);
+    this._assertReady();
+    const revision = this.db.prepare('SELECT revision FROM domain_revisions WHERE domain = ?').get(domain)?.revision || 0;
+    let items;
+    if (domain === 'tasks') {
+      const steps = this.db.prepare(`
+        SELECT id, task_id AS taskId, title, status, position, completed_at AS completedAt
+        FROM task_steps WHERE deleted_at IS NULL ORDER BY task_id, position, id
+      `).all();
+      const byTask = new Map();
+      steps.forEach((step) => { if (!byTask.has(step.taskId)) byTask.set(step.taskId, []); byTask.get(step.taskId).push(step); });
+      items = this.db.prepare(`
+        SELECT id, title, description, status, priority, due_at AS dueAt
+        FROM tasks WHERE deleted_at IS NULL ORDER BY id
+      `).all().map((task) => ({ ...task, steps: byTask.get(task.id) || [] }));
+    } else if (domain === 'organizer') {
+      items = this.db.prepare(`
+        SELECT id, type, parent_id AS parentId, title, body, status,
+          scheduled_start_at AS scheduledStartAt, scheduled_end_at AS scheduledEndAt,
+          due_at AS dueAt, duration_seconds AS durationSeconds, recurrence_json AS recurrenceJson,
+          tags_json AS tagsJson FROM organizer_items WHERE deleted_at IS NULL ORDER BY id
+      `).all().map((item) => ({ ...item, recurrence: item.recurrenceJson ? JSON.parse(item.recurrenceJson) : null, tags: JSON.parse(item.tagsJson) }));
+    } else {
+      items = this.db.prepare(`
+        SELECT id, title, body, format, tags_json AS tagsJson
+        FROM retained_text WHERE deleted_at IS NULL ORDER BY id
+      `).all().map((item) => ({ ...item, tags: JSON.parse(item.tagsJson) }));
+    }
+    return { schemaVersion: 1, domain, revision, items };
+  }
+
+  importContinuitySnapshots(snapshots = {}) {
+    const domains = Object.keys(snapshots).filter((domain) => CONTINUITY_DOMAINS.has(domain));
+    if (!domains.length) v.fail('INVALID_INPUT', 'No continuity domains were selected');
+    const contentCount = this.db.prepare(`
+      SELECT (SELECT COUNT(*) FROM tasks) + (SELECT COUNT(*) FROM organizer_items) + (SELECT COUNT(*) FROM retained_text) AS count
+    `).get().count;
+    if (contentCount > 0) v.fail('RESTORE_NOT_ALLOWED', 'Continuity can only restore an empty local database');
+    return this._writeDomains(domains, (timestamp) => {
+      for (const task of snapshots.tasks?.items || []) {
+        this.db.prepare(`INSERT INTO tasks (id, title, description, status, priority, due_at, automated, created_at, updated_at, revision)
+          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 1)`)
+          .run(task.id, task.title || '', task.description || '', task.status || 'pending', task.priority || 'normal', task.dueAt || null, timestamp, timestamp);
+        for (const step of task.steps || []) this.db.prepare(`INSERT INTO task_steps
+          (id, task_id, title, status, position, completed_at, created_at, updated_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`)
+          .run(step.id, task.id, step.title || '', step.status || 'pending', step.position || 0, step.completedAt || null, timestamp, timestamp);
+      }
+      for (const item of snapshots.organizer?.items || []) this.db.prepare(`INSERT INTO organizer_items
+        (id, type, parent_id, title, body, status, scheduled_start_at, scheduled_end_at, due_at, duration_seconds,
+          recurrence_json, tags_json, created_at, updated_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`)
+        .run(item.id, item.type, null, item.title || '', item.body || '', item.status || null,
+          item.scheduledStartAt || null, item.scheduledEndAt || null, item.dueAt || null, item.durationSeconds || null,
+          item.recurrence == null ? null : JSON.stringify(item.recurrence), JSON.stringify(item.tags || []), timestamp, timestamp);
+      for (const item of snapshots.organizer?.items || []) {
+        if (item.parentId) this.db.prepare('UPDATE organizer_items SET parent_id = ? WHERE id = ?').run(item.parentId, item.id);
+      }
+      for (const item of snapshots.retainedText?.items || []) this.db.prepare(`INSERT INTO retained_text
+        (id, title, body, format, tags_json, created_at, updated_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`)
+        .run(item.id, item.title || '', item.body || '', item.format || 'plain', JSON.stringify(item.tags || []), timestamp, timestamp);
+      return { restored: Object.fromEntries(domains.map((domain) => [domain, snapshots[domain]?.items?.length || 0])) };
+    });
+  }
+
+  listSharedTextMirrors(ownerAppId = null) {
+    this._assertReady();
+    const args = [];
+    const ownerClause = ownerAppId ? 'AND owner_app_id = ?' : '';
+    if (ownerAppId) args.push(v.identifier(ownerAppId, 'ownerAppId'));
+    return this.db.prepare(`SELECT owner_app_id AS ownerAppId, remote_id AS remoteId, type,
+      payload_json AS payloadJson, remote_revision AS remoteRevision, updated_at AS updatedAt
+      FROM shared_text_mirrors WHERE deleted_at IS NULL ${ownerClause} ORDER BY updated_at DESC`).all(...args)
+      .map((row) => ({ ...row, payload: JSON.parse(row.payloadJson) }));
+  }
+
+  saveSharedTextMirror(input = {}) {
+    const ownerAppId = v.identifier(input.ownerAppId, 'ownerAppId');
+    if (ownerAppId === 'briizos.local') v.fail('INVALID_AUTHORITY', 'Local-owned shared text is projected from local core tables');
+    const remoteId = v.string(input.remoteId, 'remoteId', { required: true, max: 200 });
+    const type = v.oneOf(input.type, 'type', SHARED_TEXT_TYPES);
+    const remoteRevision = v.integer(input.remoteRevision, 'remoteRevision', { min: 1 });
+    const payloadJson = this._jsonValue(input.payload || {}, 'shared text payload', 500000);
+    return this._write('sharedText', (timestamp) => {
+      this.db.prepare(`INSERT INTO shared_text_mirrors
+        (owner_app_id, remote_id, type, payload_json, remote_revision, created_at, updated_at, revision, deleted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NULL)
+        ON CONFLICT(owner_app_id, remote_id) DO UPDATE SET type = excluded.type, payload_json = excluded.payload_json,
+          remote_revision = excluded.remote_revision, updated_at = excluded.updated_at,
+          revision = shared_text_mirrors.revision + 1, deleted_at = NULL
+        WHERE excluded.remote_revision > shared_text_mirrors.remote_revision`)
+        .run(ownerAppId, remoteId, type, payloadJson, remoteRevision, timestamp, timestamp);
+      return { row: this.listSharedTextMirrors(ownerAppId).find((item) => item.remoteId === remoteId) };
+    });
+  }
+
+  importSharedTextMirror(ownerAppId, remoteId) {
+    ownerAppId = v.identifier(ownerAppId, 'ownerAppId');
+    remoteId = v.string(remoteId, 'remoteId', { required: true, max: 200 });
+    const mirror = this.listSharedTextMirrors(ownerAppId).find((item) => item.remoteId === remoteId);
+    if (!mirror) v.fail('NOT_FOUND', 'Shared text item not found');
+    const payload = mirror.payload || {};
+    if (mirror.type === 'task') return this.createTask({
+      title: payload.title || 'Imported task', description: payload.description || payload.body || '',
+      status: payload.status || 'pending', priority: payload.priority || 'normal', dueAt: payload.dueAt || null,
+    });
+    if (mirror.type === 'retained_text') return this._write('retainedText', (timestamp) => {
+      const rowId = id();
+      this.db.prepare(`INSERT INTO retained_text (id, title, body, format, tags_json, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)`).run(rowId, payload.title || '', payload.body || '', payload.format || 'plain', JSON.stringify(payload.tags || []), timestamp, timestamp);
+      return { row: this.db.prepare('SELECT id, title, body, format, revision FROM retained_text WHERE id = ?').get(rowId) };
+    });
+    return this.createOrganizerItem({
+      type: mirror.type, title: payload.title || '', body: payload.body || '', status: payload.status || null,
+      scheduledStartAt: payload.scheduledStartAt || null, scheduledEndAt: payload.scheduledEndAt || null,
+      dueAt: payload.dueAt || null, durationSeconds: payload.durationSeconds || null,
+    });
+  }
+
+  buildLocalSharedTextProjection() {
+    const tasks = this.db.prepare(`SELECT id, title, description, status, priority, due_at AS dueAt, revision, updated_at AS updatedAt
+      FROM tasks WHERE deleted_at IS NULL ORDER BY id`).all().map((item) => ({ ...item, type: 'task' }));
+    const organizer = this.db.prepare(`SELECT id, type, title, body, status, scheduled_start_at AS scheduledStartAt,
+      scheduled_end_at AS scheduledEndAt, due_at AS dueAt, duration_seconds AS durationSeconds, revision, updated_at AS updatedAt
+      FROM organizer_items WHERE deleted_at IS NULL ORDER BY id`).all();
+    const retained = this.db.prepare(`SELECT id, title, body, format, revision, updated_at AS updatedAt
+      FROM retained_text WHERE deleted_at IS NULL ORDER BY id`).all().map((item) => ({ ...item, type: 'retained_text' }));
+    return [...tasks, ...organizer, ...retained];
   }
 
   _normalizeProjectId(value) {

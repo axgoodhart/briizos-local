@@ -18,7 +18,6 @@ import { OrganizerProvider } from './context/OrganizerContext';
 import { ChatSettingsProvider } from './context/ChatSettingsContext';
 import { ToolProvider, useTools } from './context/ToolContext';
 import { useAppContext } from './hooks/useAppContext';
-import { useAgentWorkers } from './hooks/useAgentWorkers';
 import { useToolBridge } from './hooks/useToolBridge';
 import { useTaskAutomation } from './hooks/useTaskAutomation';
 
@@ -212,7 +211,6 @@ function AppContent({ layout }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { executeTool } = useTools();
   const appContext = useAppContext();
-  useAgentWorkers(executeTool, appContext);
   useToolBridge(executeTool, appContext);
   useTaskAutomation();
 

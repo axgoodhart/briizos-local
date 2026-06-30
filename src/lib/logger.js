@@ -5,7 +5,6 @@
  * 1. Terminal (via IPC)
  * 2. In-memory buffer (for SourcesPanel Log Overlay)
  * 3. SQLite (persistent - survives app restart)
- * 4. Firestore (synced - cross-device)
  *
  * Usage:
  * import log from '../lib/logger';
@@ -97,39 +96,13 @@ function sendToTerminal(level, category, message, data) {
 }
 
 // ---------------------------------------------------------------------------
-// Firestore persistence — writes are fire-and-forget, batched via queue
-// ---------------------------------------------------------------------------
-let firestoreWriter = null;
-
-/**
- * Register the Firestore write function. Called once from firestore.js
- * after Firebase is initialized. This avoids circular imports.
- */
-export function registerFirestoreWriter(writerFn) {
-  firestoreWriter = writerFn;
-}
-
-// ---------------------------------------------------------------------------
 // Local SQLite persistence — logs survive app restart
 // ---------------------------------------------------------------------------
 function writeToLocalDb(entry) {
   try {
-    if (window.api?.localDbInsertLog) {
-      window.api.localDbInsertLog(entry);
-    }
+    window.api?.localData?.logs?.append(entry).catch(() => {});
   } catch (e) {
     // Never let local DB writes break the app
-  }
-}
-
-function writeToFirestore(entry) {
-  if (firestoreWriter) {
-    try {
-      firestoreWriter(entry);
-    } catch (e) {
-      // Never let log persistence break the app
-      sendToTerminal('error', 'logger', 'Firestore log write failed', e?.message);
-    }
   }
 }
 
@@ -297,9 +270,6 @@ function log(type, message, data, opts = {}) {
 
   // 3. Local SQLite (persistent, survives app restart)
   writeToLocalDb(entry);
-
-  // 4. Firestore (async, fire-and-forget — cross-deployment sync)
-  writeToFirestore(entry);
 
   return entry;
 }

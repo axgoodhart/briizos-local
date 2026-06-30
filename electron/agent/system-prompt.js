@@ -13,10 +13,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const yaml = require('js-yaml');
 
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
-const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
 const DEFAULT_DEER_HOME = process.env.DEER_FLOW_HOME
   ? path.resolve(process.env.DEER_FLOW_HOME)
   : path.join(AGENT_DIR, '.deer-flow');
@@ -26,16 +24,12 @@ function setLocalDataService(service) {
   localDataService = service;
 }
 
-function readYaml(filePath) {
-  try {
-    return yaml.load(fs.readFileSync(filePath, 'utf8')) || {};
-  } catch {
-    return {};
-  }
-}
-
 function getConfig() {
-  return readYaml(CONFIG_PATH);
+  const local = localDataService?.getSetting?.('agent_config')?.value || {};
+  return {
+    skills: { path: './skills', container_path: '/mnt/skills' },
+    memory: { enabled: true, injection_enabled: true, max_injection_tokens: 2000, ...(local.memory || {}) },
+  };
 }
 
 function todayLocal() {

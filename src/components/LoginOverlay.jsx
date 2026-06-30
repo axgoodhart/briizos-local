@@ -87,7 +87,7 @@ function LoginOverlay() {
     );
   }
 
-  if (isAuthenticated && !visible) {
+  if (!visible) {
     return null;
   }
 
@@ -140,6 +140,9 @@ function LoginOverlay() {
           >
             {isSubmitting ? 'LOADING...' : isSignup ? 'CREATE ACCOUNT' : 'INITIALIZE SYSTEM'}
           </button>
+          <button type="button" className="login-btn" onClick={() => setVisible(false)} disabled={isSubmitting}>
+            CONTINUE OFFLINE
+          </button>
         </form>
 
         {/* Toggle Mode */}
@@ -151,7 +154,7 @@ function LoginOverlay() {
 
         {/* Info Footer */}
         <div className="login-info">
-          Secure cloud synchronization &bull; Real-time collaboration &bull; Cross-device access
+          Local work is always available; sign-in adds recovery and remote task requests.
           <br />
           <span className="login-footer-author">by alexgoodh.art</span>
         </div>

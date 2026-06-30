@@ -342,7 +342,15 @@ export function useTaskAutomation() {
 
       // Already approved this session, or already processing → proceed.
       if (taskPolicyRef.current.has(task.id)) {
-        processTask(task);
+        const accepted = await api.localData.automation.acceptCommand({
+          idempotencyKey: `task:${task.id}:${task.revision}`,
+          source: 'local',
+          instruction: task.title,
+          contextText: task.description || null,
+          requestedAt: Date.now(),
+          taskId: task.id,
+        });
+        if (!accepted.duplicate) api.automationExecuteRun(accepted.run.id, taskPolicyRef.current.get(task.id));
         return;
       }
       // Suppress duplicate permission prompts from snapshot echoes.
@@ -350,7 +358,17 @@ export function useTaskAutomation() {
       pendingPermissionRef.current.add(task.id);
       try {
         const policy = await requestTaskPermission(task);
-        if (policy) processTask(task);
+        if (policy) {
+          const accepted = await api.localData.automation.acceptCommand({
+            idempotencyKey: `task:${task.id}:${task.revision}`,
+            source: 'local',
+            instruction: task.title,
+            contextText: task.description || null,
+            requestedAt: Date.now(),
+            taskId: task.id,
+          });
+          if (!accepted.duplicate) api.automationExecuteRun(accepted.run.id, policy);
+        }
       } finally {
         pendingPermissionRef.current.delete(task.id);
       }

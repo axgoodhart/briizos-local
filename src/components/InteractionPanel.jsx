@@ -8,7 +8,6 @@ import { useTools } from '../context/ToolContext';
 import ConfirmationToast from './ConfirmationToast';
 import { onChatReturn } from '../lib/bfast-queue';
 import { formatMargerinLabel } from '../lib/bfast-format';
-import { addLog } from '../lib/firestore';
 import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
 import { useModelSelection } from '../hooks/useModelSelection';

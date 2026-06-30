@@ -60,6 +60,15 @@ const CHANNELS = Object.freeze({
   recorderAddEvent: 'local-data:recorder:add-event',
   recorderRename: 'local-data:recorder:rename',
   recorderArchive: 'local-data:recorder:archive',
+  commandsAccept: 'local-data:commands:accept',
+  runsList: 'local-data:runs:list',
+  runsGet: 'local-data:runs:get',
+  runsTransition: 'local-data:runs:transition',
+  sharedTextList: 'local-data:shared-text:list',
+  sharedTextImport: 'local-data:shared-text:import',
+  logsAppend: 'local-data:logs:append',
+  continuityStatus: 'local-data:continuity:status',
+  continuityRestore: 'local-data:continuity:restore',
   changed: 'data:changed',
 });
 
@@ -131,6 +140,13 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
     [CHANNELS.recorderAddEvent, (sessionId, eventType, data) => service.addRecorderEvent(sessionId, eventType, data)],
     [CHANNELS.recorderRename, (sessionId, name) => service.renameRecorderSession(sessionId, name)],
     [CHANNELS.recorderArchive, (sessionId) => service.archiveRecorderSession(sessionId)],
+    [CHANNELS.commandsAccept, (input) => service.acceptCommand(input)],
+    [CHANNELS.runsList, (filters) => service.listRuns(filters)],
+    [CHANNELS.runsGet, (runId) => service.getRun(runId)],
+    [CHANNELS.runsTransition, (runId, status, input) => service.transitionRun(runId, status, input)],
+    [CHANNELS.sharedTextList, (ownerAppId) => service.listSharedTextMirrors(ownerAppId)],
+    [CHANNELS.sharedTextImport, (ownerAppId, remoteId) => service.importSharedTextMirror(ownerAppId, remoteId)],
+    [CHANNELS.logsAppend, (input) => service.appendLog(input)],
   ];
 
   for (const [channel, operation] of registrations) {

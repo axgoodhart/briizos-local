@@ -19,14 +19,12 @@ const { Command, interrupt, writer } = require('@langchain/langgraph');
 const { createReactAgent } = require('@langchain/langgraph/prebuilt');
 const { getCheckpointer } = require('./checkpointer');
 const { z } = require('zod');
-const yaml = require('js-yaml');
 const { callRendererTool } = require('./bridge');
 const { ThreadState } = require('./state');
 const { createChatModel } = require('./models');
 const { getSkillsPromptSection } = require('./system-prompt');
 
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
-const CONFIG_PATH = path.join(AGENT_DIR, 'config.yaml');
 const GRAPH_CONFIRMED_KEY = '__agentGraphConfirmed';
 
 const DESTRUCTIVE_TOOLS = new Set([
@@ -81,7 +79,7 @@ function formatResult(result) {
 }
 
 function readAgentConfig() {
-  try { return yaml.load(fs.readFileSync(CONFIG_PATH, 'utf8')) || {}; } catch { return {}; }
+  return { skills: { path: './skills', container_path: '/mnt/skills' } };
 }
 
 function resolveSkillsRoot(config = readAgentConfig()) {
