@@ -60,6 +60,11 @@ const Icon = {
       <path d="M12 3.6 4 10.4V20a1 1 0 0 0 1 1h4.6v-5.4h4.8V21H19a1 1 0 0 0 1-1v-9.6L12 3.6z" />
     </svg>
   ),
+  trash: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+    </svg>
+  ),
 };
 
 /* ── Create modal ────────────────────────────────────────────────────── */
@@ -246,6 +251,7 @@ export function JournalPanel() {
   const [selectedId, setSelectedId] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const searchRef = useRef(null);
@@ -275,6 +281,31 @@ export function JournalPanel() {
     setJournals((prev) => [...prev, created]);
     setSelectedId(created.id);
     logger.info('journal', 'Journal created', { id: created.id, title: created.title });
+  };
+
+  const selectedJournal = journals.find((journal) => journal.id === selectedId);
+
+  const handleDelete = async () => {
+    if (!selectedJournal || deleting) return;
+    const folioLabel = selectedJournal.folioCount === 1 ? '1 folio' : `${selectedJournal.folioCount || 0} folios`;
+    const confirmed = window.confirm(
+      `Delete “${selectedJournal.title}” and its ${folioLabel}?\n\nThis cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await api.delete(selectedJournal.id);
+      setJournals((prev) => prev.filter((journal) => journal.id !== selectedJournal.id));
+      setSelectedId(null);
+      setOpenId(null);
+      logger.info('journal', 'Journal deleted', { id: selectedJournal.id, title: selectedJournal.title });
+    } catch (err) {
+      logger.error('journal', 'journals:delete failed', err?.message);
+      window.alert(`Could not delete “${selectedJournal.title}”. Please try again.`);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const openJournal = journals.find((j) => j.id === openId);
@@ -311,6 +342,16 @@ export function JournalPanel() {
               </button>
               <button type="button" className="jr-action is-stub" title="Chat (coming soon)" disabled>
                 {Icon.chat}
+              </button>
+              <button
+                type="button"
+                className="jr-action jr-action--danger"
+                title={selectedJournal ? `Delete ${selectedJournal.title}` : 'Select a journal to delete it'}
+                aria-label={selectedJournal ? `Delete ${selectedJournal.title}` : 'Select a journal to delete it'}
+                disabled={!selectedJournal || deleting}
+                onClick={handleDelete}
+              >
+                {Icon.trash}
               </button>
               <button type="button" className="jr-action jr-action--current" title="Home" disabled>
                 {Icon.home}

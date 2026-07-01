@@ -28,6 +28,14 @@ export const api = {
     return Promise.resolve(j);
   },
 
+  delete: (journalId) => {
+    if (window.api?.journalsDelete) return window.api.journalsDelete(journalId);
+    const index = memJournals.findIndex((journal) => journal.id === journalId);
+    if (index >= 0) memJournals.splice(index, 1);
+    delete memFolios[journalId];
+    return Promise.resolve({ ok: true });
+  },
+
   foliosList: (journalId) =>
     window.api?.foliosList
       ? window.api.foliosList(journalId)

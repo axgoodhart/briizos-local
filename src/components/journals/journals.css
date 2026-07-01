@@ -73,6 +73,24 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
   cursor: default;
 }
 
+.jr-action:disabled:not(.jr-action--current) {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.jr-action--danger:not(:disabled) {
+  color: #ff9a9a;
+  border-color: rgba(255, 110, 110, 0.35);
+}
+
+.jr-action--danger:hover:not(:disabled),
+.jr-action--danger:focus-visible {
+  color: #fff;
+  background: rgba(160, 30, 30, 0.72);
+  border-color: rgba(255, 150, 150, 0.8);
+  box-shadow: 0 0 14px rgba(255, 70, 70, 0.28);
+}
+
 /* The "you are here" home button — solid white like the mockup */
 .jr-action--current {
   background: #fff;
