@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -33,13 +33,15 @@ const toPercentSize = (value, fallbackPercent) => {
 /**
  * DraggablePanel - Wrapper with zone-based drop detection and visual overlay.
  */
-function DraggablePanel({ panelId, children, onDrop }) {
+function DraggablePanel({ panelId, children, onDrop, isFullscreen, onToggleFullscreen, onActivate }) {
   const wrapperRef = useRef(null);
   const [dropZone, setDropZone] = useState(null);
+  const [fullscreenBounds, setFullscreenBounds] = useState(null);
 
   const [{ isDragging }, drag] = useDrag({
     type: PANEL_TYPE,
     item: { id: panelId },
+    canDrag: () => !isFullscreen,
     collect: (monitor) => ({
       isDragging: monitor.isDragging()
     })
@@ -92,10 +94,47 @@ function DraggablePanel({ panelId, children, onDrop }) {
     };
   }, [drag, drop, panelId]);
 
+  useLayoutEffect(() => {
+    if (!isFullscreen) {
+      setFullscreenBounds(null);
+      return undefined;
+    }
+
+    const measure = () => {
+      const main = wrapperRef.current?.closest('.app-main');
+      const rect = main?.getBoundingClientRect();
+      if (!rect) return;
+      setFullscreenBounds({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [isFullscreen]);
+
+  const handleDoubleClick = (event) => {
+    const header = event.target.closest('.panel-header, .actiondeck-header');
+    if (!header || !wrapperRef.current?.contains(header)) return;
+    if (event.target.closest('button, input, textarea, select, a, [contenteditable="true"]')) return;
+    event.preventDefault();
+    onToggleFullscreen?.(panelId);
+  };
+
   return (
     <div
       ref={wrapperRef}
-      className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver && dropZone ? 'drop-target' : ''}`}
+      className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver && dropZone ? 'drop-target' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
+      style={isFullscreen && fullscreenBounds ? fullscreenBounds : undefined}
+      onPointerDown={() => onActivate?.(panelId)}
+      onFocusCapture={() => onActivate?.(panelId)}
+      onDoubleClick={handleDoubleClick}
+      role={isFullscreen ? 'region' : undefined}
+      aria-label={isFullscreen ? `${panelId} panel, fullscreen` : undefined}
     >
       {children}
       {isOver && dropZone && (
@@ -122,6 +161,9 @@ export function TileLayout({
   onColumnResize,
   onStackResize,
   onMovePanel,
+  fullscreenPanelId,
+  onTogglePanelFullscreen,
+  onActivatePanel,
   className = ''
 }) {
   tileLayoutRenderCount++;
@@ -207,7 +249,13 @@ export function TileLayout({
               >
                 {column.panels.length === 1 ? (
                   // Single panel column — render at full height
-                  <DraggablePanel panelId={column.panels[0].panelId} onDrop={handleDrop}>
+                  <DraggablePanel
+                    panelId={column.panels[0].panelId}
+                    onDrop={handleDrop}
+                    isFullscreen={fullscreenPanelId === column.panels[0].panelId}
+                    onToggleFullscreen={onTogglePanelFullscreen}
+                    onActivate={onActivatePanel}
+                  >
                     {renderPanel ? renderPanel(column.panels[0]) : (
                       <div className="panel-content">
                         <div className="widget-empty">Panel: {column.panels[0].type}</div>
@@ -221,6 +269,9 @@ export function TileLayout({
                     renderPanel={renderPanel}
                     onStackResize={handleStackResize}
                     onDrop={handleDrop}
+                    fullscreenPanelId={fullscreenPanelId}
+                    onTogglePanelFullscreen={onTogglePanelFullscreen}
+                    onActivatePanel={onActivatePanel}
                   />
                 )}
               </Panel>
@@ -239,7 +290,15 @@ export function TileLayout({
 /**
  * StackColumn - Renders a vertical stack of panels within a column.
  */
-function StackColumn({ column, renderPanel, onStackResize, onDrop }) {
+function StackColumn({
+  column,
+  renderPanel,
+  onStackResize,
+  onDrop,
+  fullscreenPanelId,
+  onTogglePanelFullscreen,
+  onActivatePanel,
+}) {
   const defaultStackLayout = useMemo(() => {
     const layout = {};
     column.panels.forEach(p => {
@@ -272,7 +331,13 @@ function StackColumn({ column, renderPanel, onStackResize, onDrop }) {
             maxSize="95%"
             className="resizable-panel"
           >
-            <DraggablePanel panelId={panel.panelId} onDrop={onDrop}>
+            <DraggablePanel
+              panelId={panel.panelId}
+              onDrop={onDrop}
+              isFullscreen={fullscreenPanelId === panel.panelId}
+              onToggleFullscreen={onTogglePanelFullscreen}
+              onActivate={onActivatePanel}
+            >
               {renderPanel ? renderPanel(panel) : (
                 <div className="panel-content">
                   <div className="widget-empty">Panel: {panel.type}</div>

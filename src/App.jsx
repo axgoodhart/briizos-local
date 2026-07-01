@@ -258,6 +258,8 @@ function AppContent({ layout }) {
   // (separate from the AI-driven canvasData path). Shape:
   // { filename, title, rawHtml }
   const [floatingCanvas, setFloatingCanvas] = useState(null);
+  const [activePanelId, setActivePanelId] = useState(null);
+  const [fullscreenPanelId, setFullscreenPanelId] = useState(null);
   const canvasesHook = useCanvases();
 
   useEffect(() => {
@@ -301,6 +303,11 @@ function AppContent({ layout }) {
   const notefallsPanel = getPanelByType('notefalls');
   const forestPanel = getPanelByType('forest');
   const actionDeckOpen = actionDeckFloating || actionDeckPanel?.visible === true;
+
+  const togglePanelFullscreen = useCallback((panelId) => {
+    setFullscreenPanelId((current) => current === panelId ? null : panelId);
+    if (panelId) setActivePanelId(panelId);
+  }, []);
 
   const getActionDeckPanelSettings = useCallback(() => (
     loadPanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS)
@@ -786,7 +793,15 @@ function AppContent({ layout }) {
     { key: 'j', label: 'Toggle Journal', run: () => openJournalPanel() },
     { key: 'l', label: 'Toggle Notefalls', run: () => openNotefallsPanel() },
     { key: 'f', label: 'Toggle Forest', run: () => openForestPanel() },
-  ], [toggleActionDeck, openJournalPanel, openNotefallsPanel, openForestPanel]);
+    {
+      key: 'x',
+      label: 'Toggle active panel fullscreen',
+      run: () => {
+        if (fullscreenPanelId) setFullscreenPanelId(null);
+        else if (activePanelId) togglePanelFullscreen(activePanelId);
+      },
+    },
+  ], [toggleActionDeck, openJournalPanel, openNotefallsPanel, openForestPanel, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
 
   useEffect(() => {
     // Don't hijack Cmd/Ctrl+Shift+<letter> while the user is typing —
@@ -806,7 +821,9 @@ function AppContent({ layout }) {
 
       // Escape closes topmost overlay
       if (e.key === 'Escape') {
-        if (canvasesPopoverOpen) {
+        if (fullscreenPanelId) {
+          setFullscreenPanelId(null);
+        } else if (canvasesPopoverOpen) {
           setCanvasesPopoverOpen(false);
         } else if (canvasOpen) {
           setCanvasOpen(false);
@@ -828,7 +845,7 @@ function AppContent({ layout }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen]);
+  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, fullscreenPanelId]);
 
   // Listen for canvas events from tool system
   useEffect(() => {
@@ -972,6 +989,9 @@ function AppContent({ layout }) {
           onColumnResize={updateColumnSizes}
           onStackResize={updateStackSizes}
           onMovePanel={movePanel}
+          fullscreenPanelId={fullscreenPanelId}
+          onTogglePanelFullscreen={togglePanelFullscreen}
+          onActivatePanel={setActivePanelId}
         />
       </main>
 
