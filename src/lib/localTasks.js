@@ -1,6 +1,6 @@
 import logger from './logger';
 
-const tasksApi = () => window.api.localData.tasks;
+const tasksApi = () => window.api?.localData?.tasks;
 
 export async function getTask(taskId) {
   return tasksApi().get(taskId);
@@ -64,11 +64,11 @@ export function subscribeAutomatedTasks(callback) {
     }
   };
   scan();
-  const unsubscribe = window.api.localData.onChanged((change) => {
+  const unsubscribe = window.api?.localData?.onChanged?.((change) => {
     if (change?.domains?.includes('tasks')) scan();
   });
   return () => {
     active = false;
-    unsubscribe();
+    unsubscribe?.();
   };
 }

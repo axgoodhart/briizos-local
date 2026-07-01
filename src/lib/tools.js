@@ -1,7 +1,7 @@
 import { updateTask } from './localTasks';
 import logger from './logger';
 
-const localData = () => window.api.localData;
+const localData = () => window.api?.localData;
 
 async function getNotes() {
   return localData().stickyNotes.list();

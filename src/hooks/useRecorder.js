@@ -21,10 +21,10 @@ export function useRecorder() {
       setIsLoading(false);
     });
 
-    const unsubscribe = window.api.localData.onChanged((change) => {
+    const unsubscribe = window.api?.localData?.onChanged?.((change) => {
       if (change?.domains?.includes('recorder')) fetchSessions().catch(() => {});
     });
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, [fetchSessions]);
 
   // Start recording a new session

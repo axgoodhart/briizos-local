@@ -38,8 +38,8 @@ export function ChatSettingsProvider({ children }) {
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
-      window.api.localData.settings.set('chat_config', state)
-        .catch(err => logger.error('config', 'Local chat settings save failed', err?.message));
+      window.api?.localData?.settings?.set('chat_config', state)
+        ?.catch(err => logger.error('config', 'Local chat settings save failed', err?.message));
     }, 2000);
 
     return () => {
@@ -49,7 +49,14 @@ export function ChatSettingsProvider({ children }) {
 
   // Clean-slate load from briizos.db only.
   useEffect(() => {
-    window.api.localData.settings.get('chat_config').then((saved) => {
+    // Bridge is only present in the Electron renderer; if absent, hydrate with
+    // defaults so the app still renders instead of crashing at mount.
+    const pending = window.api?.localData?.settings?.get('chat_config');
+    if (!pending) {
+      setIsHydrated(true);
+      return;
+    }
+    pending.then((saved) => {
       if (saved?.value) setState({ ...DEFAULT_STATE, ...saved.value });
     }).catch(err => logger.error('config', 'Local chat settings load failed', err?.message))
       .finally(() => setIsHydrated(true));

@@ -49,9 +49,13 @@ export function OrganizerProvider({ children }) {
 
   useEffect(() => {
     loadItems();
-    return window.api.localData.onChanged((change) => {
+    // The local-data bridge is only present in the Electron renderer (via
+    // preload). Guard the subscription so a missing bridge degrades to an
+    // empty organizer instead of crashing the whole app at mount.
+    const unsubscribe = window.api?.localData?.onChanged?.((change) => {
       if (change?.domains?.includes('organizer')) loadItems();
     });
+    return unsubscribe;
   }, [loadItems]);
 
   const items = orgItems;

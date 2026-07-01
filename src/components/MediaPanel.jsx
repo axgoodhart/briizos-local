@@ -228,7 +228,7 @@ function MediaPanel({
       ? persistableTracks.findIndex((track) => track.sourceLocation === activeSourceLocation)
       : -1;
 
-    window.api.localData.media.save({
+    window.api?.localData?.media?.save({
       tracks: persistableTracks.map((track) => ({
         path: track.sourceLocation,
         displayName: track.name,

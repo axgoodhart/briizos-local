@@ -41,12 +41,12 @@ export function useAppContext() {
       }
     };
     load();
-    const unsubscribe = window.api.localData.onChanged((change) => {
+    const unsubscribe = window.api?.localData?.onChanged?.((change) => {
       if (change?.domains?.some((domain) => domain === 'tasks' || domain === 'organizer')) load();
     });
     return () => {
       active = false;
-      unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
