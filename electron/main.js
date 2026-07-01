@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('ele
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const yaml = require('js-yaml');
 const { pathToFileURL, fileURLToPath } = require('url');
 const { logger, registerLoggerIPC } = require('./logger');
 const filesystem = require('./filesystem');
@@ -331,6 +332,28 @@ const DEFAULT_SKILLS_CONFIG = Object.freeze({
   'find-skills': false, 'surprise-me': false,
   'claude-to-deerflow': false, 'vercel-deploy': false,
 });
+
+function bootstrapBundledModelCredentials() {
+  if (localDataService.getAppMeta('bundled_model_credentials_bootstrapped') === '1') return;
+  const configPath = path.join(__dirname, '..', 'agent', 'config.yaml');
+  if (!fs.existsSync(configPath)) return;
+  const config = yaml.load(fs.readFileSync(configPath, 'utf8')) || {};
+  const credentials = {};
+  for (const model of config.models || []) {
+    const use = String(model.use || '').toLowerCase();
+    if (use.includes('anthropic') && model.api_key) credentials.claude ||= model.api_key;
+    if (use.includes('openai') && model.api_key) credentials.openai ||= model.api_key;
+    if ((use.includes('google') || use.includes('gemini')) && model.google_api_key) credentials.gemini ||= model.google_api_key;
+  }
+  for (const [provider, credential] of Object.entries(credentials)) {
+    if (!localDataService.getProviderKeyStatus()[provider]) {
+      localDataService.setProviderApiKey(provider, String(credential));
+    }
+  }
+  if (Object.keys(credentials).length) {
+    localDataService.setAppMeta('bundled_model_credentials_bootstrapped', '1');
+  }
+}
 
 function readLocalAgentConfig() {
   const canonical = localDataService?.getSetting('agent_config')?.value || DEFAULT_AGENT_CONFIG;
@@ -929,6 +952,7 @@ app.whenReady().then(() => {
   });
   localDataService.initialize();
   localDataService.ensureDefaultModelProfiles();
+  bootstrapBundledModelCredentials();
   if (!localDataService.getSetting('agent_config')) {
     localDataService.setSetting('agent_config', DEFAULT_AGENT_CONFIG);
   }

@@ -5,6 +5,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
+const { BUILT_IN_MODELS } = require('./built-in-models');
 
 const TASK_STATUSES = [
   'pending', 'created', 'running', 'in_progress', 'active', 'waiting',
@@ -256,24 +257,43 @@ class LocalDataService extends EventEmitter {
 
   ensureDefaultModelProfiles() {
     this._assertReady();
-    const count = this.db.prepare('SELECT COUNT(*) AS count FROM model_profiles WHERE deleted_at IS NULL').get().count;
-    if (count) return this.listModelProfiles();
-    const defaults = [
-      { name: 'gemini-2.5-flash', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 8192, supportsThinking: false },
-      { name: 'claude-sonnet-4-5', provider: 'claude', model: 'claude-sonnet-4-5-20250929', maxTokens: 8192, supportsThinking: true },
-      { name: 'gpt-5.4', provider: 'openai', model: 'gpt-5.4', maxTokens: 8192, supportsThinking: true },
-    ];
+    const existing = new Map(this.db.prepare(`
+      SELECT name, provider, model, settings_json, deleted_at FROM model_profiles
+    `).all().map((row) => [row.name, row]));
+    const obsoleteSeeds = ['gemini-2.5-flash', 'claude-sonnet-4-5', 'gpt-5.4'];
+    const needsUpdate = BUILT_IN_MODELS.some((profile) => {
+      const row = existing.get(profile.name);
+      const settings = JSON.stringify({
+        displayName: profile.displayName,
+        maxTokens: profile.maxTokens,
+        supportsVision: profile.supportsVision,
+        supportsThinking: profile.supportsThinking,
+        thinking: profile.thinking || null,
+      });
+      return !row || row.deleted_at != null || row.provider !== profile.provider
+        || row.model !== profile.model || row.settings_json !== settings;
+    }) || obsoleteSeeds.some((name) => existing.get(name)?.deleted_at == null);
+    if (!needsUpdate) return this.listModelProfiles();
     return this._write('settings', (timestamp) => {
-      defaults.forEach((profile, index) => {
+      BUILT_IN_MODELS.forEach((profile, index) => {
         this.db.prepare(`
           INSERT INTO model_profiles (
             id, name, provider, model, settings_json, is_default, created_at, updated_at, revision
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-        `).run(id(), profile.name, profile.provider, profile.model, JSON.stringify({
+          ON CONFLICT(name) DO UPDATE SET provider = excluded.provider, model = excluded.model,
+            settings_json = excluded.settings_json, is_default = excluded.is_default,
+            updated_at = excluded.updated_at, revision = model_profiles.revision + 1, deleted_at = NULL
+        `).run(`builtin:${profile.name}`, profile.name, profile.provider, profile.model, JSON.stringify({
+          displayName: profile.displayName,
           maxTokens: profile.maxTokens,
+          supportsVision: profile.supportsVision,
           supportsThinking: profile.supportsThinking,
+          thinking: profile.thinking || null,
         }), index === 0 ? 1 : 0, timestamp, timestamp);
       });
+      this.db.prepare(`UPDATE model_profiles SET deleted_at = ?, updated_at = ?, revision = revision + 1
+        WHERE name IN ('gemini-2.5-flash', 'claude-sonnet-4-5', 'gpt-5.4') AND deleted_at IS NULL`)
+        .run(timestamp, timestamp);
       return { rows: this.listModelProfiles() };
     });
   }
@@ -286,7 +306,7 @@ class LocalDataService extends EventEmitter {
     `).all().map((row) => ({
       id: row.id,
       name: row.name,
-      display_name: row.name,
+      display_name: JSON.parse(row.settings_json).displayName || row.name,
       provider: row.provider,
       model: row.model,
       isDefault: row.is_default === 1,
