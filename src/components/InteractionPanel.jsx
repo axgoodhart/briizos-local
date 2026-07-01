@@ -166,6 +166,10 @@ function classifyAssistantMessage(content) {
 }
 
 function InteractionPanel() {
+  const { provider, setProvider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur, getThemeChatBackground } = useChatSettings();
+  const { models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus, loading: modelsLoading } = useModelSelection();
+  const selectedProfile = models.find((model) => model.name === selectedModel) || null;
+  const selectedRequestSettings = selectedProfile?.provider === provider ? currentSettings?.params : null;
   const {
     messages,
     isLoading,
@@ -188,12 +192,10 @@ function InteractionPanel() {
     refreshFilesInContext,
     approveToolConfirmation,
     rejectToolConfirmation,
-  } = useChat();
+  } = useChat({ selectedModel, requestSettings: selectedRequestSettings });
 
   const lgStatus = 'running';
   const lgReady = true;
-  const { provider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur, getThemeChatBackground } = useChatSettings();
-
   // Resolve theme-specific chat background
   const [activeTheme, setActiveTheme] = useState(() => {
     if (typeof document !== 'undefined') {
@@ -203,6 +205,12 @@ function InteractionPanel() {
   });
   const [resolvedChatBg, setResolvedChatBg] = useState(chatBackground);
   const [resolvedChatBgBlur, setResolvedChatBgBlur] = useState(chatBgBlur);
+
+  useEffect(() => {
+    if (selectedProfile?.provider && selectedProfile.provider !== provider) {
+      setProvider(selectedProfile.provider);
+    }
+  }, [selectedProfile?.provider, provider, setProvider]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -230,8 +238,6 @@ function InteractionPanel() {
     setShowBgPicker(false);
   }, [setChatBackground]);
   const { pendingConfirmation, confirmAction, cancelAction } = useTools();
-  const { models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus, loading: modelsLoading } = useModelSelection();
-
   const [inputValue, setInputValue] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState(null); // { index, role, x, y }
@@ -328,6 +334,7 @@ function InteractionPanel() {
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (modelsLoading || !selectedModel) return;
     const message = inputValue.trim();
     if (!message || isLoading) return;
 
@@ -409,7 +416,7 @@ function InteractionPanel() {
     openai: 'OpenAI',
     gemini: 'Gemini',
     claude: 'Claude',
-  }[provider] || provider;
+  }[selectedProfile?.provider || provider] || selectedProfile?.provider || provider;
 
   return (
     <div ref={drop} className={`panel interaction-panel ${isOver && canDrop ? 'drop-active' : ''} ${canDrop ? 'can-drop' : ''}`}>
@@ -463,7 +470,7 @@ function InteractionPanel() {
 
 
         <div className="panel-header-actions">
-          <span className="provider-indicator" title={`${providerLabel} / ${currentSettings.model}`}>
+          <span className="provider-indicator" title={selectedProfile?.display_name || selectedModel || providerLabel}>
             {providerLabel}
           </span>
           <button 
@@ -947,13 +954,13 @@ function InteractionPanel() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading || !lgReady}
+            disabled={isLoading || !lgReady || modelsLoading || !selectedModel}
             rows={1}
           />
           <button
             className="chat-send-btn"
             onClick={handleSubmit}
-            disabled={!inputValue.trim() || isLoading || !lgReady}
+            disabled={!inputValue.trim() || isLoading || !lgReady || modelsLoading || !selectedModel}
           >
             {isLoading ? '...' : '\u2192'}
           </button>

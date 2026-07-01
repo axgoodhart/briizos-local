@@ -128,6 +128,10 @@ function agentKey(opts) {
   return [
     opts.modelName || '',
     !!opts.thinkingEnabled,
+    opts.temperature ?? '',
+    opts.topP ?? '',
+    opts.maxTokens ?? '',
+    opts.reasoningEffort || '',
     !!opts.planMode,
     !!opts.subagentEnabled,
     opts.maxConcurrentSubagents || 3,
@@ -140,6 +144,10 @@ function agentKey(opts) {
 function getOrBuildAgent({
   modelName,
   thinkingEnabled,
+  temperature,
+  topP,
+  maxTokens,
+  reasoningEffort,
   planMode,
   subagentEnabled,
   maxConcurrentSubagents,
@@ -150,6 +158,10 @@ function getOrBuildAgent({
   const key = agentKey({
     modelName,
     thinkingEnabled,
+    temperature,
+    topP,
+    maxTokens,
+    reasoningEffort,
     planMode,
     subagentEnabled,
     maxConcurrentSubagents,
@@ -160,7 +172,7 @@ function getOrBuildAgent({
   const cached = agentCache.get(key);
   if (cached) return cached;
 
-  const llm = createChatModel({ name: modelName, thinkingEnabled });
+  const llm = createChatModel({ name: modelName, thinkingEnabled, temperature, topP, maxTokens, reasoningEffort });
   const promptConfig = {
     planMode,
     subagentEnabled,
@@ -195,6 +207,10 @@ function getOrBuildAgent({
   logger.info('agent.build', 'lead_agent built', {
     modelName,
     thinkingEnabled,
+    temperature,
+    topP,
+    maxTokens,
+    reasoningEffort,
     planMode,
     subagentEnabled,
     maxConcurrentSubagents,
@@ -305,6 +321,10 @@ async function streamAgentInput({ threadId, input, config = {}, onEvent }) {
   const agent = getOrBuildAgent({
     modelName: config.model_name || config.model || null,
     thinkingEnabled: config.thinking_enabled ?? config.thinking ?? true,
+    temperature: Number.isFinite(config.temperature) ? config.temperature : null,
+    topP: Number.isFinite(config.top_p) ? config.top_p : null,
+    maxTokens: Number.isFinite(config.max_tokens) ? config.max_tokens : null,
+    reasoningEffort: config.reasoning_effort || null,
     planMode: !!(config.is_plan_mode ?? config.plan_mode),
     subagentEnabled: !!config.subagent_enabled,
     maxConcurrentSubagents: config.max_concurrent_subagents || 3,

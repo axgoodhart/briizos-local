@@ -81,7 +81,7 @@ function newId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function useChat({ selectedModel } = {}) {
+export function useChat({ selectedModel, requestSettings } = {}) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfigured, setIsConfigured] = useState(true);
@@ -105,6 +105,7 @@ export function useChat({ selectedModel } = {}) {
   const toolCallsRef = useRef([]);
   const subAgentTasksRef = useRef([]);
   const selectedModelRef = useRef(selectedModel || null);
+  const requestSettingsRef = useRef(requestSettings || {});
   const suggestionsEnabledRef = useRef(suggestionsEnabled);
   const modalityRef = useRef(modality);
 
@@ -123,6 +124,7 @@ export function useChat({ selectedModel } = {}) {
   const chatPolicyRef = useRef(restrictivePolicy('chat'));
 
   useEffect(() => { selectedModelRef.current = selectedModel || null; }, [selectedModel]);
+  useEffect(() => { requestSettingsRef.current = requestSettings || {}; }, [requestSettings]);
   useEffect(() => { modalityRef.current = modality; }, [modality]);
 
   useEffect(() => {
@@ -390,11 +392,16 @@ export function useChat({ selectedModel } = {}) {
   }, []);
 
   const buildConfig = useCallback(() => {
-    const model = getSelectedModel() || undefined;
+    const model = getSelectedModel();
+    if (!model) throw new Error('No AI model is selected');
     const policy = chatPolicyRef.current || restrictivePolicy('chat');
+    const params = requestSettingsRef.current || {};
     return {
       model,
       thinking: true,
+      temperature: Number.isFinite(params.temperature) ? params.temperature : undefined,
+      top_p: Number.isFinite(params.top_p) ? params.top_p : undefined,
+      max_tokens: Number.isFinite(params.max_tokens) ? params.max_tokens : undefined,
       plan_mode: modalityRef.current === 'plan',
       // Per-surface (chat column) effective level. permission_policy
       // carries the blacklist and confirmation level for bridge tools.
@@ -513,9 +520,12 @@ export function useChat({ selectedModel } = {}) {
       setSubAgentTasks([]);
       pendingConfirmRef.current = null;
 
-      logger.info('chat', 'Dispatching message to agent', { threadId, isRemote, modality: modalityRef.current });
+      const agentConfig = buildConfig();
+      logger.info('chat', 'Dispatching message to agent', {
+        threadId, isRemote, modality: modalityRef.current, model: agentConfig.model,
+      });
 
-      await runAgentTurn('message', { threadId, message: actualMessage, config: buildConfig() });
+      await runAgentTurn('message', { threadId, message: actualMessage, config: agentConfig });
 
       // If the run paused for tool confirmation, hold the turn open — the
       // assistant message is persisted only once the run truly completes

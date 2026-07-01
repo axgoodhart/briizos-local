@@ -265,6 +265,9 @@ class LocalDataService extends EventEmitter {
       const row = existing.get(profile.name);
       const settings = JSON.stringify({
         displayName: profile.displayName,
+        adapter: profile.provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
+          : profile.provider === 'openai' ? 'langchain_openai:ChatOpenAI'
+            : 'langchain_google_genai:ChatGoogleGenerativeAI',
         maxTokens: profile.maxTokens,
         supportsVision: profile.supportsVision,
         supportsThinking: profile.supportsThinking,
@@ -285,6 +288,9 @@ class LocalDataService extends EventEmitter {
             updated_at = excluded.updated_at, revision = model_profiles.revision + 1, deleted_at = NULL
         `).run(`builtin:${profile.name}`, profile.name, profile.provider, profile.model, JSON.stringify({
           displayName: profile.displayName,
+          adapter: profile.provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
+            : profile.provider === 'openai' ? 'langchain_openai:ChatOpenAI'
+              : 'langchain_google_genai:ChatGoogleGenerativeAI',
           maxTokens: profile.maxTokens,
           supportsVision: profile.supportsVision,
           supportsThinking: profile.supportsThinking,

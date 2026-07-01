@@ -22,11 +22,12 @@ export function useModelSelection() {
         // If no model selected yet, or selected model no longer exists, pick first available
         if (modelList?.length > 0) {
           const stored = savedModel?.value || null;
-          const stillExists = modelList.some(m => m.name === stored);
-          if (!stored || !stillExists) {
-            const firstAvailable = modelList[0]?.name;
+          const storedProfile = modelList.find(m => m.name === stored);
+          const stillAvailable = storedProfile && keyStatus?.[storedProfile.provider] === true;
+          if (!stored || !stillAvailable) {
+            const firstAvailable = modelList.find(model => keyStatus?.[model.provider] === true)?.name || null;
             setSelectedModel(firstAvailable);
-            await window.api.localData.settings.set('selected_model', firstAvailable);
+            if (firstAvailable) await window.api.localData.settings.set('selected_model', firstAvailable);
           } else {
             setSelectedModel(stored);
           }

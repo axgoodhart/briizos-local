@@ -19,7 +19,7 @@ const { ChatOpenAI } = require('@langchain/openai');
 const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
 const { logger } = require('../logger');
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
 let localDataService = null;
 
 function setLocalDataService(service) {
@@ -47,9 +47,10 @@ function resolveModelConfig(requestedName) {
   const requested = requestedName ? String(requestedName) : null;
   const entry = requested
     ? models.find((m) => m.name === requested || m.model === requested || m.display_name === requested)
-    : models[0];
+    : models.find((model) => model.isDefault) || models[0];
 
   if (!entry) {
+    if (requested) throw new Error(`Unknown configured model: ${requested}`);
     return {
       name: requested || DEFAULT_MODEL,
       model: requested || DEFAULT_MODEL,
@@ -64,7 +65,8 @@ function resolveModelConfig(requestedName) {
   return {
     name: entry.name || entry.model || DEFAULT_MODEL,
     model: entry.model || entry.name || DEFAULT_MODEL,
-    provider: providerForEntry(entry),
+    provider: entry.provider || providerForEntry(entry),
+    adapter: entry.adapter || null,
     maxTokens: Number.isFinite(entry.maxTokens) ? entry.maxTokens : null,
     supportsThinking: !!entry.supportsThinking,
     thinking: entry.thinking || null,
@@ -93,41 +95,66 @@ function getApiKey(provider, modelEntry = null) {
  * @param {string|null} opts.reasoningEffort   e.g. 'minimal' | 'low' | 'medium' | 'high'.
  * @param {number|null} opts.temperature       Optional override.
  */
-function createChatModel({ name = null, thinkingEnabled = false, reasoningEffort = null, temperature = null } = {}) {
+function createChatModel({ name = null, thinkingEnabled = false, reasoningEffort = null, temperature = null, topP = null, maxTokens = null } = {}) {
   const resolved = resolveModelConfig(name);
   const modelName = resolved.model;
   const provider = resolved.provider;
   const apiKey = getApiKey(provider, resolved.raw);
 
   if (!apiKey) {
-    logger.warn('agent.models', `No API key for ${provider}; model calls will fail`, { modelName });
+    throw new Error(`No encrypted API credential is configured for ${provider}`);
   }
 
+  const adapter = provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
+    : provider === 'openai' ? 'langchain_openai:ChatOpenAI'
+      : 'langchain_google_genai:ChatGoogleGenerativeAI';
+  if (resolved.adapter && resolved.adapter !== adapter) {
+    throw new Error(`Model adapter mismatch for ${resolved.name}`);
+  }
+  logger.info('agent.models', 'Model request configured', {
+    profileName: resolved.name,
+    modelName,
+    provider,
+    adapter,
+    thinkingEnabled: thinkingEnabled && resolved.supportsThinking,
+  });
+
   const common = { model: modelName, streaming: true };
-  if (temperature != null) common.temperature = temperature;
+  const outputTokens = maxTokens == null ? resolved.maxTokens : Math.min(maxTokens, resolved.maxTokens || maxTokens);
+  const openAIReasoningModel = provider === 'openai' && (/^o[13](?:-|$)/.test(modelName) || /^gpt-5(?:\.|-|$)/.test(modelName));
+  if (temperature != null && !openAIReasoningModel && !(provider === 'claude' && thinkingEnabled && resolved.supportsThinking)) {
+    common.temperature = temperature;
+  }
 
   switch (provider) {
     case 'claude': {
       const opts = { ...common, apiKey };
-      if (resolved.maxTokens != null) opts.maxTokens = resolved.maxTokens;
+      if (outputTokens != null) opts.maxTokens = outputTokens;
+      if (topP != null && !(thinkingEnabled && resolved.supportsThinking)) opts.topP = topP;
       if (thinkingEnabled && resolved.supportsThinking) {
+        const configuredBudget = resolved.thinking?.budget_tokens || 4096;
+        const budgetTokens = outputTokens == null
+          ? configuredBudget
+          : Math.min(configuredBudget, Math.max(1024, outputTokens - 1024));
         opts.thinking = {
           ...(resolved.thinking || { type: 'enabled' }),
-          budget_tokens: resolved.thinking?.budget_tokens || 4096,
+          budget_tokens: budgetTokens,
         };
       }
       return new ChatAnthropic(opts);
     }
     case 'openai': {
       const opts = { ...common, apiKey };
-      if (resolved.maxTokens != null) opts.maxTokens = resolved.maxTokens;
+      if (outputTokens != null) opts.maxTokens = outputTokens;
+      if (topP != null && !openAIReasoningModel) opts.topP = topP;
       if (reasoningEffort) opts.reasoningEffort = reasoningEffort;
       return new ChatOpenAI(opts);
     }
     case 'gemini':
     default: {
       const opts = { ...common, apiKey };
-      if (resolved.maxTokens != null) opts.maxOutputTokens = resolved.maxTokens;
+      if (outputTokens != null) opts.maxOutputTokens = outputTokens;
+      if (topP != null) opts.topP = topP;
       return new ChatGoogleGenerativeAI(opts);
     }
   }

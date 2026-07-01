@@ -40,8 +40,11 @@ class AutomationRunner {
       await this.transition(run.id, 'running', { progressCurrent: 0, progressTotal: 1, eventMessage: 'Local agent started' });
 
       const taskPolicy = policyOverride || this.service.getSetting('agent_config')?.value?.permissions?.task || { mode: 'ask-always', blacklist: { paths: [], filetypes: [] } };
+      const selectedModel = this.service.getSetting('selected_model')?.value;
+      if (!selectedModel) throw new Error('No AI model is selected for automation');
       const prompt = [run.instruction, run.contextText ? `\nContext:\n${run.contextText}` : ''].join('');
       const response = await this.agent.sendMessage(threadId, prompt, {
+        model: selectedModel,
         thinking: true,
         tool_confirmation_mode: taskPolicy.mode,
         permission_policy: { surface: 'task', ...taskPolicy },
