@@ -309,6 +309,18 @@ function AppContent({ layout }) {
     if (panelId) setActivePanelId(panelId);
   }, []);
 
+  useEffect(() => {
+    const tiledPanelIds = new Set(
+      (layoutRow.columns || []).flatMap((column) => column.panels.map((panel) => panel.panelId)),
+    );
+    if (fullscreenPanelId && !tiledPanelIds.has(fullscreenPanelId)) {
+      setFullscreenPanelId(null);
+    }
+    if (activePanelId && !tiledPanelIds.has(activePanelId)) {
+      setActivePanelId(null);
+    }
+  }, [layoutRow.columns, fullscreenPanelId, activePanelId]);
+
   const getActionDeckPanelSettings = useCallback(() => (
     loadPanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS)
   ), []);

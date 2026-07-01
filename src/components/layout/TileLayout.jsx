@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -36,7 +37,6 @@ const toPercentSize = (value, fallbackPercent) => {
 function DraggablePanel({ panelId, children, onDrop, isFullscreen, onToggleFullscreen, onActivate }) {
   const wrapperRef = useRef(null);
   const [dropZone, setDropZone] = useState(null);
-  const [fullscreenBounds, setFullscreenBounds] = useState(null);
 
   const [{ isDragging }, drag] = useDrag({
     type: PANEL_TYPE,
@@ -94,29 +94,6 @@ function DraggablePanel({ panelId, children, onDrop, isFullscreen, onToggleFulls
     };
   }, [drag, drop, panelId]);
 
-  useLayoutEffect(() => {
-    if (!isFullscreen) {
-      setFullscreenBounds(null);
-      return undefined;
-    }
-
-    const measure = () => {
-      const main = wrapperRef.current?.closest('.app-main');
-      const rect = main?.getBoundingClientRect();
-      if (!rect) return;
-      setFullscreenBounds({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      });
-    };
-
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [isFullscreen]);
-
   const handleDoubleClick = (event) => {
     const header = event.target.closest('.panel-header, .actiondeck-header');
     if (!header || !wrapperRef.current?.contains(header)) return;
@@ -129,18 +106,102 @@ function DraggablePanel({ panelId, children, onDrop, isFullscreen, onToggleFulls
     <div
       ref={wrapperRef}
       className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver && dropZone ? 'drop-target' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
-      style={isFullscreen && fullscreenBounds ? fullscreenBounds : undefined}
       onPointerDown={() => onActivate?.(panelId)}
       onFocusCapture={() => onActivate?.(panelId)}
       onDoubleClick={handleDoubleClick}
-      role={isFullscreen ? 'region' : undefined}
-      aria-label={isFullscreen ? `${panelId} panel, fullscreen` : undefined}
     >
       {children}
       {isOver && dropZone && (
         <div className={`drop-zone-overlay drop-zone-${dropZone}`} />
       )}
     </div>
+  );
+}
+
+const PANEL_TITLES = {
+  actiondeck: 'ActionDeck',
+  interaction: 'Interaction',
+  journal: 'Journal',
+  media: 'Media',
+  notefalls: 'Notefalls',
+  sources: 'Sources',
+  tasks: 'Tasks',
+  forest: 'Forest',
+  canvas: 'Canvas',
+};
+
+function panelTitle(panel) {
+  return PANEL_TITLES[panel.type] || panel.type || 'Panel';
+}
+
+/**
+ * A panel's React tree always renders into the same carrier element. Moving
+ * that carrier between the grid shell and fullscreen host preserves component
+ * state because the portal target itself never changes.
+ */
+function RelocatablePanel({
+  panel,
+  children,
+  fullscreenHostRef,
+  isFullscreen,
+  onDrop,
+  onToggleFullscreen,
+  onActivate,
+}) {
+  const slotRef = useRef(null);
+  const carrierRef = useRef(null);
+
+  if (!carrierRef.current && typeof document !== 'undefined') {
+    const carrier = document.createElement('div');
+    carrier.className = 'panel-carrier';
+    carrier.dataset.panelCarrier = panel.panelId;
+    carrierRef.current = carrier;
+  }
+
+  useLayoutEffect(() => {
+    const carrier = carrierRef.current;
+    const target = isFullscreen ? fullscreenHostRef.current : slotRef.current;
+    if (!carrier || !target || carrier.parentElement === target) return undefined;
+
+    const focusedElement = carrier.contains(document.activeElement)
+      ? document.activeElement
+      : null;
+    target.appendChild(carrier);
+    if (focusedElement instanceof HTMLElement) {
+      focusedElement.focus({ preventScroll: true });
+    }
+
+    return undefined;
+  }, [fullscreenHostRef, isFullscreen]);
+
+  useEffect(() => () => {
+    carrierRef.current?.remove();
+  }, []);
+
+  return (
+    <>
+      <div ref={slotRef} className={`panel-slot-shell${isFullscreen ? ' is-vacant' : ''}`}>
+        <div className="panel panel-husk" aria-hidden="true">
+          <div className="panel-header">
+            <span className="panel-header-title">{panelTitle(panel)}</span>
+          </div>
+          <div className="panel-content" />
+        </div>
+      </div>
+      {carrierRef.current && createPortal(
+        <DraggablePanel
+          panelId={panel.panelId}
+          onDrop={onDrop}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={onToggleFullscreen}
+          onActivate={onActivate}
+        >
+          {children}
+        </DraggablePanel>,
+        carrierRef.current,
+        panel.panelId,
+      )}
+    </>
   );
 }
 
@@ -166,6 +227,7 @@ export function TileLayout({
   onActivatePanel,
   className = ''
 }) {
+  const fullscreenHostRef = useRef(null);
   tileLayoutRenderCount++;
   const currentRender = tileLayoutRenderCount;
   logger.debug('ui', `TileLayout render #${currentRender}`, layoutRow?.columns?.map(c => c.id));
@@ -214,6 +276,9 @@ export function TileLayout({
   }
 
   const { columns } = layoutRow;
+  const fullscreenPanel = columns
+    .flatMap((column) => column.panels)
+    .find((panel) => panel.panelId === fullscreenPanelId);
 
   // Default layout for the horizontal Group
   const defaultColumnLayout = useMemo(() => {
@@ -232,56 +297,70 @@ export function TileLayout({
   return (
     <DndProvider backend={HTML5Backend}>
       <div className={`tile-layout ${className}`}>
-        <Group
-          key={groupKey}
-          orientation="horizontal"
-          onLayoutChange={handleColumnResize}
-          defaultLayout={defaultColumnLayout}
-          className="tile-layout-content"
+        <div
+          className="tile-layout-grid"
+          inert={fullscreenPanelId ? '' : undefined}
+          aria-hidden={fullscreenPanelId ? 'true' : undefined}
         >
-          {columns.map((column, colIndex) => (
-            <React.Fragment key={column.id}>
-              <Panel
-                id={column.id}
-                minSize="5%"
-                maxSize="95%"
-                className="resizable-panel"
-              >
-                {column.panels.length === 1 ? (
-                  // Single panel column — render at full height
-                  <DraggablePanel
-                    panelId={column.panels[0].panelId}
-                    onDrop={handleDrop}
-                    isFullscreen={fullscreenPanelId === column.panels[0].panelId}
-                    onToggleFullscreen={onTogglePanelFullscreen}
-                    onActivate={onActivatePanel}
-                  >
-                    {renderPanel ? renderPanel(column.panels[0]) : (
-                      <div className="panel-content">
-                        <div className="widget-empty">Panel: {column.panels[0].type}</div>
-                      </div>
-                    )}
-                  </DraggablePanel>
-                ) : (
-                  // Stack column — nested vertical Group
-                  <StackColumn
-                    column={column}
-                    renderPanel={renderPanel}
-                    onStackResize={handleStackResize}
-                    onDrop={handleDrop}
-                    fullscreenPanelId={fullscreenPanelId}
-                    onTogglePanelFullscreen={onTogglePanelFullscreen}
-                    onActivatePanel={onActivatePanel}
-                  />
-                )}
-              </Panel>
+          <Group
+            key={groupKey}
+            orientation="horizontal"
+            onLayoutChange={handleColumnResize}
+            defaultLayout={defaultColumnLayout}
+            className="tile-layout-content"
+          >
+            {columns.map((column, colIndex) => (
+              <React.Fragment key={column.id}>
+                <Panel
+                  id={column.id}
+                  minSize="5%"
+                  maxSize="95%"
+                  className="resizable-panel"
+                >
+                  {column.panels.length === 1 ? (
+                    <RelocatablePanel
+                      panel={column.panels[0]}
+                      fullscreenHostRef={fullscreenHostRef}
+                      isFullscreen={fullscreenPanelId === column.panels[0].panelId}
+                      onDrop={handleDrop}
+                      onToggleFullscreen={onTogglePanelFullscreen}
+                      onActivate={onActivatePanel}
+                    >
+                      {renderPanel ? renderPanel(column.panels[0]) : (
+                        <div className="panel-content">
+                          <div className="widget-empty">Panel: {column.panels[0].type}</div>
+                        </div>
+                      )}
+                    </RelocatablePanel>
+                  ) : (
+                    <StackColumn
+                      column={column}
+                      renderPanel={renderPanel}
+                      onStackResize={handleStackResize}
+                      onDrop={handleDrop}
+                      fullscreenPanelId={fullscreenPanelId}
+                      fullscreenHostRef={fullscreenHostRef}
+                      onTogglePanelFullscreen={onTogglePanelFullscreen}
+                      onActivatePanel={onActivatePanel}
+                    />
+                  )}
+                </Panel>
 
-              {colIndex < columns.length - 1 && (
-                <Separator className="resize-handle horizontal" />
-              )}
-            </React.Fragment>
-          ))}
-        </Group>
+                {colIndex < columns.length - 1 && (
+                  <Separator className="resize-handle horizontal" />
+                )}
+              </React.Fragment>
+            ))}
+          </Group>
+        </div>
+
+        <div
+          ref={fullscreenHostRef}
+          className={`fullscreen-panel-host${fullscreenPanelId ? ' is-active' : ''}`}
+          role={fullscreenPanelId ? 'region' : undefined}
+          aria-label={fullscreenPanel ? `${panelTitle(fullscreenPanel)} panel, fullscreen` : undefined}
+          aria-hidden={fullscreenPanelId ? undefined : 'true'}
+        />
       </div>
     </DndProvider>
   );
@@ -296,6 +375,7 @@ function StackColumn({
   onStackResize,
   onDrop,
   fullscreenPanelId,
+  fullscreenHostRef,
   onTogglePanelFullscreen,
   onActivatePanel,
 }) {
@@ -331,10 +411,11 @@ function StackColumn({
             maxSize="95%"
             className="resizable-panel"
           >
-            <DraggablePanel
-              panelId={panel.panelId}
+            <RelocatablePanel
+              panel={panel}
               onDrop={onDrop}
               isFullscreen={fullscreenPanelId === panel.panelId}
+              fullscreenHostRef={fullscreenHostRef}
               onToggleFullscreen={onTogglePanelFullscreen}
               onActivate={onActivatePanel}
             >
@@ -343,7 +424,7 @@ function StackColumn({
                   <div className="widget-empty">Panel: {panel.type}</div>
                 </div>
               )}
-            </DraggablePanel>
+            </RelocatablePanel>
           </Panel>
 
           {pIndex < column.panels.length - 1 && (
