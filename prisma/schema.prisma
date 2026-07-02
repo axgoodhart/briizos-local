@@ -83,7 +83,7 @@ model checkpoints {
 }
 
 model commands {
-  id                String? @id
+  id                String @id
   remote_command_id String? @unique(map: "sqlite_autoindex_commands_2")
   idempotency_key   String  @unique(map: "sqlite_autoindex_commands_3")
   source            String
@@ -102,7 +102,7 @@ model commands {
 }
 
 model conversation_summaries {
-  id             String? @id
+  id             String @id
   thread_id      String
   first_sequence Int
   last_sequence  Int
@@ -146,7 +146,7 @@ model embedded_app_state {
 }
 
 model external_files {
-  id                String?             @id
+  id                String              @id
   path              String              @unique(map: "sqlite_autoindex_external_files_2")
   display_name      String
   kind              String
@@ -181,7 +181,7 @@ model folios {
 }
 
 model forest_files {
-  id              String?         @id
+  id              String          @id
   project_id      String
   file_id         String
   position        Int             @default(0)
@@ -308,7 +308,7 @@ model memory_facts {
 }
 
 model memory_sections {
-  id           String?        @id
+  id           String         @id
   key          String         @unique(map: "sqlite_autoindex_memory_sections_2")
   title        String
   body         String         @default("")
@@ -321,7 +321,7 @@ model memory_sections {
 }
 
 model messages {
-  id           String? @id
+  id           String @id
   thread_id    String
   sequence     Int
   role         String
@@ -338,7 +338,7 @@ model messages {
 }
 
 model model_profiles {
-  id            String?   @id
+  id            String    @id
   name          String    @unique(map: "sqlite_autoindex_model_profiles_2")
   provider      String
   model         String
@@ -436,7 +436,7 @@ model post_attachments {
 }
 
 model recorder_events {
-  id                String?           @id
+  id                String            @id
   session_id        String
   sequence          Int
   event_type        String
@@ -480,7 +480,7 @@ model retained_text {
 }
 
 model run_events {
-  id           String? @id
+  id           String @id
   run_id       String
   sequence     Int
   event_type   String
