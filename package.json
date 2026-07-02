@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron": "electron .",
+    "db:studio": "DATABASE_URL=\"file:$HOME/Library/Application Support/briizos/briizos.db\" prisma studio --schema prisma/schema.prisma",
     "tools:catalog": "node scripts/generate-tool-catalog.mjs"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
     "@electron/rebuild": "^4.0.6",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
+    "prisma": "^6.19.0",
     "vite": "^6.0.5",
     "wait-on": "^8.0.1"
   }

@@ -1,0 +1,693 @@
+// Tooling-only view of briizos.db; the app continues to use better-sqlite3.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model app_meta {
+  key        String @id
+  value      String
+  updated_at Int
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model briiztorm_flight_presets {
+  id         String @id
+  name       String
+  data_json  String  @default("{}")
+  created_at Int
+  updated_at Int
+  revision   Int     @default(1)
+  deleted_at Int?
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model briiztorm_projects {
+  id         String @id
+  title      String
+  data_json  String  @default("{}")
+  created_at Int
+  updated_at Int
+  revision   Int     @default(1)
+  deleted_at Int?
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model canvases {
+  id                  String             @id
+  title               String
+  html_text           String             @default("")
+  source_kind         String?
+  source_url          String?
+  render_engine       String?
+  form_factor         String?
+  panel_settings_json String?
+  created_at          Int
+  updated_at          Int
+  revision            Int                @default(1)
+  deleted_at          Int?
+  workspace_panels    workspace_panels[]
+
+}
+
+model checkpoint_writes {
+  thread_id     String
+  checkpoint_ns String      @default("")
+  checkpoint_id String
+  task_id       String
+  idx           Int
+  channel       String
+  value_json    String
+  created_at    Int
+  checkpoints   checkpoints @relation(fields: [thread_id, checkpoint_ns, checkpoint_id], references: [thread_id, checkpoint_ns, checkpoint_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([thread_id, checkpoint_ns, checkpoint_id, task_id, idx])
+}
+
+model checkpoints {
+  thread_id            String
+  checkpoint_ns        String              @default("")
+  checkpoint_id        String
+  parent_checkpoint_id String?
+  checkpoint_json      String
+  metadata_json        String              @default("{}")
+  created_at           Int
+  checkpoint_writes    checkpoint_writes[]
+  threads              threads             @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+
+  @@id([thread_id, checkpoint_ns, checkpoint_id])
+}
+
+model commands {
+  id                String? @id
+  remote_command_id String? @unique(map: "sqlite_autoindex_commands_2")
+  idempotency_key   String  @unique(map: "sqlite_autoindex_commands_3")
+  source            String
+  instruction       String
+  context_text      String?
+  status            String
+  requested_at      Int
+  accepted_at       Int?
+  created_at        Int
+  updated_at        Int
+  revision          Int     @default(1)
+  deleted_at        Int?
+  runs              runs[]  @ignore
+
+  @@index([status, requested_at, deleted_at], map: "idx_commands_status_requested")
+}
+
+model conversation_summaries {
+  id             String? @id
+  thread_id      String
+  first_sequence Int
+  last_sequence  Int
+  content_hash   String
+  summary        String
+  created_at     Int
+  updated_at     Int
+  revision       Int     @default(1)
+  deleted_at     Int?
+  threads        threads @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+
+  @@unique([thread_id, first_sequence, last_sequence, content_hash], map: "sqlite_autoindex_conversation_summaries_2")
+  @@index([thread_id, deleted_at, created_at], map: "idx_conversation_summaries_thread_active")
+}
+
+model device_identity {
+  singleton_id Int    @id @default(autoincrement())
+  device_id    String @unique(map: "sqlite_autoindex_device_identity_1")
+  label        String
+  created_at   Int
+  updated_at   Int
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model domain_revisions {
+  domain     String @id
+  revision   Int     @default(0)
+  updated_at Int
+
+}
+
+model embedded_app_state {
+  app_id     String
+  key        String
+  value_json String
+  created_at Int
+  updated_at Int
+  revision   Int    @default(1)
+
+  @@id([app_id, key])
+}
+
+model external_files {
+  id                String?             @id
+  path              String              @unique(map: "sqlite_autoindex_external_files_2")
+  display_name      String
+  kind              String
+  size              Int?
+  modified_at       Int?
+  availability      String              @default("available")
+  created_at        Int
+  updated_at        Int
+  revision          Int                 @default(1)
+  deleted_at        Int?
+  forest_files      forest_files[]
+  media_queue_items media_queue_items[] @ignore
+  post_attachments  post_attachments[]  @ignore
+  selected_files    selected_files[]
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model folios {
+  id           String   @id
+  journal_id   String
+  type         String
+  title        String   @default("")
+  content_json String   @default("{}")
+  position     Int      @default(0)
+  created_at   Int
+  updated_at   Int
+  revision     Int      @default(1)
+  deleted_at   Int?
+  journals     journals @relation(fields: [journal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([journal_id, position, deleted_at], map: "idx_folios_journal")
+}
+
+model forest_files {
+  id              String?         @id
+  project_id      String
+  file_id         String
+  position        Int             @default(0)
+  tags_json       String          @default("[]")
+  created_at      Int
+  updated_at      Int
+  revision        Int             @default(1)
+  deleted_at      Int?
+  data_json       String          @default("{}")
+  board_file_id   String          @default("")
+  external_files  external_files  @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  forest_projects forest_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+
+  @@unique([project_id, board_file_id], map: "idx_forest_files_board_id")
+  @@unique([project_id, file_id], map: "sqlite_autoindex_forest_files_2")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model forest_projects {
+  id           String         @id
+  title        String
+  position_x   Float          @default(0)
+  position_y   Float          @default(0)
+  created_at   Int
+  updated_at   Int
+  revision     Int            @default(1)
+  deleted_at   Int?
+  data_json    String         @default("{}")
+  forest_files forest_files[]
+
+}
+
+model forest_view_state {
+  singleton_id Int    @id @default(autoincrement())
+  value_json   String @default("{}")
+  updated_at   Int
+  revision     Int    @default(1)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model journals {
+  id             String           @id
+  title          String
+  cover_key      String?
+  created_at     Int
+  updated_at     Int
+  revision       Int              @default(1)
+  deleted_at     Int?
+  tags_json      String           @default("[]")
+  page_key       String           @default("")
+  position       Int              @default(0)
+  folios         folios[]
+  notefall_posts notefall_posts[]
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model logs {
+  id         String   @id
+  type       String
+  source     String   @default("system")
+  category   String   @default("system")
+  message    String   @default("")
+  data_json  String?
+  level      String   @default("info")
+  thread_id  String?
+  session_id String?
+  created_at Int
+  task_id    String?
+  tasks      tasks?   @relation(fields: [task_id], references: [id], onUpdate: NoAction)
+  threads    threads? @relation(fields: [thread_id], references: [id], onUpdate: NoAction)
+
+  @@index([task_id, created_at], map: "idx_logs_task")
+  @@index([category, created_at(sort: Desc)], map: "idx_logs_category")
+  @@index([created_at(sort: Desc)], map: "idx_logs_created")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model media_queue_items {
+  id             String         @id
+  file_id        String
+  position       Int
+  created_at     Int
+  updated_at     Int
+  revision       Int            @default(1)
+  deleted_at     Int?
+  external_files external_files @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  media_state    media_state[]
+
+  @@index([position, deleted_at], map: "idx_media_queue_position")
+}
+
+model media_state {
+  singleton_id      Int                @id @default(autoincrement())
+  current_item_id   String?
+  position_seconds  Float              @default(0)
+  volume            Float              @default(1)
+  muted             Int                @default(0)
+  repeat_mode       String             @default("off")
+  shuffle           Int                @default(0)
+  panel_state_json  String             @default("{}")
+  updated_at        Int
+  revision          Int                @default(1)
+  media_queue_items media_queue_items? @relation(fields: [current_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction) @ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model memory_facts {
+  id               String           @id
+  section_id       String?
+  fact_text        String
+  source_thread_id String?
+  created_at       Int
+  updated_at       Int
+  revision         Int              @default(1)
+  deleted_at       Int?
+  agent_key        String           @default("main")
+  category         String           @default("context")
+  confidence       Float            @default(1)
+  threads          threads?         @relation(fields: [source_thread_id], references: [id], onUpdate: NoAction)
+  memory_sections  memory_sections? @relation(fields: [section_id], references: [id], onUpdate: NoAction)
+
+  @@index([agent_key, deleted_at, created_at], map: "idx_memory_facts_agent_active")
+}
+
+model memory_sections {
+  id           String?        @id
+  key          String         @unique(map: "sqlite_autoindex_memory_sections_2")
+  title        String
+  body         String         @default("")
+  position     Int            @default(0)
+  created_at   Int
+  updated_at   Int
+  revision     Int            @default(1)
+  deleted_at   Int?
+  memory_facts memory_facts[] @ignore
+}
+
+model messages {
+  id           String? @id
+  thread_id    String
+  sequence     Int
+  role         String
+  content_text String  @default("")
+  is_error     Int     @default(0)
+  created_at   Int
+  updated_at   Int
+  revision     Int     @default(1)
+  deleted_at   Int?
+  threads      threads @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+
+  @@unique([thread_id, sequence], map: "sqlite_autoindex_messages_2")
+  @@index([thread_id, sequence, deleted_at], map: "idx_messages_thread_active")
+}
+
+model model_profiles {
+  id            String?   @id
+  name          String    @unique(map: "sqlite_autoindex_model_profiles_2")
+  provider      String
+  model         String
+  settings_json String    @default("{}")
+  is_default    Int       @default(0)
+  created_at    Int
+  updated_at    Int
+  revision      Int       @default(1)
+  deleted_at    Int?
+  threads       threads[] @ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model notefall_posts {
+  id               String             @id
+  title            String             @default("")
+  body             String             @default("")
+  created_at       Int
+  updated_at       Int
+  revision         Int                @default(1)
+  deleted_at       Int?
+  author_type      String             @default("user")
+  author_agent_id  String?
+  journal_id       String?
+  tags_json        String             @default("[]")
+  status_dot       String?
+  source_app       String?
+  source_icon      String?
+  capture_mode     String             @default("manual")
+  session_start    Int?
+  session_end      Int?
+  notes            String?
+  journals         journals?          @relation(fields: [journal_id], references: [id], onUpdate: NoAction)
+  post_attachments post_attachments[]
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model operation_receipts {
+  op_id        String @id
+  run_id       String?
+  tool_name    String
+  request_hash String
+  status       String
+  result_json  String?
+  created_at   Int
+  updated_at   Int
+  revision     Int     @default(1)
+  deleted_at   Int?
+  runs         runs?   @relation(fields: [run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model organizer_items {
+  id                    String             @id
+  type                  String
+  parent_id             String?
+  title                 String             @default("")
+  body                  String             @default("")
+  status                String?
+  scheduled_start_at    Int?
+  scheduled_end_at      Int?
+  due_at                Int?
+  duration_seconds      Int?
+  recurrence_json       String?
+  tags_json             String             @default("[]")
+  created_at            Int
+  updated_at            Int
+  revision              Int                @default(1)
+  deleted_at            Int?
+  organizer_items       organizer_items?   @relation("organizer_itemsToorganizer_items", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_organizer_items organizer_items[]  @relation("organizer_itemsToorganizer_items")
+  tasks                 tasks[]
+  workspace_panels      workspace_panels[]
+
+  @@index([parent_id, deleted_at], map: "idx_organizer_parent")
+  @@index([type, deleted_at], map: "idx_organizer_type")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model post_attachments {
+  id             String         @id
+  post_id        String
+  file_id        String
+  role           String         @default("attachment")
+  position       Int            @default(0)
+  created_at     Int
+  updated_at     Int
+  revision       Int            @default(1)
+  deleted_at     Int?
+  external_files external_files @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notefall_posts notefall_posts @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+}
+
+model recorder_events {
+  id                String?           @id
+  session_id        String
+  sequence          Int
+  event_type        String
+  data_json         String            @default("{}")
+  occurred_at       Int
+  created_at        Int
+  updated_at        Int
+  revision          Int               @default(1)
+  deleted_at        Int?
+  recorder_sessions recorder_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+
+  @@unique([session_id, sequence], map: "sqlite_autoindex_recorder_events_2")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model recorder_sessions {
+  id              String            @id
+  name            String
+  started_at      Int
+  ended_at        Int?
+  created_at      Int
+  updated_at      Int
+  revision        Int               @default(1)
+  deleted_at      Int?
+  recorder_events recorder_events[]
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model retained_text {
+  id         String @id
+  title      String  @default("")
+  body       String  @default("")
+  format     String  @default("plain")
+  tags_json  String  @default("[]")
+  created_at Int
+  updated_at Int
+  revision   Int     @default(1)
+  deleted_at Int?
+
+}
+
+model run_events {
+  id           String? @id
+  run_id       String
+  sequence     Int
+  event_type   String
+  message      String?
+  payload_json String?
+  created_at   Int
+  updated_at   Int
+  revision     Int     @default(1)
+  deleted_at   Int?
+  runs         runs    @relation(fields: [run_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+
+  @@unique([run_id, sequence], map: "sqlite_autoindex_run_events_2")
+  @@index([run_id, sequence, deleted_at], map: "idx_run_events_run_active")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model runs {
+  id                 String               @id
+  command_id         String?
+  task_id            String?
+  thread_id          String?
+  status             String
+  progress_current   Int                  @default(0)
+  progress_total     Int                  @default(0)
+  result_summary     String?
+  error_code         String?
+  error_message      String?
+  started_at         Int?
+  finished_at        Int?
+  created_at         Int
+  updated_at         Int
+  revision           Int                  @default(1)
+  deleted_at         Int?
+  operation_receipts operation_receipts[]
+  run_events         run_events[]
+  threads            threads?             @relation(fields: [thread_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tasks              tasks?               @relation(fields: [task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  commands           commands?            @relation(fields: [command_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([command_id, deleted_at], map: "idx_runs_command")
+  @@index([status, updated_at, deleted_at], map: "idx_runs_status_updated")
+}
+
+model schema_migrations {
+  version    Int    @id @default(autoincrement())
+  name       String
+  checksum   String
+  applied_at Int
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model secrets {
+  key             String @id
+  encrypted_value Bytes
+  created_at      Int
+  updated_at      Int
+  revision        Int     @default(1)
+
+}
+
+model selected_files {
+  file_id        String
+  purpose        String
+  selected_at    Int
+  external_files external_files @relation(fields: [file_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([file_id, purpose])
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model settings {
+  key        String @id
+  value_json String
+  created_at Int
+  updated_at Int
+  revision   Int     @default(1)
+
+}
+
+model shared_text_mirrors {
+  owner_app_id    String
+  remote_id       String
+  type            String
+  payload_json    String
+  remote_revision Int
+  created_at      Int
+  updated_at      Int
+  revision        Int    @default(1)
+  deleted_at      Int?
+
+  @@id([owner_app_id, remote_id])
+  @@index([owner_app_id, type, deleted_at], map: "idx_shared_text_owner_active")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model sync_outbox {
+  domain          String @id
+  dirty_revision  Int
+  status          String  @default("pending")
+  attempts        Int     @default(0)
+  next_attempt_at Int?
+  last_error_code String?
+  created_at      Int
+  updated_at      Int
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model sync_state {
+  domain                 String @id
+  last_uploaded_revision Int     @default(0)
+  remote_revision        String?
+  cursor                 String?
+  updated_at             Int
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model task_steps {
+  id           String @id
+  task_id      String
+  title        String
+  status       String  @default("pending")
+  position     Int     @default(0)
+  completed_at Int?
+  created_at   Int
+  updated_at   Int
+  revision     Int     @default(1)
+  deleted_at   Int?
+  tasks        tasks   @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([task_id, position, deleted_at], map: "idx_task_steps_task")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model tasks {
+  id              String           @id
+  project_id      String?
+  title           String
+  description     String           @default("")
+  status          String           @default("pending")
+  priority        String           @default("normal")
+  due_at          Int?
+  automated       Int              @default(0)
+  created_at      Int
+  updated_at      Int
+  revision        Int              @default(1)
+  deleted_at      Int?
+  logs            logs[]
+  runs            runs[]
+  task_steps      task_steps[]
+  organizer_items organizer_items? @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([project_id, deleted_at], map: "idx_tasks_project")
+  @@index([status, deleted_at], map: "idx_tasks_status")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model threads {
+  id                     String                   @id
+  kind                   String                   @default("chat")
+  title                  String                   @default("")
+  model_profile_id       String?
+  status                 String                   @default("active")
+  created_at             Int
+  updated_at             Int
+  revision               Int                      @default(1)
+  deleted_at             Int?
+  checkpoints            checkpoints[]
+  conversation_summaries conversation_summaries[]
+  logs                   logs[]
+  memory_facts           memory_facts[]
+  messages               messages[]
+  runs                   runs[]
+  model_profiles         model_profiles?          @relation(fields: [model_profile_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model workspace_panels {
+  id                  String           @id
+  feature_key         String
+  linked_organizer_id String?
+  linked_canvas_id    String?
+  column_id           String?
+  position            Int              @default(0)
+  size_json           String?
+  visible             Int              @default(1)
+  view_mode           String?
+  created_at          Int
+  updated_at          Int
+  revision            Int              @default(1)
+  deleted_at          Int?
+  placement_json      String?
+  style_json          String?
+  canvases            canvases?        @relation(fields: [linked_canvas_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizer_items     organizer_items? @relation(fields: [linked_organizer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([column_id, position, deleted_at], map: "idx_workspace_panels_column")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model workspace_state {
+  key        String @id
+  value_json String
+  created_at Int
+  updated_at Int
+  revision   Int     @default(1)
+
+}
