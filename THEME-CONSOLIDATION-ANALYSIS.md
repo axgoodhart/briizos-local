@@ -85,6 +85,56 @@ Colors inside flat values, gradients, and shadows were normalized from names/hex
 - **Antarctic Teafog is dark.** Near-black teal/brown foundations, a mint/teal ladder, gold accent, and textured gradients form authored material.
 - **Postlinear Glassos** uses white/white-alpha as material, but its identical whites still carry different meanings.
 
+## Second pass: within-theme perceptual clustering
+
+The first pass required exact resolved values. This pass asks a narrower question: if visually adjacent literal colors are clustered **inside each theme**, how many color families remain?
+
+### Method and thresholds
+
+- Canonicalize named, hex, RGB, and RGBA colors to sRGB before comparison.
+- Convert opaque RGB channels to OKLab and use Euclidean OKLab distance.
+- Keep alpha separate: two colors may cluster only when their alpha difference is `≤ 0.02`.
+- Use complete-link clustering, so every pair inside a cluster must satisfy the threshold. Colors are considered in descending usage frequency to keep the representative stable and useful.
+- `≤ 0.02` is the safe-candidate tier. `≤ 0.05` is review-only and never authorizes an automatic replacement.
+- Colors found inside gradients and shadows participate as individual stops. The gradients and shadows themselves remain authored recipes.
+- Semantic meaning remains a veto at both thresholds. Perceptual similarity can suggest a shared primitive; it cannot prove that two roles should become one token.
+
+### Results
+
+| Theme | Canonical literals | Safe clusters (`≤ 0.02`) | Safe reduction | Review clusters (`≤ 0.05`) | Review reduction |
+|---|---:|---:|---:|---:|---:|
+| Root | 175 | 162 | 13 (7.4%) | 147 | 28 (16.0%) |
+| Antarctic Teafog | 121 | 112 | 9 (7.4%) | 96 | 25 (20.7%) |
+| Postlinear Glassos | 61 | 50 | 11 (18.0%) | 45 | 16 (26.2%) |
+| **Total, themes kept separate** | **357** | **324** | **33 (9.2%)** | **288** | **69 (19.3%)** |
+
+These are literal-color clusters, not replacement theme-variable counts. A variable containing multiple colors, a gradient, a shadow, dimensions, or other syntax may contribute several literals while remaining one authored value.
+
+### Safe-candidate examples
+
+| Theme | Candidate family | Distance/alpha observation | Semantic reading |
+|---|---|---|---|
+| Root | `#111111` + `#0f0f0f` | OKLab distance `0.0092` | Near-black surface/border primitive candidate |
+| Root | `#cccccc` + `#d0d0d0` | `0.0124` | Pale-text primitive candidate |
+| Root | `#f87171` + `#ff6b6b` | `0.0152` | Strong danger primitive candidate |
+| Root | white at roughly 4–6% alpha | Same RGB; alpha spread within `0.02` | Low-emphasis white-alpha step candidate |
+| Antarctic | `#f0fdfa` + `#e6fffa` | `0.0130` | High-contrast mint text family |
+| Antarctic | `#050808` + `#070a0a` | `0.0111` | Deep recessed-surface family |
+| Antarctic | `#0f1716` + `#111a19` | `0.0124` | Primary dark teal surface family |
+| Antarctic | mint at roughly 10–12% alpha | Same RGB; alpha spread within `0.02` | Mint border/fill ramp candidate |
+| Postlinear | `#f0f0f0` + `#f2f2f2` | `0.0060` | Off-white text/accent primitive candidate |
+| Postlinear | `#111111` + `#141414` | `0.0136` | Near-black surface family |
+| Postlinear | `#cccccc` + `#d1d1d1` | `0.0155` | Mid-light neutral family |
+| Postlinear | white-alpha neighbors | Same RGB; adjacent alpha values | Existing material ramp can be normalized |
+
+### What the second pass changes
+
+The safe tier finds **33 additional literal merges** across the three independent palettes. Most are useful cleanup: near-identical neutrals, duplicate danger reds, and alpha steps that differ by only a few percentage points. Postlinear benefits most proportionally because its visual system is already deliberately monochromatic.
+
+The review tier finds 36 more possible merges beyond the safe tier, but several demonstrate why it must remain manual. In Root, for example, pink identity accents sit perceptually near danger reds, and multiple yellows span warning state and decorative note accents. Merging those by distance alone would reduce the palette while damaging meaning.
+
+The revised conclusion is therefore: the three themes plausibly support **324 safe within-theme literal clusters instead of 357 canonical literals**, but perceptual clustering does not materially change the need for semantic tokens, authored recipes, and component exceptions. It improves the primitive palette beneath that architecture.
+
 ## Proposed minimum honest schema
 
 | Family | Proposed tokens |
@@ -477,4 +527,3 @@ Every union variable appears below. Values are whitespace-normalized and aliases
 ## Boundary
 
 No selector, theme value, runtime behavior, or prototype was modified. The evidence supports a reversible pilot; it does **not** support replacing 331 names with 22 tokens in one pass.
-
