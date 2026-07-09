@@ -337,30 +337,31 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
             <div>
               <span className="stylofact-kicker">Voice calibration</span>
               <h2 id="stylofact-voice-title">Make constraints, not vibes.</h2>
-              <p>Stylofact measures the corpus locally, then asks the model to make a practical, versioned directive from those measurements.</p>
+              <p>Stylofact measures the corpus locally and derives a practical, versioned directive from those measurements. Models are used only in the later writing stages.</p>
             </div>
           </div>
           <div className="stylofact-model-grid">
             <label className="stylofact-field">
-              <span>Primary model</span>
+              <span>Generation model</span>
               <select value={project.primaryModel || defaultPrimaryModel || ''} onChange={(event) => act(() => updateProject({ primaryModel: event.target.value }))} disabled={busy || !availableModels.length}>
                 {availableModels.map((model) => <option key={model.name} value={model.name}>{model.display_name || model.name}</option>)}
               </select>
+              <small>Used for extraction, planning, and content generation; voice measurement runs locally.</small>
             </label>
             <label className="stylofact-field">
-              <span>Independent reviewer</span>
+              <span>Generation reviewer</span>
               <select value={project.criticModel && criticOptions.some((model) => model.name === project.criticModel) ? project.criticModel : criticOptions[0]?.name || ''} onChange={(event) => act(() => updateProject({ criticModel: event.target.value || null }))} disabled={busy || !criticOptions.length}>
                 {!criticOptions.length && <option value="">No second provider available</option>}
                 {criticOptions.map((model) => <option key={model.name} value={model.name}>{model.display_name || model.name}</option>)}
               </select>
-              <small>{criticOptions.length ? 'A different provider audits the directive; it never changes raw measurements.' : 'Add a key for another provider to enable the independent review.'}</small>
+              <small>{criticOptions.length ? 'A different provider can review generated content; it never changes local measurements.' : 'Add a key for another provider to enable generation review.'}</small>
             </label>
           </div>
           <CorpusWorkbench role="style" sources={styleSources} onAdd={addSource} onDrop={dropSource} onRemove={(source) => act(() => removeSource(source))} disabled={busy} onError={setError} />
           <MetricStrip project={project} corpus={styleCorpus} />
           <div className="stylofact-callout-action">
-            <button type="button" className="stylofact-button primary" onClick={() => act(runVoiceAnalysis)} disabled={busy || !styleCorpus.trim() || !project.primaryModel && !defaultPrimaryModel}>
-              Analyze voice corpus
+            <button type="button" className="stylofact-button primary" onClick={() => act(runVoiceAnalysis)} disabled={busy || !styleCorpus.trim()}>
+              Measure voice corpus
             </button>
             <span>Profiles under 2,500 words are marked exploratory; 5,000+ same-medium words form a usable baseline.</span>
           </div>

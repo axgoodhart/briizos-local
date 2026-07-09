@@ -29,7 +29,8 @@ const SUBORDINATOR_MARKERS = new Set([
   'unless', 'until', 'when', 'whenever', 'where', 'whereas', 'while', 'who', 'which', 'that',
 ]);
 
-const ANALYZER_VERSION = 'stylofact-metrics/1.0';
+const ANALYZER_VERSION = 'stylofact-metrics/1.1';
+const PROFILE_BUILDER_VERSION = 'stylofact-profile/1.0';
 const DEFAULT_CHUNK_WORDS = 500;
 
 function safeDivide(numerator, denominator, fallback = 0) {
@@ -40,6 +41,20 @@ function round(value, digits = 3) {
   if (!Number.isFinite(value)) return 0;
   const shift = 10 ** digits;
   return Math.round(value * shift) / shift;
+}
+
+function compareCodePoints(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function corpusFingerprint(text) {
+  let hash = 0x811c9dc5;
+  for (const character of String(text || '')) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, '0')}:${String(text || '').length}`;
 }
 
 function mean(values) {
@@ -92,7 +107,7 @@ function countMatches(text, expression) {
 
 export function tokenize(text) {
   return String(text || '')
-    .toLocaleLowerCase()
+    .toLowerCase()
     .match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) || [];
 }
 
@@ -142,7 +157,7 @@ function functionWordMetrics(tokens) {
     per10000Words: round(safeDivide((countByWord.get(word) || 0) * 10000, tokens.length)),
   }));
   return {
-    top: all.filter((entry) => entry.count > 0).sort((a, b) => b.count - a.count || a.word.localeCompare(b.word)).slice(0, 50),
+    top: all.filter((entry) => entry.count > 0).sort((a, b) => b.count - a.count || compareCodePoints(a.word, b.word)).slice(0, 50),
     all,
   };
 }
@@ -253,8 +268,9 @@ export function analyzeStylometry(text, sourceMetadata = {}) {
       genresOrMedia: sourceMetadata.genresOrMedia || ['unspecified'],
       wordCount: tokens.length,
       characterCount: rawText.length,
+      corpusFingerprint: corpusFingerprint(rawText),
       confidenceBand,
-      normalization: 'Unicode word tokenization; case-folded lexical counts; source formatting retained where supplied.',
+      normalization: 'Unicode word tokenization; locale-independent case folding; source formatting retained where supplied.',
       limitations: [
         tokens.length < 2500 ? 'Corpus is below the exploratory 2,500-word confidence threshold.' : null,
         sourceMetadata.mixedGenres ? 'Mixed genres or media can obscure a stable voice profile.' : null,
@@ -293,6 +309,154 @@ export function analyzeStylometry(text, sourceMetadata = {}) {
   };
 }
 
+function addConstraintByStability(stability, text, hard, soft) {
+  (stability === 'stable' ? hard : soft).push(text);
+}
+
+function ratePer1000(value) {
+  return `${round(value || 0)} per 1,000 words`;
+}
+
+function emphasisDensity(formatting, wordCount) {
+  const density = safeDivide((formatting?.boldMarkers || 0) * 1000, wordCount);
+  if (density === 0) return 'none';
+  if (density <= 1) return 'low';
+  if (density <= 4) return 'medium';
+  return 'high';
+}
+
+export function compileStyleProfile(metrics = {}) {
+  const scope = metrics.scope || {};
+  const lexical = metrics.lexical || {};
+  const syntax = metrics.syntax || {};
+  const formatting = metrics.formatting || {};
+  const stability = metrics.stability?.metrics || {};
+  const sentenceLengths = syntax.sentenceLengthWords || {};
+  const wordLengths = lexical.wordLengthCharacters || {};
+  const punctuation = syntax.punctuation?.per1000Words || {};
+  const starterRates = syntax.sentenceStarters?.rates || {};
+  const lexicalHard = [];
+  const lexicalSoft = [];
+  const syntaxHard = [];
+  const syntaxSoft = [];
+
+  if (lexical.tokenCount) {
+    addConstraintByStability(
+      stability.rawTtr?.stability,
+      `Keep raw lexical diversity near ${round(lexical.rawTypeTokenRatio)} (moving-average TTR-100: ${round(lexical.movingAverageTtr100)}).`,
+      lexicalHard,
+      lexicalSoft,
+    );
+    addConstraintByStability(
+      stability.meanWordLength?.stability,
+      `Use words averaging ${round(wordLengths.mean)} characters.`,
+      lexicalHard,
+      lexicalSoft,
+    );
+    addConstraintByStability(
+      stability.contractionDensity?.stability,
+      `Use contractions at roughly ${ratePer1000(lexical.contractionDensityPer1000Words)}.`,
+      lexicalHard,
+      lexicalSoft,
+    );
+  }
+
+  if (sentenceLengths.count) {
+    syntaxSoft.push(`Aim for sentences averaging ${round(sentenceLengths.mean)} words (observed middle 80%: ${round(sentenceLengths.p10)}–${round(sentenceLengths.p90)} words).`);
+  }
+  if (punctuation.emDash > 0) syntaxSoft.push(`Use em dashes at roughly ${ratePer1000(punctuation.emDash)}.`);
+  if (punctuation.semicolon > 0) syntaxSoft.push(`Use semicolons at roughly ${ratePer1000(punctuation.semicolon)}.`);
+
+  const punctuationBiases = [
+    ['—', punctuation.emDash],
+    ['–', punctuation.enDash],
+    [';', punctuation.semicolon],
+    [':', punctuation.colon],
+    ['()', punctuation.parentheses],
+    ['!', punctuation.exclamation],
+    ['?', punctuation.question],
+    ['…', punctuation.ellipsis],
+    [',', punctuation.comma],
+  ].map(([mark, observedPer1000Words]) => ({
+    mark,
+    observed_per_1000_words: round(observedPer1000Words || 0),
+  }));
+  const paragraphWords = formatting.paragraphWords || {};
+  const formattingSoft = [];
+  if (paragraphWords.count) {
+    formattingSoft.push(`Use paragraphs averaging ${round(paragraphWords.mean)} words (observed middle 80%: ${round(paragraphWords.p10)}–${round(paragraphWords.p90)} words).`);
+  }
+  if (formatting.paragraphCount) {
+    formattingSoft.push(`One-sentence paragraphs account for ${round((formatting.singleSentenceParagraphRatio || 0) * 100)}% of observed paragraphs.`);
+  }
+
+  const contractionRate = lexical.contractionDensityPer1000Words || 0;
+  const contractionStrategy = contractionRate === 0 ? 'avoid contractions'
+    : contractionRate >= 15 ? 'favor contractions'
+      : 'use contractions selectively';
+  const directive = [
+    'Apply the measured profile rather than inferring a persona.',
+    sentenceLengths.count ? `Target sentences around ${round(sentenceLengths.mean)} words, with the observed middle range of ${round(sentenceLengths.p10)}–${round(sentenceLengths.p90)} words as a soft guide.` : null,
+    lexical.tokenCount ? `Aim for words averaging ${round(wordLengths.mean)} characters and a moving-average TTR-100 near ${round(lexical.movingAverageTtr100)}.` : null,
+    lexical.tokenCount ? `Use contractions ${contractionStrategy} (observed ${ratePer1000(contractionRate)}).` : null,
+    punctuation.emDash > 0 ? `Use em dashes near ${ratePer1000(punctuation.emDash)} when content permits.` : null,
+    'Treat only stable constraints as firm; treat every other measurement as a soft tendency.',
+    'Do not use topic words, proper nouns, or one-off phrases as voice constraints.',
+  ].filter(Boolean).join(' ');
+
+  return {
+    stylofact_profile: {
+      schema_version: '1.1',
+      profile_builder: PROFILE_BUILDER_VERSION,
+      profile_scope: {
+        language: scope.language || 'unknown',
+        source_count: Number(scope.sourceCount || 0),
+        word_count: Number(scope.wordCount || 0),
+        genres_or_media: scope.genresOrMedia || ['unspecified'],
+        confidence_band: scope.confidenceBand || 'exploratory',
+        analyzer_version: metrics.analyzerVersion || ANALYZER_VERSION,
+        corpus_fingerprint: scope.corpusFingerprint || '',
+        limitations: [
+          ...(scope.limitations || []),
+          'This directive is generated locally from deterministic measurements; it does not infer identity, quality, or authenticity.',
+        ],
+      },
+      measured_metrics: metrics,
+      syntax_constraints: {
+        hard: syntaxHard,
+        soft: syntaxSoft,
+        punctuation_biases: punctuationBiases,
+        sentence_starters: {
+          conjunction_rate: round(starterRates.conjunction || 0),
+          pronoun_rate: round(starterRates.pronoun || 0),
+          adverb_rate: round(starterRates.adverb || 0),
+        },
+      },
+      lexical_constraints: {
+        hard: lexicalHard,
+        soft: lexicalSoft,
+        frequent_function_words: (metrics.functionWords?.top || []).map((entry) => ({
+          word: entry.word,
+          count: entry.count,
+          per_10000_words: round(entry.per10000Words),
+        })),
+        contraction_strategy: contractionStrategy,
+        editorial_avoidances: ['Do not treat topic words, proper nouns, or one-off phrases as voice constraints.'],
+      },
+      formatting_rules: {
+        hard: [],
+        soft: formattingSoft,
+        markdown_emphasis_density: emphasisDensity(formatting, scope.wordCount || 0),
+      },
+      generation_directive: directive,
+      validation_plan: {
+        compare: ['sentence length distribution', 'word length distribution', 'punctuation rates', 'contraction density', 'function-word tendencies'],
+        do_not_overfit: ['topic words', 'proper nouns', 'one-off phrases'],
+      },
+    },
+  };
+}
+
 function compareNumber(name, target, actual, tolerance = 0.25) {
   if (!Number.isFinite(target) || !Number.isFinite(actual) || target === 0) {
     return { metric: name, status: 'insufficient_data', target, actual };
@@ -308,7 +472,7 @@ function compareNumber(name, target, actual, tolerance = 0.25) {
 }
 
 export function evaluateVoiceFit(text, storedMetrics) {
-  const baseline = storedMetrics?.stylofact_profile?.measured_metrics || storedMetrics || {};
+  const baseline = storedMetrics?.stylofact_profile?.measured_metrics || storedMetrics?.measured_metrics || storedMetrics || {};
   const candidate = analyzeStylometry(text, {
     language: baseline?.scope?.language || 'unknown',
     genresOrMedia: ['generated artifact'],
@@ -334,10 +498,11 @@ export function evaluateVoiceFit(text, storedMetrics) {
   };
 }
 
-export function corpusFromSources(sources) {
-  return (sources || [])
+export function corpusFromSources(sources, { includeSourceLabels = true } = {}) {
+  return [...(sources || [])]
     .filter((source) => source?.bodyText)
-    .map((source) => `\n\n--- SOURCE: ${source.label || 'Untitled source'} ---\n${source.bodyText}`)
+    .sort((left, right) => compareCodePoints(String(left.createdAt || ''), String(right.createdAt || '')) || compareCodePoints(String(left.id || ''), String(right.id || '')))
+    .map((source) => includeSourceLabels ? `\n\n--- SOURCE: ${source.label || 'Untitled source'} ---\n${source.bodyText}` : `\n\n${source.bodyText}`)
     .join('')
     .trim();
 }

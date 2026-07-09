@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { analyzeStylometry, corpusFromSources, evaluateVoiceFit } from '../../lib/stylofactMetrics';
+import { analyzeStylometry, compileStyleProfile, corpusFromSources, evaluateVoiceFit } from '../../lib/stylofactMetrics';
 
 const MAX_AGENT_CORPUS_CHARACTERS = 180000;
 const MAX_GENERATION_FORMATS = 4;
@@ -63,12 +63,6 @@ function decodeJson(text) {
   throw new Error('The model returned incomplete JSON. Try the stage again.');
 }
 
-function normalizeProfile(payload) {
-  if (payload?.stylofact_profile) return payload;
-  if (payload?.profile?.stylofact_profile) return payload.profile;
-  return { stylofact_profile: payload || {} };
-}
-
 function normalizeExtraction(payload, corpus) {
   const extracted = Array.isArray(payload?.extracted_artifacts) ? payload.extracted_artifacts : [];
   const seen = new Set();
@@ -118,9 +112,10 @@ function normalizeOutputs(payload) {
 
 function profileForGeneration(project) {
   const profile = project?.styleProfile?.stylofact_profile || project?.styleProfile || {};
+  const storedMetrics = project?.styleMetrics && Object.keys(project.styleMetrics).length ? project.styleMetrics : null;
   const measuredProfile = {
     ...profile,
-    measured_metrics: profile.measured_metrics || project?.styleMetrics || {},
+    measured_metrics: storedMetrics || profile.measured_metrics || {},
   };
   const review = project?.styleReview?.review;
   if (project?.profileChoice === 'review' && review?.revised_generation_directive) {
@@ -394,7 +389,7 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
 
   const styleSources = useMemo(() => sources.filter((source) => source.role === 'style'), [sources]);
   const thematicSources = useMemo(() => sources.filter((source) => source.role === 'thematic'), [sources]);
-  const styleCorpus = useMemo(() => corpusFromSources(styleSources), [styleSources]);
+  const styleCorpus = useMemo(() => corpusFromSources(styleSources, { includeSourceLabels: false }), [styleSources]);
   const thematicCorpus = useMemo(() => corpusFromSources(thematicSources), [thematicSources]);
   const activeProfile = useMemo(() => profileForGeneration(project), [project]);
 
@@ -402,55 +397,41 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     const current = projectRef.current;
     if (!current) throw new Error('No Stylofact project is active.');
     if (!styleCorpus.trim()) throw new Error('Add self-authored writing to the voice corpus first.');
-    const primaryModel = current.primaryModel || defaultPrimaryModel;
-    const criticModel = independentCriticFor(primaryModel, current.criticModel || defaultCriticModel, availableModels);
     const metrics = analyzeStylometry(styleCorpus, {
       sourceCount: styleSources.length,
       genresOrMedia: ['user-supplied voice corpus'],
       mixedGenres: styleSources.length > 1,
     });
-    const sample = sampleForAgent(styleCorpus);
-    const request = {
-      operation: 'voice_profile',
-      deterministic_metrics: metrics,
-      corpus_sampling: { sampled: sample.sampled, original_character_count: sample.sourceCharacters },
-      corpus_excerpt: sample.text,
-      instructions: 'Execute Stage 1 exactly. Return only the required JSON object.',
-    };
+    const styleProfile = compileStyleProfile(metrics);
     try {
-      const primaryRun = await runAgent({ stage: 'voice', model: primaryModel, prompt: JSON.stringify(request) });
-      const styleProfile = normalizeProfile(decodeJson(primaryRun.text));
-      let styleReview = {};
-      if (criticModel) {
-        const reviewRequest = {
-          operation: 'voice_profile_independent_review',
-          deterministic_metrics: metrics,
-          primary_profile: styleProfile,
-          instructions: 'Execute the Stage 1 independent review. Return only the required JSON object. Never change measured metrics.',
-        };
-        const reviewRun = await runAgent({ stage: 'voice-review', model: criticModel, prompt: JSON.stringify(reviewRequest) });
-        styleReview = decodeJson(reviewRun.text);
-      }
       const saved = await updateProject({
         stage: 'theme',
-        primaryModel,
-        criticModel,
+        profileChoice: 'primary',
         styleMetrics: metrics,
         styleProfile,
-        styleReview,
+        styleReview: {},
       });
       await recordRun('voice', 'completed', {
-        modelName: primaryModel,
-        criticModelName: criticModel,
-        input: { sourceCount: styleSources.length, wordCount: metrics.scope.wordCount, sampled: sample.sampled },
-        result: { hasIndependentReview: !!criticModel, confidenceBand: metrics.scope.confidenceBand },
+        modelName: 'local:stylofact-metrics',
+        criticModelName: null,
+        input: {
+          sourceCount: styleSources.length,
+          wordCount: metrics.scope.wordCount,
+          corpusFingerprint: metrics.scope.corpusFingerprint,
+          deterministic: true,
+        },
+        result: {
+          analyzerVersion: metrics.analyzerVersion,
+          profileBuilder: styleProfile.stylofact_profile.profile_builder,
+          confidenceBand: metrics.scope.confidenceBand,
+        },
       });
       return saved;
     } catch (runError) {
-      await recordRun('voice', 'failed', { modelName: primaryModel, criticModelName: criticModel, error: runError?.message });
+      await recordRun('voice', 'failed', { modelName: 'local:stylofact-metrics', criticModelName: null, error: runError?.message });
       throw runError;
     }
-  }, [availableModels, defaultCriticModel, defaultPrimaryModel, recordRun, runAgent, styleCorpus, styleSources.length, updateProject]);
+  }, [recordRun, styleCorpus, styleSources.length, updateProject]);
 
   const runExtraction = useCallback(async () => {
     const current = projectRef.current;

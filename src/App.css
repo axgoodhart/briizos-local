@@ -1259,7 +1259,7 @@ border-radius:4px;
     background: black;}
 .chat-container.stylofact-container {
     align-items: stretch;
-    background: var(--palette-surface, #ede6d7);
+    background: var(--layout-bg-panel);
     box-shadow: none;
     justify-content: stretch;
     padding-bottom: 0;

@@ -2299,7 +2299,7 @@ class LocalDataService extends EventEmitter {
     const rows = this.db.prepare(`
       SELECT * FROM stylofact_sources
       WHERE project_id = ? AND deleted_at IS NULL ${role ? 'AND role = ?' : ''}
-      ORDER BY created_at ASC
+      ORDER BY created_at ASC, id ASC
     `).all(...(role ? [projectId, role] : [projectId]));
     return rows.map((row) => this._stylofactSource(row));
   }

@@ -1,18 +1,32 @@
 .stylofact-panel {
-  --stylofact-ink: #172629;
-  --stylofact-muted: #5e6c6b;
-  --stylofact-paper: #ede6d7;
-  --stylofact-paper-deep: #d9cfbd;
-  --stylofact-rule: rgba(23, 38, 41, 0.22);
-  --stylofact-orange: #c84f2f;
-  --stylofact-orange-deep: #922f20;
-  --stylofact-green: #246047;
-  --stylofact-red: #9b3224;
-  --stylofact-shadow: rgba(23, 38, 41, 0.17);
+  --stylofact-ink: var(--ui-text-primary);
+  --stylofact-muted: var(--palette-text-soft);
+  --stylofact-paper: var(--layout-bg-panel);
+  --stylofact-paper-deep: var(--ui-modal-tabs-bg);
+  --stylofact-surface: var(--ui-provider-tab-bg);
+  --stylofact-rule: var(--ui-button-ghost-border-strong);
+  --stylofact-orange: var(--layout-accent-orange);
+  --stylofact-orange-deep: var(--palette-accent-primary);
+  --stylofact-green: var(--palette-success);
+  --stylofact-warning: var(--palette-warning);
+  --stylofact-red: var(--palette-danger);
+  --stylofact-shadow: var(--ui-button-ghost-border-strong);
+  --stylofact-on-accent: var(--ui-body-bg);
+  --stylofact-on-error: var(--palette-white);
+  --stylofact-input-bg: var(--ui-settings-input-bg);
+  --stylofact-input-border: var(--ui-settings-input-border);
+  --stylofact-input-text: var(--ui-settings-input-text);
+  --stylofact-focus: var(--layout-accent-cyan);
+  --stylofact-code-bg: var(--log-section-bg);
+  --stylofact-code-text: var(--palette-text-faint);
+  --stylofact-accent-wash: var(--layout-accent-orange-dim);
+  --stylofact-success-wash: color-mix(in srgb, var(--stylofact-green) 12%, transparent);
+  --stylofact-ink-wash: color-mix(in srgb, var(--stylofact-ink) 8%, transparent);
+  --stylofact-error-bg: color-mix(in srgb, var(--stylofact-red) 55%, var(--stylofact-code-bg));
   color: var(--stylofact-ink);
   background:
-    linear-gradient(90deg, transparent 0 31px, rgba(200, 79, 47, 0.17) 31px 32px, transparent 32px),
-    repeating-linear-gradient(0deg, rgba(23, 38, 41, 0.055) 0 1px, transparent 1px 31px),
+    linear-gradient(90deg, transparent 0 31px, var(--stylofact-accent-wash) 31px 32px, transparent 32px),
+    repeating-linear-gradient(0deg, var(--stylofact-rule) 0 1px, transparent 1px 31px),
     var(--stylofact-paper);
   display: flex;
   flex: 1;
@@ -86,7 +100,7 @@
 }
 .stylofact-stage-marker li {
   align-items: baseline;
-  color: rgba(23, 38, 41, .48);
+  color: var(--palette-text-subtle);
   display: flex;
   font: 600 10px/1 'Avenir Next', Avenir, sans-serif;
   gap: 5px;
@@ -96,7 +110,7 @@
   text-transform: uppercase;
 }
 .stylofact-stage-marker li span {
-  color: rgba(23, 38, 41, .42);
+  color: var(--palette-text-dim);
   font-family: Georgia, serif;
   font-size: 11px;
 }
@@ -105,8 +119,8 @@
 
 .stylofact-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 42px; }
 .stylofact-section { border-bottom: 1px solid var(--stylofact-rule); padding: clamp(20px, 3.2cqw, 44px) clamp(16px, 5.3cqw, 70px) clamp(24px, 3.4cqw, 48px); }
-.stylofact-section.is-voice { background: rgba(255, 252, 243, .43); }
-.stylofact-section.is-output { background: rgba(36, 96, 71, .06); }
+.stylofact-section.is-voice { background: var(--stylofact-paper-deep); }
+.stylofact-section.is-output { background: var(--stylofact-success-wash); }
 .stylofact-section-intro { align-items: flex-start; display: grid; gap: 13px; grid-template-columns: 31px minmax(0, 700px); margin-bottom: 19px; }
 .stylofact-step-number { color: var(--stylofact-orange); font: 700 11px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .08em; padding-top: 4px; }
 .stylofact-kicker { color: var(--stylofact-orange-deep); display: block; font: 700 9px/1.2 'Avenir Next', Avenir, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
@@ -116,10 +130,10 @@
 .stylofact-field { display: flex; flex-direction: column; gap: 6px; }
 .stylofact-field > span { color: var(--stylofact-muted); font: 700 9px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .stylofact-field input, .stylofact-field textarea, .stylofact-field select {
-  background: rgba(255, 252, 243, .62);
-  border: 1px solid rgba(23, 38, 41, .34);
+  background: var(--stylofact-input-bg);
+  border: 1px solid var(--stylofact-input-border);
   border-radius: 0;
-  color: var(--stylofact-ink);
+  color: var(--stylofact-input-text);
   font: 14px/1.45 'Avenir Next', Avenir, sans-serif;
   min-height: 38px;
   padding: 8px 9px;
@@ -130,8 +144,8 @@
 .stylofact-field-query { max-width: 800px; margin-bottom: 14px; }
 
 .stylofact-model-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 280px)); margin: 0 0 17px 44px; }
-.stylofact-corpus { border-left: 2px solid var(--stylofact-orange); max-width: 860px; padding: 14px 0 0 14px; position: relative; transition: background .18s ease, outline-color .18s ease; }
-.stylofact-corpus.is-dropping { background: rgba(200, 79, 47, .11); outline: 2px dashed var(--stylofact-orange); outline-offset: 5px; }
+.stylofact-corpus { border-left: 2px solid var(--stylofact-orange); max-width: 860px; padding: 14px 0 0 14px; position: relative; transition: background var(--layout-transition-fast), outline-color var(--layout-transition-fast); }
+.stylofact-corpus.is-dropping { background: var(--stylofact-accent-wash); outline: 2px dashed var(--stylofact-orange); outline-offset: 5px; }
 .stylofact-corpus-heading { align-items: flex-start; display: flex; gap: 15px; justify-content: space-between; }
 .stylofact-corpus h3 { font-size: 20px; font-weight: 500; letter-spacing: -.035em; line-height: 1; margin: 5px 0 0; }
 .stylofact-drop-hint { color: var(--stylofact-muted); font: 600 9px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .08em; padding-top: 4px; text-transform: uppercase; }
@@ -147,11 +161,11 @@
   cursor: pointer;
   font-family: 'Avenir Next', Avenir, sans-serif;
 }
-.stylofact-button { border: 1px solid transparent; border-radius: 0; font-size: 11px; font-weight: 700; letter-spacing: .035em; min-height: 38px; padding: 8px 12px; text-transform: uppercase; transition: background .16s ease, color .16s ease, border-color .16s ease; }
-.stylofact-button.primary { background: var(--stylofact-orange); color: #fff9ec; }
+.stylofact-button { border: 1px solid transparent; border-radius: 0; font-size: 11px; font-weight: 700; letter-spacing: .035em; min-height: 38px; padding: 8px 12px; text-transform: uppercase; transition: background var(--layout-transition-fast), color var(--layout-transition-fast), border-color var(--layout-transition-fast); }
+.stylofact-button.primary { background: var(--stylofact-orange); color: var(--stylofact-on-accent); }
 .stylofact-button.primary:hover:not(:disabled) { background: var(--stylofact-orange-deep); }
 .stylofact-button.secondary { background: transparent; border-color: var(--stylofact-rule); color: var(--stylofact-ink); }
-.stylofact-button.secondary:hover:not(:disabled) { background: rgba(23, 38, 41, .09); }
+.stylofact-button.secondary:hover:not(:disabled) { background: var(--stylofact-ink-wash); }
 .stylofact-button:disabled, .stylofact-text-button:disabled, .stylofact-icon-button:disabled { cursor: not-allowed; opacity: .45; }
 .stylofact-icon-button { background: transparent; border: 0; color: var(--stylofact-red); font-size: 21px; height: 30px; line-height: 1; min-width: 30px; padding: 0; }
 .stylofact-text-button { background: transparent; border: 0; color: var(--stylofact-orange-deep); font-size: 11px; font-weight: 700; letter-spacing: .03em; min-height: 30px; padding: 5px 0; text-transform: uppercase; }
@@ -162,34 +176,34 @@
 .stylofact-metric-strip span { color: var(--stylofact-muted); font: 700 8px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .stylofact-metric-strip strong { font: 600 13px/1.15 'Avenir Next', Avenir, sans-serif; }
 .stylofact-metric-strip .confidence-exploratory { color: var(--stylofact-red); }
-.stylofact-metric-strip .confidence-provisional { color: #855610; }
+.stylofact-metric-strip .confidence-provisional { color: var(--stylofact-warning); }
 .stylofact-metric-strip .confidence-usable { color: var(--stylofact-green); }
 .stylofact-metric-strip details { font: 600 10px/1 'Avenir Next', Avenir, sans-serif; margin-left: auto; padding: 10px 0; position: relative; }
 .stylofact-metric-strip summary { cursor: pointer; color: var(--stylofact-orange-deep); }
-.stylofact-metric-strip pre { background: #1d292a; color: #eff0e5; font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 230px; max-width: min(620px, 85cqw); overflow: auto; padding: 12px; position: absolute; right: 25px; white-space: pre-wrap; z-index: 4; }
+.stylofact-metric-strip pre { background: var(--stylofact-code-bg); color: var(--stylofact-code-text); font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 230px; max-width: min(620px, 85cqw); overflow: auto; padding: 12px; position: absolute; right: 25px; white-space: pre-wrap; z-index: 4; }
 .stylofact-warning { color: var(--stylofact-red); font: 11px/1.35 'Avenir Next', Avenir, sans-serif; padding: 9px 0; }
 
 .stylofact-callout-action { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 20px 0 0 44px; }
 .stylofact-callout-action > span { color: var(--stylofact-muted); font: 11px/1.35 'Avenir Next', Avenir, sans-serif; max-width: 470px; }
-.stylofact-profile-preview { background: rgba(255, 252, 243, .72); border: 1px solid var(--stylofact-rule); box-shadow: 5px 5px 0 rgba(23, 38, 41, .08); margin: 22px 0 0 44px; max-width: 790px; padding: 15px 17px; }
+.stylofact-profile-preview { background: var(--stylofact-surface); border: 1px solid var(--stylofact-rule); box-shadow: 5px 5px 0 var(--stylofact-shadow); margin: 22px 0 0 44px; max-width: 790px; padding: 15px 17px; }
 .stylofact-result-head { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
-.stylofact-badge { background: rgba(36, 96, 71, .12); color: var(--stylofact-green); font: 700 9px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .05em; padding: 5px 6px; text-transform: uppercase; }
+.stylofact-badge { background: var(--stylofact-success-wash); color: var(--stylofact-green); font: 700 9px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .05em; padding: 5px 6px; text-transform: uppercase; }
 .stylofact-profile-preview > p { font-size: 15px; line-height: 1.38; margin: 11px 0 0; }
 .stylofact-profile-preview > p.stylofact-review-note { color: var(--stylofact-muted); font: italic 13px/1.4 Georgia, serif; }
 .stylofact-profile-choice { display: flex; gap: 5px; margin-top: 13px; }
 .stylofact-profile-choice button, .stylofact-version-choice button { background: transparent; border: 1px solid var(--stylofact-rule); color: var(--stylofact-muted); font-size: 10px; font-weight: 700; min-height: 30px; padding: 5px 7px; text-transform: uppercase; }
-.stylofact-profile-choice button.active, .stylofact-profile-choice button:hover, .stylofact-version-choice button:hover { background: var(--stylofact-ink); border-color: var(--stylofact-ink); color: var(--stylofact-paper); }
+.stylofact-profile-choice button.active, .stylofact-profile-choice button:hover, .stylofact-version-choice button:hover { background: var(--stylofact-ink); border-color: var(--stylofact-ink); color: var(--stylofact-on-accent); }
 .stylofact-limitations { color: var(--stylofact-muted); font: 11px/1.35 'Avenir Next', Avenir, sans-serif; margin: 11px 0 0; padding-left: 16px; }
 
-.stylofact-approval-toggle { align-items: flex-start; background: rgba(36, 96, 71, .07); border-left: 2px solid var(--stylofact-green); cursor: pointer; display: flex; gap: 9px; margin: 0 0 18px 44px; max-width: 710px; padding: 10px 11px; }
+.stylofact-approval-toggle { align-items: flex-start; background: var(--stylofact-success-wash); border-left: 2px solid var(--stylofact-green); cursor: pointer; display: flex; gap: 9px; margin: 0 0 18px 44px; max-width: 710px; padding: 10px 11px; }
 .stylofact-approval-toggle input { accent-color: var(--stylofact-green); height: 16px; margin: 0; min-width: 16px; }
 .stylofact-approval-toggle span { display: flex; flex-direction: column; gap: 3px; }
 .stylofact-approval-toggle strong { font: 600 12px/1 'Avenir Next', Avenir, sans-serif; }
 .stylofact-selection-toolbar { align-items: center; border-bottom: 1px solid var(--stylofact-rule); display: flex; gap: 15px; margin: 0 0 12px 44px; max-width: 790px; }
 .stylofact-selection-toolbar span { color: var(--stylofact-muted); flex: 1; font: 11px/1 'Avenir Next', Avenir, sans-serif; }
 .stylofact-extract-grid { display: grid; gap: 9px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-left: 44px; max-width: 900px; }
-.stylofact-extract { background: rgba(255, 252, 243, .44); border: 1px solid var(--stylofact-rule); cursor: pointer; display: grid; gap: 8px; grid-template-columns: 16px minmax(0, 1fr); padding: 11px; transition: border-color .14s ease, background .14s ease; }
-.stylofact-extract.selected { background: rgba(200, 79, 47, .1); border-color: var(--stylofact-orange); }
+.stylofact-extract { background: var(--stylofact-surface); border: 1px solid var(--stylofact-rule); cursor: pointer; display: grid; gap: 8px; grid-template-columns: 16px minmax(0, 1fr); padding: 11px; transition: border-color var(--layout-transition-fast), background var(--layout-transition-fast); }
+.stylofact-extract.selected { background: var(--stylofact-accent-wash); border-color: var(--stylofact-orange); }
 .stylofact-extract input { accent-color: var(--stylofact-orange); height: 16px; margin: 1px 0 0; width: 16px; }
 .stylofact-extract-body { font-size: 13px; line-height: 1.35; }
 .stylofact-extract-meta { color: var(--stylofact-muted); font: 9px/1.2 'Avenir Next', Avenir, sans-serif; grid-column: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -205,8 +219,8 @@
 
 .stylofact-output-controls { display: grid; gap: 18px; grid-template-columns: minmax(0, 690px) minmax(155px, 220px); margin-left: 44px; max-width: 930px; }
 .stylofact-format-list { display: grid; gap: 1px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.stylofact-format-list label { background: rgba(255, 252, 243, .45); border: 1px solid var(--stylofact-rule); cursor: pointer; display: flex; gap: 9px; min-height: 64px; padding: 9px; }
-.stylofact-format-list label.selected { background: rgba(36, 96, 71, .1); border-color: var(--stylofact-green); }
+.stylofact-format-list label { background: var(--stylofact-surface); border: 1px solid var(--stylofact-rule); cursor: pointer; display: flex; gap: 9px; min-height: 64px; padding: 9px; }
+.stylofact-format-list label.selected { background: var(--stylofact-success-wash); border-color: var(--stylofact-green); }
 .stylofact-format-list input { accent-color: var(--stylofact-green); height: 16px; margin: 1px 0 0; min-width: 16px; }
 .stylofact-format-list span { display: flex; flex-direction: column; gap: 3px; }
 .stylofact-format-list strong { font: 600 12px/1.15 'Avenir Next', Avenir, sans-serif; }
@@ -215,30 +229,30 @@
 .stylofact-artifact-grid { display: grid; gap: 13px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 24px 0 0 44px; max-width: 960px; }
 .stylofact-output-bundle { align-items: center; border-top: 1px solid var(--stylofact-rule); display: flex; gap: 12px; justify-content: space-between; margin: 24px 0 0 44px; max-width: 960px; padding-top: 12px; }
 .stylofact-output-bundle span { color: var(--stylofact-muted); font: 11px/1.3 'Avenir Next', Avenir, sans-serif; }
-.stylofact-artifact-card { background: rgba(255, 252, 243, .75); border: 1px solid var(--stylofact-rule); box-shadow: 4px 4px 0 rgba(23, 38, 41, .07); display: flex; flex-direction: column; min-width: 0; padding: 13px; }
+.stylofact-artifact-card { background: var(--stylofact-surface); border: 1px solid var(--stylofact-rule); box-shadow: 4px 4px 0 var(--stylofact-shadow); display: flex; flex-direction: column; min-width: 0; padding: 13px; }
 .stylofact-artifact-head { align-items: flex-start; display: flex; gap: 8px; justify-content: space-between; }
 .stylofact-artifact-head h4 { font-size: 18px; font-weight: 500; letter-spacing: -.03em; line-height: 1.05; margin: 5px 0 0; }
 .stylofact-fit { border: 1px solid currentColor; font: 700 8px/1.1 'Avenir Next', Avenir, sans-serif; letter-spacing: .06em; max-width: 100px; padding: 4px; text-align: right; text-transform: uppercase; }
-.stylofact-fit.pass { color: var(--stylofact-green); }.stylofact-fit.review { color: #865f19; }.stylofact-fit.warn, .stylofact-fit.insufficient_data { color: var(--stylofact-red); }
-.stylofact-artifact-content { color: #293235; font-size: 13px; line-height: 1.45; margin-top: 12px; max-height: 106px; overflow: hidden; position: relative; }
-.stylofact-artifact-content:not(.expanded)::after { background: linear-gradient(transparent, rgba(255, 252, 243, .95)); bottom: 0; content: ''; height: 37px; left: 0; pointer-events: none; position: absolute; right: 0; }
+.stylofact-fit.pass { color: var(--stylofact-green); }.stylofact-fit.review { color: var(--stylofact-warning); }.stylofact-fit.warn, .stylofact-fit.insufficient_data { color: var(--stylofact-red); }
+.stylofact-artifact-content { color: var(--stylofact-ink); font-size: 13px; line-height: 1.45; margin-top: 12px; max-height: 106px; overflow: hidden; position: relative; }
+.stylofact-artifact-content:not(.expanded)::after { background: linear-gradient(transparent, var(--stylofact-surface)); bottom: 0; content: ''; height: 37px; left: 0; pointer-events: none; position: absolute; right: 0; }
 .stylofact-artifact-content.expanded { max-height: none; }
 .stylofact-artifact-content p { margin: 0 0 9px; }.stylofact-artifact-content p:last-child { margin-bottom: 0; }
 .stylofact-artifact-actions { align-items: center; border-top: 1px solid var(--stylofact-rule); display: flex; gap: 11px; margin-top: 11px; padding-top: 7px; }
 .stylofact-version-choice { display: flex; gap: 4px; margin-left: auto; }
 .stylofact-version-choice button { min-height: 27px; padding: 4px 5px; }
 .stylofact-fit-detail { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.stylofact-fit-detail span { background: rgba(23, 38, 41, .07); color: var(--stylofact-muted); font: 700 8px/1.1 'Avenir Next', Avenir, sans-serif; padding: 4px; text-transform: uppercase; }
+.stylofact-fit-detail span { background: var(--stylofact-ink-wash); color: var(--stylofact-muted); font: 700 8px/1.1 'Avenir Next', Avenir, sans-serif; padding: 4px; text-transform: uppercase; }
 .stylofact-fit-detail .pass { color: var(--stylofact-green); }.stylofact-fit-detail .warn, .stylofact-fit-detail .drift { color: var(--stylofact-red); }
 
-.stylofact-running { background: #1d292a; color: #f7efdf; display: flex; flex-direction: column; gap: 7px; max-height: 110px; overflow: auto; padding: 10px 18px 10px 46px; }
+.stylofact-running { background: var(--stylofact-code-bg); color: var(--stylofact-ink); display: flex; flex-direction: column; gap: 7px; max-height: 110px; overflow: auto; padding: 10px 18px 10px 46px; }
 .stylofact-running > div { align-items: center; display: flex; font: 700 11px/1 'Avenir Next', Avenir, sans-serif; gap: 7px; letter-spacing: .05em; text-transform: uppercase; }
-.stylofact-running-dot { animation: stylofact-pulse 1.2s ease-in-out infinite; background: #f2b050; border-radius: 50%; height: 7px; width: 7px; }.stylofact-running small { color: #b9c8bd; font-size: 9px; margin-left: 5px; }
-.stylofact-running p { color: #d4dbd0; font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; white-space: pre-wrap; }
-.stylofact-error { align-items: center; background: #6e2d24; color: #fff6e8; display: flex; font: 12px/1.3 'Avenir Next', Avenir, sans-serif; gap: 10px; justify-content: space-between; padding: 8px 18px 8px 46px; }.stylofact-error button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 20px; min-height: 28px; min-width: 28px; }
-.stylofact-loading { align-items: center; background: var(--stylofact-paper, #ede6d7); color: #172629; display: flex; flex: 1; font: 600 13px 'Avenir Next', Avenir, sans-serif; justify-content: center; min-height: 0; }
+.stylofact-running-dot { animation: stylofact-pulse 1.2s ease-in-out infinite; background: var(--stylofact-warning); border-radius: 50%; height: 7px; width: 7px; }.stylofact-running small { color: var(--stylofact-muted); font-size: 9px; margin-left: 5px; }
+.stylofact-running p { color: var(--stylofact-code-text); font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; white-space: pre-wrap; }
+.stylofact-error { align-items: center; background: var(--stylofact-error-bg); color: var(--stylofact-on-error); display: flex; font: 12px/1.3 'Avenir Next', Avenir, sans-serif; gap: 10px; justify-content: space-between; padding: 8px 18px 8px 46px; }.stylofact-error button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 20px; min-height: 28px; min-width: 28px; }
+.stylofact-loading { align-items: center; background: var(--stylofact-paper); color: var(--stylofact-ink); display: flex; flex: 1; font: 600 13px 'Avenir Next', Avenir, sans-serif; justify-content: center; min-height: 0; }
 .stylofact-panel .sr-only { height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; clip: rect(0, 0, 0, 0); white-space: nowrap; }
-.stylofact-panel button:focus-visible, .stylofact-panel input:focus-visible, .stylofact-panel textarea:focus-visible, .stylofact-panel select:focus-visible, .stylofact-panel summary:focus-visible { outline: 3px solid #214c9a; outline-offset: 2px; }
+.stylofact-panel button:focus-visible, .stylofact-panel input:focus-visible, .stylofact-panel textarea:focus-visible, .stylofact-panel select:focus-visible, .stylofact-panel summary:focus-visible { outline: 3px solid var(--stylofact-focus); outline-offset: 2px; }
 
 @keyframes stylofact-pulse { 50% { opacity: .35; transform: scale(.7); } }
 @media (prefers-reduced-motion: reduce) { .stylofact-panel *, .stylofact-panel *::before, .stylofact-panel *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
