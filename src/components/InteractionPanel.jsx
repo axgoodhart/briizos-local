@@ -12,6 +12,7 @@ import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
+import StylofactPanel from './stylofact/StylofactPanel';
 
 const CHAT_BACKGROUNDS = [
   { value: '', label: 'Default' },
@@ -94,6 +95,7 @@ const MODALITIES = [
   { id: 'code', label: 'Code' },
   { id: 'report', label: 'Report' },
   { id: 'plan', label: 'Plan' },
+  { id: 'stylofact', label: 'Stylofact' },
 ];
 
 const TOOL_NAME_REGEX = '[A-Za-z][A-Za-z0-9_]*';
@@ -249,7 +251,9 @@ function InteractionPanel() {
   // Drop zone for dragging source files into chat
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: SOURCE_FILE_TYPE,
+    canDrop: () => modality !== 'stylofact',
     drop: async (item) => {
+      if (modality === 'stylofact') return;
       try {
         await window.api.localData.selectedFiles.add({
           path: item.path,
@@ -419,7 +423,7 @@ function InteractionPanel() {
   }[selectedProfile?.provider || provider] || selectedProfile?.provider || provider;
 
   return (
-    <div ref={drop} className={`panel interaction-panel ${isOver && canDrop ? 'drop-active' : ''} ${canDrop ? 'can-drop' : ''}`}>
+    <div ref={drop} className={`panel interaction-panel ${modality === 'stylofact' ? 'stylofact-active' : ''} ${isOver && canDrop ? 'drop-active' : ''} ${canDrop ? 'can-drop' : ''}`}>
       <div className="panel-header" id="chat-header">
         <span
           className="chat-header-label"
@@ -514,7 +518,7 @@ function InteractionPanel() {
       </div>
 
       {/* Files in context indicator */}
-      {filesInContext.length > 0 && (
+      {modality !== 'stylofact' && filesInContext.length > 0 && (
         <div className="files-in-context">
           <span className="context-label">Context:</span>
           <div className="context-files">
@@ -541,7 +545,7 @@ function InteractionPanel() {
         </div>
       )}
 
-      <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${resolvedChatBg ? 'has-custom-bg' : ''}`}>
+      <div className={`chat-container ${modality === 'stylofact' ? 'stylofact-container' : ''} ${collapsed ? 'collapsed' : ''} ${resolvedChatBg ? 'has-custom-bg' : ''}`}>
         {resolvedChatBg ? (
           <div className="chat-bg-frame-container" style={resolvedChatBgBlur ? { filter: `blur(${resolvedChatBgBlur}px)` } : undefined}>
             <iframe
@@ -553,6 +557,14 @@ function InteractionPanel() {
           </div>
         ) : null}
 
+        {modality === 'stylofact' ? (
+          <StylofactPanel
+            models={models}
+            selectedModel={selectedModel}
+            isModelAvailable={isModelAvailable}
+          />
+        ) : (
+          <>
         {showBgPicker && (
           <div className="chat-bg-picker">
             <div className="chat-bg-section-label">HTML Backgrounds</div>
@@ -803,10 +815,12 @@ function InteractionPanel() {
             <div ref={messagesEndRef} />
           </div>
         )}
+          </>
+        )}
       </div>
 
       {/* Scroll nav dots */}
-      {userMessageIndexes.length > 2 && !collapsed && (
+      {modality !== 'stylofact' && userMessageIndexes.length > 2 && !collapsed && (
         <div className="chat-nav-track">
           {userMessageIndexes.map((msgIdx, i) => (
             <div
@@ -822,7 +836,7 @@ function InteractionPanel() {
       )}
 
       {/* Clarification Bar */}
-      {pendingClarification && !pendingToolConfirmation && (
+      {modality !== 'stylofact' && pendingClarification && !pendingToolConfirmation && (
         <div className="lg-status-bar" style={{
           display: 'flex',
           alignItems: 'center',
@@ -848,7 +862,7 @@ function InteractionPanel() {
       )}
 
       {/* Tool Confirmation Bar */}
-      {pendingToolConfirmation && (
+      {modality !== 'stylofact' && pendingToolConfirmation && (
         <div className="lg-status-bar" style={{
           display: 'flex',
           alignItems: 'center',
@@ -904,7 +918,7 @@ function InteractionPanel() {
       )}
 
       {/* Backend status indicator */}
-      {lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
+      {modality !== 'stylofact' && lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
         <div className="lg-status-bar" style={{
           display: 'flex',
           alignItems: 'center',
@@ -939,7 +953,7 @@ function InteractionPanel() {
       )}
 
       {/* Input Area */}
-      <div className="chat-input-area">
+      {modality !== 'stylofact' && <div className="chat-input-area">
         <div className="chat-input-wrapper">
           <textarea
             ref={textareaRef}
@@ -965,7 +979,7 @@ function InteractionPanel() {
             {isLoading ? '...' : '\u2192'}
           </button>
         </div>
-      </div>
+      </div>}
 
 
       {/* Confirmation Toast */}

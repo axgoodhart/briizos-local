@@ -98,6 +98,31 @@ contextBridge.exposeInMainWorld('api', {
         append: (threadId, input) => invokeLocalData('local-data:messages:append', threadId, input),
       },
     },
+    stylofact: {
+      projects: {
+        list: (filters) => invokeLocalData('local-data:stylofact:projects:list', filters),
+        get: (projectId) => invokeLocalData('local-data:stylofact:projects:get', projectId),
+        create: (input) => invokeLocalData('local-data:stylofact:projects:create', input),
+        update: (projectId, expectedRevision, patch) =>
+          invokeLocalData('local-data:stylofact:projects:update', projectId, expectedRevision, patch),
+        archive: (projectId, expectedRevision) =>
+          invokeLocalData('local-data:stylofact:projects:archive', projectId, expectedRevision),
+      },
+      sources: {
+        create: (projectId, input) => invokeLocalData('local-data:stylofact:sources:create', projectId, input),
+        archive: (sourceId, expectedRevision) =>
+          invokeLocalData('local-data:stylofact:sources:archive', sourceId, expectedRevision),
+      },
+      artifacts: {
+        list: (projectId) => invokeLocalData('local-data:stylofact:artifacts:list', projectId),
+        replace: (projectId, artifacts) =>
+          invokeLocalData('local-data:stylofact:artifacts:replace', projectId, artifacts),
+      },
+      runs: {
+        list: (projectId, limit) => invokeLocalData('local-data:stylofact:runs:list', projectId, limit),
+        create: (projectId, input) => invokeLocalData('local-data:stylofact:runs:create', projectId, input),
+      },
+    },
     memory: {
       sections: {
         list: () => invokeLocalData('local-data:memory:sections:list'),

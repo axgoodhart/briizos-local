@@ -325,6 +325,7 @@ const DEFAULT_AGENT_CONFIG = Object.freeze({
 const DEFAULT_SKILLS_CONFIG = Object.freeze({
   'deep-research': true, bootstrap: true, 'skill-creator': true,
   'frontend-design': true, 'web-design-guidelines': true,
+  stylofact: true,
   'consulting-analysis': true, 'data-analysis': true,
   'chart-visualization': false, 'image-generation': false,
   'video-generation': false, 'podcast-generation': false,

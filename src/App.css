@@ -1257,6 +1257,20 @@ border-radius:4px;
     min-height: 0;}
 .chat-container.has-custom-bg {
     background: black;}
+.chat-container.stylofact-container {
+    align-items: stretch;
+    background: var(--palette-surface, #ede6d7);
+    box-shadow: none;
+    justify-content: stretch;
+    padding-bottom: 0;
+}
+.chat-container.stylofact-container .chat-bg-frame-container {
+    display: none;
+}
+.chat-container.stylofact-container .stylofact-panel {
+    position: relative;
+    z-index: 1;
+}
 .chat-bg-frame-container {
     position: absolute;
     inset: 0;

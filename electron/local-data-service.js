@@ -37,6 +37,11 @@ const COMMAND_STATUSES = ['accepted', 'queued', 'running', 'waiting_for_user', '
 const RUN_STATUSES = new Set(COMMAND_STATUSES);
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'expired', 'rejected']);
 const SHARED_TEXT_TYPES = ['task', 'note', 'project', 'event', 'timer', 'retained_text'];
+const STYLOFACT_STAGES = ['voice', 'theme', 'review', 'blueprint', 'generate', 'complete'];
+const STYLOFACT_APPROVAL_MODES = ['manual', 'automatic'];
+const STYLOFACT_PROFILE_CHOICES = ['primary', 'review'];
+const STYLOFACT_SOURCE_ROLES = ['style', 'thematic'];
+const STYLOFACT_SOURCE_ORIGINS = ['paste', 'drop', 'import'];
 
 function now() {
   return Date.now();
@@ -2059,6 +2064,385 @@ class LocalDataService extends EventEmitter {
       this.db.prepare("UPDATE threads SET status = 'archived', deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?")
         .run(timestamp, timestamp, threadId);
       return { ok: true };
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stylofact — local, versioned writing-voice projects.
+  // ---------------------------------------------------------------------------
+
+  _stylofactProject(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      title: row.title,
+      stage: row.stage,
+      approvalMode: row.approval_mode,
+      profileChoice: row.profile_choice,
+      targetPrompt: row.target_prompt,
+      primaryModel: row.primary_model,
+      criticModel: row.critic_model,
+      styleMetrics: JSON.parse(row.style_metrics_json || '{}'),
+      styleProfile: JSON.parse(row.style_profile_json || '{}'),
+      styleReview: JSON.parse(row.style_review_json || '{}'),
+      extraction: JSON.parse(row.extraction_json || '{}'),
+      selectedArtifactIds: JSON.parse(row.selected_artifact_ids_json || '[]'),
+      blueprint: JSON.parse(row.blueprint_json || '{}'),
+      generationOptions: JSON.parse(row.generation_options_json || '{}'),
+      projectThreadId: row.project_thread_id,
+      sourceCount: Number(row.source_count || 0),
+      outputCount: Number(row.output_count || 0),
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    };
+  }
+
+  _stylofactSource(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      role: row.role,
+      origin: row.origin,
+      label: row.label,
+      filePath: row.file_path,
+      bodyText: row.body_text,
+      provenance: JSON.parse(row.provenance_json || '{}'),
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    };
+  }
+
+  _stylofactArtifact(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      medium: row.medium,
+      variation: row.variation,
+      title: row.title,
+      content: row.content_text,
+      draftContent: row.draft_text,
+      criticContent: row.critic_text,
+      voiceEvaluation: JSON.parse(row.voice_evaluation_json || '{}'),
+      sourceBrief: JSON.parse(row.source_brief_json || '{}'),
+      primaryModel: row.primary_model,
+      criticModel: row.critic_model,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    };
+  }
+
+  _stylofactRun(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      stage: row.stage,
+      modelName: row.model_name,
+      criticModelName: row.critic_model_name,
+      status: row.status,
+      input: JSON.parse(row.input_json || '{}'),
+      result: JSON.parse(row.result_json || '{}'),
+      error: row.error_text,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    };
+  }
+
+  _stylofactProjectRow(projectId, includeDeleted = false) {
+    const deletedClause = includeDeleted ? '' : 'AND p.deleted_at IS NULL';
+    return this.db.prepare(`
+      SELECT p.*,
+        (SELECT COUNT(*) FROM stylofact_sources s WHERE s.project_id = p.id AND s.deleted_at IS NULL) AS source_count,
+        (SELECT COUNT(*) FROM stylofact_artifacts a WHERE a.project_id = p.id AND a.deleted_at IS NULL) AS output_count
+      FROM stylofact_projects p
+      WHERE p.id = ? ${deletedClause}
+    `).get(projectId);
+  }
+
+  listStylofactProjects(input = {}) {
+    this._assertReady();
+    v.object(input, 'Stylofact project filters', ['includeDeleted', 'limit']);
+    const includeDeleted = input.includeDeleted === undefined ? false : v.boolean(input.includeDeleted, 'includeDeleted');
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 500 });
+    const rows = this.db.prepare(`
+      SELECT p.*,
+        (SELECT COUNT(*) FROM stylofact_sources s WHERE s.project_id = p.id AND s.deleted_at IS NULL) AS source_count,
+        (SELECT COUNT(*) FROM stylofact_artifacts a WHERE a.project_id = p.id AND a.deleted_at IS NULL) AS output_count
+      FROM stylofact_projects p
+      ${includeDeleted ? '' : 'WHERE p.deleted_at IS NULL'}
+      ORDER BY p.updated_at DESC LIMIT ?
+    `).all(limit);
+    return rows.map((row) => this._stylofactProject(row));
+  }
+
+  getStylofactProject(projectId) {
+    this._assertReady();
+    projectId = v.identifier(projectId, 'projectId');
+    const row = this._stylofactProjectRow(projectId);
+    if (!row) v.fail('NOT_FOUND', 'Stylofact project not found');
+    return {
+      project: this._stylofactProject(row),
+      sources: this.listStylofactSources(projectId),
+      artifacts: this.listStylofactArtifacts(projectId),
+      runs: this.listStylofactRuns(projectId, 40),
+    };
+  }
+
+  createStylofactProject(input = {}) {
+    v.object(input, 'Stylofact project', ['title', 'primaryModel', 'criticModel', 'approvalMode']);
+    const project = {
+      id: id(),
+      title: v.optional(input.title, (value) => v.string(value, 'title', { max: 1000 })) ?? 'Untitled Stylofact',
+      primaryModel: v.optional(input.primaryModel, (value) => v.string(value, 'primaryModel', { nullable: true, max: 200 })) ?? null,
+      criticModel: v.optional(input.criticModel, (value) => v.string(value, 'criticModel', { nullable: true, max: 200 })) ?? null,
+      approvalMode: input.approvalMode === undefined ? 'manual' : v.oneOf(input.approvalMode, 'approvalMode', STYLOFACT_APPROVAL_MODES),
+    };
+    return this._write('stylofact', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO stylofact_projects (
+          id, title, stage, approval_mode, profile_choice, primary_model, critic_model,
+          created_at, updated_at, revision
+        ) VALUES (?, ?, 'voice', ?, 'primary', ?, ?, ?, ?, 1)
+      `).run(project.id, project.title, project.approvalMode, project.primaryModel, project.criticModel, timestamp, timestamp);
+      return { row: this._stylofactProject(this._stylofactProjectRow(project.id)) };
+    });
+  }
+
+  updateStylofactProject(projectId, expectedRevision, patch = {}) {
+    projectId = v.identifier(projectId, 'projectId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    v.object(patch, 'Stylofact project changes', [
+      'title', 'stage', 'approvalMode', 'profileChoice', 'targetPrompt', 'primaryModel', 'criticModel',
+      'styleMetrics', 'styleProfile', 'styleReview', 'extraction', 'selectedArtifactIds', 'blueprint',
+      'generationOptions', 'projectThreadId',
+    ]);
+    if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one Stylofact project change is required');
+    const normalized = {
+      title: v.optional(patch.title, (value) => v.string(value, 'title', { max: 1000 })),
+      stage: patch.stage === undefined ? undefined : v.oneOf(patch.stage, 'stage', STYLOFACT_STAGES),
+      approvalMode: patch.approvalMode === undefined ? undefined : v.oneOf(patch.approvalMode, 'approvalMode', STYLOFACT_APPROVAL_MODES),
+      profileChoice: patch.profileChoice === undefined ? undefined : v.oneOf(patch.profileChoice, 'profileChoice', STYLOFACT_PROFILE_CHOICES),
+      targetPrompt: v.optional(patch.targetPrompt, (value) => v.string(value, 'targetPrompt', { max: 300000 })),
+      primaryModel: v.optional(patch.primaryModel, (value) => v.string(value, 'primaryModel', { nullable: true, max: 200 })),
+      criticModel: v.optional(patch.criticModel, (value) => v.string(value, 'criticModel', { nullable: true, max: 200 })),
+      styleMetrics: patch.styleMetrics === undefined ? undefined : this._jsonValue(patch.styleMetrics, 'styleMetrics', 5000000),
+      styleProfile: patch.styleProfile === undefined ? undefined : this._jsonValue(patch.styleProfile, 'styleProfile', 5000000),
+      styleReview: patch.styleReview === undefined ? undefined : this._jsonValue(patch.styleReview, 'styleReview', 5000000),
+      extraction: patch.extraction === undefined ? undefined : this._jsonValue(patch.extraction, 'extraction', 10000000),
+      selectedArtifactIds: patch.selectedArtifactIds === undefined ? undefined : this._jsonValue(
+        v.stringArray(patch.selectedArtifactIds, 'selectedArtifactIds', { maxItems: 1000, maxLength: 200 }),
+        'selectedArtifactIds',
+        500000,
+      ),
+      blueprint: patch.blueprint === undefined ? undefined : this._jsonValue(patch.blueprint, 'blueprint', 5000000),
+      generationOptions: patch.generationOptions === undefined ? undefined : this._jsonValue(patch.generationOptions, 'generationOptions', 1000000),
+      projectThreadId: v.optional(patch.projectThreadId, (value) => v.string(value, 'projectThreadId', { nullable: true, max: 200 })),
+    };
+    return this._write('stylofact', (timestamp) => {
+      this._requireCurrent('stylofact_projects', projectId, expectedRevision);
+      const current = this.db.prepare('SELECT * FROM stylofact_projects WHERE id = ?').get(projectId);
+      this.db.prepare(`
+        UPDATE stylofact_projects SET
+          title = ?, stage = ?, approval_mode = ?, profile_choice = ?, target_prompt = ?,
+          primary_model = ?, critic_model = ?, style_metrics_json = ?, style_profile_json = ?,
+          style_review_json = ?, extraction_json = ?, selected_artifact_ids_json = ?, blueprint_json = ?,
+          generation_options_json = ?, project_thread_id = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(
+        normalized.title ?? current.title,
+        normalized.stage ?? current.stage,
+        normalized.approvalMode ?? current.approval_mode,
+        normalized.profileChoice ?? current.profile_choice,
+        normalized.targetPrompt ?? current.target_prompt,
+        normalized.primaryModel === undefined ? current.primary_model : normalized.primaryModel,
+        normalized.criticModel === undefined ? current.critic_model : normalized.criticModel,
+        normalized.styleMetrics ?? current.style_metrics_json,
+        normalized.styleProfile ?? current.style_profile_json,
+        normalized.styleReview ?? current.style_review_json,
+        normalized.extraction ?? current.extraction_json,
+        normalized.selectedArtifactIds ?? current.selected_artifact_ids_json,
+        normalized.blueprint ?? current.blueprint_json,
+        normalized.generationOptions ?? current.generation_options_json,
+        normalized.projectThreadId === undefined ? current.project_thread_id : normalized.projectThreadId,
+        timestamp,
+        projectId,
+      );
+      return { row: this._stylofactProject(this._stylofactProjectRow(projectId)) };
+    });
+  }
+
+  archiveStylofactProject(projectId, expectedRevision) {
+    projectId = v.identifier(projectId, 'projectId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    return this._write('stylofact', (timestamp) => {
+      this._requireCurrent('stylofact_projects', projectId, expectedRevision);
+      ['stylofact_sources', 'stylofact_artifacts', 'stylofact_runs'].forEach((table) => {
+        this.db.prepare(`UPDATE ${table} SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL`)
+          .run(timestamp, timestamp, projectId);
+      });
+      this.db.prepare('UPDATE stylofact_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, projectId);
+      return { ok: true };
+    });
+  }
+
+  listStylofactSources(projectId, role = null) {
+    this._assertReady();
+    projectId = v.identifier(projectId, 'projectId');
+    if (role != null) role = v.oneOf(role, 'source role', STYLOFACT_SOURCE_ROLES);
+    const rows = this.db.prepare(`
+      SELECT * FROM stylofact_sources
+      WHERE project_id = ? AND deleted_at IS NULL ${role ? 'AND role = ?' : ''}
+      ORDER BY created_at ASC
+    `).all(...(role ? [projectId, role] : [projectId]));
+    return rows.map((row) => this._stylofactSource(row));
+  }
+
+  createStylofactSource(projectId, input = {}) {
+    projectId = v.identifier(projectId, 'projectId');
+    v.object(input, 'Stylofact source', ['role', 'origin', 'label', 'filePath', 'bodyText', 'provenance']);
+    const source = {
+      id: id(),
+      role: v.oneOf(input.role, 'role', STYLOFACT_SOURCE_ROLES),
+      origin: input.origin === undefined ? 'paste' : v.oneOf(input.origin, 'origin', STYLOFACT_SOURCE_ORIGINS),
+      label: v.optional(input.label, (value) => v.string(value, 'label', { max: 2000 })) ?? '',
+      filePath: v.optional(input.filePath, (value) => v.string(value, 'filePath', { nullable: true, max: 10000 })) ?? null,
+      bodyText: v.optional(input.bodyText, (value) => v.string(value, 'bodyText', { max: 3000000 })) ?? '',
+      provenance: input.provenance === undefined ? {} : input.provenance,
+    };
+    const provenanceJson = this._jsonValue(source.provenance, 'source provenance', 1000000);
+    return this._write('stylofact', (timestamp) => {
+      if (!this._stylofactProjectRow(projectId)) v.fail('NOT_FOUND', 'Stylofact project not found');
+      const count = this.db.prepare('SELECT COUNT(*) AS count FROM stylofact_sources WHERE project_id = ? AND deleted_at IS NULL').get(projectId).count;
+      if (count >= 500) v.fail('INVALID_INPUT', 'A Stylofact project can contain at most 500 sources');
+      this.db.prepare(`
+        INSERT INTO stylofact_sources (
+          id, project_id, role, origin, label, file_path, body_text, provenance_json,
+          created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(
+        source.id, projectId, source.role, source.origin, source.label, source.filePath, source.bodyText,
+        provenanceJson, timestamp, timestamp,
+      );
+      this.db.prepare('UPDATE stylofact_projects SET updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, projectId);
+      return { row: this._stylofactSource(this.db.prepare('SELECT * FROM stylofact_sources WHERE id = ?').get(source.id)) };
+    });
+  }
+
+  archiveStylofactSource(sourceId, expectedRevision) {
+    sourceId = v.identifier(sourceId, 'sourceId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    return this._write('stylofact', (timestamp) => {
+      this._requireCurrent('stylofact_sources', sourceId, expectedRevision);
+      const source = this.db.prepare('SELECT project_id FROM stylofact_sources WHERE id = ?').get(sourceId);
+      this.db.prepare('UPDATE stylofact_sources SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, timestamp, sourceId);
+      this.db.prepare('UPDATE stylofact_projects SET updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, source.project_id);
+      return { ok: true };
+    });
+  }
+
+  listStylofactArtifacts(projectId) {
+    this._assertReady();
+    projectId = v.identifier(projectId, 'projectId');
+    return this.db.prepare(`
+      SELECT * FROM stylofact_artifacts WHERE project_id = ? AND deleted_at IS NULL
+      ORDER BY medium ASC, variation ASC, created_at ASC
+    `).all(projectId).map((row) => this._stylofactArtifact(row));
+  }
+
+  replaceStylofactArtifacts(projectId, artifacts = []) {
+    projectId = v.identifier(projectId, 'projectId');
+    if (!Array.isArray(artifacts) || artifacts.length > 100) {
+      v.fail('INVALID_INPUT', 'Stylofact output list must contain at most 100 artifacts');
+    }
+    const normalized = artifacts.map((artifact, index) => {
+      v.object(artifact, `artifact ${index + 1}`, [
+        'medium', 'variation', 'title', 'content', 'draftContent', 'criticContent', 'voiceEvaluation',
+        'sourceBrief', 'primaryModel', 'criticModel',
+      ]);
+      return {
+        id: id(),
+        medium: v.string(artifact.medium, `artifact ${index + 1} medium`, { required: true, max: 200 }),
+        variation: v.integer(artifact.variation, `artifact ${index + 1} variation`, { min: 1, max: 100 }),
+        title: v.optional(artifact.title, (value) => v.string(value, `artifact ${index + 1} title`, { max: 2000 })) ?? '',
+        content: v.optional(artifact.content, (value) => v.string(value, `artifact ${index + 1} content`, { max: 3000000 })) ?? '',
+        draftContent: v.optional(artifact.draftContent, (value) => v.string(value, `artifact ${index + 1} draftContent`, { max: 3000000 })) ?? '',
+        criticContent: v.optional(artifact.criticContent, (value) => v.string(value, `artifact ${index + 1} criticContent`, { nullable: true, max: 3000000 })) ?? null,
+        voiceEvaluation: artifact.voiceEvaluation === undefined ? {} : artifact.voiceEvaluation,
+        sourceBrief: artifact.sourceBrief === undefined ? {} : artifact.sourceBrief,
+        primaryModel: v.optional(artifact.primaryModel, (value) => v.string(value, `artifact ${index + 1} primaryModel`, { nullable: true, max: 200 })) ?? null,
+        criticModel: v.optional(artifact.criticModel, (value) => v.string(value, `artifact ${index + 1} criticModel`, { nullable: true, max: 200 })) ?? null,
+      };
+    });
+    return this._write('stylofact', (timestamp) => {
+      if (!this._stylofactProjectRow(projectId)) v.fail('NOT_FOUND', 'Stylofact project not found');
+      this.db.prepare('UPDATE stylofact_artifacts SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, projectId);
+      const insert = this.db.prepare(`
+        INSERT INTO stylofact_artifacts (
+          id, project_id, medium, variation, title, content_text, draft_text, critic_text,
+          voice_evaluation_json, source_brief_json, primary_model, critic_model,
+          created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `);
+      normalized.forEach((artifact) => insert.run(
+        artifact.id, projectId, artifact.medium, artifact.variation, artifact.title, artifact.content,
+        artifact.draftContent, artifact.criticContent,
+        this._jsonValue(artifact.voiceEvaluation, 'voice evaluation', 1000000),
+        this._jsonValue(artifact.sourceBrief, 'source brief', 1000000),
+        artifact.primaryModel, artifact.criticModel, timestamp, timestamp,
+      ));
+      this.db.prepare('UPDATE stylofact_projects SET updated_at = ?, revision = revision + 1 WHERE id = ?')
+        .run(timestamp, projectId);
+      return { rows: this.listStylofactArtifacts(projectId) };
+    });
+  }
+
+  listStylofactRuns(projectId, limit = 100) {
+    this._assertReady();
+    projectId = v.identifier(projectId, 'projectId');
+    limit = v.integer(limit, 'limit', { min: 1, max: 500 });
+    return this.db.prepare(`
+      SELECT * FROM stylofact_runs WHERE project_id = ? AND deleted_at IS NULL
+      ORDER BY created_at DESC LIMIT ?
+    `).all(projectId, limit).map((row) => this._stylofactRun(row));
+  }
+
+  createStylofactRun(projectId, input = {}) {
+    projectId = v.identifier(projectId, 'projectId');
+    v.object(input, 'Stylofact run', ['stage', 'modelName', 'criticModelName', 'status', 'input', 'result', 'error']);
+    const run = {
+      id: id(),
+      stage: v.string(input.stage, 'stage', { required: true, max: 100 }),
+      modelName: v.optional(input.modelName, (value) => v.string(value, 'modelName', { nullable: true, max: 200 })) ?? null,
+      criticModelName: v.optional(input.criticModelName, (value) => v.string(value, 'criticModelName', { nullable: true, max: 200 })) ?? null,
+      status: v.oneOf(input.status, 'status', ['completed', 'failed']),
+      input: input.input === undefined ? {} : input.input,
+      result: input.result === undefined ? {} : input.result,
+      error: v.optional(input.error, (value) => v.string(value, 'error', { nullable: true, max: 200000 })) ?? null,
+    };
+    return this._write('stylofact', (timestamp) => {
+      if (!this._stylofactProjectRow(projectId)) v.fail('NOT_FOUND', 'Stylofact project not found');
+      this.db.prepare(`
+        INSERT INTO stylofact_runs (
+          id, project_id, stage, model_name, critic_model_name, status, input_json, result_json,
+          error_text, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(
+        run.id, projectId, run.stage, run.modelName, run.criticModelName, run.status,
+        this._jsonValue(run.input, 'run input', 10000000), this._jsonValue(run.result, 'run result', 20000000),
+        run.error, timestamp, timestamp,
+      );
+      return { row: this._stylofactRun(this.db.prepare('SELECT * FROM stylofact_runs WHERE id = ?').get(run.id)) };
     });
   }
 
