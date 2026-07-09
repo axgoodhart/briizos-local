@@ -28,6 +28,14 @@ export const api = {
     return Promise.resolve(j);
   },
 
+  update: (journalId, patch) => {
+    if (window.api?.journalsUpdate) return window.api.journalsUpdate(journalId, patch);
+    const j = memJournals.find((x) => x.id === journalId);
+    if (!j) return Promise.reject(new Error('Journal not found'));
+    Object.assign(j, patch);
+    return Promise.resolve({ ...j });
+  },
+
   delete: (journalId) => {
     if (window.api?.journalsDelete) return window.api.journalsDelete(journalId);
     const index = memJournals.findIndex((journal) => journal.id === journalId);

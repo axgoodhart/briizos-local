@@ -11,7 +11,7 @@ body, html, #app {
   height: 100%;
 }
 html{
-background:linear-gradient(to top left, #2c003e, #8e24aa, #340112);}
+background:linear-gradient(to black);
 #app {
   overflow: hidden;
   touch-action: pan-up;
@@ -63,17 +63,17 @@ const pc = butterfliesBackground({
   material: 'phong',
   texture: 'https://i.ibb.co/gFHLndb9/d.png',
   textureCount: 4,
-  wingsScale: [23.5, .2, 23.5],
-  wingsWidthSegments: 20,
-  wingsHeightSegments:12, 
-  wingsSpeed: .04,
-  wingsDisplacementScale: 140.25,
-  noiseTimeCoef: 0.0005,
-  noiseIntensity: .001,
+  wingsScale: [12, .15, 12],
+  wingsWidthSegments: 24,
+  wingsHeightSegments:10, 
+  wingsSpeed: .62,
+  wingsDisplacementScale: 100.25,
+  noiseTimeCoef: 0,
+  noiseIntensity: .01,
   attractionRadius1: 10, 
-  attractionRadius2: 990, 
-  maxVelocity: 34.1,
-    materialParams: { transparent: true, wireframe: false,alphaTest: 1,opacity:1, metal:1,roughness: 1, clear:1, },
+  attractionRadius2: 5020, 
+  maxVelocity: 1204.1,
+    materialParams: { transparent: true, wireframe: true,alphaTest: 1,opacity:1, metal:1,roughness: 1, clear:1, },
 });
 
 

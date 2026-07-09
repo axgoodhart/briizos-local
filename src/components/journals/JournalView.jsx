@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { TEMPLATES } from './templates.js';
-import { createNotesEditor, EditorToolbar } from './richtext.jsx';
+import {
+  createNotesEditor, EditorToolbar, FONT_FAMILIES, LINE_HEIGHTS,
+  getSystemFonts, loadSystemFonts, canQueryLocalFonts,
+} from './richtext.jsx';
 
 /* ── Journal viewer — open book ───────────────────────────────────────
    Renders a journal's folios two-up. Everything that looks interactive
@@ -170,25 +173,87 @@ function projectFileRows(project) {
   return rows;
 }
 
-/* ── Overflow rollover ────────────────────────────────────────────────
-   Pages have a fixed height (the paper must END so the page texture
-   stays honest). When a notes doc overflows its page body, trailing
-   top-level blocks are popped off and handed to the caller, which
-   prepends them to the next page of the group (creating one if needed). */
+/* ── Page geometry ────────────────────────────────────────────────────
+   Pages have a FIXED logical size, like real paper. Text therefore breaks
+   at exactly the same word regardless of window size or screen resolution;
+   the whole book scales (CSS transform) to fit the panel instead of
+   reflowing. Sizes are unscaled CSS px, padding included. */
 
-function rolloverOverflow(editor, proseEl) {
+const PAGE_W = 540;
+const PAGE_H = 720;
+const SPINE_W = 3;
+const STACK_GAP = 14; // vertical gap between pages in a scrolled folio's seamed stack
+
+/* Vocabulary (matches the UI, which predates some of these identifiers):
+   - FOLIO: a template-born content section (Notes, List, Log…). In code,
+     a folio is a "pagegroup" — consecutive same type+title rows.
+   - PAGE: one physical paper face. In code (and the DB), each page is a
+     row of the `folios` table — the naming is historical.
+   Notes are SPATIAL folios: layout is deterministic, pages keep their
+   normalized geometry everywhere, and small screens scale the canvas
+   down rather than reflowing text. A future FLUID folio type would
+   reflow responsively instead. */
+
+/* ── Overflow rebalance ───────────────────────────────────────────────
+   Pages have a fixed height (the paper must END so the page texture stays
+   honest). One primitive keeps a page and its next-in-group sibling in
+   equilibrium: optionally merge the sibling's blocks onto the end of this
+   page, then pop trailing blocks until the page fits. Growth pushes the
+   tail forward; shrinkage pulls text back. Rebalance transactions skip
+   the undo stack so ⌘Z only ever undoes the user's own typing. */
+
+function rebalancePage(editor, proseEl, getNextBlocks) {
   const body = proseEl?.closest('.jv-page__body');
   if (!body || !editor || editor.isDestroyed) return null;
   const fits = () => body.scrollHeight <= body.clientHeight + 1;
-  if (fits()) return null;
+
+  const selFrom = editor.state.selection.from;
+  const wasFocused = editor.isFocused;
+  let pulled = false;
+
+  if (fits()) {
+    // Underflow path: only bother pulling when at least ~a line of paper
+    // is free below the last block (rect math is scale-proof: the ratio
+    // between rect and client heights undoes any ancestor transform).
+    if (!getNextBlocks) return null;
+    const pm = proseEl.querySelector('.ProseMirror');
+    const lastBlock = pm?.lastElementChild;
+    if (!lastBlock) return null;
+    const bodyRect = body.getBoundingClientRect();
+    if (!bodyRect.height || !body.clientHeight) return null;
+    const ratio = bodyRect.height / body.clientHeight;
+    const free = (bodyRect.bottom - lastBlock.getBoundingClientRect().bottom) / ratio;
+    if (free < 20) return null;
+    const nextBlocks = getNextBlocks();
+    if (!Array.isArray(nextBlocks) || !nextBlocks.length) return null;
+    pulled = true;
+    editor.chain().command(({ tr, state }) => {
+      tr.setMeta('addToHistory', false);
+      tr.insert(state.doc.content.size, nextBlocks.map((n) => state.schema.nodeFromJSON(n)));
+      return true;
+    }).run();
+  }
+
   const moved = [];
+  let cutStart = null;
   while (!fits() && editor.state.doc.childCount > 1) {
     const doc = editor.state.doc;
     const last = doc.child(doc.childCount - 1);
     moved.unshift(last.toJSON());
-    editor.commands.deleteRange({ from: doc.content.size - last.nodeSize, to: doc.content.size });
+    cutStart = doc.content.size - last.nodeSize;
+    editor.chain().command(({ tr }) => {
+      tr.setMeta('addToHistory', false);
+      tr.delete(doc.content.size - last.nodeSize, doc.content.size);
+      return true;
+    }).run();
   }
-  return moved.length ? moved : null;
+
+  if (!pulled && !moved.length) return null;
+  // If the caret sat inside a block that just moved off the page, report
+  // where it should land on the next page (offset within the moved run).
+  const caretRel =
+    wasFocused && cutStart !== null && selFrom >= cutStart ? selFrom - cutStart : null;
+  return { moved, pulled, caretRel };
 }
 
 /* ── Inline-editable value (click → input → Enter/blur saves) ────────── */
@@ -510,51 +575,96 @@ function PromptsFolio({ folio, onSave }) {
   );
 }
 
-function NotesFolio({ folio, onSave, onRollover, registerEditor, onTick }) {
+function NotesFolio({
+  folio, onSave, onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick,
+}) {
   const hostRef = useRef(null);
   const edRef = useRef(null);
+  const timerRef = useRef(null);
+  const lastSavedRef = useRef(null);
   const saveRef = useRef(onSave);
-  const rollRef = useRef(onRollover);
+  const rebalRef = useRef(onRebalanced);
+  const pullRef = useRef(pullSource);
+  const readyRef = useRef(onEditorReady);
   const contentRef = useRef(folio.content);
   saveRef.current = onSave;
-  rollRef.current = onRollover;
+  rebalRef.current = onRebalanced;
+  pullRef.current = pullSource;
+  readyRef.current = onEditorReady;
   contentRef.current = folio.content;
 
   useEffect(() => {
+    /* Persist only when the doc actually changed since the last write. */
+    const persist = () => {
+      const ed = edRef.current;
+      if (!ed || ed.isDestroyed) return;
+      const doc = ed.getJSON();
+      const s = JSON.stringify(doc);
+      if (s === lastSavedRef.current) return;
+      lastSavedRef.current = s;
+      saveRef.current({ content: { ...contentRef.current, doc, body: undefined } });
+    };
+
+    /* The live loop: pages END at the paper edge. Runs debounced while
+       typing (not just on blur), so overflow rolls forward, freed space
+       pulls text back, and the caret follows its block onto a new page. */
+    const run = () => {
+      const ed = edRef.current;
+      if (!ed || ed.isDestroyed) return;
+      if (ed.view?.composing) return schedule(); // let IME finish first
+      // Pulling merges sibling state into this editor, so only the page
+      // being actively edited may pull — keeps a single writer per folio.
+      let srcInfo = null;
+      const getNextBlocks = ed.isFocused && pullRef.current
+        ? () => {
+            srcInfo = pullRef.current();
+            return srcInfo ? srcInfo.blocks : null;
+          }
+        : null;
+      const res = rebalancePage(ed, hostRef.current, getNextBlocks);
+      persist();
+      if (res && rebalRef.current) {
+        rebalRef.current({
+          moved: res.moved,
+          pulledFromId: res.pulled && srcInfo ? srcInfo.folioId : null,
+          caretRel: res.caretRel,
+        });
+      }
+      readyRef.current?.(folio.id, ed);
+    };
+
+    const schedule = (ms = 320) => {
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(run, ms);
+    };
+
     // Older notes stored a plain `body` string; seed the editor with it once.
     const initial = folio.content?.doc || folio.content?.body || '';
     const ed = createNotesEditor(hostRef.current, initial, {
-      onSave: (doc) => {
-        // Pages END here: anything past the paper edge rolls to the next
-        // page of the group before the trimmed doc is persisted.
-        const moved = rollRef.current ? rolloverOverflow(ed, hostRef.current) : null;
-        saveRef.current({ content: { ...contentRef.current, doc: moved ? ed.getJSON() : doc, body: undefined } });
-        if (moved) rollRef.current(moved);
-      },
+      onSave: persist, // blur
       onTick,
       onFocus: () => registerEditor(folio.id, ed, { focus: true }),
+      onUpdate: () => schedule(),
     });
     edRef.current = ed;
+    lastSavedRef.current = JSON.stringify(folio.content?.doc ?? null);
     registerEditor(folio.id, ed);
+    registerRebalance?.(folio.id, () => schedule(0));
 
-    // Legacy/overlong docs: trim once the page has laid out.
-    const raf = requestAnimationFrame(() => {
-      if (ed.isDestroyed || !rollRef.current) return;
-      const moved = rolloverOverflow(ed, hostRef.current);
-      if (moved) {
-        saveRef.current({ content: { ...contentRef.current, doc: ed.getJSON(), body: undefined } });
-        rollRef.current(moved);
-      }
-    });
+    // First layout pass: trim legacy/overlong docs once the page exists.
+    const raf = requestAnimationFrame(() => schedule(0));
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(timerRef.current);
+      registerRebalance?.(folio.id, null);
       registerEditor(folio.id, null);
       ed.destroy();
+      edRef.current = null;
     };
   }, [folio.id]);
 
-  // A rollover can land in a folio that's already on screen — refresh its
+  // A rebalance can land in a folio that's already on screen — refresh its
   // editor when content changes underneath it (never mid-typing).
   useEffect(() => {
     const ed = edRef.current;
@@ -562,6 +672,8 @@ function NotesFolio({ folio, onSave, onRollover, registerEditor, onTick }) {
     const doc = folio.content?.doc;
     if (doc && typeof doc === 'object' && JSON.stringify(doc) !== JSON.stringify(ed.getJSON())) {
       ed.commands.setContent(doc);
+      lastSavedRef.current = JSON.stringify(doc);
+      readyRef.current?.(folio.id, ed);
     }
   }, [folio.content?.doc]);
 
@@ -604,11 +716,11 @@ const BLANK_PAGES = [
 function AddPageModal({ onClose, onPick }) {
   return (
     <div className="jr-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="jr-modal" role="dialog" aria-label="Add page" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-        <h2 className="jr-modal__title">add a page</h2>
+      <div className="jr-modal" role="dialog" aria-label="Add folio" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+        <h2 className="jr-modal__title">add a folio</h2>
 
         <div className="jr-field">
-          <span className="jr-field__label">blank pages</span>
+          <span className="jr-field__label">blank folios</span>
           <div className="jv-pagepick">
             {BLANK_PAGES.map((b) => (
               <button type="button" key={b.label} className="jv-pagepick__item" onClick={() => onPick(b.folio)}>
@@ -646,9 +758,111 @@ function AddPageModal({ onClose, onPick }) {
   );
 }
 
+/* ── Per-journal typography ──────────────────────────────────────────
+   H1/H2/H3 + body fonts, base size, and line height live on the journal
+   (journal.settings.typography) and reach the prose through CSS variables
+   on .jv-root — so headings are journal-tunable, not hardcoded. */
+
+const DEFAULT_TYPO = {
+  h1: "Jost, 'SF Pro', system-ui, sans-serif",
+  h2: "Jost, 'SF Pro', system-ui, sans-serif",
+  h3: "Jost, 'SF Pro', system-ui, sans-serif",
+  body: "Georgia, 'Times New Roman', serif",
+  size: 14,
+  lineHeight: 1.65,
+};
+
+function FontSelect({ value, onChange }) {
+  const systemFonts = getSystemFonts();
+  const known =
+    FONT_FAMILIES.some((f) => f.value === value) ||
+    (systemFonts || []).some((f) => f.value === value);
+  return (
+    <select className="jr-input jv-typo__select" value={value} onChange={(e) => onChange(e.currentTarget.value)}>
+      {FONT_FAMILIES.map((f) => (
+        <option key={f.label} value={f.value}>{f.label}</option>
+      ))}
+      {!known && <option value={value}>{String(value).replace(/['"]/g, '').split(',')[0]}</option>}
+      {systemFonts?.length > 0 && (
+        <optgroup label="my computer">
+          {systemFonts.map((f) => (
+            <option key={f.label} value={f.value}>{f.label}</option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
+function TypographyModal({ typo, onChange, onClose }) {
+  const [, force] = useState(0);
+  const fonts = getSystemFonts();
+  const set = (k, val) => onChange({ ...typo, [k]: val });
+
+  return (
+    <div className="jr-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="jr-modal jv-typo" role="dialog" aria-label="Typography" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+        <h2 className="jr-modal__title">typography</h2>
+
+        {[['h1', 'H1 font'], ['h2', 'H2 font'], ['h3', 'H3 font'], ['body', 'body font']].map(([k, label]) => (
+          <label className="jr-field" key={k}>
+            <span className="jr-field__label">{label}</span>
+            <FontSelect value={typo[k]} onChange={(val) => set(k, val)} />
+          </label>
+        ))}
+
+        <div className="jv-typo__pair">
+          <label className="jr-field">
+            <span className="jr-field__label">base size</span>
+            <input
+              className="jr-input"
+              type="number"
+              min="10"
+              max="28"
+              value={typo.size}
+              onInput={(e) => set('size', parseInt(e.currentTarget.value, 10) || DEFAULT_TYPO.size)}
+            />
+          </label>
+          <label className="jr-field">
+            <span className="jr-field__label">line height</span>
+            <select
+              className="jr-input"
+              value={String(typo.lineHeight)}
+              onChange={(e) => set('lineHeight', parseFloat(e.currentTarget.value))}
+            >
+              {LINE_HEIGHTS.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {canQueryLocalFonts() && !fonts && (
+          <button
+            type="button"
+            className="jr-btn"
+            onClick={() => loadSystemFonts().then(() => force((n) => n + 1))}
+          >
+            use my computer's fonts…
+          </button>
+        )}
+        {fonts && <p className="jv-typo__hint">{fonts.length} fonts loaded from your computer.</p>}
+
+        <div className="jr-modal__actions">
+          <button type="button" className="jr-btn" onClick={() => { onChange(null); onClose(); }}>reset</button>
+          <button type="button" className="jr-btn jr-btn--primary" onClick={onClose}>done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Page + spread ───────────────────────────────────────────────────── */
 
-function FolioPage({ folio, siblings, pageUrl, onSave, onDelete, onRollover, registerEditor, onTick }) {
+function FolioPage({
+  folio, siblings, pageUrl, onSave, onDelete,
+  onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick,
+}) {
   if (!folio) return <div className="jv-page jv-page--empty" />;
   const Renderer = RENDERERS[folio.type] || NotesFolio;
   // Notes pages have a hard end (overflow rolls over); other types scroll.
@@ -666,14 +880,92 @@ function FolioPage({ folio, siblings, pageUrl, onSave, onDelete, onRollover, reg
           </span>
         </header>
         <div className="jv-page__body">
-          <Renderer folio={folio} siblings={siblings} onSave={onSave} onRollover={onRollover} registerEditor={registerEditor} onTick={onTick} />
+          <Renderer
+            folio={folio}
+            siblings={siblings}
+            onSave={onSave}
+            onRebalanced={onRebalanced}
+            pullSource={pullSource}
+            registerEditor={registerEditor}
+            registerRebalance={registerRebalance}
+            onEditorReady={onEditorReady}
+            onTick={onTick}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Sidebar: pagegroup jumps + linked project files ─────────────────── */
+/* ── Seamed scroll stack ─────────────────────────────────────────────
+   A scroll-toggled folio renders as one page-slot column you scroll
+   through: the folio's pages stacked with thin seams. Pagination stays
+   fully live underneath — every stacked page keeps the exact PAGE_W×PAGE_H
+   geometry (scrollbar hidden to preserve width parity), so line breaks are
+   identical to the paginated view and the rebalance engine is untouched.
+   Only pages near the viewport mount live editors; the rest are ghosts. */
+
+function ScrollStack({ group, pageUrl, cursorFolioId, folioPageProps, onVisiblePage, registerScrollApi }) {
+  const scrollRef = useRef(null);
+  const pages = group.folios;
+  const step = PAGE_H + STACK_GAP;
+
+  const [win, setWin] = useState(() => {
+    const i = Math.max(0, pages.findIndex((f) => f.id === cursorFolioId));
+    return { from: Math.max(0, i - 1), to: i + 2 };
+  });
+
+  // Land on the page the reader was on when the stack mounts.
+  useEffect(() => {
+    const i = pages.findIndex((f) => f.id === cursorFolioId);
+    if (i > 0 && scrollRef.current) scrollRef.current.scrollTop = i * step;
+  }, []);
+
+  // Let the view (page jumper, caret handoff) scroll this stack by page id.
+  const stackId = pages[0]?.id;
+  useEffect(() => {
+    registerScrollApi?.(stackId, (id, smooth) => {
+      const i = pages.findIndex((f) => f.id === id);
+      if (i >= 0 && scrollRef.current) {
+        scrollRef.current.scrollTo({ top: i * step, behavior: smooth ? 'smooth' : 'auto' });
+      }
+      return i >= 0;
+    });
+    return () => registerScrollApi?.(stackId, null);
+  }, [stackId, pages]);
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const first = Math.floor(el.scrollTop / step);
+    const last = Math.floor((el.scrollTop + el.clientHeight) / step);
+    const from = Math.max(0, first - 1);
+    const to = last + 1;
+    setWin((w) => (w.from === from && w.to === to ? w : { from, to }));
+    const eye = Math.min(pages.length - 1, Math.max(0, Math.round(el.scrollTop / step)));
+    onVisiblePage?.(pages[eye]);
+  };
+
+  return (
+    <div className="jv-scrollstack" ref={scrollRef} onScroll={onScroll} style={{ rowGap: `${STACK_GAP}px` }}>
+      {pages.map((f, i) =>
+        i >= win.from && i <= win.to ? (
+          <div className="jv-scrollstack__page" key={f.id} style={{ height: `${PAGE_H}px` }}>
+            <FolioPage {...folioPageProps(f)} />
+          </div>
+        ) : (
+          <div
+            className="jv-scrollstack__page jv-page jv-scrollstack__ghost"
+            key={f.id}
+            style={{ height: `${PAGE_H}px`, backgroundImage: pageUrl ? `url(${pageUrl})` : undefined }}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+/* ── Sidebar: folio jumps + linked project files ─────────────────────── */
 
 function Sidebar({ open, query, setQuery, groups, currentIdx, onJumpGroup, projects }) {
   const q = query.trim().toLowerCase();
@@ -814,23 +1106,41 @@ function TagStrip({ tags, onSave }) {
   );
 }
 
-export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
+export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChange }) {
   const [folios, setFolios] = useState(null); // null = loading
-  const [spread, setSpread] = useState(0);
+  const [cursor, setCursor] = useState(0); // index of the folio under the eye
   const [adding, setAdding] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sideQuery, setSideQuery] = useState('');
   const [canvasProjects, setCanvasProjects] = useState([]);
+  const [typoOpen, setTypoOpen] = useState(false);
+  const [typoDraft, setTypoDraft] = useState(null); // live preview before persist
+  const [narrow, setNarrow] = useState(false); // <800px: one page at a time
+  const [scale, setScale] = useState(1);
   const [, setTick] = useState(0); // re-renders the shared toolbar on editor transactions
 
-  // Async handlers (rollover) need the current list without stale closures.
+  // Async handlers (rebalance) need the current list without stale closures.
   const foliosRef = useRef(null);
   foliosRef.current = folios;
+
+  const rootRef = useRef(null);
+  const portRef = useRef(null);
+  const wheelRef = useRef({ acc: 0, t: 0, lock: 0 });
+  const pendingCaretRef = useRef(null); // { folioId, pos } → focus lands after content does
 
   // Live notes editors, keyed by folio id; the shared toolbar binds to the
   // focused one (or the first visible one).
   const editorsRef = useRef(new Map());
   const [activeEditorId, setActiveEditorId] = useState(null);
+
+  // Per-folio rebalance triggers, so typography/font changes can reflow
+  // every mounted page.
+  const rebalanceFnsRef = useRef(new Map());
+  const registerRebalance = (folioId, fn) => {
+    if (fn) rebalanceFnsRef.current.set(folioId, fn);
+    else rebalanceFnsRef.current.delete(folioId);
+  };
+  const rebalanceAll = () => rebalanceFnsRef.current.forEach((fn) => fn());
 
   const registerEditor = (folioId, editorInstance, opts) => {
     if (editorInstance) {
@@ -859,13 +1169,81 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
       .catch(() => {});
   }, []);
 
-  const spreadCount = useMemo(() => Math.max(1, Math.ceil((folios?.length || 0) / 2)), [folios]);
-  const left = folios?.[spread * 2];
-  const right = folios?.[spread * 2 + 1];
+  /* Narrow layout keys off the journal panel's own width, not the screen,
+     so a squeezed split-view behaves like a small window. */
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setNarrow(w < 800);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  /* Pagegroups + the group under the reading eye (left page wins). */
+  /* Typography: saved on the journal, previewed via draft, applied through
+     CSS variables. Any change reflows the mounted pages. */
+  const typo = typoDraft || { ...DEFAULT_TYPO, ...(journal.settings?.typography || {}) };
+  const typoKey = JSON.stringify(typo);
+  useEffect(() => {
+    const t = setTimeout(rebalanceAll, 80); // let the CSS variables land first
+    return () => clearTimeout(t);
+  }, [typoKey]);
+  useEffect(() => {
+    document.fonts?.ready?.then?.(() => rebalanceAll()); // webfont metrics settle late
+  }, []);
+
+  const closeTypo = () => {
+    setTypoOpen(false);
+    if (!typoDraft) return;
+    const settings = { ...(journal.settings || {}), typography: typoDraft };
+    onJournalChange?.({ ...journal, settings }); // optimistic
+    setTypoDraft(null);
+    api.update(journal.id, { settings })
+      .then((updated) => onJournalChange?.(updated))
+      .catch((err) => console.error('journals:update failed', err));
+  };
+
+  /* ── Folios + slot layout ─────────────────────────────────────────
+     The bifold shows SLOTS. A paginated folio contributes one slot per
+     page; a scroll-toggled folio collapses into a single scrolling slot
+     rendered where its pages would have been. */
+  const count = folios?.length || 0;
+  const maxIdx = Math.max(0, count - 1);
+  const cur = Math.min(cursor, maxIdx);
+  const curFolio = folios?.[cur];
+
   const groups = useMemo(() => computeGroups(folios), [folios]);
-  const activeFolio = left || right;
+  const isScrolled = (g) => g.type === 'notes' && !!g.folios[0]?.content?.groupScroll;
+  const slots = useMemo(() => {
+    const out = [];
+    for (const g of groups) {
+      if (isScrolled(g)) out.push({ kind: 'scroll', group: g });
+      else g.folios.forEach((f) => out.push({ kind: 'page', folio: f }));
+    }
+    return out;
+  }, [groups]);
+
+  let slotIdx = slots.findIndex((s) =>
+    s.kind === 'page' ? s.folio.id === curFolio?.id : s.group.folios.some((f) => f.id === curFolio?.id));
+  if (slotIdx < 0) slotIdx = 0;
+
+  /* A lone slot (e.g. one scrolled folio and nothing else) presents as a
+     single centered page rather than facing an empty ghost. */
+  const single = narrow || slots.length === 1;
+  const leftSlotIdx = single ? slotIdx : slotIdx - (slotIdx % 2);
+  const leftSlot = slots[leftSlotIdx];
+  const rightSlot = single ? undefined : slots[leftSlotIdx + 1];
+  const slotFolio = (s) => (s ? (s.kind === 'page' ? s.folio : s.group.folios[0]) : undefined);
+  const canPrev = leftSlotIdx > 0;
+  const canNext = single ? leftSlotIdx < slots.length - 1 : leftSlotIdx + 2 <= slots.length - 1;
+  const goPrev = () => { if (canPrev) jumpToFolio(slotFolio(slots[leftSlotIdx - (single ? 1 : 2)])); };
+  const goNext = () => { if (canNext) jumpToFolio(slotFolio(slots[leftSlotIdx + (single ? 1 : 2)])); };
+
+  /* The folio under the eye follows the cursor; inside a scrolled folio
+     that's the page most visible in the stack. */
+  const activeFolio = curFolio;
   const activeGroupIdx = activeFolio
     ? groups.findIndex((g) => g.folios.some((f) => f.id === activeFolio.id))
     : -1;
@@ -873,10 +1251,79 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
   const activePage = activeGroup
     ? activeGroup.folios.findIndex((f) => f.id === activeFolio.id) + 1
     : 0;
+  const activeScrolled = activeGroup ? isScrolled(activeGroup) : false;
+
+  const toggleActiveScroll = () => {
+    if (!activeGroup) return;
+    const first = activeGroup.folios[0];
+    saveFolio(first)({ content: { ...first.content, groupScroll: !first.content?.groupScroll } });
+  };
+
+  /* Fixed page geometry: pages are always PAGE_W×PAGE_H CSS px, so line
+     breaks never move; the book scales to whatever space is available. */
+  const naturalW = single ? PAGE_W : PAGE_W * 2 + SPINE_W;
+  const naturalH = PAGE_H;
+  const hasBook = count > 0;
+  useEffect(() => {
+    const el = portRef.current;
+    if (!el) return;
+    const compute = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height) setScale(Math.min(r.width / naturalW, r.height / naturalH, 1.6));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [naturalW, hasBook]);
+
+  /* Narrow mode: a vertical scroll gesture flips pages, unless something
+     inside the page (tracker, list…) can still scroll itself. */
+  const onPortWheel = (e) => {
+    if (!narrow) return;
+    let el = e.target;
+    while (el && el !== e.currentTarget) {
+      if (el.scrollHeight > el.clientHeight + 1) {
+        const oy = getComputedStyle(el).overflowY;
+        if (oy === 'auto' || oy === 'scroll') {
+          const down = e.deltaY > 0;
+          if ((down && el.scrollTop + el.clientHeight < el.scrollHeight - 1) || (!down && el.scrollTop > 0)) return;
+        }
+      }
+      el = el.parentElement;
+    }
+    const now = Date.now();
+    const w = wheelRef.current;
+    if (now - w.t > 400) w.acc = 0;
+    w.t = now;
+    if (now < w.lock) return;
+    w.acc += e.deltaY;
+    if (Math.abs(w.acc) > 120) {
+      if (w.acc > 0) goNext(); else goPrev();
+      w.acc = 0;
+      w.lock = now + 450;
+    }
+  };
+
+  /* Scrolled folios register a scroll-by-page-id handle here (keyed by
+     their first page id), so the jumper and caret handoff can reach them. */
+  const scrollApisRef = useRef(new Map());
+  const registerScrollApi = (stackId, fn) => {
+    if (fn) scrollApisRef.current.set(stackId, fn);
+    else scrollApisRef.current.delete(stackId);
+  };
 
   const jumpToFolio = (target) => {
+    if (!target) return;
     const idx = (foliosRef.current || []).findIndex((f) => f.id === target.id);
-    if (idx >= 0) setSpread(Math.floor(idx / 2));
+    if (idx >= 0) setCursor(idx);
+    for (const fn of scrollApisRef.current.values()) if (fn(target.id, true)) break;
+  };
+
+  /* Cursor tracks the page the reader has scrolled to inside a stack. */
+  const onStackEye = (f) => {
+    const i = (foliosRef.current || []).findIndex((x) => x.id === f.id);
+    if (i >= 0) setCursor((p) => (p === i ? p : i));
   };
 
   /* Journal text → linked canvas projects (sidebar "project files"). */
@@ -894,28 +1341,101 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
     saveFolio(first)({ content: { ...first.content, groupTags: tags } });
   };
 
-  /* Overflowing notes hand their surplus blocks here: prepend to the next
-     page of the group, or grow the group by one page right after. */
-  const handleRollover = (folio) => (movedNodes) => {
+  /* A pending caret waits for its destination page's editor to hold the
+     rolled-over content, then focus lands at the equivalent spot. */
+  const consumePendingCaret = (folioId, ed) => {
+    const pend = pendingCaretRef.current;
+    if (!pend || pend.folioId !== folioId || !ed || ed.isDestroyed) return;
+    pendingCaretRef.current = null;
+    requestAnimationFrame(() => {
+      if (ed.isDestroyed) return;
+      try {
+        ed.commands.focus(Math.max(1, Math.min(pend.pos, ed.state.doc.content.size - 1)));
+      } catch {
+        ed.commands.focus('start');
+      }
+    });
+  };
+
+  /* What an actively-edited notes page may pull back from: the next folio
+     of the same group — unless someone's caret lives there, or it's blank. */
+  const pullSourceFor = (folio) => () => {
     const list = foliosRef.current || [];
     const idx = list.findIndex((f) => f.id === folio.id);
     const next = idx >= 0 ? list[idx + 1] : null;
+    if (!next || groupKeyOf(next) !== groupKeyOf(folio)) return null;
+    const nextEd = editorsRef.current.get(next.id);
+    if (nextEd && !nextEd.isDestroyed && nextEd.isFocused) return null; // never yank under a live cursor
+    const doc = next.content?.doc;
+    const blocks = doc && typeof doc === 'object' ? doc.content || [] : null;
+    if (!blocks || !blocks.length) return null;
+    const blank = blocks.length === 1 && blocks[0].type === 'paragraph' && !(blocks[0].content || []).length;
+    return blank ? null : { folioId: next.id, blocks };
+  };
 
-    if (next && groupKeyOf(next) === groupKeyOf(folio)) {
-      // Legacy `body` strings can't be merged; the JSON doc wins.
-      const existing = next.content?.doc && typeof next.content.doc === 'object'
-        ? next.content.doc.content || []
-        : [];
-      const patch = {
-        content: { ...next.content, doc: { type: 'doc', content: [...movedNodes, ...existing] }, body: undefined },
-      };
-      setFolios((prev) => prev.map((f) => (f.id === next.id ? { ...f, ...patch } : f)));
-      api.foliosUpdate(next.id, patch).catch((err) => console.error('rollover update failed', err));
+  /* A page finished rebalancing: its shed tail becomes the next page of
+     the group — replacing that page's doc when its blocks were pulled into
+     the merge, prepending otherwise, or growing the group by a fresh page.
+     The caret follows its own block onto the next page. */
+  const handleRebalanced = (folio) => ({ moved, pulledFromId, caretRel }) => {
+    const list = foliosRef.current || [];
+    const idx = list.findIndex((f) => f.id === folio.id);
+    if (idx < 0) return;
+    const next = list[idx + 1];
+    const sameGroup = next && groupKeyOf(next) === groupKeyOf(folio);
+
+    const writeNext = (target, doc) => {
+      if (JSON.stringify(target.content?.doc) === JSON.stringify(doc)) return;
+      const patch = { content: { ...target.content, doc, body: undefined } };
+      setFolios((prev) => prev.map((f) => (f.id === target.id ? { ...f, ...patch } : f)));
+      api.foliosUpdate(target.id, patch).catch((err) => console.error('rebalance update failed', err));
+    };
+
+    if (pulledFromId && sameGroup && next.id === pulledFromId) {
+      // The merge consumed the next page's blocks; the tail IS its new doc.
+      writeNext(next, { type: 'doc', content: moved.length ? moved : [{ type: 'paragraph' }] });
+      if (caretRel != null) {
+        pendingCaretRef.current = { folioId: next.id, pos: caretRel };
+        jumpToFolio(next); // content-sync in the target editor consumes it
+      }
+      return;
+    }
+
+    if (!moved || !moved.length) return;
+
+    if (sameGroup) {
+      // Pull was skipped (blank page, or a caret lives there) — prepend.
+      const nextEd = editorsRef.current.get(next.id);
+      if (nextEd && !nextEd.isDestroyed) {
+        nextEd.chain().command(({ tr, state }) => {
+          tr.setMeta('addToHistory', false);
+          tr.insert(0, moved.map((n) => state.schema.nodeFromJSON(n)));
+          return true;
+        }).run();
+        writeNext(next, nextEd.getJSON());
+        // The prepend can overflow that page in turn — cascade explicitly,
+        // since rebalance transactions don't self-trigger onUpdate.
+        rebalanceFnsRef.current.get(next.id)?.();
+        if (caretRel != null) {
+          pendingCaretRef.current = { folioId: next.id, pos: caretRel };
+          jumpToFolio(next);
+          consumePendingCaret(next.id, nextEd); // content is already in place
+        }
+      } else {
+        const existing = next.content?.doc && typeof next.content.doc === 'object'
+          ? next.content.doc.content || []
+          : [];
+        writeNext(next, { type: 'doc', content: [...moved, ...existing] });
+        if (caretRel != null) {
+          pendingCaretRef.current = { folioId: next.id, pos: caretRel };
+          jumpToFolio(next);
+        }
+      }
     } else {
       const spec = {
         type: folio.type,
         title: folio.title,
-        content: { doc: { type: 'doc', content: movedNodes } },
+        content: { doc: { type: 'doc', content: moved } },
       };
       api.foliosCreate(journal.id, spec, { afterId: folio.id }).then((created) => {
         setFolios((prev) => {
@@ -924,32 +1444,48 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
           nextList.splice(i + 1, 0, created);
           return nextList;
         });
-      }).catch((err) => console.error('rollover create failed', err));
+        if (caretRel != null) {
+          pendingCaretRef.current = { folioId: created.id, pos: caretRel };
+          requestAnimationFrame(() => jumpToFolio(created)); // after the list lands
+        }
+      }).catch((err) => console.error('rebalance create failed', err));
     }
   };
 
-  // Toolbar binds to the focused notes editor on this spread, else the first one.
-  const visibleNoteIds = [left, right].filter((f) => f?.type === 'notes').map((f) => f.id);
-  const toolbarId = visibleNoteIds.includes(activeEditorId) ? activeEditorId : visibleNoteIds[0];
+  // Toolbar binds to the focused notes editor if mounted, else the first
+  // mounted one (only visible pages — incl. a stack's window — mount).
+  const mountedNoteIds = [...editorsRef.current.keys()];
+  const toolbarId = activeEditorId && editorsRef.current.has(activeEditorId)
+    ? activeEditorId
+    : mountedNoteIds[0];
   const toolbarEditor = toolbarId ? editorsRef.current.get(toolbarId) : null;
 
   const addPage = (spec) => {
     api.foliosCreate(journal.id, spec).then((created) => {
-      setFolios((prev) => {
-        const next = [...(prev || []), created];
-        setSpread(Math.floor((next.length - 1) / 2)); // jump to the new page
-        return next;
-      });
+      const newIdx = foliosRef.current?.length ?? 0;
+      setFolios((prev) => [...(prev || []), created]);
+      setCursor(newIdx); // jump to the new page
       setAdding(false);
     }).catch((err) => console.error('folios:create failed', err));
   };
 
   const deleteFolio = (folio) => () => {
     if (!window.confirm(`Remove the page “${folio.title}”? Its contents will be lost.`)) return;
+    // Folio-level flags (tags, scroll) ride on the first page — hand them
+    // to the next page before deleting their carrier.
+    const gs = computeGroups(foliosRef.current || []);
+    const g = gs.find((x) => x.folios.some((f) => f.id === folio.id));
+    if (g && g.folios[0].id === folio.id && g.folios[1]) {
+      const heir = g.folios[1];
+      const carry = {};
+      if (folio.content?.groupTags) carry.groupTags = folio.content.groupTags;
+      if (folio.content?.groupScroll) carry.groupScroll = folio.content.groupScroll;
+      if (Object.keys(carry).length) saveFolio(heir)({ content: { ...heir.content, ...carry } });
+    }
     api.foliosDelete(folio.id).then(() => {
       setFolios((prev) => {
         const next = prev.filter((f) => f.id !== folio.id);
-        setSpread((s) => Math.min(s, Math.max(0, Math.ceil(next.length / 2) - 1)));
+        setCursor((c) => Math.max(0, Math.min(c, next.length - 1)));
         return next;
       });
     }).catch((err) => console.error('folios:delete failed', err));
@@ -969,15 +1505,58 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       if (e.key === 'Escape') onBack();
-      if (e.key === 'ArrowLeft') setSpread((s) => Math.max(0, s - 1));
-      if (e.key === 'ArrowRight') setSpread((s) => Math.min(spreadCount - 1, s + 1));
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key === 'ArrowRight') goNext();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [spreadCount, onBack]);
+  }, [leftSlotIdx, slots.length, single, onBack]);
+
+  const renderSlot = (slot, emptyKey) => {
+    if (!slot) return <div className="jv-page jv-page--empty" key={emptyKey} />;
+    if (slot.kind === 'scroll') {
+      return (
+        <ScrollStack
+          key={`stack-${slot.group.folios[0].id}`}
+          group={slot.group}
+          pageUrl={pageUrl}
+          cursorFolioId={curFolio?.id}
+          folioPageProps={folioPageProps}
+          onVisiblePage={onStackEye}
+          registerScrollApi={registerScrollApi}
+        />
+      );
+    }
+    return <FolioPage key={slot.folio.id} {...folioPageProps(slot.folio)} />;
+  };
+
+  const folioPageProps = (folio) => ({
+    folio,
+    siblings: folios,
+    pageUrl,
+    onSave: folio ? saveFolio(folio) : undefined,
+    onDelete: folio ? deleteFolio(folio) : undefined,
+    onRebalanced: folio ? handleRebalanced(folio) : undefined,
+    pullSource: folio ? pullSourceFor(folio) : undefined,
+    registerEditor,
+    registerRebalance,
+    onEditorReady: consumePendingCaret,
+    onTick: onEditorTick,
+  });
 
   return (
-    <div className="jv-root">
+    <div
+      className={'jv-root' + (narrow ? ' is-narrow' : '')}
+      ref={rootRef}
+      style={{
+        '--jv-h1-font': typo.h1,
+        '--jv-h2-font': typo.h2,
+        '--jv-h3-font': typo.h3,
+        '--jv-body-font': typo.body,
+        '--jv-body-size': `${typo.size}px`,
+        '--jv-lh': String(typo.lineHeight),
+      }}
+    >
       {coverUrl && (
         <div
           className="jv-backdrop"
@@ -988,22 +1567,27 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
       <div className="jv-topbar">
         <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
         <h2 className="jv-title">{journal.title}</h2>
-        <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ page</button>
+        <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
+        <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
         <span className="jv-pageno">
-          {folios?.length ? `spread ${spread + 1} / ${spreadCount}` : ''}
+          {count
+            ? single
+              ? `page ${slotIdx + 1} / ${slots.length}`
+              : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`
+            : ''}
         </span>
       </div>
 
       {folios === null && <p className="jr-empty">Opening…</p>}
 
       {folios?.length === 0 && (
-        <p className="jr-empty">No pages yet — press <strong>+ page</strong> to add one.</p>
+        <p className="jr-empty">No folios yet — press <strong>+ folio</strong> to add one.</p>
       )}
 
       {folios?.length > 0 && (
         <div className="jv-main">
           <Sidebar
-            open={sidebarOpen}
+            open={sidebarOpen && !narrow}
             query={sideQuery}
             setQuery={setSideQuery}
             groups={groups}
@@ -1024,33 +1608,22 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
               <button
                 type="button"
                 className="jv-nav"
-                disabled={spread === 0}
-                onClick={() => setSpread(spread - 1)}
-                aria-label="Previous spread"
+                disabled={!canPrev}
+                onClick={goPrev}
+                aria-label={single ? 'Previous page' : 'Previous spread'}
               >‹</button>
 
-              <div className="jv-spread">
-                <FolioPage
-                  folio={left}
-                  siblings={folios}
-                  pageUrl={pageUrl}
-                  onSave={left ? saveFolio(left) : undefined}
-                  onDelete={left ? deleteFolio(left) : undefined}
-                  onRollover={left ? handleRollover(left) : undefined}
-                  registerEditor={registerEditor}
-                  onTick={onEditorTick}
-                />
-                <div className="jv-spine" />
-                <FolioPage
-                  folio={right}
-                  siblings={folios}
-                  pageUrl={pageUrl}
-                  onSave={right ? saveFolio(right) : undefined}
-                  onDelete={right ? deleteFolio(right) : undefined}
-                  onRollover={right ? handleRollover(right) : undefined}
-                  registerEditor={registerEditor}
-                  onTick={onEditorTick}
-                />
+              <div className="jv-bookport" ref={portRef} onWheel={onPortWheel}>
+                <div
+                  className="jv-bookscale"
+                  style={{ width: `${naturalW}px`, height: `${naturalH}px`, transform: `scale(${scale})` }}
+                >
+                  <div className={'jv-spread' + (single ? ' jv-spread--single' : '')}>
+                    {renderSlot(leftSlot, 'empty-left')}
+                    {!single && <div className="jv-spine" />}
+                    {!single && renderSlot(rightSlot, 'empty-right')}
+                  </div>
+                </div>
               </div>
 
               {toolbarEditor && <EditorToolbar editor={toolbarEditor} key={toolbarId} />}
@@ -1058,9 +1631,9 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
               <button
                 type="button"
                 className="jv-nav right"
-                disabled={spread >= spreadCount - 1}
-                onClick={() => setSpread(spread + 1)}
-                aria-label="Next spread"
+                disabled={!canNext}
+                onClick={goNext}
+                aria-label={single ? 'Next page' : 'Next spread'}
               >›</button>
             </div>
 
@@ -1071,6 +1644,16 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
                 page={activePage}
                 onJump={jumpToFolio}
               />
+              {activeGroup?.type === 'notes' && (
+                <button
+                  type="button"
+                  className={'jvb__scrolltoggle' + (activeScrolled ? ' is-on' : '')}
+                  title={activeScrolled
+                    ? 'Back to page-by-page reading'
+                    : 'Read this folio as one continuous scroll'}
+                  onClick={toggleActiveScroll}
+                >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+              )}
               {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
             </div>
           </div>
@@ -1078,6 +1661,13 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack }) {
       )}
 
       {adding && <AddPageModal onClose={() => setAdding(false)} onPick={addPage} />}
+      {typoOpen && (
+        <TypographyModal
+          typo={typo}
+          onChange={(t) => setTypoDraft(t || { ...DEFAULT_TYPO })}
+          onClose={closeTypo}
+        />
+      )}
     </div>
   );
 }

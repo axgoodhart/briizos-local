@@ -111,6 +111,7 @@ const state = {
 
 let interaction = null;
 let saveTimer = null;
+let lastSaveErrorMessage = null;
 let dragDepth = 0;
 let filehawkTimer = null;
 const PROJECT_CARD_WIDTH = 360;
@@ -431,12 +432,23 @@ function scheduleSave(immediate = false) {
 async function saveNow() {
   try {
     await window.api.forestSaveState(serializeState());
+    lastSaveErrorMessage = null;
     setSaveStatus(`Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
     dispatchForestLog('debug', 'Board state saved', { projectCount: state.projects.length });
   } catch (error) {
     console.error(error);
-    setSaveStatus('Save failed');
-    dispatchForestLog('error', 'Board save failed', error?.message);
+    const message = error?.message || 'Unknown error';
+    const rejected = /INVALID_INPUT|too large|too long|max \d|must be/i.test(message);
+    setSaveStatus(rejected ? 'Save rejected — board exceeds size limits' : 'Save failed');
+    // Log each distinct failure once at error level; identical repeats
+    // (autosaves of the same unsaveable state) drop to debug so the
+    // error log doesn't flood.
+    if (message !== lastSaveErrorMessage) {
+      lastSaveErrorMessage = message;
+      dispatchForestLog('error', rejected ? 'Board save rejected by validation' : 'Board save failed', message);
+    } else {
+      dispatchForestLog('debug', 'Board save still failing', message);
+    }
   }
 }
 
@@ -1823,6 +1835,41 @@ function spiralPoint(origin, index) {
   };
 }
 
+/**
+ * Dry-run capacity check: would merging these groups push any existing
+ * project past `maxFilesPerProject`? Returns the first offender (or null)
+ * WITHOUT mutating state, so oversized drops are rejected before the
+ * board holds anything the DB would refuse to save.
+ */
+function findMergeOverflow(importedGroups, forcedProjectId, maxFilesPerProject) {
+  const prospective = new Map();
+
+  for (const group of importedGroups) {
+    const target = forcedProjectId
+      ? getProject(forcedProjectId)
+      : state.projects.find(
+          (project) => normalizedProjectName(project.name) === normalizedProjectName(group.name),
+        );
+    if (!target) continue; // brand-new project — group size already capped at import
+
+    let entry = prospective.get(target.id);
+    if (!entry) {
+      entry = { name: target.name, paths: new Set(target.files.map((file) => file.path)) };
+      prospective.set(target.id, entry);
+    }
+
+    for (const file of group.files || []) {
+      if (file.path) entry.paths.add(file.path);
+    }
+
+    if (entry.paths.size > maxFilesPerProject) {
+      return { name: entry.name, total: entry.paths.size };
+    }
+  }
+
+  return null;
+}
+
 function mergeImportedGroups(importedGroups, origin, forcedProjectId = null) {
   let addedFiles = 0;
   let createdProjects = 0;
@@ -1907,15 +1954,33 @@ async function handleDrop(event) {
   setSaveStatus('Importing…');
 
   try {
-    const importedGroups = await window.api.forestImportPaths(paths);
-    if (!importedGroups?.length) {
-      setSaveStatus('Nothing imported');
+    const imported = await window.api.forestImportPaths(paths);
+
+    if (imported?.rejected) {
+      setSaveStatus(`Import rejected: ${imported.rejected.message}`);
+      dispatchForestLog('warn', 'Import rejected', { reason: imported.rejected.reason, ...imported.stats });
+      return;
+    }
+
+    const importedGroups = imported?.groups || [];
+    const ignored = imported?.stats?.ignored || 0;
+
+    if (!importedGroups.length) {
+      setSaveStatus(ignored ? `Nothing imported (${ignored} ignored)` : 'Nothing imported');
       return;
     }
 
     const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest('.project-card');
     const forcedProjectId = dropTarget?.dataset.id || null;
     const dropPoint = screenToWorld(event.clientX, event.clientY);
+
+    const maxFilesPerProject = imported?.limits?.maxFilesPerProject ?? 10000;
+    const overflow = findMergeOverflow(importedGroups, forcedProjectId, maxFilesPerProject);
+    if (overflow) {
+      setSaveStatus(`Import rejected: "${overflow.name}" would hold ${overflow.total.toLocaleString()} files (max ${maxFilesPerProject.toLocaleString()}) — try a subfolder`);
+      dispatchForestLog('warn', 'Import rejected', { project: overflow.name, wouldHold: overflow.total, max: maxFilesPerProject });
+      return;
+    }
 
     const result = mergeImportedGroups(importedGroups, dropPoint, forcedProjectId);
     render();
@@ -1925,7 +1990,7 @@ async function handleDrop(event) {
       return;
     }
 
-    dispatchForestLog('info', 'Files imported into board', { addedFiles: result.addedFiles, paths: paths.length });
+    dispatchForestLog('info', 'Files imported into board', { addedFiles: result.addedFiles, ignored, paths: paths.length });
     scheduleSave(true);
   } catch (error) {
     console.error(error);

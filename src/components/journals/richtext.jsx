@@ -47,6 +47,39 @@ const FontSize = Extension.create({
   },
 });
 
+/* Block-level line height on paragraphs and headings. Falls back to the
+   journal's CSS default (--jv-lh) when unset. */
+const LineHeight = Extension.create({
+  name: 'lineHeight',
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading'],
+        attributes: {
+          lineHeight: {
+            default: null,
+            parseHTML: (el) => el.style.lineHeight || null,
+            renderHTML: (attrs) =>
+              attrs.lineHeight ? { style: `line-height: ${attrs.lineHeight}` } : {},
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    return {
+      setLineHeight:
+        (value) =>
+        ({ commands }) =>
+          ['paragraph', 'heading'].every((type) =>
+            commands.updateAttributes(type, { lineHeight: value || null }),
+          ),
+    };
+  },
+});
+
 export const FONT_FAMILIES = [
   { label: 'Georgia', value: "Georgia, 'Times New Roman', serif" },
   { label: 'Jost', value: 'Jost, system-ui, sans-serif' },
@@ -55,7 +88,40 @@ export const FONT_FAMILIES = [
   { label: 'Mono', value: "'SF Mono', Menlo, monospace" },
 ];
 
-export function createNotesEditor(element, doc, { onSave, onTick, onFocus }) {
+export const LINE_HEIGHTS = ['1', '1.15', '1.35', '1.5', '1.65', '1.8', '2'];
+
+/* ── Local font library (Chromium Local Font Access API) ─────────────
+   window.queryLocalFonts() lists every font installed on the computer.
+   Needs a user gesture the first time; Electron grants the permission.
+   Loaded once per session and shared by the toolbar + typography panel. */
+
+let systemFontsCache = null;
+let systemFontsPromise = null;
+const fontValue = (family) =>
+  /[^a-zA-Z0-9-]/.test(family) ? `'${family.replace(/'/g, "\\'")}'` : family;
+
+export function loadSystemFonts() {
+  if (systemFontsPromise) return systemFontsPromise;
+  systemFontsPromise = (async () => {
+    if (typeof window.queryLocalFonts !== 'function') return (systemFontsCache = []);
+    try {
+      const fonts = await window.queryLocalFonts();
+      const families = [...new Set(fonts.map((f) => f.family))]
+        .sort((a, b) => a.localeCompare(b));
+      systemFontsCache = families.map((f) => ({ label: f, value: fontValue(f) }));
+    } catch (err) {
+      console.warn('queryLocalFonts failed', err);
+      systemFontsCache = [];
+    }
+    return systemFontsCache;
+  })();
+  return systemFontsPromise;
+}
+
+export const getSystemFonts = () => systemFontsCache;
+export const canQueryLocalFonts = () => typeof window.queryLocalFonts === 'function';
+
+export function createNotesEditor(element, doc, { onSave, onTick, onFocus, onUpdate }) {
   return new Editor({
     element,
     extensions: [
@@ -66,11 +132,18 @@ export function createNotesEditor(element, doc, { onSave, onTick, onFocus }) {
       TextStyle,
       FontFamily,
       FontSize,
+      LineHeight,
       Placeholder.configure({ placeholder: 'Write…' }),
     ],
     content: doc || '',
     onBlur: ({ editor }) => onSave(editor.getJSON()),
     onFocus, // lets the view bind the shared toolbar to this editor
+    // Doc changed → live reflow. Rebalance's own transactions are marked
+    // addToHistory:false; skipping them here prevents self-triggered loops.
+    onUpdate: ({ editor, transaction }) => {
+      if (transaction?.getMeta('addToHistory') === false) return;
+      onUpdate?.(editor);
+    },
     onTransaction: onTick, // refresh toolbar active states
   });
 }
@@ -158,6 +231,7 @@ export function EditorToolbar({ editor }) {
   const [expanded, setExpanded] = useState(false);
   const [pos, setPos] = useState(null); // null = CSS default spot
   const [link, setLinkPanel] = useState(null); // { range, text, url } when open
+  const [, force] = useState(0); // re-render after async font-library load
 
   if (!editor || editor.isDestroyed) return null;
 
@@ -231,6 +305,23 @@ export function EditorToolbar({ editor }) {
 
   const family = editor.getAttributes('textStyle').fontFamily || FONT_FAMILIES[0].value;
   const size = editor.getAttributes('textStyle').fontSize || '';
+  const lineHeight =
+    editor.getAttributes('paragraph').lineHeight ||
+    editor.getAttributes('heading').lineHeight || '';
+
+  const systemFonts = getSystemFonts();
+  const knownFamily =
+    FONT_FAMILIES.some((f) => f.value === family) ||
+    (systemFonts || []).some((f) => f.value === family);
+
+  const onFamilyChange = (value) => {
+    if (value === '__load-system') {
+      // Re-render once the library arrives; the select keeps its value.
+      loadSystemFonts().then(() => force((n) => n + 1));
+      return;
+    }
+    c().setFontFamily(value).run();
+  };
 
   return (
     <div
@@ -254,11 +345,22 @@ export function EditorToolbar({ editor }) {
           title="Font"
           value={family}
           onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => c().setFontFamily(e.currentTarget.value).run()}
+          onChange={(e) => onFamilyChange(e.currentTarget.value)}
         >
           {FONT_FAMILIES.map((f) => (
             <option key={f.label} value={f.value}>{f.label}</option>
           ))}
+          {!knownFamily && <option value={family}>{family.replace(/['"]/g, '').split(',')[0]}</option>}
+          {systemFonts === null && canQueryLocalFonts() && (
+            <option value="__load-system">↻ load my computer's fonts…</option>
+          )}
+          {systemFonts?.length > 0 && (
+            <optgroup label="my computer">
+              {systemFonts.map((f) => (
+                <option key={f.label} value={f.value}>{f.label}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
         <input
           className="rt-size"
@@ -326,6 +428,19 @@ export function EditorToolbar({ editor }) {
           <Btn active={editor.isActive('bulletList')} title="Bullet list" onClick={() => c().toggleBulletList().run()}>{I.bullets}</Btn>
           <Btn active={editor.isActive('orderedList')} title="Numbered list" onClick={() => c().toggleOrderedList().run()}>{I.numbers}</Btn>
           <Btn active={editor.isActive('blockquote')} title="Quote" onClick={() => c().toggleBlockquote().run()}>{I.quote}</Btn>
+          <span className="rt-sep" />
+          <select
+            className="rt-family rt-lineheight"
+            title="Line height"
+            value={lineHeight}
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e) => c().setLineHeight(e.currentTarget.value || null).run()}
+          >
+            <option value="">line ↕ auto</option>
+            {LINE_HEIGHTS.map((v) => (
+              <option key={v} value={v}>line ↕ {v}</option>
+            ))}
+          </select>
         </div>
       )}
     </div>

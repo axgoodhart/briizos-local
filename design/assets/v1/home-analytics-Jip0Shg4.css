@@ -1,0 +1,89 @@
+.om-form-list-card>*+* {
+    border-top: 1px solid var(--om-border-subtle)
+}
+
+.om-form-list-card>*+[data-indented-divider] {
+    border-top-color: #0000;
+    position: relative
+}
+
+.om-form-list-card>*+[data-indented-divider]:before {
+    content: "";
+    background: var(--om-border-subtle);
+    height: 1px;
+    position: absolute;
+    top: -1px;
+    left: 20px;
+    right: 0
+}
+
+.om-form-list-card-tinted>*+* {
+    border-top-color: #d9775733
+}
+
+.om-rich-input {
+    width: 100%;
+    max-height: calc(var(--om-ri-max-rows) * 1.5em);
+    max-height: calc(var(--om-ri-max-rows) * 1lh);
+    color: var(--om-text-primary);
+    cursor: text;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-y: auto
+}
+
+@media (width<=700px) {
+    .om-rich-input {
+        font-size: 16px
+    }
+}
+
+.om-rich-input .ProseMirror {
+    min-height: calc(var(--om-ri-min-rows) * 1.5em);
+    min-height: calc(var(--om-ri-min-rows) * 1lh);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    outline: none
+}
+
+.om-rich-input .ProseMirror p {
+    margin: 0
+}
+
+.om-rich-input .ProseMirror a {
+    color: var(--om-accent-blue);
+    cursor: text;
+    font-weight: 500;
+    text-decoration: none
+}
+
+.om-rich-input .ProseMirror a:hover {
+    color: var(--om-accent-blue-hover)
+}
+
+.om-rich-input .ProseMirror p.is-empty:before {
+    content: attr(data-placeholder);
+    color: var(--om-text-tertiary);
+    pointer-events: none;
+    float: left;
+    height: 0
+}
+
+.om-tabs-scroll::-webkit-scrollbar {
+    height: 3px
+}
+
+.om-tabs-scroll::-webkit-scrollbar-track {
+    background: 0 0
+}
+
+.om-tabs-scroll::-webkit-scrollbar-thumb {
+    background: var(--om-scrollbar-thumb);
+    border-radius: 3px
+}
+
+.om-tabs-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--om-scrollbar-thumb-hover)
+}

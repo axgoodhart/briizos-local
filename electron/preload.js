@@ -293,6 +293,7 @@ contextBridge.exposeInMainWorld('api', {
   journalsList: () => ipcRenderer.invoke('forest-journals-list'),
   journalsCreate: (input) => ipcRenderer.invoke('forest-journals-create', input),
   journalsDelete: (id) => ipcRenderer.invoke('forest-journals-delete', id),
+  journalsUpdate: (id, patch) => ipcRenderer.invoke('forest-journals-update', id, patch),
   foliosList: (journalId) => ipcRenderer.invoke('forest-folios-list', journalId),
   foliosCreate: (journalId, folio, opts) => ipcRenderer.invoke('forest-folios-create', journalId, folio, opts),
   foliosDelete: (id) => ipcRenderer.invoke('forest-folios-delete', id),

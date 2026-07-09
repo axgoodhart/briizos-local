@@ -6,7 +6,7 @@ top:0;
 z-index:999;
   min-height: 58px;
   padding: 0 clamp(12px, 2vw, 22px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .control-bar-rail {

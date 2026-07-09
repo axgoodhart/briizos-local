@@ -836,6 +836,11 @@ ipcMain.handle('forest-journals-delete', async (_event, id) => {
   logger.info('forest', 'Journal deleted', { id });
   return result;
 });
+ipcMain.handle('forest-journals-update', async (_event, id, patch) => {
+  const result = localDataService.updateJournal(id, patch).row;
+  logger.debug('forest', 'Journal updated', { id });
+  return result;
+});
 
 ipcMain.handle('forest-folios-list', async (_event, journalId) => localDataService.listFolios(journalId));
 ipcMain.handle('forest-folios-create', async (_event, journalId, folio, opts) => {
@@ -892,7 +897,16 @@ ipcMain.handle('forest-library-save', async (_event, state) => {
 });
 ipcMain.handle('forest-library-import-paths', async (_event, inputPaths) => {
   const result = await forestFs.importDroppedPaths(inputPaths);
-  logger.info('forest', 'Files imported into board', { groups: result.length, paths: inputPaths?.length ?? 0 });
+  if (result.rejected) {
+    logger.warn('forest', 'Import rejected', { reason: result.rejected.reason, ...result.stats });
+  } else {
+    logger.info('forest', 'Files imported into board', {
+      groups: result.groups.length,
+      files: result.stats.files,
+      ignored: result.stats.ignored,
+      paths: inputPaths?.length ?? 0,
+    });
+  }
   return result;
 });
 

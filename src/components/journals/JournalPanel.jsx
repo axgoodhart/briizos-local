@@ -322,6 +322,8 @@ export function JournalPanel() {
             pageUrl={PAGES[openJournal.page]}
             coverUrl={COVERS[openJournal.cover]}
             onBack={() => setOpenId(null)}
+            onJournalChange={(updated) =>
+              setJournals((prev) => prev.map((j) => (j.id === updated.id ? { ...j, ...updated } : j)))}
           />
         ) : (
           <div className="journals-home" onClick={() => setSelectedId(null)}>

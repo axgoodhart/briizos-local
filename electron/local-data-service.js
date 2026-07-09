@@ -5,6 +5,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
+const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT } = require('./local-data/limits');
 const { BUILT_IN_MODELS } = require('./built-in-models');
 
 const TASK_STATUSES = [
@@ -1381,6 +1382,7 @@ class LocalDataService extends EventEmitter {
       tags: JSON.parse(row.tags_json),
       cover: row.cover_key || '',
       page: row.page_key || '',
+      settings: row.settings_json ? JSON.parse(row.settings_json) : {},
       folioCount: row.folio_count,
       position: row.position,
       createdAt: row.created_at,
@@ -1432,6 +1434,38 @@ class LocalDataService extends EventEmitter {
       normalizedFolios.forEach((folio, index) => {
         insert.run(folio.id, journalId, folio.type, folio.title, folio.contentJson, index, timestamp + index, timestamp + index);
       });
+      const row = this.db.prepare(`
+        SELECT j.*, (SELECT COUNT(*) FROM folios f WHERE f.journal_id = j.id AND f.deleted_at IS NULL) AS folio_count
+        FROM journals j WHERE j.id = ?
+      `).get(journalId);
+      return { row: this._journalRow(row) };
+    });
+  }
+
+  updateJournal(journalId, patch = {}) {
+    journalId = v.identifier(journalId, 'journalId');
+    v.object(patch, 'journal changes', ['title', 'tags', 'cover', 'page', 'settings']);
+    if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one journal change is required');
+    const title = patch.title === undefined ? undefined : v.string(patch.title, 'title', { required: true, max: 1000 });
+    const tags = patch.tags === undefined ? undefined : v.stringArray(patch.tags, 'tags', { maxItems: 100, maxLength: 200 });
+    const cover = patch.cover === undefined ? undefined : v.string(patch.cover, 'cover', { max: 500 });
+    const page = patch.page === undefined ? undefined : v.string(patch.page, 'page', { max: 500 });
+    const settingsJson = patch.settings === undefined ? undefined : this._jsonValue(patch.settings, 'settings', 100000);
+    return this._write('forest', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
+      if (!current) v.fail('NOT_FOUND', 'Journal not found');
+      this.db.prepare(`
+        UPDATE journals SET title = ?, tags_json = ?, cover_key = ?, page_key = ?, settings_json = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(
+        title ?? current.title,
+        tags === undefined ? current.tags_json : JSON.stringify(tags),
+        cover ?? current.cover_key,
+        page ?? current.page_key,
+        settingsJson ?? current.settings_json ?? '{}',
+        timestamp,
+        journalId,
+      );
       const row = this.db.prepare(`
         SELECT j.*, (SELECT COUNT(*) FROM folios f WHERE f.journal_id = j.id AND f.deleted_at IS NULL) AS folio_count
         FROM journals j WHERE j.id = ?
@@ -1690,12 +1724,17 @@ class LocalDataService extends EventEmitter {
     };
     const hunterDirs = state.hunterDirs === undefined ? [] : v.stringArray(state.hunterDirs, 'hunterDirs', { maxItems: 100, maxLength: 4096 });
     const projects = state.projects ?? [];
-    if (!Array.isArray(projects) || projects.length > 2000) v.fail('INVALID_INPUT', 'projects must be a list with at most 2000 items');
+    if (!Array.isArray(projects) || projects.length > FOREST_MAX_PROJECTS) {
+      v.fail('INVALID_INPUT', `projects must be a list with at most ${FOREST_MAX_PROJECTS} items`);
+    }
     const normalized = projects.map((project, projectIndex) => {
       if (!project || typeof project !== 'object' || Array.isArray(project)) v.fail('INVALID_INPUT', `projects[${projectIndex}] must be an object`);
       const projectId = v.identifier(project.id, `projects[${projectIndex}].id`);
       const projectFiles = project.files ?? [];
-      if (!Array.isArray(projectFiles) || projectFiles.length > 10000) v.fail('INVALID_INPUT', `projects[${projectIndex}].files is too large`);
+      if (!Array.isArray(projectFiles)) v.fail('INVALID_INPUT', `projects[${projectIndex}].files must be a list`);
+      if (projectFiles.length > FOREST_MAX_FILES_PER_PROJECT) {
+        v.fail('INVALID_INPUT', `projects[${projectIndex}] ("${project.name}") has ${projectFiles.length} files — max ${FOREST_MAX_FILES_PER_PROJECT} per project`);
+      }
       const projectData = { ...project };
       delete projectData.id;
       delete projectData.name;

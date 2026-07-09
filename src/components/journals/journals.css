@@ -12,7 +12,7 @@
   box-sizing: border-box;
 background:linear-gradient(45deg, rgba(255,255,255,0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(-45deg, rgba(255,255,255,0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.02) 75%) 0 0 / 20px 20px, linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.02) 75%) 0 0 / 20px 20px;
 background-size: 12.80% 12.80%;
-background-color:rgb(22, 38, 38);
+background-color:var(--ui-modal-header-bg);
 background-position: 50% 50%;
 transition:background-color 0.35s ease-in, background-size .95s cubic-bezier(0.75, 0.1, 0.165, 1);}
 
@@ -38,14 +38,14 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
   justify-content: center;
   align-items: center;
   gap: 18px;
-  padding: 18px 0 34px;
+  padding:0px 0 8px;
 }
 
 .jr-action {
   appearance: none;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  border-radius: 50px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03) 70%);
   color: rgba(255, 255, 255, 0.88);
@@ -121,7 +121,7 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
 .jr-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 56px 64px;
+  gap: 26px 24px;
   max-width: 1480px;
   margin: 0 auto;
   justify-items: center;
@@ -145,7 +145,7 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
   background: none;
   cursor: pointer;
   width: 100%;
-  max-width: 300px;
+  max-width: 200px;
   aspect-ratio: 3 / 4;
   border-radius: 10px;
   outline: none;
@@ -155,7 +155,7 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 20px;
   display: block;
   /* resting state: heavily dimmed, like the mockup */
   filter: brightness(0.62) saturate(.8);
@@ -163,7 +163,9 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
   transform-style:preserve-3d;
   transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.86);
   box-shadow:
-      4px 6px 4px rgba(0, 0, 0, .73),
+          3px 2px .1px rgba(255, 255, 250, 0.69),
+        3px 3px 1px rgba(255, 255, 255, 0.579),
+      5px 6px 4px rgba(0, 0, 0, .73),
       0 0 10px rgba(255, 255, 255, 0),
       0 0 1px rgba(0, 0, 0, 0);}
 
@@ -626,19 +628,88 @@ transition: all .5s ease;
   cursor: default;
 }
 
-.jv-nav.right { border-radius: 0 10px 10px 0; 
+.jv-nav.right { border-radius: 0 10px 10px 0;
 }
-.jv-spread {
+
+/* Fixed-geometry book: pages keep one logical size (set inline from
+   PAGE_W/PAGE_H) and the whole book scales to fit the port. Because the
+   scale is a transform, it never changes layout — so line breaks are
+   identical at every window size and resolution. */
+.jv-bookport {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.jv-bookscale {
+  flex: none;
+  position: relative;
+  transform-origin: center center;
+}
+
+.jv-spread {
+  width: 100%;
+  height: 100%;
   display: grid;
-  grid-template-columns: 1fr 8px 1fr;
+  grid-template-columns: 1fr 3px 1fr;
   background: #0b0b0e;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.7);
   overflow: hidden;
-  min-height: 0;
+  box-sizing: border-box;
 }
+
+/* Narrow (<800px panel) or a lone slot: one page at a time, no spine. */
+.jv-spread--single { grid-template-columns: 1fr; }
+
+/* ── Seamed scroll stack ────────────────────────────────────────────
+   A scroll-toggled folio: its pages stacked in one slot, scrolled
+   vertically. The scrollbar is hidden so page width matches paginated
+   mode exactly — line breaks must not differ between the two views. */
+.jv-scrollstack {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.jv-scrollstack::-webkit-scrollbar { display: none; }
+
+.jv-scrollstack__page { flex: none; }
+.jv-scrollstack__page > .jv-page { height: 100%; box-sizing: border-box; }
+
+/* Unmounted pages in the stack: blank paper keeps the scroll honest. */
+.jv-scrollstack__ghost { flex: none; }
+
+/* Bottom-bar toggle between paginated and scrolled reading */
+.jvb__scrolltoggle {
+  appearance: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+  font-family: Jost, system-ui, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+.jvb__scrolltoggle:hover { border-color: rgba(150, 200, 255, 0.8); color: #fff; }
+.jvb__scrolltoggle.is-on {
+  border-color: rgba(120, 180, 255, 0.6);
+  box-shadow: 0 0 10px rgba(120, 180, 255, 0.25);
+  color: #eaf3ff;
+}
+
+.jv-root.is-narrow { padding: 14px 14px 20px; }
+.jv-root.is-narrow .jvs-toggle { display: none; }
+.jv-root.is-narrow .jv-topbar { gap: 10px; }
 
 .jv-spine {
   background: linear-gradient(to right, rgba(0, 0, 0, 0.55), rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.55));
@@ -1223,6 +1294,8 @@ transition: all .5s ease;
 
 .rt-family:focus, .rt-size:focus { border-color: rgba(120, 180, 255, 0.7); }
 
+.rt-lineheight { max-width: 96px; }
+
 /* link panel — Text/URL rows between the toolbar rows */
 .rt-linkpanel {
   display: flex;
@@ -1275,9 +1348,10 @@ transition: all .5s ease;
   flex: 1;
   outline: none;
   color: rgba(255, 255, 255, 0.88);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 14px;
-  line-height: 1.65;
+  /* Journal-tunable type (typography panel writes these vars on .jv-root) */
+  font-family: var(--jv-body-font, Georgia, 'Times New Roman', serif);
+  font-size: var(--jv-body-size, 14px);
+  line-height: var(--jv-lh, 1.65);
   white-space: pre-wrap;
 }
 
@@ -1286,16 +1360,15 @@ transition: all .5s ease;
 .rt-prose .ProseMirror h1,
 .rt-prose .ProseMirror h2,
 .rt-prose .ProseMirror h3 {
-  font-family: Jost, 'SF Pro', system-ui, sans-serif;
   font-weight: 500;
   color: #fff;
   margin: 0.8em 0 0.35em;
   line-height: 1.25;
 }
 
-.rt-prose .ProseMirror h1 { font-size: 22px; }
-.rt-prose .ProseMirror h2 { font-size: 18px; }
-.rt-prose .ProseMirror h3 { font-size: 15.5px; }
+.rt-prose .ProseMirror h1 { font-family: var(--jv-h1-font, Jost, 'SF Pro', system-ui, sans-serif); font-size: 22px; }
+.rt-prose .ProseMirror h2 { font-family: var(--jv-h2-font, Jost, 'SF Pro', system-ui, sans-serif); font-size: 18px; }
+.rt-prose .ProseMirror h3 { font-family: var(--jv-h3-font, Jost, 'SF Pro', system-ui, sans-serif); font-size: 15.5px; }
 
 .rt-prose .ProseMirror blockquote {
   margin: 0.6em 0;
@@ -1331,6 +1404,23 @@ transition: all .5s ease;
   pointer-events: none;
   color: rgba(255, 255, 255, 0.25);
   font-style: italic;
+}
+
+/* ── Typography modal ───────────────────────────────────────────────── */
+
+.jv-typo { width: min(440px, 100%); }
+
+.jv-typo select.jr-input { width: 100%; cursor: pointer; }
+.jv-typo select.jr-input option,
+.jv-typo select.jr-input optgroup { background: #1a1a20; }
+
+.jv-typo__pair { display: flex; gap: 12px; }
+.jv-typo__pair .jr-field { flex: 1; }
+
+.jv-typo__hint {
+  margin: 2px 0 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* ── Journal viewer — sidebar + bottom bar ──────────────────────────────

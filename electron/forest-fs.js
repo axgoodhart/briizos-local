@@ -11,6 +11,12 @@ const fs = require('fs/promises');
 const crypto = require('crypto');
 const os = require('os');
 const { app } = require('electron');
+const { isHidden, isIgnored } = require('./forest-ignore');
+const {
+  FOREST_MAX_FILES_PER_PROJECT,
+  FOREST_MAX_FILES_PER_DROP,
+  FOREST_MAX_SCAN_ENTRIES,
+} = require('./local-data/limits');
 
 function getStateFilePath() {
   return path.join(app.getPath('userData'), 'forest.library.json');
@@ -88,12 +94,9 @@ const TOKEN_STOPWORDS = new Set([
   'screen', 'shot', 'img', 'image', 'doc', 'file', 'untitled',
 ]);
 
-const IGNORED_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'coverage', '.next', 'out',
-  '__pycache__', 'venv', '.venv',
-]);
-
-const IGNORED_FILES = new Set(['.ds_store', 'thumbs.db']);
+// Ignore rules (node_modules, VCS, build output, OS junk, hidden entries)
+// live in forest-ignore.js — a .gitignore-style default list shared by
+// board imports and the Hunter/FileHawk scans below.
 
 function typeGroupFromExt(ext) {
   const clean = String(ext || '').replace(/^\./, '').toLowerCase();
@@ -164,7 +167,15 @@ function buildFileRecord(filePath, stat, projectHint) {
   };
 }
 
-async function walkInputPath(entryPath, projectHint, output, seenPaths) {
+async function walkInputPath(entryPath, projectHint, output, seenPaths, stats, isRoot = false) {
+  if (stats.aborted || stats.overflow) return;
+
+  stats.scanned += 1;
+  if (stats.scanned > FOREST_MAX_SCAN_ENTRIES) {
+    stats.aborted = true;
+    return;
+  }
+
   let stat;
   try {
     stat = await fs.lstat(entryPath);
@@ -176,9 +187,14 @@ async function walkInputPath(entryPath, projectHint, output, seenPaths) {
 
   if (stat.isSymbolicLink()) return;
 
-  if (stat.isDirectory()) {
-    if (IGNORED_DIRS.has(baseName)) return;
+  // .gitignore-style filtering. Explicitly dropped roots are exempt so a
+  // hidden or ignored folder can still be imported on purpose.
+  if (!isRoot && (isHidden(baseName) || isIgnored(baseName, stat.isDirectory()))) {
+    stats.ignored += 1;
+    return;
+  }
 
+  if (stat.isDirectory()) {
     let children = [];
     try {
       children = await fs.readdir(entryPath);
@@ -187,18 +203,24 @@ async function walkInputPath(entryPath, projectHint, output, seenPaths) {
     }
 
     for (const child of children) {
-      await walkInputPath(path.join(entryPath, child), projectHint, output, seenPaths);
+      if (stats.aborted || stats.overflow) return;
+      await walkInputPath(path.join(entryPath, child), projectHint, output, seenPaths, stats);
     }
     return;
   }
 
   if (!stat.isFile()) return;
-  if (IGNORED_FILES.has(baseName.toLowerCase())) return;
 
   const resolved = path.resolve(entryPath);
   if (seenPaths.has(resolved)) return;
   seenPaths.add(resolved);
 
+  if (stats.files >= FOREST_MAX_FILES_PER_DROP) {
+    stats.overflow = true;
+    return;
+  }
+
+  stats.files += 1;
   output.push(buildFileRecord(resolved, stat, projectHint));
 }
 
@@ -206,12 +228,29 @@ function normalizeProjectKey(name) {
   return String(name || 'Untitled Project').trim().toLowerCase();
 }
 
+/**
+ * Import dropped paths into project groups.
+ *
+ * Returns `{ groups, stats, limits }` on success, or
+ * `{ groups: [], stats, limits, rejected: { reason, message } }` when the
+ * drop would exceed what the board/DB can safely hold — nothing is
+ * imported in that case (graceful rejection, decided *before* any state
+ * mutation or save attempt).
+ */
 async function importDroppedPaths(inputPaths = []) {
   const uniqueInputs = Array.from(new Set((inputPaths || []).filter(Boolean)));
   const seenFiles = new Set();
   const groups = new Map();
+  const stats = { scanned: 0, files: 0, ignored: 0, aborted: false, overflow: false };
+  const limits = {
+    maxFilesPerProject: FOREST_MAX_FILES_PER_PROJECT,
+    maxFilesPerDrop: FOREST_MAX_FILES_PER_DROP,
+  };
+  const reject = (reason, message) => ({ groups: [], stats, limits, rejected: { reason, message } });
 
   for (const rawPath of uniqueInputs) {
+    if (stats.aborted || stats.overflow) break;
+
     const fullPath = path.resolve(rawPath);
 
     let stat;
@@ -236,7 +275,7 @@ async function importDroppedPaths(inputPaths = []) {
     }
 
     const files = [];
-    await walkInputPath(fullPath, projectHint, files, seenFiles);
+    await walkInputPath(fullPath, projectHint, files, seenFiles, stats, true);
 
     for (const file of files) {
       const key = normalizeProjectKey(file.projectHint);
@@ -258,7 +297,20 @@ async function importDroppedPaths(inputPaths = []) {
     }
   }
 
-  return Array.from(groups.values())
+  if (stats.overflow) {
+    return reject(
+      'too-many-files',
+      `more than ${FOREST_MAX_FILES_PER_DROP.toLocaleString()} files after ignore filtering — try a smaller folder`,
+    );
+  }
+  if (stats.aborted) {
+    return reject(
+      'scan-too-large',
+      `gave up after scanning ${FOREST_MAX_SCAN_ENTRIES.toLocaleString()} entries — try a smaller folder`,
+    );
+  }
+
+  const resultGroups = Array.from(groups.values())
     .map((group) => ({
       name: group.name,
       tags: Array.from(group.tagCounts.entries())
@@ -269,6 +321,16 @@ async function importDroppedPaths(inputPaths = []) {
       files: group.files.sort((a, b) => a.name.localeCompare(b.name)),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const oversized = resultGroups.find((group) => group.files.length > FOREST_MAX_FILES_PER_PROJECT);
+  if (oversized) {
+    return reject(
+      'project-too-large',
+      `"${oversized.name}" would hold ${oversized.files.length.toLocaleString()} files (max ${FOREST_MAX_FILES_PER_PROJECT.toLocaleString()} per project) — try a subfolder`,
+    );
+  }
+
+  return { groups: resultGroups, stats, limits };
 }
 
 // ── Hunter ──────────────────────────────────────────────────────────
@@ -319,7 +381,7 @@ async function hunterSearch(keywords = [], excludePaths = [], customDirs = []) {
       if (entry.name.startsWith('.')) continue;
 
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.has(entry.name)) continue;
+        if (isIgnored(entry.name, true)) continue;
         const dirLower = entry.name.toLowerCase();
         const dirMatches = normalizedKeywords.some((k) => dirLower.includes(k));
         if (dirMatches || depth < 2) {
@@ -329,7 +391,7 @@ async function hunterSearch(keywords = [], excludePaths = [], customDirs = []) {
       }
 
       if (!entry.isFile()) continue;
-      if (IGNORED_FILES.has(entry.name.toLowerCase())) continue;
+      if (isIgnored(entry.name, false)) continue;
 
       const nameLower = entry.name.toLowerCase();
       const stem = path.basename(entry.name, path.extname(entry.name)).toLowerCase();
@@ -423,7 +485,7 @@ async function huntFiles(opts = {}) {
       if (entry.name.startsWith('.')) continue;
 
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.has(entry.name)) continue;
+        if (isIgnored(entry.name, true)) continue;
         const dl = entry.name.toLowerCase();
         const dirMatches =
           queryTerms.some((t) => dl.includes(t)) || kwTerms.some((k) => dl.includes(k));
@@ -434,7 +496,7 @@ async function huntFiles(opts = {}) {
       }
 
       if (!entry.isFile()) continue;
-      if (IGNORED_FILES.has(entry.name.toLowerCase())) continue;
+      if (isIgnored(entry.name, false)) continue;
 
       const ext = path.extname(entry.name).slice(1).toLowerCase();
       const typeGroup = typeGroupFromExt(ext);
