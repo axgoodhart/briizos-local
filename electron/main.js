@@ -102,7 +102,7 @@ const CSP = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://apis.google.com https://www.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https: file:",
   "connect-src 'self' ws://localhost:* http://localhost:* https://api.open-meteo.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://*.firebaseapp.com https://*.web.app",
   "frame-src 'self' blob: data: https: https://dex--briizos.us-central1.hosted.app http://localhost:* file: https://*.firebaseapp.com https://*.web.app https://apis.google.com",
   "media-src 'self' blob: data: https: file:",
@@ -136,7 +136,16 @@ function createWindow() {
       .then(() => logger.info('app', 'Dev HTTP cache cleared'))
       .catch((error) => logger.warn('app', 'Failed to clear dev HTTP cache', error?.message));
   }
+  const { Menu } = require('electron');
 
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menu = Menu.buildFromTemplate([
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' }
+    ]);
+    menu.popup();
+  });
   // In development, skip CSP header injection to avoid blocking local auth/network debugging.
   if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {

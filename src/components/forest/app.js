@@ -34,14 +34,14 @@ const dimToggle = document.getElementById('forest-dimToggle');
 
 
 const ACCENTS = [
-  { hex: '#7C3AED', rgb: '124,58,237' },
-  { hex: '#38BDF8', rgb: '56,189,248' },
-  { hex: '#22C55E', rgb: '34,197,94' },
-  { hex: '#F97316', rgb: '249,115,22' },
-  { hex: '#EC4899', rgb: '236,72,153' },
-  { hex: '#14B8A6', rgb: '20,184,166' },
-  { hex: '#EAB308', rgb: '234,179,8' },
-  { hex: '#8B5CF6', rgb: '139,92,246' },
+  { hex: '#16C784', rgb: '22,199,132' },  // emerald gemlight
+  { hex: '#3D7BE8', rgb: '61,123,232' },  // cobalt river
+  { hex: '#A2B84F', rgb: '162,184,79' },  // sunlit moss
+  { hex: '#8B7AD9', rgb: '139,122,217' }, // dusk violet
+  { hex: '#E0A352', rgb: '224,163,82' },  // amber path
+  { hex: '#56A0E8', rgb: '86,160,232' },  // shallow river
+  { hex: '#2E9E8F', rgb: '46,158,143' },  // pine teal
+  { hex: '#D4939F', rgb: '212,147,159' }, // alpenglow rose
 ];
 
 const TYPE_ORDER = [
@@ -234,6 +234,30 @@ function accentForSeed(seed) {
   return ACCENTS[hashString(seed) % ACCENTS.length];
 }
 
+// Projects persist their accent, so anything saved under an older palette
+// (pre-forest purples/golds) gets remapped to the nearest current accent.
+const LEGACY_ACCENTS = {
+  '#7C3AED': ACCENTS[0], // purple → emerald gemlight
+  '#8B5CF6': ACCENTS[3], // violet → dusk violet
+  '#9F7AEA': ACCENTS[3],
+  '#38BDF8': ACCENTS[5], // sky → shallow river
+  '#22C55E': ACCENTS[0],
+  '#2F8F5B': ACCENTS[0],
+  '#6BA368': ACCENTS[2], // moss → sunlit moss
+  '#14B8A6': ACCENTS[6], // teal → pine teal
+  '#F97316': ACCENTS[4], // orange → amber path
+  '#EAB308': ACCENTS[4],
+  '#C08A28': ACCENTS[4],
+  '#B8763A': ACCENTS[4],
+  '#7A4A24': ACCENTS[4],
+  '#EC4899': ACCENTS[7], // pink → alpenglow rose
+};
+
+function migrateAccent(accent) {
+  const legacy = LEGACY_ACCENTS[(accent.hex || '').toUpperCase()];
+  return legacy || accent;
+}
+
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>"']/g, (match) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[match]
@@ -362,9 +386,9 @@ function normalizeProject(project = {}) {
   const x = Number(project.x);
   const y = Number(project.y);
 
-  const accent = project.accent && project.accentRgb
+  const accent = migrateAccent(project.accent && project.accentRgb
     ? { hex: project.accent, rgb: project.accentRgb }
-    : accentForSeed(project.name || project.id || uid());
+    : accentForSeed(project.name || project.id || uid()));
 
   const files = (project.files || []).map(normalizeFile).sort(sortFiles);
 

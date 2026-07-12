@@ -1089,7 +1089,7 @@ function AppearanceTab({ settings, handleThemeChange, getThemeChatBackground, on
       </p>
 
       <div className="settings-radio-group">
-        <ThemeRadio value="default" label="Default Neon" desc="Current dark neon interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('default')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio value="default" label="Dark Neon" desc="Current dark neon interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('default')} onOpenChatViewPicker={onOpenChatViewPicker} />
         <ThemeRadio value="antarctic-teafog" label="Antarctic Teafog" desc="Muted warmth with cool earth tones." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('antarctic-teafog')} onOpenChatViewPicker={onOpenChatViewPicker} />
         <ThemeRadio value="postlinear-glassos" label="Postlinear Glassos" desc="Splashing gold with rosy dry warmth." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('postlinear-glassos')} onOpenChatViewPicker={onOpenChatViewPicker} />
         <ThemeRadio value="neon-orbi" label="Neon Orb" desc="Flatter, soft hue multicolor interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('neon-orbi')} onOpenChatViewPicker={onOpenChatViewPicker} />
@@ -1100,6 +1100,55 @@ function AppearanceTab({ settings, handleThemeChange, getThemeChatBackground, on
         <ThemeRadio value="burnt-chestnut" label="Burnt Chestnut" desc="A medium springtime theme." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('burnt-chestnut')} onOpenChatViewPicker={onOpenChatViewPicker} />
         <ThemeRadio value="verdigris" label="Verdigris" desc="Tarnished bronze with a hint of gold and green." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('verdigris')} onOpenChatViewPicker={onOpenChatViewPicker} />
         <ThemeRadio value="space-glass" label="Space Glass" desc="A dark space theme with twilight hue." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('space-glass')} onOpenChatViewPicker={onOpenChatViewPicker} />
+        <ThemeRadio
+          value="navy-brockman"
+          label="Navy Brockman"
+          desc="Deep maritime blues with sharp, professional contrast."
+          currentTheme={currentTheme}
+          handleThemeChange={handleThemeChange}
+          chatView={getChatViewLabel('navy-brockman')}
+          onOpenChatViewPicker={onOpenChatViewPicker}
+        />
+
+        <ThemeRadio
+          value="peppermint-foil"
+          label="Peppermint Foil"
+          desc="Crisp, cool mint tones with a metallic, reflective sheen."
+          currentTheme={currentTheme}
+          handleThemeChange={handleThemeChange}
+          chatView={getChatViewLabel('peppermint-foil')}
+          onOpenChatViewPicker={onOpenChatViewPicker}
+        />
+
+        <ThemeRadio
+          value="transparent"
+          label="Transparent"
+          desc="Minimalist, glass-morphism style that blends into your background."
+          currentTheme={currentTheme}
+          handleThemeChange={handleThemeChange}
+          chatView={getChatViewLabel('transparent')}
+          onOpenChatViewPicker={onOpenChatViewPicker}
+        />
+
+        <ThemeRadio
+          value="medieval-taurus"
+          label="Medieval Taurus"
+          desc="Earthy tones, rustic gold, and rich, historic leather textures."
+          currentTheme={currentTheme}
+          handleThemeChange={handleThemeChange}
+          chatView={getChatViewLabel('medieval-taurus')}
+          onOpenChatViewPicker={onOpenChatViewPicker}
+        />
+
+        <ThemeRadio
+          value="mistic"
+          label="Mistic"
+          desc="Enigmatic purples and smoky darks for a twilight aesthetic."
+          currentTheme={currentTheme}
+          handleThemeChange={handleThemeChange}
+          chatView={getChatViewLabel('mistic')}
+          onOpenChatViewPicker={onOpenChatViewPicker}
+        />
       </div>
 
       {openPickerForTheme && (

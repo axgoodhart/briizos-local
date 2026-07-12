@@ -207,6 +207,7 @@ function InteractionPanel() {
   });
   const [resolvedChatBg, setResolvedChatBg] = useState(chatBackground);
   const [resolvedChatBgBlur, setResolvedChatBgBlur] = useState(chatBgBlur);
+  const bgIframeRef = useRef(null);
 
   useEffect(() => {
     if (selectedProfile?.provider && selectedProfile.provider !== provider) {
@@ -214,14 +215,66 @@ function InteractionPanel() {
     }
   }, [selectedProfile?.provider, provider, setProvider]);
 
+  // Collect every custom-property name declared on :root / :root[data-theme=...]
+  // across same-origin stylesheets (App.css), then push the *computed* (i.e.
+  // theme-resolved) value for each into the background iframe's own document.
+  // Iframes don't inherit the parent's CSSOM, so without this the var(--token,
+  // fallback) references in assets/backgrounds/*.html always fall back.
+  const syncThemeTokensToIframe = useCallback(() => {
+    const iframe = bgIframeRef.current;
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.head) return;
+
+      const propNames = new Set();
+      for (const sheet of document.styleSheets) {
+        let rules;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          continue; // cross-origin sheet, skip
+        }
+        if (!rules) continue;
+        for (const rule of rules) {
+          const selector = rule.selectorText;
+          if (!selector || !selector.includes(':root')) continue;
+          const style = rule.style;
+          if (!style) continue;
+          for (let i = 0; i < style.length; i++) {
+            const name = style[i];
+            if (name.startsWith('--')) propNames.add(name);
+          }
+        }
+      }
+      if (propNames.size === 0) return;
+
+      const computed = getComputedStyle(document.documentElement);
+      const cssText = Array.from(propNames)
+        .map((name) => `  ${name}: ${computed.getPropertyValue(name).trim()};`)
+        .join('\n');
+
+      let styleEl = doc.getElementById('theme-tokens');
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.id = 'theme-tokens';
+        doc.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `:root {\n${cssText}\n}`;
+    } catch (error) {
+      logger.error('chat', 'Failed to sync theme tokens into background iframe', error?.message);
+    }
+  }, []);
+
   useEffect(() => {
     const observer = new MutationObserver(() => {
       const theme = document.documentElement.getAttribute('data-theme') || 'default';
       setActiveTheme(theme);
+      syncThemeTokensToIframe();
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
-  }, []);
+  }, [syncThemeTokensToIframe]);
 
   useEffect(() => {
     const themeEntry = getThemeChatBackground?.(activeTheme);
@@ -549,10 +602,12 @@ function InteractionPanel() {
         {resolvedChatBg ? (
           <div className="chat-bg-frame-container" style={resolvedChatBgBlur ? { filter: `blur(${resolvedChatBgBlur}px)` } : undefined}>
             <iframe
+              ref={bgIframeRef}
               className="chat-bg-frame"
               src={resolvedChatBg}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-same-origin"
               loading="lazy"
+              onLoad={syncThemeTokensToIframe}
             />
           </div>
         ) : null}

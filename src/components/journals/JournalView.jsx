@@ -1269,7 +1269,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
     if (!el) return;
     const compute = () => {
       const r = el.getBoundingClientRect();
-      if (r.width && r.height) setScale(Math.min(r.width / naturalW, r.height / naturalH, 1.6));
+      if (r.width && r.height) setScale(Math.min(r.width / naturalW, r.height / naturalH, 2.2));
     };
     compute();
     const ro = new ResizeObserver(compute);

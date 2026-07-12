@@ -302,8 +302,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     <section className="stylofact-panel" aria-label="Stylofact content pipeline">
       <header className="stylofact-header">
         <div className="stylofact-wordmark">
-          <span>Stylofact</span>
-          <small>stylometrically aligned artifact generator</small>
+          <h1>stylofact    <small>stylometrically aligned artifact generator</small> </h1>
+       
         </div>
         <div className="stylofact-project-controls">
           <label className="stylofact-project-title">
@@ -336,7 +336,6 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
             <span className="stylofact-step-number">01</span>
             <div>
               <span className="stylofact-kicker">Voice calibration</span>
-              <h2 id="stylofact-voice-title">Make constraints, not vibes.</h2>
               <p>Stylofact measures the corpus locally and derives a practical, versioned directive from those measurements. Models are used only in the later writing stages.</p>
             </div>
           </div>

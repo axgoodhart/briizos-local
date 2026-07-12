@@ -543,11 +543,11 @@ transition: all .5s ease;
   /* Hidden, not auto: pages must END at the paper edge (overflow rolls
      over to the next page of the group) instead of growing the book. */
   overflow: hidden;
-  padding: 22px 36px 28px;
+  padding: 10px 16px 12px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 .jv-root::-webkit-scrollbar { display: none; }
 
@@ -575,7 +575,14 @@ transition: all .5s ease;
 .jv-topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+/* Compact top-row buttons: the topbar is pure chrome, and every vertical
+   px it gives up goes straight to the book's scale factor. */
+.jv-topbar .jr-btn {
+  padding: 5px 13px;
+  font-size: 13px;
 }
 
 .jv-title {
@@ -602,13 +609,23 @@ transition: all .5s ease;
   gap: 0px;
   flex: 1;
   min-height: 0;
+  /* Positioning context for the overlaid nav arrows (and the floating
+     toolbar, which now anchors to the book row instead of the whole
+     panel — same centered default, tighter fit). */
+  position: relative;
 }
 
+/* Nav arrows float over the port's letterbox instead of reserving a
+   column of layout width — the book gets the full row. */
 .jv-nav {
   appearance: none;
-  align-self:center;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
   width: 18px;
-  height: 80%;
+  height: 72%;
   border-radius: 10px 0 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.04);
@@ -628,7 +645,10 @@ transition: all .5s ease;
   cursor: default;
 }
 
-.jv-nav.right { border-radius: 0 10px 10px 0;
+.jv-nav.right {
+  border-radius: 0 10px 10px 0;
+  left: auto;
+  right: 0;
 }
 
 /* Fixed-geometry book: pages keep one logical size (set inline from
@@ -707,7 +727,7 @@ transition: all .5s ease;
   color: #eaf3ff;
 }
 
-.jv-root.is-narrow { padding: 14px 14px 20px; }
+.jv-root.is-narrow { padding: 8px 10px 12px; }
 .jv-root.is-narrow .jvs-toggle { display: none; }
 .jv-root.is-narrow .jv-topbar { gap: 10px; }
 
@@ -719,7 +739,9 @@ transition: all .5s ease;
   position: relative;
   background-size:100% 100%;
   background-position: center;
-  padding: 18px;
+  /* Slim mat: just enough page art peeks around the paper to keep the
+     texture readable without spending ~7% of the page on framing. */
+  padding: 11px;
   box-sizing: border-box;
   display: flex;
 }
@@ -738,7 +760,7 @@ transition: all .5s ease;
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 10px;
-  padding: 16px 18px;
+  padding: 12px 14px;
   overflow-y: auto;
 }
 .jv-page__paper::-webkit-scrollbar { width: 6px; }
@@ -756,8 +778,8 @@ transition: all .5s ease;
   justify-content: space-between;
   gap: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  padding-bottom: 8px;
-  margin-bottom: 12px;
+  padding-bottom: 6px;
+  margin-bottom: 9px;
 }
 
 .jv-page__head h3 {
@@ -1440,14 +1462,14 @@ transition: all .5s ease;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   min-height: 0;
 }
 
 /* sidebar */
 .jvs {
-  width: 232px;
+  width: 210px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -1469,10 +1491,10 @@ transition: all .5s ease;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 12px;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .jvs__top::-webkit-scrollbar { width: 6px; }
 .jvs__top::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
