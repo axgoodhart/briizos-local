@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -7,6 +7,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
 import FontFamily from '@tiptap/extension-font-family';
 import Placeholder from '@tiptap/extension-placeholder';
+import logger from '../../lib/logger';
 
 /* ── Rich text for notes folios ──────────────────────────────────────
    TipTap core (no React bindings — this is Preact country) plus Aida's
@@ -172,6 +173,11 @@ const I = {
       <path d="m9 8-5 4 5 4M15 8l5 4-5 4" />
     </svg>
   ),
+  wrench: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17a2 2 0 1 0 3 3l7.7-8.3a4 4 0 0 0 0-5.4Z" />
+    </svg>
+  ),
   quote: <span className="rt-glyph" style={{ fontFamily: 'Georgia,serif', fontWeight: 700 }}>”</span>,
   alignL: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -211,6 +217,8 @@ const I = {
   ),
 };
 
+export const WRENCH_ICON = I.wrench;
+
 /* ── Floating toolbar ────────────────────────────────────────────────── */
 
 function Btn({ active, onClick, title, children, wide }) {
@@ -227,33 +235,72 @@ function Btn({ active, onClick, title, children, wide }) {
   );
 }
 
-export function EditorToolbar({ editor }) {
+export function EditorToolbar({ editor, toolbarId, rootRef, bookRef, collapsed, onToggleCollapsed }) {
   const [expanded, setExpanded] = useState(false);
-  const [pos, setPos] = useState(null); // null = CSS default spot
+  const [pos, setPos] = useState(null); // non-null once the user drags
+  const [autoPos, setAutoPos] = useState(null); // default tracks the book's center
   const [link, setLinkPanel] = useState(null); // { range, text, url } when open
   const [, force] = useState(0); // re-render after async font-library load
+  const toolbarRef = useRef(null);
 
-  if (!editor || editor.isDestroyed) return null;
+  useEffect(() => {
+    if (pos || collapsed) return;
+    const rootEl = rootRef?.current;
+    const bookEl = bookRef?.current;
+    const tbEl = toolbarRef.current;
+    if (!rootEl || !bookEl || !tbEl) return;
+    const compute = () => {
+      const rootRect = rootEl.getBoundingClientRect();
+      const bookRect = bookEl.getBoundingClientRect();
+      const tbRect = tbEl.getBoundingClientRect();
+      setAutoPos({
+        x: (bookRect.left - rootRect.left) + (bookRect.width - tbRect.width) / 2,
+        y: 12,
+      });
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(rootEl);
+    ro.observe(bookEl);
+    ro.observe(tbEl);
+    return () => ro.disconnect();
+  }, [pos, collapsed, rootRef, bookRef]);
+
+  if (!editor || editor.isDestroyed || collapsed) return null;
 
   const startDrag = (e) => {
     e.preventDefault();
-    const el = e.currentTarget.closest('.rt-toolbar');
+    const el = toolbarRef.current;
+    const rootEl = rootRef?.current;
+    if (!el || !rootEl) return;
     const rect = el.getBoundingClientRect();
-    const parent = el.offsetParent.getBoundingClientRect();
+    const parent = rootEl.getBoundingClientRect();
     const ox = e.clientX - rect.left;
     const oy = e.clientY - rect.top;
-    const move = (ev) =>
-      setPos({
+    let last = null;
+    const move = (ev) => {
+      last = {
         x: Math.max(0, Math.min(ev.clientX - parent.left - ox, parent.width - rect.width)),
-        y: Math.max(0, Math.min(ev.clientY - parent.top - oy, parent.height - 40)),
-      });
+        y: Math.max(0, Math.min(ev.clientY - parent.top - oy, parent.height - rect.height)),
+      };
+      setPos(last);
+    };
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      if (last) {
+        logger.info('journal', 'Toolbar dragged', {
+          x: Math.round(last.x),
+          y: Math.round(last.y),
+          folioId: toolbarId,
+        });
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
+
+  const effectivePos = pos || autoPos;
 
   const c = () => editor.chain().focus();
 
@@ -325,12 +372,22 @@ export function EditorToolbar({ editor }) {
 
   return (
     <div
+      ref={toolbarRef}
       className="rt-toolbar"
-      style={pos ? { left: `${pos.x}px`, top: `${pos.y}px`, right: 'auto', transform: 'none' } : undefined}
+      style={effectivePos ? { left: `${effectivePos.x}px`, top: `${effectivePos.y}px`, right: 'auto', transform: 'none' } : undefined}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="rt-row">
-        <button type="button" className="rt-btn rt-btn--drag" title="Move toolbar" onPointerDown={startDrag}>
+        <button
+          type="button"
+          className="rt-btn rt-btn--drag"
+          title="Move toolbar (double-click to hide)"
+          onPointerDown={startDrag}
+          onDoubleClick={() => {
+            onToggleCollapsed?.();
+            logger.info('journal', 'Toolbar collapsed to wrench', { folioId: toolbarId });
+          }}
+        >
           {I.drag}
         </button>
         <span className="rt-sep" />

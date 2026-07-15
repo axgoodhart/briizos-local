@@ -609,9 +609,8 @@ transition: all .5s ease;
   gap: 0px;
   flex: 1;
   min-height: 0;
-  /* Positioning context for the overlaid nav arrows (and the floating
-     toolbar, which now anchors to the book row instead of the whole
-     panel — same centered default, tighter fit). */
+  /* Positioning context for the overlaid nav arrows. The floating
+     toolbar is a direct child of .jv-root so it can cross the panel. */
   position: relative;
 }
 
@@ -730,6 +729,9 @@ transition: all .5s ease;
 .jv-root.is-narrow { padding: 8px 10px 12px; }
 .jv-root.is-narrow .jvs-toggle { display: none; }
 .jv-root.is-narrow .jv-topbar { gap: 10px; }
+.jv-root.is-narrow .jv-pageno { display: none; }
+.jv-root.is-narrow .jvb__tagswrap { width: 90px; }
+.jv-root.is-narrow .jvb__tags.is-expanded { width: 260px; }
 
 .jv-spine {
   background: linear-gradient(to right, rgba(0, 0, 0, 0.55), rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.55));
@@ -1205,10 +1207,9 @@ transition: all .5s ease;
   position: relative;
 }
 
-/* floating toolbar pill — Aida's design.
-   Positioned against .jv-root (the nearest positioned ancestor), so its
-   default spot is top-center over the header row and it can be dragged
-   anywhere across the spread. */
+/* Floating toolbar pill — Aida's design. It is a direct child of
+   .jv-root, so dragging spans the whole panel; JS keeps the untouched
+   default centered over the book as the sidebar or panel resizes. */
 .rt-toolbar {
   position: absolute;
   top: 12px;
@@ -1629,7 +1630,7 @@ transition: all .5s ease;
   flex: none;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   padding: 0 6px;
 }
 
@@ -1668,18 +1669,30 @@ transition: all .5s ease;
 }
 .jvb__pageinput:focus { border-color: rgba(120, 180, 255, 0.5); }
 
+.jvb__tagswrap {
+  position: relative;
+  flex: none;
+  width: 130px;
+  height: 30px;
+}
+
 .jvb__tags {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 130px;
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid rgba(120, 180, 255, 0.35);
   border-radius: 999px;
   padding: 5px 14px;
   background: rgba(0, 0, 0, 0.4);
+  transition: width 0.18s ease;
+  z-index: 2;
 }
+.jvb__tags.is-expanded { width: 340px; overflow-x: auto; }
 .jvb__tags::-webkit-scrollbar { height: 0; }
 
 .jvb__taginput {
@@ -1694,3 +1707,23 @@ transition: all .5s ease;
   font-size: 12.5px;
 }
 .jvb__taginput::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+.jv-wrench {
+  appearance: none;
+  flex: none;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(38, 38, 44, 0.78);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.jv-wrench:hover { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+.jv-wrench svg { width: 16px; height: 16px; }

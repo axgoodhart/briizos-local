@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { TEMPLATES } from './templates.js';
 import {
-  createNotesEditor, EditorToolbar, FONT_FAMILIES, LINE_HEIGHTS,
+  createNotesEditor, EditorToolbar, FONT_FAMILIES, LINE_HEIGHTS, WRENCH_ICON,
   getSystemFonts, loadSystemFonts, canQueryLocalFonts,
 } from './richtext.jsx';
+import logger from '../../lib/logger';
 
 /* ── Journal viewer — open book ───────────────────────────────────────
    Renders a journal's folios two-up. Everything that looks interactive
@@ -1068,6 +1069,24 @@ function PageJumper({ group, page, onJump }) {
 
 function TagStrip({ tags, onSave }) {
   const [draft, setDraft] = useState('');
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+  const collapseTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(collapseTimerRef.current), []);
+
+  const onEnter = () => {
+    clearTimeout(collapseTimerRef.current);
+    if (!hoverExpanded) logger.info('journal', 'Tag strip expanded', { tagCount: tags.length });
+    setHoverExpanded(true);
+  };
+
+  const onLeave = () => {
+    clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = setTimeout(() => {
+      setHoverExpanded(false);
+      logger.info('journal', 'Tag strip collapsed', { tagCount: tags.length });
+    }, 400);
+  };
 
   const commit = () => {
     const t = draft.trim().replace(/^#/, '').replace(/,+$/, '');
@@ -1079,29 +1098,36 @@ function TagStrip({ tags, onSave }) {
   };
 
   return (
-    <div className="jvb__tags" title="Pagegroup tags">
-      {tags.map((t) => (
-        <span className="jr-tag" key={t}>
-          {t}
-          <button type="button" className="jr-tag__x" aria-label={`Remove ${t}`} onClick={() => onSave(tags.filter((x) => x !== t))}>×</button>
-        </span>
-      ))}
-      <input
-        className="jvb__taginput"
-        type="text"
-        value={draft}
-        placeholder={tags.length ? '' : 'tag…'}
-        onInput={(e) => setDraft(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            commit();
-          } else if (e.key === 'Backspace' && !draft && tags.length) {
-            onSave(tags.slice(0, -1));
-          }
-        }}
-        onBlur={commit}
-      />
+    <div className="jvb__tagswrap">
+      <div
+        className={'jvb__tags' + (hoverExpanded ? ' is-expanded' : '')}
+        title="Pagegroup tags"
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+      >
+        {tags.map((t) => (
+          <span className="jr-tag" key={t}>
+            {t}
+            <button type="button" className="jr-tag__x" aria-label={`Remove ${t}`} onClick={() => onSave(tags.filter((x) => x !== t))}>×</button>
+          </span>
+        ))}
+        <input
+          className="jvb__taginput"
+          type="text"
+          value={draft}
+          placeholder={tags.length ? '' : 'tag…'}
+          onInput={(e) => setDraft(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              commit();
+            } else if (e.key === 'Backspace' && !draft && tags.length) {
+              onSave(tags.slice(0, -1));
+            }
+          }}
+          onBlur={commit}
+        />
+      </div>
     </div>
   );
 }
@@ -1124,6 +1150,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
   foliosRef.current = folios;
 
   const rootRef = useRef(null);
+  const bookRef = useRef(null);
   const portRef = useRef(null);
   const wheelRef = useRef({ acc: 0, t: 0, lock: 0 });
   const pendingCaretRef = useRef(null); // { folioId, pos } → focus lands after content does
@@ -1132,6 +1159,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
   // focused one (or the first visible one).
   const editorsRef = useRef(new Map());
   const [activeEditorId, setActiveEditorId] = useState(null);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
 
   // Per-folio rebalance triggers, so typography/font changes can reflow
   // every mounted page.
@@ -1459,6 +1487,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
     ? activeEditorId
     : mountedNoteIds[0];
   const toolbarEditor = toolbarId ? editorsRef.current.get(toolbarId) : null;
+  useEffect(() => { setToolbarCollapsed(false); }, [toolbarId]);
 
   const addPage = (spec) => {
     api.foliosCreate(journal.id, spec).then((created) => {
@@ -1564,24 +1593,37 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
           aria-hidden="true"
         />
       )}
-      <div className="jv-topbar">
-        <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
-        <h2 className="jv-title">{journal.title}</h2>
-        <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
-        <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
-        <span className="jv-pageno">
-          {count
-            ? single
-              ? `page ${slotIdx + 1} / ${slots.length}`
-              : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`
-            : ''}
-        </span>
-      </div>
-
-      {folios === null && <p className="jr-empty">Opening…</p>}
+      {folios === null && (
+        <>
+          <div className="jv-topbar">
+            <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
+            <h2 className="jv-title">{journal.title}</h2>
+          </div>
+          <p className="jr-empty">Opening…</p>
+        </>
+      )}
 
       {folios?.length === 0 && (
-        <p className="jr-empty">No folios yet — press <strong>+ folio</strong> to add one.</p>
+        <>
+          <div className="jv-topbar">
+            <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
+            <h2 className="jv-title">{journal.title}</h2>
+            <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+          </div>
+          <p className="jr-empty">No folios yet — press <strong>+ folio</strong> to add one.</p>
+        </>
+      )}
+
+      {toolbarEditor && (
+        <EditorToolbar
+          editor={toolbarEditor}
+          key={toolbarId}
+          toolbarId={toolbarId}
+          rootRef={rootRef}
+          bookRef={bookRef}
+          collapsed={toolbarCollapsed}
+          onToggleCollapsed={() => setToolbarCollapsed((c) => !c)}
+        />
       )}
 
       {folios?.length > 0 && (
@@ -1604,7 +1646,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
           >{sidebarOpen ? '‹' : '›'}</button>
 
           <div className="jv-center">
-            <div className="jv-book">
+            <div className="jv-book" ref={bookRef}>
               <button
                 type="button"
                 className="jv-nav"
@@ -1626,8 +1668,6 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
                 </div>
               </div>
 
-              {toolbarEditor && <EditorToolbar editor={toolbarEditor} key={toolbarId} />}
-
               <button
                 type="button"
                 className="jv-nav right"
@@ -1638,6 +1678,13 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
             </div>
 
             <div className="jvb">
+              <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
+              <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+              <span className="jv-pageno">
+                {single
+                  ? `page ${slotIdx + 1} / ${slots.length}`
+                  : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`}
+              </span>
               {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
               <PageJumper
                 group={activeGroup}
@@ -1655,6 +1702,20 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
                 >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
               )}
               {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
+              {toolbarEditor && toolbarCollapsed && (
+                <button
+                  type="button"
+                  className="jv-wrench"
+                  title="Show formatting toolbar"
+                  aria-label="Show formatting toolbar"
+                  onClick={() => {
+                    setToolbarCollapsed(false);
+                    logger.info('journal', 'Toolbar restored from wrench', { folioId: toolbarId });
+                  }}
+                >
+                  {WRENCH_ICON}
+                </button>
+              )}
             </div>
           </div>
         </div>
