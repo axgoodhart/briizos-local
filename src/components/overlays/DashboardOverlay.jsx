@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useChatSettings } from '../../context/ChatSettingsContext';
 import logger from '../../lib/logger';
+import { useTheme } from '../../theme/ThemeProvider.jsx';
 import './DashboardOverlay.css';
 
 // Chat background lists (mirrors InteractionPanel)
@@ -34,30 +35,6 @@ const CHAT_BACKGROUNDS = [
   { value: 'assets/backgrounds/visualizer6.html', label: 'visualizer6' },
   { value: 'assets/backgrounds/wavepool.html', label: 'wavepool' }
 ];
-
-function applyUiTheme(theme) {
-  if (typeof document === 'undefined') return;
-
-  const root = document.documentElement;
-
-  // Trigger transition animation
-  root.classList.remove('theme-transitioning');
-  // Force reflow so the animation restarts
-  void root.offsetWidth;
-  root.classList.add('theme-transitioning');
-
-  if (!theme || theme === 'default') {
-    root.removeAttribute('data-theme');
-    return;
-  }
-
-  root.setAttribute('data-theme', theme);
-
-  // Clean up animation class after animation completes
-  setTimeout(() => {
-    root.classList.remove('theme-transitioning');
-  }, 500);
-}
 
 /* ───────────────────────────
    Sub-components (kept small)
@@ -1070,8 +1047,13 @@ function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatV
   );
 }
 
-function AppearanceTab({ settings, handleThemeChange, getThemeChatBackground, onOpenChatViewPicker, openPickerForTheme, onPickerSave }) {
-  const currentTheme = settings.ui_theme || 'default';
+function AppearanceTab({ onThemeSelected, getThemeChatBackground, onOpenChatViewPicker, openPickerForTheme, onPickerSave, onOpenThemeStudio }) {
+  const theme = useTheme();
+  const currentTheme = theme.activeThemeId || 'default';
+
+  const handleThemeChange = async (themeId) => {
+    if (await theme.selectTheme(themeId)) onThemeSelected(themeId);
+  };
 
   const getChatViewLabel = (themeKey) => {
     const entry = getThemeChatBackground(themeKey);
@@ -1088,67 +1070,23 @@ function AppearanceTab({ settings, handleThemeChange, getThemeChatBackground, on
         Pick the visual style for the desktop UI.
       </p>
 
+      <button className="settings-btn settings-btn-connect appearance-theme-studio-btn" type="button" onClick={onOpenThemeStudio}>
+        Open Theme Studio
+      </button>
+
       <div className="settings-radio-group">
-        <ThemeRadio value="default" label="Dark Neon" desc="Current dark neon interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('default')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="antarctic-teafog" label="Antarctic Teafog" desc="Muted warmth with cool earth tones." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('antarctic-teafog')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="postlinear-glassos" label="Postlinear Glassos" desc="Splashing gold with rosy dry warmth." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('postlinear-glassos')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="neon-orbi" label="Neon Orb" desc="Flatter, soft hue multicolor interface." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('neon-orbi')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="winterbloom" label="Winterbloom" desc="A lush, wintry night theme with cherry-blossom pink highlights." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('winterbloom')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="mint-icecube" label="Mint Icecube" desc="Frosted mint glass palette with cooler contrast." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('mint-icecube')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="great-wave" label="Great Wave" desc="Kanagawan palette with muted opacity." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('great-wave')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="sherbert-sakura" label="Sherbert Sakura" desc="A pastel-neon cherry blossom theme." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('sherbert-sakura')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="burnt-chestnut" label="Burnt Chestnut" desc="A medium springtime theme." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('burnt-chestnut')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="verdigris" label="Verdigris" desc="Tarnished bronze with a hint of gold and green." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('verdigris')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio value="space-glass" label="Space Glass" desc="A dark space theme with twilight hue." currentTheme={currentTheme} handleThemeChange={handleThemeChange} chatView={getChatViewLabel('space-glass')} onOpenChatViewPicker={onOpenChatViewPicker} />
-        <ThemeRadio
-          value="navy-brockman"
-          label="Navy Brockman"
-          desc="Deep maritime blues with sharp, professional contrast."
-          currentTheme={currentTheme}
-          handleThemeChange={handleThemeChange}
-          chatView={getChatViewLabel('navy-brockman')}
-          onOpenChatViewPicker={onOpenChatViewPicker}
-        />
-
-        <ThemeRadio
-          value="peppermint-foil"
-          label="Peppermint Foil"
-          desc="Crisp, cool mint tones with a metallic, reflective sheen."
-          currentTheme={currentTheme}
-          handleThemeChange={handleThemeChange}
-          chatView={getChatViewLabel('peppermint-foil')}
-          onOpenChatViewPicker={onOpenChatViewPicker}
-        />
-
-        <ThemeRadio
-          value="transparent"
-          label="Transparent"
-          desc="Minimalist, glass-morphism style that blends into your background."
-          currentTheme={currentTheme}
-          handleThemeChange={handleThemeChange}
-          chatView={getChatViewLabel('transparent')}
-          onOpenChatViewPicker={onOpenChatViewPicker}
-        />
-
-        <ThemeRadio
-          value="medieval-taurus"
-          label="Medieval Taurus"
-          desc="Earthy tones, rustic gold, and rich, historic leather textures."
-          currentTheme={currentTheme}
-          handleThemeChange={handleThemeChange}
-          chatView={getChatViewLabel('medieval-taurus')}
-          onOpenChatViewPicker={onOpenChatViewPicker}
-        />
-
-        <ThemeRadio
-          value="mistic"
-          label="Mistic"
-          desc="Enigmatic purples and smoky darks for a twilight aesthetic."
-          currentTheme={currentTheme}
-          handleThemeChange={handleThemeChange}
-          chatView={getChatViewLabel('mistic')}
-          onOpenChatViewPicker={onOpenChatViewPicker}
-        />
+        {[...theme.builtInThemes, ...theme.customThemes].map((item) => (
+          <ThemeRadio
+            key={item.id}
+            value={item.id}
+            label={item.label || item.name}
+            desc={item.description || `Custom theme based on ${item.baseThemeId}.`}
+            currentTheme={currentTheme}
+            handleThemeChange={handleThemeChange}
+            chatView={getChatViewLabel(item.id)}
+            onOpenChatViewPicker={onOpenChatViewPicker}
+          />
+        ))}
       </div>
 
       {openPickerForTheme && (
@@ -1167,7 +1105,7 @@ function AppearanceTab({ settings, handleThemeChange, getThemeChatBackground, on
    Main DashboardOverlay
    ───────────────────── */
 
-function DashboardOverlay({ isOpen, onClose }) {
+function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
   const { user, logout, isAuthenticated } = useAuth();
   const { setThemeChatBackground, getThemeChatBackground } = useChatSettings();
 
@@ -1197,7 +1135,6 @@ function DashboardOverlay({ isOpen, onClose }) {
       const allSettings = await window.api.localData.settings.list();
       const savedTheme = allSettings.ui_theme || 'default';
       setSettings({ ...allSettings, ui_theme: savedTheme });
-      applyUiTheme(savedTheme);
     } catch (error) {
       logger.error('config', 'Failed to load settings', error?.message);
     } finally {
@@ -1217,11 +1154,6 @@ function DashboardOverlay({ isOpen, onClose }) {
   const handleSettingChange = useCallback((key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   }, []);
-
-  const handleThemeChange = useCallback((theme) => {
-    handleSettingChange('ui_theme', theme);
-    applyUiTheme(theme);
-  }, [handleSettingChange]);
 
   const handleOpenChatViewPicker = useCallback((theme) => {
     setOpenPickerForTheme(theme);
@@ -1370,12 +1302,12 @@ function DashboardOverlay({ isOpen, onClose }) {
 
               {activeTab === 'appearance' && (
                 <AppearanceTab
-                  settings={settings}
-                  handleThemeChange={handleThemeChange}
+                  onThemeSelected={(themeId) => handleSettingChange('ui_theme', themeId)}
                   getThemeChatBackground={getThemeChatBackground}
                   onOpenChatViewPicker={handleOpenChatViewPicker}
                   openPickerForTheme={openPickerForTheme}
                   onPickerSave={handlePickerSave}
+                  onOpenThemeStudio={onOpenThemeStudio}
                 />
               )}
 

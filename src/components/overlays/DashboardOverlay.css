@@ -8,6 +8,10 @@
   max-width: 65vw;
 }
 
+.appearance-theme-studio-btn {
+  margin: 2px 0 14px;
+}
+
 
 /* ── Memory Tab ── */
 
@@ -143,4 +147,8 @@
 
 .dashboard-blacklist-remove:hover {
   color: var(--palette-danger);
+}
+
+.appearance-theme-studio-btn {
+  margin: 2px 0 14px;
 }

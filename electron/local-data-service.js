@@ -7,6 +7,7 @@ const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
 const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT } = require('./local-data/limits');
 const { BUILT_IN_MODELS } = require('./built-in-models');
+const { validateThemeLibrary } = require('./theme-library-validation');
 
 const TASK_STATUSES = [
   'pending', 'created', 'running', 'in_progress', 'active', 'waiting',
@@ -17,6 +18,7 @@ const ORGANIZER_TYPES = ['note', 'project', 'event', 'timer'];
 const CONTINUITY_DOMAINS = new Set(['tasks', 'organizer', 'retainedText']);
 const SETTING_KEYS = new Set([
   'ui_theme',
+  'ui_theme_library',
   'chat_config',
   'actiondeck_panel_settings',
   'selected_model',
@@ -173,6 +175,7 @@ class LocalDataService extends EventEmitter {
   _validateSetting(key, value) {
     if (!SETTING_KEYS.has(key)) v.fail('INVALID_INPUT', 'Unsupported setting key');
     if (key === 'ui_theme') return v.string(value, key, { required: true, max: 100 });
+    if (key === 'ui_theme_library') return validateThemeLibrary(value);
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
     if (key === 'suggestions_enabled') return v.boolean(value, key);
     if (key.endsWith('_url')) {

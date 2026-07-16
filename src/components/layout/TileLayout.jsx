@@ -34,7 +34,7 @@ const toPercentSize = (value, fallbackPercent) => {
 /**
  * DraggablePanel - Wrapper with zone-based drop detection and visual overlay.
  */
-function DraggablePanel({ panelId, children, onDrop, isFullscreen, onToggleFullscreen, onActivate }) {
+function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, onToggleFullscreen, onActivate }) {
   const wrapperRef = useRef(null);
   const [dropZone, setDropZone] = useState(null);
 
@@ -106,6 +106,9 @@ function DraggablePanel({ panelId, children, onDrop, isFullscreen, onToggleFulls
     <div
       ref={wrapperRef}
       className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver && dropZone ? 'drop-target' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
+      data-theme-role="panel"
+      data-theme-component={componentId}
+      data-theme-instance={panelId}
       onPointerDown={() => onActivate?.(panelId)}
       onFocusCapture={() => onActivate?.(panelId)}
       onDoubleClick={handleDoubleClick}
@@ -128,6 +131,11 @@ const PANEL_TITLES = {
   tasks: 'Tasks',
   forest: 'Forest',
   canvas: 'Canvas',
+};
+
+const PANEL_THEME_COMPONENTS = {
+  actiondeck: 'ActionDeck', interaction: 'Chat', journal: 'Journals', media: 'Media',
+  notefalls: 'Notefalls', sources: 'Sources', tasks: 'Tasks', forest: 'Forest', canvas: 'Canvas',
 };
 
 function panelTitle(panel) {
@@ -191,6 +199,7 @@ function RelocatablePanel({
       {carrierRef.current && createPortal(
         <DraggablePanel
           panelId={panel.panelId}
+          componentId={PANEL_THEME_COMPONENTS[panel.type] || 'Application'}
           onDrop={onDrop}
           isFullscreen={isFullscreen}
           onToggleFullscreen={onToggleFullscreen}

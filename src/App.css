@@ -60,6 +60,12 @@ body {
     border-radius: var(--ui-app-border-radius);
     box-shadow: var(--ui-app-shadow);
 font-family:var(--ui-font-main, Chillax);}
+.app.theme-studio-docked {
+    width: calc(100% - var(--theme-studio-width, 320px));
+}
+@media (max-width: 920px) {
+    .app.theme-studio-docked { width: 100%; }
+}
 .app-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

@@ -31,6 +31,8 @@ import BfastBundle from './components/bfast/BfastBundle';
 import { toast as bfastToast } from './lib/bfast-queue';
 import logger from './lib/logger';
 import { CANVAS_RENDER_ENGINES } from './lib/canvasUtils';
+import ThemeStudio from './components/theme-studio/ThemeStudio.jsx';
+import { useTheme } from './theme/ThemeProvider.jsx';
 import {
   DEFAULT_ACTIONDECK_PANEL_SETTINGS,
   DEFAULT_CANVAS_PANEL_SETTINGS,
@@ -43,28 +45,6 @@ import {
 } from './lib/floatingPanelPrefs';
 
 const ACTIONDECK_SETTINGS_KEY = 'briizos.actiondeck.panel-settings';
-
-function applyUiTheme(theme) {
-  if (typeof document === 'undefined') return;
-  const root = document.documentElement;
-
-  // Trigger transition animation
-  root.classList.remove('theme-transitioning');
-  // Force reflow so the animation restarts
-  void root.offsetWidth;
-  root.classList.add('theme-transitioning');
-
-  if (!theme || theme === 'default') {
-    root.removeAttribute('data-theme');
-    return;
-  }
-  root.setAttribute('data-theme', theme);
-
-  // Clean up animation class after animation completes
-  setTimeout(() => {
-    root.classList.remove('theme-transitioning');
-  }, 500);
-}
 
 // Debug counter to track renders
 let appRenderCount = 0;
@@ -213,6 +193,7 @@ function AppContent({ layout }) {
   const appContext = useAppContext();
   useToolBridge(executeTool, appContext);
   useTaskAutomation();
+  const theme = useTheme();
 
   // Tool execution context (appContext + layoutHook) flows through
   // ToolContext.executeTool, which is the single tool executor used by
@@ -223,6 +204,8 @@ function AppContent({ layout }) {
 
   // Existing state
   const [showSettings, setShowSettings] = useState(false);
+  const [themeStudioOpen, setThemeStudioOpen] = useState(false);
+  const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
     getVisiblePanels,
     getPanelByType,
@@ -266,12 +249,6 @@ function AppContent({ layout }) {
     hydratePanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS);
   }, []);
 
-  useEffect(() => {
-    window.api?.localData?.settings?.get('ui_theme')
-      .then((saved) => applyUiTheme(saved?.value || 'default'))
-      .catch(() => applyUiTheme('default'));
-  }, []);
-
   // Restore workspace state once the local layout loads.
   const workspaceRestoredRef = useRef(false);
   useEffect(() => {
@@ -282,6 +259,7 @@ function AppContent({ layout }) {
         if (ws.notesOpen) setNotesOpen(true);
         if (ws.actionDeckFloating) setActionDeckFloating(true);
         if (ws.mediaOpen) setMediaOpen(true);
+        if (Number.isFinite(ws.themeStudioWidth)) setThemeStudioWidth(Math.min(480, Math.max(300, ws.themeStudioWidth)));
         if (ws.openCanvases && typeof ws.openCanvases === 'object') {
           setOpenCanvases(ws.openCanvases);
         }
@@ -303,6 +281,21 @@ function AppContent({ layout }) {
   const notefallsPanel = getPanelByType('notefalls');
   const forestPanel = getPanelByType('forest');
   const actionDeckOpen = actionDeckFloating || actionDeckPanel?.visible === true;
+
+  const openThemeStudio = useCallback(() => {
+    setShowSettings(false);
+    setThemeStudioOpen(true);
+  }, []);
+
+  const closeThemeStudio = useCallback(() => {
+    theme.requestClose(() => setThemeStudioOpen(false));
+  }, [theme]);
+
+  const resizeThemeStudio = useCallback((width) => {
+    const next = Math.round(Math.min(480, Math.max(300, width)));
+    setThemeStudioWidth(next);
+    updateWorkspace({ themeStudioWidth: next });
+  }, [updateWorkspace]);
 
   const togglePanelFullscreen = useCallback((panelId) => {
     setFullscreenPanelId((current) => current === panelId ? null : panelId);
@@ -938,15 +931,20 @@ function AppContent({ layout }) {
   }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases]);
 
   return (
-    <div className="app">
-      <header className="app-header">
+    <div
+      className={`app ${themeStudioOpen ? 'theme-studio-docked' : ''}`}
+      style={themeStudioOpen ? { '--theme-studio-width': `${themeStudioWidth}px` } : undefined}
+      data-theme-role="canvas"
+      data-theme-component="Application"
+    >
+      <header className="app-header" data-theme-role="header" data-theme-component="Application">
         <div className="header-title">
           <span className="title-icon:before"></span>
-          <span className="title-icon" id="settings-btn" onClick={() => setShowSettings(true)}></span>
-          <span className="title-text">briizOS</span>
+          <span className="title-icon" id="settings-btn" data-theme-role="button-icon" data-theme-component="Application" onClick={() => setShowSettings(true)}></span>
+          <span className="title-text" data-theme-role="wordmark" data-theme-component="Application">briizOS</span>
         </div>
 
-        <div className="header-dock-slot">
+        <div className="header-dock-slot" data-theme-role="control-dock" data-theme-component="Application">
           <ControlBar
             variant="dock"
             briiztormOpen={briiztormOpen}
@@ -1087,6 +1085,14 @@ function AppContent({ layout }) {
       <DashboardOverlay
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+        onOpenThemeStudio={openThemeStudio}
+      />
+
+      <ThemeStudio
+        isOpen={themeStudioOpen}
+        width={themeStudioWidth}
+        onWidthChange={resizeThemeStudio}
+        onClose={closeThemeStudio}
       />
 
       {/* Login Overlay - Shows when not authenticated */}
