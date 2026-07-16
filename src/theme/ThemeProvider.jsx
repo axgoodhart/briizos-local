@@ -18,7 +18,7 @@ const clone = (value) => structuredClone(value);
 const same = (first, second) => JSON.stringify(first) === JSON.stringify(second);
 
 function uniqueName(base, themes) {
-  const names = new Set(themes.map((theme) => theme.name.toLowerCase()));
+  const names = new Set(themes.map((theme) => (theme.name || theme.label || '').toLowerCase()));
   if (!names.has(base.toLowerCase())) return base;
   let index = 2;
   while (names.has(`${base} ${index}`.toLowerCase())) index += 1;
@@ -77,6 +77,7 @@ export function ThemeProvider({ children }) {
   const [history, setHistory] = useState({ past: [], future: [] });
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [pickerActive, setPickerActive] = useState(false);
+  const [pickerHint, setPickerHint] = useState(null);
   const [warning, setWarning] = useState(null);
   const [pendingChange, setPendingChange] = useState(null);
 
@@ -115,9 +116,12 @@ export function ThemeProvider({ children }) {
         const requestedId = savedTheme?.value || 'default';
         const custom = parsed.library.themes.find((theme) => theme.id === requestedId);
         const builtIn = getBuiltInTheme(requestedId);
-        const resolved = custom || builtIn || getBuiltInTheme('default');
+        const recoveredBase = getBuiltInTheme(parsed.invalidThemeBases?.[requestedId]);
+        const resolved = custom || builtIn || recoveredBase || getBuiltInTheme('default');
         if (!custom && !builtIn && requestedId !== 'default') {
-          setWarning(`“${requestedId}” is unavailable. Dark Neon was restored.`);
+          setWarning(recoveredBase
+            ? `“${requestedId}” is malformed. Its ${recoveredBase.label} base was restored.`
+            : `“${requestedId}” is unavailable. Dark Neon was restored.`);
         }
         setActiveThemeId(resolved.id);
         applyPreview(resolved);
@@ -149,6 +153,7 @@ export function ThemeProvider({ children }) {
     if (!pickerActive) {
       clearPickerHighlight(hoverRef.current);
       hoverRef.current = null;
+      setPickerHint(null);
       document.documentElement.classList.remove('theme-picker-active');
       return undefined;
     }
@@ -159,7 +164,7 @@ export function ThemeProvider({ children }) {
       clearPickerHighlight(hoverRef.current);
       hoverRef.current = target?.element || null;
       setPickerHighlight(hoverRef.current);
-      document.documentElement.dataset.themePickerLabel = target?.label || '';
+      setPickerHint(target ? { label: target.label, x: event.clientX, y: event.clientY } : null);
     };
     const handleClick = (event) => {
       const target = registeredTargetFromElement(event.target);
@@ -169,6 +174,7 @@ export function ThemeProvider({ children }) {
       event.stopImmediatePropagation?.();
       clearPickerHighlight(hoverRef.current);
       hoverRef.current = null;
+      setPickerHint(null);
       setSelectedTarget({
         role: target.role,
         componentId: target.componentId,
@@ -192,9 +198,9 @@ export function ThemeProvider({ children }) {
       window.removeEventListener('click', handleClick, true);
       window.removeEventListener('keydown', handleKey, true);
       document.documentElement.classList.remove('theme-picker-active');
-      delete document.documentElement.dataset.themePickerLabel;
       clearPickerHighlight(hoverRef.current);
       hoverRef.current = null;
+      setPickerHint(null);
     };
   }, [pickerActive]);
 
@@ -410,7 +416,7 @@ export function ThemeProvider({ children }) {
     const valid = validateThemeDocument(parsed);
     const conflicts = [...library.themes, ...BUILT_IN_THEMES];
     const idConflict = conflicts.some((theme) => theme.id === valid.id);
-    const nameConflict = conflicts.some((theme) => theme.name.toLowerCase() === valid.name.toLowerCase());
+    const nameConflict = conflicts.some((theme) => (theme.name || theme.label || '').toLowerCase() === valid.name.toLowerCase());
     const imported = {
       ...valid,
       id: idConflict ? uniqueId(`${valid.id}-imported`, conflicts) : valid.id,
@@ -526,6 +532,11 @@ export function ThemeProvider({ children }) {
         <div className="theme-runtime-warning" role="status">
           <span>{warning}</span>
           <button type="button" onClick={() => setWarning(null)} aria-label="Dismiss theme warning">×</button>
+        </div>
+      )}
+      {pickerActive && pickerHint && (
+        <div className="theme-picker-label" style={{ left: pickerHint.x + 14, top: pickerHint.y + 16 }}>
+          {pickerHint.label}
         </div>
       )}
     </ThemeContext.Provider>

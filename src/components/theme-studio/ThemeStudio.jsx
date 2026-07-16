@@ -324,7 +324,21 @@ export default function ThemeStudio({ isOpen, width, onWidthChange, onClose }) {
   };
   return (
     <aside className="theme-studio" style={{ width }} data-theme-studio="true" aria-label="Theme Studio">
-      <div className="theme-studio-resize" onPointerDown={startResize} role="separator" aria-orientation="vertical" aria-label="Resize Theme Studio" />
+      <div
+        className="theme-studio-resize"
+        onPointerDown={startResize}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowLeft') onWidthChange(width + 10);
+          if (event.key === 'ArrowRight') onWidthChange(width - 10);
+        }}
+        role="separator"
+        tabIndex={0}
+        aria-valuemin={300}
+        aria-valuemax={480}
+        aria-valuenow={width}
+        aria-orientation="vertical"
+        aria-label="Resize Theme Studio"
+      />
       <StudioHeader onClose={onClose} />
       <nav className="theme-studio-nav" aria-label="Theme Studio views">
         {[['create', 'Create'], ['global', 'Global'], ['selected', 'Selected']].map(([id, label]) => <button type="button" key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}>{label}{id === 'selected' && theme.selectedTarget ? <span /> : null}</button>)}

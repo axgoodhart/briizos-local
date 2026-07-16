@@ -100,16 +100,32 @@ export function nearestColor(target, colors) {
   }, null)?.color || null;
 }
 
-export function alignToAnchor(colors, anchorHex) {
-  const anchor = hexToOklch(anchorHex);
-  const nearest = nearestColor(anchor, colors);
-  const nearestLch = hexToOklch(nearest);
-  const hueDrift = anchor.h - nearestLch.h;
-  const chromaScale = nearestLch.C ? anchor.C / nearestLch.C : 1;
+export function alignOklchToAnchor(colors, anchor) {
+  const anchorLch = typeof anchor === 'string' ? hexToOklch(anchor) : anchor;
+  const nearest = nearestColor(anchorLch, colors);
+  const nearestLch = typeof nearest === 'string' ? hexToOklch(nearest) : nearest;
+  const hueDrift = anchorLch.h - nearestLch.h;
+  const chromaScale = nearestLch.C ? anchorLch.C / nearestLch.C : 1;
   return colors.map((color) => {
-    const source = hexToOklch(color);
-    return oklchToHex({ ...source, C: source.C * chromaScale, h: source.h + hueDrift });
+    const source = typeof color === 'string' ? hexToOklch(color) : color;
+    return { ...source, C: source.C * chromaScale, h: normalizeHue(source.h + hueDrift) };
   });
+}
+
+export function alignToAnchor(colors, anchorHex) {
+  return alignOklchToAnchor(colors, anchorHex).map(oklchToHex);
+}
+
+export function driftOklch(color, { temperature = 0, lightness = 0, chroma = 0 } = {}) {
+  const source = typeof color === 'string' ? hexToOklch(color) : color;
+  const warmTarget = source.h < 180 ? 55 : 235;
+  const hueDistance = ((warmTarget - source.h + 540) % 360) - 180;
+  return {
+    ...source,
+    L: clamp(source.L + lightness),
+    C: Math.max(0, source.C + chroma),
+    h: normalizeHue(source.h + hueDistance * clamp(temperature, -100, 100) / 500),
+  };
 }
 
 export function createSeededRandom(seed) {
@@ -171,13 +187,19 @@ export function generateTheme(settings = {}) {
   const chroma = 0.04 + clamp(Number(input.saturation), 0, 100) / 100 * 0.19;
   const accentLightness = input.mode === 'light' ? 0.52 : 0.76;
   const accents = hues.map((h, index) => oklchToHex({ L: clamp(accentLightness + index * 0.035), C: chroma * (1 - index * 0.12), h }));
-  const ladder = input.mode === 'light' ? [0.91, 0.95, 0.98, 0.94, 0.88] : [0.10, 0.13, 0.16, 0.20, 0.24];
+  const baseLadder = input.mode === 'light' ? [0.91, 0.95, 0.98, 0.94, 0.88] : [0.10, 0.13, 0.16, 0.20, 0.24];
+  const contrastScale = 0.72 + clamp(Number(input.contrast), 0, 100) / 100 * 0.56;
+  const ladderCenter = input.mode === 'light' ? 0.94 : 0.16;
+  const ladder = baseLadder.map((lightness) => clamp(ladderCenter + (lightness - ladderCenter) * contrastScale));
   const tintChroma = 0.012 + chroma * 0.05;
   const surfaces = ladder.map((L, index) => oklchToHex({ L, C: tintChroma * (1 - index * 0.08), h: primary.h }));
   const textSeed = input.mode === 'light' ? '#22211f' : '#f5f3ef';
   const textStrong = ensureContrast(textSeed, surfaces[0], 4.5);
   const textLch = hexToOklch(textStrong);
-  const text = [0, 0.08, 0.17, 0.27, 0.38].map((drift) => oklchToHex({ ...textLch, L: clamp(textLch.L + (input.mode === 'light' ? drift : -drift)), C: Math.min(textLch.C, 0.025) }));
+  const text = [0, 0.08, 0.17, 0.27, 0.38].map((drift, index) => {
+    const candidate = oklchToHex({ ...textLch, L: clamp(textLch.L + (input.mode === 'light' ? drift : -drift)), C: Math.min(textLch.C, 0.025) });
+    return index < 3 ? ensureContrast(candidate, surfaces[0], 4.5) : candidate;
+  });
   const statusL = input.mode === 'light' ? 0.48 : 0.72;
   const statusC = input.mode === 'light' ? 0.14 : 0.16;
   const material = {};
@@ -194,7 +216,7 @@ export function generateTheme(settings = {}) {
       warning: oklchToHex({ L: statusL + 0.05, C: statusC, h: 86 }),
       danger: oklchToHex({ L: statusL, C: statusC, h: 28 }),
       border: oklchToHex({ L: input.mode === 'light' ? 0.76 : 0.32, C: 0.035, h: hues[0] }),
-      borderStrong: accents[0], glowColor: accents[0], glowStrength: input.glowStrength,
+      borderStrong: ensureContrast(accents[0], surfaces[0], 3), glowColor: accents[0], glowStrength: input.glowStrength,
       panelRadius: input.material === 'flat' ? 4 : input.material === 'glass' ? 18 : 10,
       controlRadius: input.material === 'flat' ? 3 : 8,
     },

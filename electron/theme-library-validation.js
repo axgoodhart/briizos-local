@@ -83,6 +83,7 @@ function structuredStyle(input, property, label) {
   }
   if (property === 'opacity' || property === 'fontWeight') {
     v.object(input, label, ['kind', 'value']);
+    if (input.kind !== 'number') v.fail('INVALID_INPUT', `${label}.kind must be number`);
     const bounds = property === 'opacity' ? { min: 0, max: 1 } : { min: 100, max: 900 };
     return { kind: 'number', value: v.number(input.value, `${label}.value`, bounds) };
   }
@@ -93,6 +94,7 @@ function structuredStyle(input, property, label) {
   }
   if (property === 'borderStyle') {
     v.object(input, label, ['kind', 'value']);
+    if (input.kind !== 'keyword') v.fail('INVALID_INPUT', `${label}.kind must be keyword`);
     return { kind: 'keyword', value: v.oneOf(input.value, `${label}.value`, ['solid', 'dashed', 'dotted', 'double', 'none']) };
   }
   if (property === 'fontFamily') {

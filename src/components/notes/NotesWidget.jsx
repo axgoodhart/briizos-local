@@ -531,6 +531,9 @@ function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, 
   return (
     <div
       className="note-card"
+      data-theme-role="card"
+      data-theme-component="Notes"
+      data-theme-instance={note.id}
       style={{ borderTopColor: note.color }}
     >
       <div className="note-header">

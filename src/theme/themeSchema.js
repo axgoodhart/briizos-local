@@ -152,9 +152,22 @@ export function validateThemeLibrary(input) {
 
 export function safeThemeLibrary(input) {
   try {
-    return { library: validateThemeLibrary(input || EMPTY_THEME_LIBRARY), warning: null };
+    return { library: validateThemeLibrary(input || EMPTY_THEME_LIBRARY), warning: null, invalidThemeBases: {} };
   } catch (error) {
-    return { library: { ...EMPTY_THEME_LIBRARY, themes: [] }, warning: error.message };
+    if (input?.schemaVersion === 1 && Array.isArray(input.themes) && input.themes.length <= 64) {
+      const themes = [];
+      const invalidThemeBases = {};
+      input.themes.forEach((candidate) => {
+        try { themes.push(validateThemeDocument(candidate)); }
+        catch {
+          if (isSafeIdentifier(candidate?.id) && BUILT_IN_THEME_IDS.has(candidate?.baseThemeId)) {
+            invalidThemeBases[candidate.id] = candidate.baseThemeId;
+          }
+        }
+      });
+      return { library: { schemaVersion: 1, themes }, warning: error.message, invalidThemeBases };
+    }
+    return { library: { ...EMPTY_THEME_LIBRARY, themes: [] }, warning: error.message, invalidThemeBases: {} };
   }
 }
 
