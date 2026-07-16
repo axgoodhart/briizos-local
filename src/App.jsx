@@ -5,7 +5,7 @@ import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
 import MediaPanel from './components/MediaPanel';
 import { JournalPanel } from './components/journals/JournalPanel.jsx';
-import { JournalFloat } from './components/journals/JournalFloat.jsx';
+import { JournalFloat, normalizeJournalFloatSize } from './components/journals/JournalFloat.jsx';
 import { NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
 import Forest from './components/forest/Forest.jsx';
 import LoginOverlay from './components/LoginOverlay';
@@ -374,9 +374,7 @@ function AppContent({ layout }) {
       return journalId;
     });
     if (seedRect) {
-      const saved = workspace.journalFloat || {};
-      const width = saved.width || 620;
-      const height = saved.height || 800;
+      const { width, height } = normalizeJournalFloatSize(workspace.journalFloat);
       updateWorkspace({
         journalFloat: {
           x: Math.max(12, Math.min(seedRect.left, window.innerWidth - width - 12)),
@@ -1139,7 +1137,7 @@ function AppContent({ layout }) {
           onClose={closeJournalFloat}
           onDock={dockJournalFloat}
           panelPosition={workspace.journalFloat ? { x: workspace.journalFloat.x, y: workspace.journalFloat.y } : null}
-          panelDimensions={workspace.journalFloat ? { width: workspace.journalFloat.width, height: workspace.journalFloat.height } : null}
+          panelDimensions={workspace.journalFloat ? normalizeJournalFloatSize(workspace.journalFloat) : null}
           onPanelChange={(pos, size) => {
             updateWorkspace({
               journalFloat: pos

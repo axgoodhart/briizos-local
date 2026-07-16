@@ -1144,6 +1144,7 @@ function FloatFolioIcon() {
 
 function FloatJournalHeader({
   title,
+  coverUrl,
   tray,
   hasFolios,
   hasEditor,
@@ -1155,7 +1156,11 @@ function FloatJournalHeader({
   chrome,
 }) {
   return (
-    <div className="panel-header journal-float__header" onMouseDown={chrome?.onDragStart}>
+    <div
+      className="panel-header journal-float__header"
+      onMouseDown={chrome?.onDragStart}
+      style={coverUrl ? { '--journal-float-cover': `url(${coverUrl})` } : undefined}
+    >
       <span className="journal-float__title">{title}</span>
 
       <div className="journal-float__tools" role="toolbar" aria-label="Journal tools">
@@ -1238,6 +1243,7 @@ export function JournalView({
   const rootRef = useRef(null);
   const bookRef = useRef(null);
   const portRef = useRef(null);
+  const floatTrayRef = useRef(null);
   const wheelRef = useRef({ acc: 0, t: 0, lock: 0 });
   const pendingCaretRef = useRef(null); // { folioId, pos } → focus lands after content does
 
@@ -1586,6 +1592,25 @@ export function JournalView({
     setFloatTray((current) => (current === next ? null : next));
   };
 
+  /* The float grows by the revealed tool row's measured height. That keeps
+     the page itself at full size instead of reintroducing letterboxing while
+     either toolbar is open. */
+  useEffect(() => {
+    const reportHeight = floatChrome?.onTrayHeightChange;
+    if (!isFloat || !reportHeight) return undefined;
+    const tray = floatTrayRef.current;
+    if (!tray) {
+      reportHeight(0);
+      return undefined;
+    }
+
+    const report = () => reportHeight(tray.getBoundingClientRect().height);
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(tray);
+    return () => observer.disconnect();
+  }, [isFloat, floatTray, folios?.length, toolbarEditor, floatChrome?.onTrayHeightChange]);
+
   const addPage = (spec) => {
     api.foliosCreate(journal.id, spec).then((created) => {
       const newIdx = foliosRef.current?.length ?? 0;
@@ -1682,6 +1707,7 @@ export function JournalView({
       {isFloat && (
         <FloatJournalHeader
           title={journal.title}
+          coverUrl={coverUrl}
           tray={floatTray}
           hasFolios={folios?.length > 0}
           hasEditor={!!toolbarEditor}
@@ -1706,7 +1732,7 @@ export function JournalView({
           '--jv-lh': String(typo.lineHeight),
         }}
       >
-      {coverUrl && (
+      {!isFloat && coverUrl && (
         <div
           className="jv-backdrop"
           style={{ backgroundImage: `url(${coverUrl})` }}
@@ -1758,7 +1784,7 @@ export function JournalView({
       )}
 
       {isFloat && folios?.length > 0 && floatTray === 'format' && toolbarEditor && (
-        <div className="jv-float-tray jv-float-tray--format" id="journal-float-tools">
+        <div ref={floatTrayRef} className="jv-float-tray jv-float-tray--format" id="journal-float-tools">
           <div className="jv-float-tray__scroll" role="region" tabIndex={0} aria-label="Formatting tools; scroll horizontally for more">
             <EditorToolbar
               editor={toolbarEditor}
@@ -1775,7 +1801,7 @@ export function JournalView({
       )}
 
       {isFloat && folios?.length > 0 && floatTray === 'folio' && (
-        <div className="jv-float-tray jv-float-tray--folio" id="journal-float-tools">
+        <div ref={floatTrayRef} className="jv-float-tray jv-float-tray--folio" id="journal-float-tools">
           <div className="jv-float-tray__scroll" role="region" tabIndex={0} aria-label="Folio tools; scroll horizontally for more">
             <div className="jvb jvb--float">
               <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>

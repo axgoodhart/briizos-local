@@ -18,9 +18,33 @@ import logger from '../../lib/logger';
    the float announces itself on close/unmount (so the shelf refreshes
    folio counts) and closes itself when the shelf deletes its journal. */
 
-const DEFAULT_FLOAT_SIZE = { width: 620, height: 800 };
+/* Float geometry mirrors the CSS: 20px frame padding, fixed shell borders,
+   then the 54px header. The remaining surface stays at the page's exact
+   3:4 proportion, so resize never creates letterboxing or crops the page. */
+const FLOAT_PAGE_ASPECT = 3 / 4;
+const FLOAT_FRAME_INSET = 40;
+const FLOAT_SHELL_BORDER_X = 4;
+const FLOAT_SHELL_BORDER_Y = 7;
+const FLOAT_HEADER_HEIGHT = 54;
+const DEFAULT_FLOAT_WIDTH = 620;
 const MIN_W = 420;
-const MIN_H = 520;
+
+export function normalizeJournalFloatSize(size = {}) {
+  const requestedWidth = Number(size.width);
+  const width = Math.max(
+    MIN_W,
+    Number.isFinite(requestedWidth) ? requestedWidth : DEFAULT_FLOAT_WIDTH,
+  );
+  const height = Math.round(
+    FLOAT_FRAME_INSET
+      + FLOAT_SHELL_BORDER_Y
+      + FLOAT_HEADER_HEIGHT
+      + (width - FLOAT_FRAME_INSET - FLOAT_SHELL_BORDER_X) / FLOAT_PAGE_ASPECT,
+  );
+  return { width, height };
+}
+
+const DEFAULT_FLOAT_SIZE = normalizeJournalFloatSize();
 
 export function JournalFloat({
   journalId,
@@ -32,7 +56,9 @@ export function JournalFloat({
 }) {
   const [journal, setJournal] = useState(null); // null = loading
   const [panelPos, setPanelPos] = useState(panelPosition || null);
-  const [panelSize, setPanelSize] = useState(panelDimensions || DEFAULT_FLOAT_SIZE);
+  const [panelSize, setPanelSize] = useState(() =>
+    normalizeJournalFloatSize(panelDimensions || DEFAULT_FLOAT_SIZE));
+  const [trayHeight, setTrayHeight] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -59,6 +85,7 @@ export function JournalFloat({
   useEffect(() => {
     let cancelled = false;
     setJournal(null);
+    setTrayHeight(0);
     api.list().then((list) => {
       if (cancelled) return;
       const row = list.find((j) => j.id === journalId);
@@ -166,12 +193,28 @@ export function JournalFloat({
     if (resizing) {
       const dx = e.clientX - resizeStart.mouseX;
       const dy = e.clientY - resizeStart.mouseY;
-      setPanelSize({
-        width: Math.max(MIN_W, resizeStart.width + dx),
-        height: Math.max(MIN_H, resizeStart.height + dy),
-      });
+      const horizontalChange = Math.abs(dx) / Math.max(1, resizeStart.width);
+      const verticalChange = Math.abs(dy) / Math.max(1, resizeStart.height);
+      const widthFromHeight = FLOAT_FRAME_INSET
+        + FLOAT_SHELL_BORDER_X
+        + Math.max(
+          0,
+          resizeStart.height + dy
+            - FLOAT_FRAME_INSET
+            - FLOAT_SHELL_BORDER_Y
+            - FLOAT_HEADER_HEIGHT,
+        ) * FLOAT_PAGE_ASPECT;
+      const nextWidth = verticalChange > horizontalChange
+        ? widthFromHeight
+        : resizeStart.width + dx;
+      setPanelSize(normalizeJournalFloatSize({ width: nextWidth }));
     }
   }, [dragging, dragOffset, resizing, resizeStart]);
+
+  const handleTrayHeightChange = useCallback((height) => {
+    const nextHeight = Math.max(0, Math.ceil(height || 0));
+    setTrayHeight((current) => (current === nextHeight ? current : nextHeight));
+  }, []);
 
   const handleFloatingUp = useCallback(() => {
     if (!dragging && !resizing) return;
@@ -218,7 +261,7 @@ export function JournalFloat({
         left: panelPos?.x ?? fallbackX,
         top: panelPos?.y ?? fallbackY,
         width: panelSize.width,
-        height: panelSize.height,
+        height: panelSize.height + trayHeight,
       }}
     >
       <div
@@ -244,6 +287,7 @@ export function JournalFloat({
               onDragStart: handleDragStart,
               onDock,
               onClose,
+              onTrayHeightChange: handleTrayHeightChange,
             }}
             onJournalChange={(updated) => {
               setJournal((prev) => ({ ...prev, ...updated }));
