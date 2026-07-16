@@ -86,7 +86,7 @@
 
 .theme-studio-field, .theme-studio-color-token, .theme-studio-range { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; color: var(--ts-soft); font-size: 10px; }
 .theme-studio-field > span:first-child, .theme-studio-color-token > span:first-child { flex: 1; }
-.theme-studio-field select, .theme-studio-field > input { width: 58%; height: 27px; padding: 0 7px; border: 1px solid var(--ts-line); border-radius: 2px; color: var(--ts-ink); background: #0f0e0c; font-size: 10px; }
+.theme-studio-field select, .theme-studio-field > input, .theme-studio-select-reset .theme-studio-font-input { width: 58%; height: 27px; padding: 0 7px; border: 1px solid var(--ts-line); border-radius: 2px; color: var(--ts-ink); background: #0f0e0c; font-size: 10px; }
 .theme-studio-range { display: block; padding: 6px 0; }
 .theme-studio-range > span:first-child { display: flex; justify-content: space-between; margin-bottom: 5px; }
 .theme-studio-range output { color: var(--ts-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
@@ -120,7 +120,7 @@
 .theme-studio-range-reset, .theme-studio-select-reset { display: flex; align-items: center; gap: 5px; }
 .theme-studio-range-reset input { flex: 1; }
 .theme-studio-select-reset { width: 58%; }
-.theme-studio-select-reset select { width: 100%; }
+.theme-studio-select-reset select, .theme-studio-select-reset .theme-studio-font-input { width: 100%; min-width: 0; }
 .theme-studio-gradient { padding: 4px 0 8px; }
 .theme-studio-gradient summary { color: var(--ts-muted); font-size: 9px; cursor: pointer; }
 .theme-studio-gradient > div { padding: 9px 0 0 13px; }

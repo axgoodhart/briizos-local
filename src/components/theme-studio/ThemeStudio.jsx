@@ -5,6 +5,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import './ThemeStudio.css';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const FONT_DATALIST_ID = 'theme-studio-font-families';
 
 function rgbToHex(value) {
   const match = value?.match?.(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
@@ -34,6 +35,50 @@ function numericValue(value, token) {
   if (!Number.isFinite(number)) return token.min || 0;
   if ((token.id === 'motionFast' || token.id === 'motionNormal') && /(^|\s)[\d.]+s\b/.test(value) && !value.includes('ms')) return number * 1000;
   return number;
+}
+
+function FontFamilyInput({ value, onValueChange, label }) {
+  const [draft, setDraft] = useState(value || '');
+  useEffect(() => setDraft(value || ''), [value]);
+
+  const commit = () => {
+    const next = draft.trim();
+    if (!next) {
+      setDraft(value || '');
+      return;
+    }
+    setDraft(next);
+    if (next !== value) onValueChange(next);
+  };
+
+  return (
+    <input
+      className="theme-studio-font-input"
+      type="text"
+      list={FONT_DATALIST_ID}
+      value={draft}
+      placeholder="Type an installed font"
+      title="Type any installed font family or CSS fallback stack"
+      aria-label={label}
+      onChange={(event) => {
+        const next = event.target.value;
+        setDraft(next);
+        if (next.trim()) onValueChange(next);
+      }}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit();
+          event.currentTarget.blur();
+        }
+        if (event.key === 'Escape') {
+          setDraft(value || '');
+          event.currentTarget.blur();
+        }
+      }}
+    />
+  );
 }
 
 function downloadText(filename, text, type) {
@@ -240,7 +285,7 @@ function GlobalToken({ token }) {
     return <label className="theme-studio-range"><span>{token.label}<output>{Math.round(current)}{token.unit}</output></span><input type="range" min={token.min} max={token.max} step={token.step} value={current} onChange={(event) => updateGlobalToken(token.id, Number(event.target.value))} /></label>;
   }
   if (token.type === 'font') {
-    return <label className="theme-studio-field"><span>{token.label}</span><select value={FONT_OPTIONS.some((font) => font.value === value) ? value : ''} onChange={(event) => updateGlobalToken(token.id, event.target.value)}><option value="" disabled>{value || 'Choose font'}</option>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>;
+    return <label className="theme-studio-field"><span>{token.label}</span><FontFamilyInput value={value} label={`${token.label} font family`} onValueChange={(next) => updateGlobalToken(token.id, next)} /></label>;
   }
   return <label className="theme-studio-field"><span>{token.label}</span><select value={value || token.options[0].value} onChange={(event) => updateGlobalToken(token.id, event.target.value)}>{token.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
 }
@@ -381,7 +426,7 @@ function SelectedView() {
         {allowed.includes('boxShadow') && <SelectedShadow value={styles.boxShadow} scope={scope} onChange={(shadow) => set('boxShadow', shadow)} />}
       </section>
       <section className="theme-studio-token-section"><h3>Shape</h3>{length('borderWidth', 'Border width', 12)}{allowed.includes('borderStyle') && <label className="theme-studio-field"><span>Border style</span><span className="theme-studio-select-reset"><select value={styles.borderStyle?.value || 'solid'} onChange={(event) => set('borderStyle', { kind: 'keyword', value: event.target.value })}><option>solid</option><option>dashed</option><option>dotted</option><option>double</option><option>none</option></select><ResetButton property="borderStyle" scope={scope} /></span></label>}{allowed.includes('cornerShape') && <label className="theme-studio-field"><span>Corner shape</span><span className="theme-studio-select-reset"><select value={styles.cornerShape?.value || 'round'} onChange={(event) => set('cornerShape', { kind: 'keyword', value: event.target.value })}><option value="round">Round</option><option value="squircle">Squircle</option><option value="bevel">Bevel</option><option value="scoop">Scoop</option><option value="notch">Notch</option><option value="square">Square</option></select><ResetButton property="cornerShape" scope={scope} /></span></label>}{length('borderRadius', 'Radius', 64)}{allowed.includes('opacity') && <label className="theme-studio-range"><span>Opacity<output>{Math.round((styles.opacity?.value ?? 1) * 100)}%</output></span><span className="theme-studio-range-reset"><input type="range" min="0" max="1" step="0.01" value={styles.opacity?.value ?? 1} onChange={(event) => set('opacity', { kind: 'number', value: Number(event.target.value) })} /><ResetButton property="opacity" scope={scope} /></span></label>}</section>
-      <details className="theme-studio-advanced"><summary>Type & spacing</summary><section className="theme-studio-token-section">{allowed.includes('fontFamily') && <label className="theme-studio-field"><span>Font</span><span className="theme-studio-select-reset"><select value={styles.fontFamily?.value || ''} onChange={(event) => set('fontFamily', { kind: 'font', value: event.target.value })}><option value="">Inherited</option>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select><ResetButton property="fontFamily" scope={scope} /></span></label>}{length('fontSize', 'Font size', 72)}{allowed.includes('fontWeight') && <label className="theme-studio-range"><span>Weight<output>{styles.fontWeight?.value || 400}</output></span><span className="theme-studio-range-reset"><input type="range" min="100" max="900" step="100" value={styles.fontWeight?.value || 400} onChange={(event) => set('fontWeight', { kind: 'number', value: Number(event.target.value) })} /><ResetButton property="fontWeight" scope={scope} /></span></label>}{length('letterSpacing', 'Letter spacing', 12)}{length('padding', 'Safe padding', 64)}{length('minHeight', 'Minimum height', 120)}</section></details>
+      <details className="theme-studio-advanced"><summary>Type & spacing</summary><section className="theme-studio-token-section">{allowed.includes('fontFamily') && <label className="theme-studio-field"><span>Font</span><span className="theme-studio-select-reset"><FontFamilyInput value={styles.fontFamily?.value || ''} label="Selected object font family" onValueChange={(next) => set('fontFamily', { kind: 'font', value: next })} /><ResetButton property="fontFamily" scope={scope} /></span></label>}{length('fontSize', 'Font size', 72)}{allowed.includes('fontWeight') && <label className="theme-studio-range"><span>Weight<output>{styles.fontWeight?.value || 400}</output></span><span className="theme-studio-range-reset"><input type="range" min="100" max="900" step="100" value={styles.fontWeight?.value || 400} onChange={(event) => set('fontWeight', { kind: 'number', value: Number(event.target.value) })} /><ResetButton property="fontWeight" scope={scope} /></span></label>}{length('letterSpacing', 'Letter spacing', 12)}{length('padding', 'Safe padding', 64)}{length('minHeight', 'Minimum height', 120)}</section></details>
     </div>
   );
 }
@@ -405,6 +450,7 @@ export default function ThemeStudio({ isOpen, width, onWidthChange, onClose }) {
   };
   return (
     <aside className="theme-studio" style={{ width }} data-theme-studio="true" aria-label="Theme Studio">
+      <datalist id={FONT_DATALIST_ID}>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</datalist>
       <div
         className="theme-studio-resize"
         onPointerDown={startResize}
