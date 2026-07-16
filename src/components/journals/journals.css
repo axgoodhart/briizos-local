@@ -5,7 +5,7 @@
 
 .journals-home {
   position: relative;
-  width: 100%;
+  width: 100%; 
   height: 100%;
   overflow-y: auto;
   padding: 28px 48px 64px;
@@ -234,7 +234,7 @@ transition: all .5s ease;
 }
 
 .jr-card__name {
-  font-family: Jost, 'SF Pro', system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
   font-size: clamp(18px, 2vw, 28px);
   font-weight: 400;
   padding: 8px 10px;
@@ -450,7 +450,7 @@ transition: all .5s ease;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.85);
-  border-radius: 8px;
+  border-radius: var(--ui-border-radius);
   font-size: 13.5px;
   text-transform: lowercase;
   padding: 9px 18px;
@@ -512,7 +512,7 @@ transition: all .5s ease;
 }
 
 .jr-template__name {
-  font-family: Jost, 'SF Pro', system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
   font-size: 15px;
   color: #fff;
 }
@@ -588,7 +588,7 @@ transition: all .5s ease;
 .jv-title {
   margin: 0;
   flex: 1;
-  font-family: Jost, 'SF Pro', system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
   font-size: 22px;
   font-weight: 400;
   color: #fff;
@@ -713,7 +713,7 @@ transition: all .5s ease;
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.5);
   color: rgba(255, 255, 255, 0.8);
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
@@ -786,7 +786,7 @@ transition: all .5s ease;
 
 .jv-page__head h3 {
   margin: 0;
-  font-family: Jost, 'SF Pro', system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
   font-size: 17px;
   font-weight: 500;
   color: #fff;
@@ -831,7 +831,7 @@ transition: all .5s ease;
 .jv-widget--progress { grid-column: 1 / -1; }
 
 .jv-widget__value {
-  font-family: Jost, 'SF Pro', system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
   font-size: 22px;
   color: #fff;
 }
@@ -1227,6 +1227,28 @@ transition: all .5s ease;
   user-select: none;
 }
 
+/* The float docks the same editor controls into a reveal tray beneath
+   its header. The tray owns horizontal overflow, so the toolbar keeps
+   its natural width and never drops or hides a control. */
+.rt-toolbar--tray {
+  position: relative;
+  inset: auto;
+  left: auto;
+  top: auto;
+  transform: none;
+  z-index: 1;
+  width: max-content;
+  min-width: max-content;
+  max-width: none;
+  flex: none;
+  border-radius: 16px;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.38);
+}
+
+.rt-toolbar--tray .rt-row { min-width: max-content; }
+.rt-toolbar--tray .rt-btn--tray-dismiss { cursor: pointer; }
+.rt-toolbar--tray .rt-btn--tray-dismiss:active { cursor: pointer; }
+
 .rt-row {
   display: flex;
   align-items: center;
@@ -1278,7 +1300,7 @@ transition: all .5s ease;
 .rt-btn--drag:active { cursor: grabbing; }
 
 .rt-glyph { font-size: 15px; line-height: 1; }
-.rt-glyph--h { font-size: 13px; font-family: Jost, system-ui, sans-serif; }
+.rt-glyph--h { font-size: 13px; font-family: var(--ui-font-main), Jost, system-ui, sans-serif; }
 .rt-glyph--h sub { font-size: 9px; }
 
 .rt-chevron { display: inline-flex; transition: transform 0.18s ease; }
@@ -1339,7 +1361,7 @@ transition: all .5s ease;
 .rt-linklabel {
   width: 34px;
   flex: 0 0 auto;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.45);
 }
@@ -1389,9 +1411,9 @@ transition: all .5s ease;
   line-height: 1.25;
 }
 
-.rt-prose .ProseMirror h1 { font-family: var(--jv-h1-font, Jost, 'SF Pro', system-ui, sans-serif); font-size: 22px; }
-.rt-prose .ProseMirror h2 { font-family: var(--jv-h2-font, Jost, 'SF Pro', system-ui, sans-serif); font-size: 18px; }
-.rt-prose .ProseMirror h3 { font-family: var(--jv-h3-font, Jost, 'SF Pro', system-ui, sans-serif); font-size: 15.5px; }
+.rt-prose .ProseMirror h1 { font-family: var(--jv-h1-font, var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif); font-size: 22px; }
+.rt-prose .ProseMirror h2 { font-family: var(--jv-h2-font, var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif); font-size: 18px; }
+.rt-prose .ProseMirror h3 { font-family: var(--jv-h3-font, var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif); font-size: 15.5px; }
 
 .rt-prose .ProseMirror blockquote {
   margin: 0.6em 0;
@@ -1509,7 +1531,7 @@ transition: all .5s ease;
   border-radius: 9px;
   padding: 8px 12px;
   color: #fff;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 13px;
   outline: none;
 }
@@ -1528,12 +1550,12 @@ transition: all .5s ease;
   appearance: none;
   text-align: right;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: var(--ui-border-radius);
   border: 1px solid rgba(120, 180, 255, 0.45);
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 10px rgba(120, 180, 255, 0.18);
   color: #fff;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1558,7 +1580,7 @@ transition: all .5s ease;
 
 .jvs__filehead {
   margin: 0 0 10px;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 15px;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.35);
@@ -1569,7 +1591,7 @@ transition: all .5s ease;
 .jvs__projname {
   display: block;
   text-align: right;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: #fff;
@@ -1585,7 +1607,7 @@ transition: all .5s ease;
   padding: 4px 0;
   max-width: 100%;
   color: rgba(255, 255, 255, 0.75);
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
@@ -1631,7 +1653,7 @@ transition: all .5s ease;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 6px;
+  padding: 0 0px;
 }
 
 .jvb__chip {
@@ -1641,7 +1663,7 @@ transition: all .5s ease;
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 10px rgba(120, 180, 255, 0.15);
   color: #fff;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -1703,7 +1725,7 @@ transition: all .5s ease;
   border: none;
   outline: none;
   color: #fff;
-  font-family: Jost, system-ui, sans-serif;
+  font-family: var(--ui-font-main), Jost, system-ui, sans-serif;
   font-size: 12.5px;
 }
 .jvb__taginput::placeholder { color: rgba(255, 255, 255, 0.3); }
@@ -1727,3 +1749,337 @@ transition: all .5s ease;
 }
 .jv-wrench:hover { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.3); }
 .jv-wrench svg { width: 16px; height: 16px; }
+
+/* ── Floating journal (pop-out) ──────────────────────────────────────
+   A journal torn off the shelf. The outer .journal-float is the fixed
+   drag frame; the inner __shell carries the position-based perspective
+   chrome (transform/shadow/radii/borders) computed by
+   computeFloatingShellChrome, mirroring .media-floating-panel. */
+
+.journal-float {
+  position: fixed;
+  z-index: 340;
+  min-width: 420px;
+  min-height: 520px;
+  /* Breathing room so the tilted shell never clips at the frame edge. */
+  padding: 20px;
+  box-sizing: border-box;
+  animation: jfPopIn 0.2s ease;
+}
+
+@keyframes jfPopIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.journal-float.resizing { cursor: nwse-resize; }
+
+.journal-float__shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  height: 100%;
+  min-height: 0;
+  transform-style: preserve-3d;
+  /* Clips .jv-backdrop to the position-driven corner radii. */
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.18)), #0b0b0e;
+  backdrop-filter: blur(16px);
+  /* Chrome tilt eases as it recomputes; dragging sets it per-frame. */
+  transition: transform 0.35s ease;
+}
+.journal-float.dragging .journal-float__shell,
+.journal-float.resizing .journal-float__shell { transition: none; }
+
+.journal-float__header {
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+  gap: 8px;
+  height: 54px;
+  min-height: 54px;
+  padding: 0 12px;
+  text-transform: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.12)),
+    var(--layout-bg-panel-header);
+  border-bottom-color: color-mix(in srgb, var(--layout-border-color) 72%, rgba(220, 196, 137, 0.55));
+}
+.journal-float.dragging .journal-float__header { cursor: grabbing; }
+
+.journal-float__title {
+  flex: 1 1 auto;
+  min-width: 64px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(16px, 4.4cqi, 26px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 234, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.journal-float__tools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.journal-float__mode-btn,
+.journal-float__page-turner button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(246, 241, 234, 0.72);
+  cursor: pointer;
+  transition:
+    color 130ms cubic-bezier(0.25, 1, 0.5, 1),
+    background 130ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 130ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 130ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.journal-float__mode-btn {
+  height: 40px;
+  min-width: 40px;
+  padding: 0 8px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.journal-float__mode-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.journal-float__mode-btn--format {
+  gap: 3px;
+  padding-inline: 8px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 23px;
+}
+
+.journal-float__mode-btn--format strong { font-weight: 700; }
+.journal-float__mode-btn--format em { font-weight: 400; }
+.journal-float__mode-btn--format span { text-decoration: underline; text-underline-offset: 3px; }
+
+.journal-float__mode-btn:hover:not(:disabled),
+.journal-float__page-turner button:hover:not(:disabled) {
+  color: rgba(255, 252, 247, 0.98);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.journal-float__mode-btn:active:not(:disabled),
+.journal-float__page-turner button:active:not(:disabled) { transform: translateY(1px); }
+
+.journal-float__mode-btn.is-active {
+  color: #171511;
+  background: linear-gradient(180deg, rgba(248, 244, 236, 0.98), rgba(214, 204, 187, 0.82));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
+}
+
+.journal-float__mode-btn:disabled,
+.journal-float__page-turner button:disabled {
+  opacity: 0.24;
+  cursor: default;
+}
+
+.journal-float__mode-btn:focus-visible,
+.journal-float__page-turner button:focus-visible,
+.journal-float__window-actions .panel-header-btn:focus-visible {
+  outline: 2px solid rgba(190, 220, 255, 0.95);
+  outline-offset: 1px;
+}
+
+.journal-float__page-turner {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.journal-float__page-turner button {
+  width: 27px;
+  height: 40px;
+  padding: 0;
+  border-radius: 8px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.journal-float__page-turner > span {
+  width: 1px;
+  height: 21px;
+  background: rgba(246, 241, 234, 0.34);
+}
+
+.journal-float__window-actions {
+  flex: none;
+  gap: 0;
+  margin-left: -2px;
+}
+
+.journal-float__window-actions .panel-header-btn {
+  width: 21px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.62;
+}
+
+.journal-float__window-actions .panel-header-btn:hover { opacity: 1; }
+
+/* Header reveal rows. Their inner tracks retain max-content width so
+   every tool remains reachable through native horizontal scrolling. */
+.jv-float-tray {
+  position: relative;
+  z-index: 12;
+  flex: none;
+  margin: -8px -10px 0;
+  padding: 5px 7px 4px;
+  background:
+    linear-gradient(90deg, rgba(119, 106, 69, 0.3), rgba(62, 79, 59, 0.28)),
+    rgba(20, 25, 21, 0.94);
+  border-bottom: 1px solid rgba(224, 203, 146, 0.32);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  animation: jfTrayIn 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes jfTrayIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.jv-float-tray__scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(240, 222, 174, 0.42) transparent;
+  padding-bottom: 2px;
+}
+
+.jv-float-tray__scroll::-webkit-scrollbar { height: 5px; }
+.jv-float-tray__scroll::-webkit-scrollbar-track { background: transparent; }
+.jv-float-tray__scroll::-webkit-scrollbar-thumb {
+  background: rgba(240, 222, 174, 0.35);
+  border-radius: 999px;
+}
+
+.jv-float-tray__scroll:focus-visible {
+  outline: 2px solid rgba(190, 220, 255, 0.78);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+.jvb--float {
+  width: max-content;
+  min-width: max-content;
+  gap: 9px;
+  padding: 1px 3px 2px;
+}
+
+.jvb--float .jr-btn { white-space: nowrap; }
+
+.journal-float__shell .jv-root.is-float {
+  padding: 8px 10px 10px;
+  gap: 8px;
+}
+
+.journal-float__shell .jv-root.is-float .jv-main,
+.journal-float__shell .jv-root.is-float .jv-center { gap: 0; }
+
+.jv-empty-state.is-float {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.jv-empty-state.is-float .jr-empty { margin: 0; }
+
+/* JournalView fills the shell below the header. */
+.journal-float__shell .jv-root {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.journal-float__loading { margin: auto; }
+
+.journal-float__resize {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 10;
+  border-right: 2px solid rgba(155, 220, 200, 0.4);
+  border-bottom: 2px solid rgba(155, 220, 200, 0.4);
+  border-radius: 0 0 6px 0;
+}
+.journal-float__resize:hover {
+  border-color: rgba(155, 220, 200, 0.8);
+}
+
+@media (pointer: coarse) {
+  .journal-float__header {
+    height: 60px;
+    min-height: 60px;
+  }
+
+  .journal-float__mode-btn,
+  .journal-float__page-turner,
+  .journal-float__page-turner button { height: 44px; }
+
+  .journal-float__mode-btn { min-width: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journal-float,
+  .jv-float-tray { animation-duration: 0.01ms; }
+}
+
+/* ── Shelf tear-off ──────────────────────────────────────────────────
+   .jr-cardwrap wraps each cover button (a button can't nest a button)
+   and carries the grid sizing the card used to own. */
+
+.jr-cardwrap {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+}
+.jr-cardwrap .jr-card { max-width: none; }
+
+.jr-card__popout {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  animation: jfPopIn 0.15s ease;
+}
+.jr-card__popout:hover {
+  border-color: rgba(150, 200, 255, 0.9);
+  box-shadow: 0 0 10px rgba(120, 180, 255, 0.35);
+}

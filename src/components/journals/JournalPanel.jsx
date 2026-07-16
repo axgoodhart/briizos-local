@@ -1,39 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './journals.css';
-import { api } from './api.js';
+import { api, JOURNALS_CHANGED_EVENT } from './api.js';
 import { TEMPLATES } from './templates.js';
 import { JournalView } from './JournalView.jsx';
+import { COVERS, PAGES, COVER_NAMES, PAGE_NAMES } from './assets.js';
 import logger from '../../lib/logger';
-
-/* ── Assets ──────────────────────────────────────────────────────────
-   Covers and page styles ship with the renderer. Journals store only the
-   asset *name* (basename, no extension); URLs are resolved here at render
-   time so the DB never holds build-specific paths. */
-
-const COVER_URLS = import.meta.glob('./assets/covers/*.webp', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-const PAGE_URLS = import.meta.glob('./assets/pages/*.webp', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-
-function toAssetMap(globbed) {
-  const map = {};
-  for (const [path, url] of Object.entries(globbed)) {
-    const name = path.split('/').pop().replace(/\.webp$/i, '');
-    map[name] = url;
-  }
-  return map;
-}
-
-const COVERS = toAssetMap(COVER_URLS);
-const PAGES = toAssetMap(PAGE_URLS);
-const COVER_NAMES = Object.keys(COVERS).sort();
-const PAGE_NAMES = Object.keys(PAGES).sort();
 
 /* ── Icons (inline SVG, stroke = currentColor) ───────────────────────── */
 
@@ -224,29 +195,51 @@ function CreateJournalModal({ onClose, onCreate }) {
 
 /* ── Journal card ────────────────────────────────────────────────────── */
 
-function JournalCard({ journal, selected, onSelect }) {
+function JournalCard({ journal, selected, onSelect, onPopOut }) {
   const url = COVERS[journal.cover];
+  const coverRef = useRef(null);
+  /* The wrapper exists because a <button> can't nest the tear-off button;
+     it carries the grid sizing the card used to own. */
   return (
-    <button
-      type="button"
-      className={'jr-card' + (selected ? ' is-selected' : '')}
-      onClick={onSelect}
-      aria-pressed={selected}
-    >
-      {url
-        ? <img className="jr-card__cover" src={url} alt="" draggable={false} />
-        : <span className="jr-card__cover jr-card__cover--missing" />}
-      <span className="jr-card__plaque">
-        <span className="jr-card__name">{journal.title}</span>
-        <span className="jr-card__count">{journal.folioCount === 1 ? '1 folio' : `${journal.folioCount || 0} folios`}</span>
-      </span>
-    </button>
+    <div className={'jr-cardwrap' + (selected ? ' is-selected' : '')}>
+      <button
+        type="button"
+        className={'jr-card' + (selected ? ' is-selected' : '')}
+        onClick={onSelect}
+        aria-pressed={selected}
+      >
+        {url
+          ? <img ref={coverRef} className="jr-card__cover" src={url} alt="" draggable={false} />
+          : <span ref={coverRef} className="jr-card__cover jr-card__cover--missing" />}
+        <span className="jr-card__plaque">
+          <span className="jr-card__name">{journal.title}</span>
+          <span className="jr-card__count">{journal.folioCount === 1 ? '1 folio' : `${journal.folioCount || 0} folios`}</span>
+        </span>
+      </button>
+      {selected && onPopOut && (
+        <button
+          type="button"
+          className="jr-card__popout"
+          title={`Pop out ${journal.title}`}
+          aria-label={`Pop out ${journal.title}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPopOut(journal, coverRef.current?.getBoundingClientRect() || null);
+          }}
+        >↗</button>
+      )}
+    </div>
   );
 }
 
 /* ── Home view ───────────────────────────────────────────────────────── */
 
-export function JournalPanel() {
+export function JournalPanel({
+  onPopOutJournal = null,
+  floatingJournalId = null,
+  pendingOpenJournalId = null,
+  onPendingOpenHandled = null,
+}) {
   const [journals, setJournals] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [openId, setOpenId] = useState(null);
@@ -261,6 +254,31 @@ export function JournalPanel() {
       logger.error('journal', 'journals:list failed', err?.message);
     });
   }, []);
+
+  /* The floating editor announces its edits (and its closing) via a window
+     event; refetch so shelf folio counts and titles stay fresh. */
+  useEffect(() => {
+    const onChanged = () => {
+      api.list().then(setJournals).catch((err) => {
+        logger.error('journal', 'journals:list refresh failed', err?.message);
+      });
+    };
+    window.addEventListener(JOURNALS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(JOURNALS_CHANGED_EVENT, onChanged);
+  }, []);
+
+  /* Dock hand-off: the float closed and asked us to open its journal in
+     the book view. Waits for the initial list load when the panel mounts
+     fresh as part of the dock. */
+  useEffect(() => {
+    if (!pendingOpenJournalId) return;
+    if (journals.some((j) => j.id === pendingOpenJournalId)) {
+      setSelectedId(pendingOpenJournalId);
+      setOpenId(pendingOpenJournalId);
+      onPendingOpenHandled?.();
+      logger.info('journal', 'Docked journal opened in panel', { journalId: pendingOpenJournalId });
+    }
+  }, [pendingOpenJournalId, journals, onPendingOpenHandled]);
 
   useEffect(() => {
     if (searchOpen) searchRef.current?.focus();
@@ -299,6 +317,10 @@ export function JournalPanel() {
       setJournals((prev) => prev.filter((journal) => journal.id !== selectedJournal.id));
       setSelectedId(null);
       setOpenId(null);
+      // Tell a float holding this journal to close itself.
+      window.dispatchEvent(new CustomEvent(JOURNALS_CHANGED_EVENT, {
+        detail: { journalId: selectedJournal.id, deleted: true },
+      }));
       logger.info('journal', 'Journal deleted', { id: selectedJournal.id, title: selectedJournal.title });
     } catch (err) {
       logger.error('journal', 'journals:delete failed', err?.message);
@@ -324,6 +346,12 @@ export function JournalPanel() {
             onBack={() => setOpenId(null)}
             onJournalChange={(updated) =>
               setJournals((prev) => prev.map((j) => (j.id === updated.id ? { ...j, ...updated } : j)))}
+            onPopOut={onPopOutJournal ? () => {
+              // Pop out and hand the panel back to the shelf; a null seed
+              // reuses the float's persisted rect.
+              onPopOutJournal(openJournal.id, null, 'book');
+              setOpenId(null);
+            } : null}
           />
         ) : (
           <div className="journals-home" onClick={() => setSelectedId(null)}>
@@ -389,6 +417,9 @@ export function JournalPanel() {
                     if (selectedId === j.id) setOpenId(j.id);
                     else setSelectedId(j.id);
                   }}
+                  onPopOut={onPopOutJournal
+                    ? (journal, coverRect) => onPopOutJournal(journal.id, coverRect, 'shelf')
+                    : null}
                 />
               ))}
               {!journals.length && (

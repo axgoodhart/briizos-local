@@ -5,6 +5,10 @@
 const memJournals = [];
 const memFolios = {}; // journalId → [folio]
 
+/* Window event announcing journal data changed outside the listener's own
+   surface (float ↔ shelf sync). detail: { journalId, deleted? }. */
+export const JOURNALS_CHANGED_EVENT = 'briizos-journals-changed';
+
 export const api = {
   list: () =>
     window.api?.journalsList

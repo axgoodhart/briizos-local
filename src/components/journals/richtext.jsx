@@ -235,7 +235,17 @@ function Btn({ active, onClick, title, children, wide }) {
   );
 }
 
-export function EditorToolbar({ editor, toolbarId, rootRef, bookRef, collapsed, onToggleCollapsed }) {
+export function EditorToolbar({
+  editor,
+  toolbarId,
+  rootRef,
+  bookRef,
+  collapsed,
+  onToggleCollapsed,
+  placement = 'floating',
+  onDismiss = null,
+}) {
+  const isTray = placement === 'tray';
   const [expanded, setExpanded] = useState(false);
   const [pos, setPos] = useState(null); // non-null once the user drags
   const [autoPos, setAutoPos] = useState(null); // default tracks the book's center
@@ -244,7 +254,7 @@ export function EditorToolbar({ editor, toolbarId, rootRef, bookRef, collapsed, 
   const toolbarRef = useRef(null);
 
   useEffect(() => {
-    if (pos || collapsed) return;
+    if (isTray || pos || collapsed) return;
     const rootEl = rootRef?.current;
     const bookEl = bookRef?.current;
     const tbEl = toolbarRef.current;
@@ -264,7 +274,7 @@ export function EditorToolbar({ editor, toolbarId, rootRef, bookRef, collapsed, 
     ro.observe(bookEl);
     ro.observe(tbEl);
     return () => ro.disconnect();
-  }, [pos, collapsed, rootRef, bookRef]);
+  }, [isTray, pos, collapsed, rootRef, bookRef]);
 
   if (!editor || editor.isDestroyed || collapsed) return null;
 
@@ -300,7 +310,7 @@ export function EditorToolbar({ editor, toolbarId, rootRef, bookRef, collapsed, 
     window.addEventListener('pointerup', up);
   };
 
-  const effectivePos = pos || autoPos;
+  const effectivePos = isTray ? null : (pos || autoPos);
 
   const c = () => editor.chain().focus();
 
@@ -373,23 +383,36 @@ export function EditorToolbar({ editor, toolbarId, rootRef, bookRef, collapsed, 
   return (
     <div
       ref={toolbarRef}
-      className="rt-toolbar"
+      className={'rt-toolbar' + (isTray ? ' rt-toolbar--tray' : '')}
       style={effectivePos ? { left: `${effectivePos.x}px`, top: `${effectivePos.y}px`, right: 'auto', transform: 'none' } : undefined}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="rt-row">
-        <button
-          type="button"
-          className="rt-btn rt-btn--drag"
-          title="Move toolbar (double-click to hide)"
-          onPointerDown={startDrag}
-          onDoubleClick={() => {
-            onToggleCollapsed?.();
-            logger.info('journal', 'Toolbar collapsed to wrench', { folioId: toolbarId });
-          }}
-        >
-          {I.drag}
-        </button>
+        {isTray ? (
+          <button
+            type="button"
+            className="rt-btn rt-btn--drag rt-btn--tray-dismiss"
+            title="Hide formatting tools"
+            aria-label="Hide formatting tools"
+            onClick={onDismiss}
+          >
+            {I.drag}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="rt-btn rt-btn--drag"
+            title="Move toolbar (double-click to hide)"
+            aria-label="Move formatting toolbar"
+            onPointerDown={startDrag}
+            onDoubleClick={() => {
+              onToggleCollapsed?.();
+              logger.info('journal', 'Toolbar collapsed to wrench', { folioId: toolbarId });
+            }}
+          >
+            {I.drag}
+          </button>
+        )}
         <span className="rt-sep" />
         <Btn active={editor.isActive('bold')} title="Bold (⌘B)" onClick={() => c().toggleBold().run()}>{I.bold}</Btn>
         <Btn active={editor.isActive('italic')} title="Italic (⌘I)" onClick={() => c().toggleItalic().run()}>{I.italic}</Btn>

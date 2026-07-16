@@ -5,6 +5,7 @@ import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
 import MediaPanel from './components/MediaPanel';
 import { JournalPanel } from './components/journals/JournalPanel.jsx';
+import { JournalFloat } from './components/journals/JournalFloat.jsx';
 import { NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
 import Forest from './components/forest/Forest.jsx';
 import LoginOverlay from './components/LoginOverlay';
@@ -229,6 +230,11 @@ function AppContent({ layout }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  // The single journal torn off the shelf (id or null); its rect lives in
+  // workspace.journalFloat. One float at a time — a new pop-out replaces it.
+  const [floatingJournalId, setFloatingJournalId] = useState(null);
+  // Journal id the JournalPanel should open on next mount (dock hand-off).
+  const [pendingOpenJournalId, setPendingOpenJournalId] = useState(null);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasData, setCanvasData] = useState(null);
   const [canvasTitle, setCanvasTitle] = useState('Canvas');
@@ -259,6 +265,10 @@ function AppContent({ layout }) {
         if (ws.notesOpen) setNotesOpen(true);
         if (ws.actionDeckFloating) setActionDeckFloating(true);
         if (ws.mediaOpen) setMediaOpen(true);
+        if (typeof ws.floatingJournalId === 'string' && ws.floatingJournalId) {
+          setFloatingJournalId(ws.floatingJournalId);
+          logger.info('journal', 'Floating journal restored', { journalId: ws.floatingJournalId });
+        }
         if (Number.isFinite(ws.themeStudioWidth)) setThemeStudioWidth(Math.min(480, Math.max(300, ws.themeStudioWidth)));
         if (ws.openCanvases && typeof ws.openCanvases === 'object') {
           setOpenCanvases(ws.openCanvases);
@@ -270,8 +280,8 @@ function AppContent({ layout }) {
   // Persist overlay states to workspace (debounced via useLayout)
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
-    updateWorkspace({ notesOpen, actionDeckFloating, mediaOpen, openCanvases });
-  }, [notesOpen, actionDeckFloating, mediaOpen, openCanvases, updateWorkspace]);
+    updateWorkspace({ notesOpen, actionDeckFloating, mediaOpen, openCanvases, floatingJournalId });
+  }, [notesOpen, actionDeckFloating, mediaOpen, openCanvases, floatingJournalId, updateWorkspace]);
 
   // Get the panels from the layout hook
   const panels = getVisiblePanels();
@@ -351,6 +361,56 @@ function AppContent({ layout }) {
     addPanel({ id: 'journal', type: 'journal', size: 25, visible: true });
     logger.info('journal', 'Journal panel opened');
   }, [journalPanel, togglePanelVisibility, addPanel]);
+
+  /* Tear a journal off the shelf into the floating editor. seedRect (the
+     cover card's screen rect) places the float where the tear happened,
+     keeping the previously persisted size; a null seed reuses the last
+     rect. One float at a time — a second pop-out replaces the first. */
+  const popOutJournal = useCallback((journalId, seedRect = null, source = 'shelf') => {
+    setFloatingJournalId((prev) => {
+      if (prev && prev !== journalId) {
+        logger.info('journal', 'Floating journal replaced', { from: prev, to: journalId });
+      }
+      return journalId;
+    });
+    if (seedRect) {
+      const saved = workspace.journalFloat || {};
+      const width = saved.width || 620;
+      const height = saved.height || 800;
+      updateWorkspace({
+        journalFloat: {
+          x: Math.max(12, Math.min(seedRect.left, window.innerWidth - width - 12)),
+          y: Math.max(12, Math.min(seedRect.top, window.innerHeight - height - 12)),
+          width,
+          height,
+        },
+      });
+    }
+    logger.info('journal', 'Journal popped out', { journalId, source });
+  }, [updateWorkspace, workspace.journalFloat]);
+
+  const closeJournalFloat = useCallback(() => {
+    setFloatingJournalId((prev) => {
+      if (prev) logger.info('journal', 'Floating journal closed', { journalId: prev });
+      return null;
+    });
+  }, []);
+
+  /* Dock the float back into the Journals panel: close the float, make the
+     panel visible (openJournalPanel toggles, so don't reuse it here), and
+     hand the journal id to JournalPanel to open once its list loads. */
+  const dockJournalFloat = useCallback(() => {
+    const journalId = floatingJournalId;
+    if (!journalId) return;
+    setFloatingJournalId(null);
+    setPendingOpenJournalId(journalId);
+    if (journalPanel && !journalPanel.visible) {
+      togglePanelVisibility(journalPanel.id);
+    } else if (!journalPanel) {
+      addPanel({ id: 'journal', type: 'journal', size: 25, visible: true });
+    }
+    logger.info('journal', 'Floating journal docked to panel', { journalId });
+  }, [floatingJournalId, journalPanel, togglePanelVisibility, addPanel]);
 
   const openNotefallsPanel = useCallback(() => {
     if (notefallsPanel) {
@@ -838,6 +898,9 @@ function AppContent({ layout }) {
           setCalendarOpen(false);
         } else if (briiztormOpen) {
           setBriiztormOpen(false);
+        } else if (floatingJournalId && !isTypingTarget(document.activeElement)) {
+          // Typing guard: Escape inside the float's editor shouldn't close it.
+          closeJournalFloat();
         } else if (actionDeckOpen) {
           closeActionDeck();
         } else if (notesOpen) {
@@ -850,7 +913,7 @@ function AppContent({ layout }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, fullscreenPanelId]);
+  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, fullscreenPanelId, floatingJournalId, closeJournalFloat]);
 
   // Listen for canvas events from tool system
   useEffect(() => {
@@ -885,7 +948,14 @@ function AppContent({ layout }) {
       case 'media':
         return <MediaPanel />;
       case 'journal':
-        return <JournalPanel />;
+        return (
+          <JournalPanel
+            onPopOutJournal={popOutJournal}
+            floatingJournalId={floatingJournalId}
+            pendingOpenJournalId={pendingOpenJournalId}
+            onPendingOpenHandled={() => setPendingOpenJournalId(null)}
+          />
+        );
       case 'notefalls':
         return <NotefallsPanel />;
       case 'forest':
@@ -928,7 +998,7 @@ function AppContent({ layout }) {
           </div>
         );
     }
-  }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases]);
+  }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, pendingOpenJournalId]);
 
   return (
     <div
@@ -1054,6 +1124,25 @@ function AppContent({ layout }) {
           onPanelChange={(pos, size) => {
             updateWorkspace({
               mediaPanel: pos
+                ? { x: pos.x, y: pos.y, width: size.width, height: size.height }
+                : { width: size.width, height: size.height }
+            });
+          }}
+        />
+      )}
+
+      {/* Floating journal — a journal torn off the shelf, alive even when
+          the Journals panel tile is closed. */}
+      {floatingJournalId && (
+        <JournalFloat
+          journalId={floatingJournalId}
+          onClose={closeJournalFloat}
+          onDock={dockJournalFloat}
+          panelPosition={workspace.journalFloat ? { x: workspace.journalFloat.x, y: workspace.journalFloat.y } : null}
+          panelDimensions={workspace.journalFloat ? { width: workspace.journalFloat.width, height: workspace.journalFloat.height } : null}
+          onPanelChange={(pos, size) => {
+            updateWorkspace({
+              journalFloat: pos
                 ? { x: pos.x, y: pos.y, width: size.width, height: size.height }
                 : { width: size.width, height: size.height }
             });

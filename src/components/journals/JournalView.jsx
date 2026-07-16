@@ -1132,7 +1132,93 @@ function TagStrip({ tags, onSave }) {
   );
 }
 
-export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChange }) {
+function FloatFolioIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5.5 3.5h9a2 2 0 0 1 2 2v15h-11z" />
+      <path d="M8.25 7h5.5M8.25 10h5.5M8.25 13h3.25" />
+      <path d="m10 20.5 3.2-4 3.3 4" />
+    </svg>
+  );
+}
+
+function FloatJournalHeader({
+  title,
+  tray,
+  hasFolios,
+  hasEditor,
+  canPrev,
+  canNext,
+  onToggleTray,
+  onPrev,
+  onNext,
+  chrome,
+}) {
+  return (
+    <div className="panel-header journal-float__header" onMouseDown={chrome?.onDragStart}>
+      <span className="journal-float__title">{title}</span>
+
+      <div className="journal-float__tools" role="toolbar" aria-label="Journal tools">
+        <button
+          type="button"
+          className={'journal-float__mode-btn' + (tray === 'folio' ? ' is-active' : '')}
+          title="Folio tools"
+          aria-label="Folio tools"
+          aria-expanded={tray === 'folio'}
+          aria-controls="journal-float-tools"
+          disabled={!hasFolios}
+          onClick={() => onToggleTray('folio')}
+        >
+          <FloatFolioIcon />
+        </button>
+
+        <button
+          type="button"
+          className={'journal-float__mode-btn journal-float__mode-btn--format' + (tray === 'format' ? ' is-active' : '')}
+          title="Formatting tools"
+          aria-label="Formatting tools"
+          aria-expanded={tray === 'format'}
+          aria-controls="journal-float-tools"
+          disabled={!hasEditor}
+          onClick={() => onToggleTray('format')}
+        >
+          <strong>B</strong><em>I</em><span>U</span>
+        </button>
+
+        <div className="journal-float__page-turner" role="group" aria-label="Turn pages">
+          <button type="button" onClick={onPrev} disabled={!canPrev} aria-label="Previous page">‹</button>
+          <span aria-hidden="true" />
+          <button type="button" onClick={onNext} disabled={!canNext} aria-label="Next page">›</button>
+        </div>
+      </div>
+
+      {(chrome?.onDock || chrome?.onClose) && (
+        <div className="panel-header-actions journal-float__window-actions">
+          {chrome.onDock && (
+            <button type="button" className="panel-header-btn" onClick={chrome.onDock} title="Dock to Journals panel" aria-label="Dock to Journals panel">⤓</button>
+          )}
+          {chrome.onClose && (
+            <button type="button" className="panel-header-btn" onClick={chrome.onClose} title="Close" aria-label="Close">×</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function JournalView({
+  journal,
+  pageUrl,
+  coverUrl,
+  onBack,
+  onJournalChange,
+  variant = 'panel',
+  onPopOut = null,
+  floatChrome = null,
+}) {
+  /* Float variant: the slimmed-down pop-out editor. Always single-page,
+     no sidebar/typography/tag chrome; the floating shell owns close/dock. */
+  const isFloat = variant === 'float';
   const [folios, setFolios] = useState(null); // null = loading
   const [cursor, setCursor] = useState(0); // index of the folio under the eye
   const [adding, setAdding] = useState(false);
@@ -1160,6 +1246,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
   const editorsRef = useRef(new Map());
   const [activeEditorId, setActiveEditorId] = useState(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const [floatTray, setFloatTray] = useState(null); // null | 'format' | 'folio'
 
   // Per-folio rebalance triggers, so typography/font changes can reflow
   // every mounted page.
@@ -1178,6 +1265,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
     } else {
       editorsRef.current.delete(folioId);
       setActiveEditorId((id) => (id === folioId ? null : id));
+      setTick((t) => t + 1); // remove stale toolbar/header availability
     }
   };
 
@@ -1185,7 +1273,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
 
   useEffect(() => {
     api.foliosList(journal.id).then(setFolios).catch((err) => {
-      console.error('folios:list failed', err);
+      logger.error('journal', 'folios:list failed', err?.message);
       setFolios([]);
     });
   }, [journal.id]);
@@ -1198,7 +1286,9 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
   }, []);
 
   /* Narrow layout keys off the journal panel's own width, not the screen,
-     so a squeezed split-view behaves like a small window. */
+     so a squeezed split-view behaves like a small window. The float variant
+     is always narrow regardless of width. */
+  const narrowMode = isFloat || narrow;
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -1230,7 +1320,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
     setTypoDraft(null);
     api.update(journal.id, { settings })
       .then((updated) => onJournalChange?.(updated))
-      .catch((err) => console.error('journals:update failed', err));
+      .catch((err) => logger.error('journal', 'journals:update failed', err?.message));
   };
 
   /* ── Folios + slot layout ─────────────────────────────────────────
@@ -1259,7 +1349,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
 
   /* A lone slot (e.g. one scrolled folio and nothing else) presents as a
      single centered page rather than facing an empty ghost. */
-  const single = narrow || slots.length === 1;
+  const single = narrowMode || slots.length === 1;
   const leftSlotIdx = single ? slotIdx : slotIdx - (slotIdx % 2);
   const leftSlot = slots[leftSlotIdx];
   const rightSlot = single ? undefined : slots[leftSlotIdx + 1];
@@ -1308,7 +1398,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
   /* Narrow mode: a vertical scroll gesture flips pages, unless something
      inside the page (tracker, list…) can still scroll itself. */
   const onPortWheel = (e) => {
-    if (!narrow) return;
+    if (!narrowMode) return;
     let el = e.target;
     while (el && el !== e.currentTarget) {
       if (el.scrollHeight > el.clientHeight + 1) {
@@ -1416,7 +1506,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
       if (JSON.stringify(target.content?.doc) === JSON.stringify(doc)) return;
       const patch = { content: { ...target.content, doc, body: undefined } };
       setFolios((prev) => prev.map((f) => (f.id === target.id ? { ...f, ...patch } : f)));
-      api.foliosUpdate(target.id, patch).catch((err) => console.error('rebalance update failed', err));
+      api.foliosUpdate(target.id, patch).catch((err) => logger.error('journal', 'rebalance update failed', err?.message));
     };
 
     if (pulledFromId && sameGroup && next.id === pulledFromId) {
@@ -1476,7 +1566,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
           pendingCaretRef.current = { folioId: created.id, pos: caretRel };
           requestAnimationFrame(() => jumpToFolio(created)); // after the list lands
         }
-      }).catch((err) => console.error('rebalance create failed', err));
+      }).catch((err) => logger.error('journal', 'rebalance create failed', err?.message));
     }
   };
 
@@ -1488,6 +1578,13 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
     : mountedNoteIds[0];
   const toolbarEditor = toolbarId ? editorsRef.current.get(toolbarId) : null;
   useEffect(() => { setToolbarCollapsed(false); }, [toolbarId]);
+  useEffect(() => {
+    if (isFloat && floatTray === 'format' && !toolbarEditor) setFloatTray(null);
+  }, [isFloat, floatTray, toolbarEditor]);
+
+  const toggleFloatTray = (next) => {
+    setFloatTray((current) => (current === next ? null : next));
+  };
 
   const addPage = (spec) => {
     api.foliosCreate(journal.id, spec).then((created) => {
@@ -1495,7 +1592,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
       setFolios((prev) => [...(prev || []), created]);
       setCursor(newIdx); // jump to the new page
       setAdding(false);
-    }).catch((err) => console.error('folios:create failed', err));
+    }).catch((err) => logger.error('journal', 'folios:create failed', err?.message));
   };
 
   const deleteFolio = (folio) => () => {
@@ -1517,7 +1614,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
         setCursor((c) => Math.max(0, Math.min(c, next.length - 1)));
         return next;
       });
-    }).catch((err) => console.error('folios:delete failed', err));
+    }).catch((err) => logger.error('journal', 'folios:delete failed', err?.message));
   };
 
   const saveFolio = (folio) => (patch) => {
@@ -1525,21 +1622,28 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
     setFolios((prev) => prev.map((f) => (f.id === folio.id ? { ...f, ...patch } : f)));
     api.foliosUpdate(folio.id, patch).then((updated) => {
       setFolios((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
-    }).catch((err) => console.error('folios:update failed', err));
+    }).catch((err) => logger.error('journal', 'folios:update failed', err?.message));
   };
 
   useEffect(() => {
+    /* Panel variant listens on window (it owns the whole panel). The float
+       listens on its own root only, so a book open in the tile and a float
+       never both flip pages on one keypress; float Escape is handled by the
+       App-level overlay chain, not here. */
+    const target = isFloat ? rootRef.current : window;
+    if (!target) return;
     const onKey = (e) => {
       // Don't hijack arrows/Escape while typing in a field or the editor.
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
-      if (e.key === 'Escape') onBack();
+      if (el?.closest?.('.jv-float-tray')) return; // arrows scroll/navigate the open tray
+      if (!isFloat && e.key === 'Escape') onBack();
       if (e.key === 'ArrowLeft') goPrev();
       if (e.key === 'ArrowRight') goNext();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [leftSlotIdx, slots.length, single, onBack]);
+    target.addEventListener('keydown', onKey);
+    return () => target.removeEventListener('keydown', onKey);
+  }, [leftSlotIdx, slots.length, single, onBack, isFloat]);
 
   const renderSlot = (slot, emptyKey) => {
     if (!slot) return <div className="jv-page jv-page--empty" key={emptyKey} />;
@@ -1574,18 +1678,34 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
   });
 
   return (
-    <div
-      className={'jv-root' + (narrow ? ' is-narrow' : '')}
-      ref={rootRef}
-      style={{
-        '--jv-h1-font': typo.h1,
-        '--jv-h2-font': typo.h2,
-        '--jv-h3-font': typo.h3,
-        '--jv-body-font': typo.body,
-        '--jv-body-size': `${typo.size}px`,
-        '--jv-lh': String(typo.lineHeight),
-      }}
-    >
+    <>
+      {isFloat && (
+        <FloatJournalHeader
+          title={journal.title}
+          tray={floatTray}
+          hasFolios={folios?.length > 0}
+          hasEditor={!!toolbarEditor}
+          canPrev={canPrev}
+          canNext={canNext}
+          onToggleTray={toggleFloatTray}
+          onPrev={goPrev}
+          onNext={goNext}
+          chrome={floatChrome}
+        />
+      )}
+      <div
+        className={'jv-root' + (narrowMode ? ' is-narrow' : '') + (isFloat ? ' is-float' : '')}
+        ref={rootRef}
+        tabIndex={-1}
+        style={{
+          '--jv-h1-font': typo.h1,
+          '--jv-h2-font': typo.h2,
+          '--jv-h3-font': typo.h3,
+          '--jv-body-font': typo.body,
+          '--jv-body-size': `${typo.size}px`,
+          '--jv-lh': String(typo.lineHeight),
+        }}
+      >
       {coverUrl && (
         <div
           className="jv-backdrop"
@@ -1595,26 +1715,37 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
       )}
       {folios === null && (
         <>
-          <div className="jv-topbar">
-            <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
-            <h2 className="jv-title">{journal.title}</h2>
-          </div>
+          {!isFloat && (
+            <div className="jv-topbar">
+              <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
+              <h2 className="jv-title">{journal.title}</h2>
+            </div>
+          )}
           <p className="jr-empty">Opening…</p>
         </>
       )}
 
       {folios?.length === 0 && (
         <>
-          <div className="jv-topbar">
-            <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
-            <h2 className="jv-title">{journal.title}</h2>
-            <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
-          </div>
-          <p className="jr-empty">No folios yet — press <strong>+ folio</strong> to add one.</p>
+          {!isFloat && (
+            <div className="jv-topbar">
+              <button type="button" className="jr-btn" onClick={onBack}>← shelf</button>
+              <h2 className="jv-title">{journal.title}</h2>
+              <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+            </div>
+          )}
+          {isFloat ? (
+            <div className="jv-empty-state is-float">
+              <p className="jr-empty">No folios yet.</p>
+              <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+            </div>
+          ) : (
+            <p className="jr-empty">No folios yet — press <strong>+ folio</strong> to add one.</p>
+          )}
         </>
       )}
 
-      {toolbarEditor && (
+      {toolbarEditor && !isFloat && (
         <EditorToolbar
           editor={toolbarEditor}
           key={toolbarId}
@@ -1626,34 +1757,79 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
         />
       )}
 
+      {isFloat && folios?.length > 0 && floatTray === 'format' && toolbarEditor && (
+        <div className="jv-float-tray jv-float-tray--format" id="journal-float-tools">
+          <div className="jv-float-tray__scroll" role="region" tabIndex={0} aria-label="Formatting tools; scroll horizontally for more">
+            <EditorToolbar
+              editor={toolbarEditor}
+              key={`tray-${toolbarId}`}
+              toolbarId={toolbarId}
+              rootRef={rootRef}
+              bookRef={bookRef}
+              collapsed={false}
+              placement="tray"
+              onDismiss={() => setFloatTray(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {isFloat && folios?.length > 0 && floatTray === 'folio' && (
+        <div className="jv-float-tray jv-float-tray--folio" id="journal-float-tools">
+          <div className="jv-float-tray__scroll" role="region" tabIndex={0} aria-label="Folio tools; scroll horizontally for more">
+            <div className="jvb jvb--float">
+              <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+              {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
+              <PageJumper group={activeGroup} page={activePage} onJump={jumpToFolio} />
+              {activeGroup?.type === 'notes' && (
+                <button
+                  type="button"
+                  className={'jvb__scrolltoggle' + (activeScrolled ? ' is-on' : '')}
+                  title={activeScrolled
+                    ? 'Back to page-by-page reading'
+                    : 'Read this folio as one continuous scroll'}
+                  onClick={toggleActiveScroll}
+                >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {folios?.length > 0 && (
         <div className="jv-main">
-          <Sidebar
-            open={sidebarOpen && !narrow}
-            query={sideQuery}
-            setQuery={setSideQuery}
-            groups={groups}
-            currentIdx={activeGroupIdx}
-            onJumpGroup={(g) => jumpToFolio(g.folios[0])}
-            projects={linkedProjects}
-          />
-          <button
-            type="button"
-            className="jvs-toggle"
-            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-          >{sidebarOpen ? '‹' : '›'}</button>
+          {!isFloat && (
+            <Sidebar
+              open={sidebarOpen && !narrowMode}
+              query={sideQuery}
+              setQuery={setSideQuery}
+              groups={groups}
+              currentIdx={activeGroupIdx}
+              onJumpGroup={(g) => jumpToFolio(g.folios[0])}
+              projects={linkedProjects}
+            />
+          )}
+          {!isFloat && (
+            <button
+              type="button"
+              className="jvs-toggle"
+              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            >{sidebarOpen ? '‹' : '›'}</button>
+          )}
 
           <div className="jv-center">
             <div className="jv-book" ref={bookRef}>
-              <button
-                type="button"
-                className="jv-nav"
-                disabled={!canPrev}
-                onClick={goPrev}
-                aria-label={single ? 'Previous page' : 'Previous spread'}
-              >‹</button>
+              {!isFloat && (
+                <button
+                  type="button"
+                  className="jv-nav"
+                  disabled={!canPrev}
+                  onClick={goPrev}
+                  aria-label={single ? 'Previous page' : 'Previous spread'}
+                >‹</button>
+              )}
 
               <div className="jv-bookport" ref={portRef} onWheel={onPortWheel}>
                 <div
@@ -1668,55 +1844,62 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="jv-nav right"
-                disabled={!canNext}
-                onClick={goNext}
-                aria-label={single ? 'Next page' : 'Next spread'}
-              >›</button>
+              {!isFloat && (
+                <button
+                  type="button"
+                  className="jv-nav right"
+                  disabled={!canNext}
+                  onClick={goNext}
+                  aria-label={single ? 'Next page' : 'Next spread'}
+                >›</button>
+              )}
             </div>
 
-            <div className="jvb">
-              <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
-              <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
-              <span className="jv-pageno">
-                {single
-                  ? `page ${slotIdx + 1} / ${slots.length}`
-                  : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`}
-              </span>
-              {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
-              <PageJumper
-                group={activeGroup}
-                page={activePage}
-                onJump={jumpToFolio}
-              />
-              {activeGroup?.type === 'notes' && (
-                <button
-                  type="button"
-                  className={'jvb__scrolltoggle' + (activeScrolled ? ' is-on' : '')}
-                  title={activeScrolled
-                    ? 'Back to page-by-page reading'
-                    : 'Read this folio as one continuous scroll'}
-                  onClick={toggleActiveScroll}
-                >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
-              )}
-              {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
-              {toolbarEditor && toolbarCollapsed && (
-                <button
-                  type="button"
-                  className="jv-wrench"
-                  title="Show formatting toolbar"
-                  aria-label="Show formatting toolbar"
-                  onClick={() => {
-                    setToolbarCollapsed(false);
-                    logger.info('journal', 'Toolbar restored from wrench', { folioId: toolbarId });
-                  }}
-                >
-                  {WRENCH_ICON}
-                </button>
-              )}
-            </div>
+            {!isFloat && (
+              <div className="jvb">
+                <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
+                {onPopOut && (
+                <button type="button" className="jr-btn" title="Pop out journal" aria-label="Pop out journal" onClick={onPopOut}>↗</button>
+                )}
+                <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+                <span className="jv-pageno">
+                  {single
+                    ? `page ${slotIdx + 1} / ${slots.length}`
+                    : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`}
+                </span>
+                {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
+                <PageJumper
+                  group={activeGroup}
+                  page={activePage}
+                  onJump={jumpToFolio}
+                />
+                {activeGroup?.type === 'notes' && (
+                  <button
+                    type="button"
+                    className={'jvb__scrolltoggle' + (activeScrolled ? ' is-on' : '')}
+                    title={activeScrolled
+                      ? 'Back to page-by-page reading'
+                      : 'Read this folio as one continuous scroll'}
+                    onClick={toggleActiveScroll}
+                  >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+                )}
+                {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
+                {toolbarEditor && toolbarCollapsed && (
+                  <button
+                    type="button"
+                    className="jv-wrench"
+                    title="Show formatting toolbar"
+                    aria-label="Show formatting toolbar"
+                    onClick={() => {
+                      setToolbarCollapsed(false);
+                      logger.info('journal', 'Toolbar restored from wrench', { folioId: toolbarId });
+                    }}
+                  >
+                    {WRENCH_ICON}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1729,6 +1912,7 @@ export function JournalView({ journal, pageUrl, coverUrl, onBack, onJournalChang
           onClose={closeTypo}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

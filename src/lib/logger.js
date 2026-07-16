@@ -27,6 +27,7 @@ const SESSION_ID = `ses_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 const CATEGORY_MAP = {
   task: 'task',
   note: 'note',
+  journal: 'journal',
   canvas: 'canvas',
   calendar: 'calendar',
   event: 'calendar',
@@ -49,7 +50,6 @@ const CATEGORY_MAP = {
   fs: 'fs',
   api: 'api',
   briiztorm: 'briiztorm',
-  canvas: 'canvas',
 };
 
 function resolveCategory(type) {
