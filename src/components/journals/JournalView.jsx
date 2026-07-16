@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { TEMPLATES } from './templates.js';
 import {
@@ -1388,12 +1388,16 @@ export function JournalView({
   const naturalW = single ? PAGE_W : PAGE_W * 2 + SPINE_W;
   const naturalH = PAGE_H;
   const hasBook = count > 0;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = portRef.current;
     if (!el) return;
     const compute = () => {
-      const r = el.getBoundingClientRect();
-      if (r.width && r.height) setScale(Math.min(r.width / naturalW, r.height / naturalH, 2.2));
+      /* clientWidth/clientHeight are the port's true layout dimensions.
+         getBoundingClientRect includes the float's opening perspective tilt,
+         which made the first scale too small until a resize remeasured it. */
+      const width = el.clientWidth;
+      const height = el.clientHeight;
+      if (width && height) setScale(Math.min(width / naturalW, height / naturalH, 2.2));
     };
     compute();
     const ro = new ResizeObserver(compute);
