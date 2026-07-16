@@ -62,9 +62,10 @@ function DirtyGuard() {
 }
 
 function NameAction({ action, onCancel }) {
-  const { activeTheme, draftTheme, saveAs, renameTheme } = useTheme();
+  const { activeTheme, draftTheme, saveAs, renameTheme, setWarning } = useTheme();
   const [name, setName] = useState(action === 'rename' ? (draftTheme?.name || activeTheme?.name || '') : `${draftTheme?.name || activeTheme?.name || activeTheme?.label || 'Theme'} Copy`);
   const [busy, setBusy] = useState(false);
+  const fieldId = `theme-studio-${action}-name`;
   const submit = async (event) => {
     event.preventDefault();
     if (!name.trim()) return;
@@ -73,15 +74,17 @@ function NameAction({ action, onCancel }) {
       if (action === 'rename') await renameTheme(activeTheme.id, name);
       else await saveAs(name);
       onCancel();
+    } catch (error) {
+      setWarning(`Theme could not be ${action === 'rename' ? 'renamed' : 'saved'}: ${error.message}`);
     } finally { setBusy(false); }
   };
   return (
     <form className="theme-studio-name-action" onSubmit={submit}>
-      <label>{action === 'rename' ? 'Rename theme' : 'Save a new theme'}</label>
+      <label htmlFor={fieldId}>{action === 'rename' ? 'Rename theme' : 'Save a new theme'}</label>
       <div>
-        <input autoFocus value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
-        <button type="submit" disabled={busy || !name.trim()}>{busy ? '…' : 'OK'}</button>
-        <button type="button" onClick={onCancel}>×</button>
+        <input id={fieldId} autoFocus value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
+        <button type="submit" disabled={busy || !name.trim()}>{busy ? 'Saving…' : action === 'rename' ? 'Rename' : 'Save theme'}</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   );
@@ -109,15 +112,21 @@ function StudioHeader({ onClose }) {
     } catch (error) { theme.setWarning(error.message); }
   };
 
+  const saveCurrent = async () => {
+    try { await theme.save(); }
+    catch (error) { theme.setWarning(`Theme changes could not be saved: ${error.message}`); }
+  };
+
   const deleteCurrent = async () => {
     if (!isCustom) return;
     if (!window.confirm(`Delete “${theme.activeTheme.name}”? This cannot be undone.`)) return;
-    await theme.deleteTheme(theme.activeTheme.id);
+    try { await theme.deleteTheme(theme.activeTheme.id); }
+    catch (error) { theme.setWarning(`Theme could not be deleted: ${error.message}`); }
   };
 
   return (
     <>
-      <header className="theme-studio-header" data-theme-role="header">
+      <header className="theme-studio-header">
         <div className="theme-studio-title-row">
           <div>
             <span className="theme-studio-kicker">briizOS / chromap</span>
@@ -138,12 +147,12 @@ function StudioHeader({ onClose }) {
           {theme.draftTheme && !theme.customThemes.some((item) => item.id === theme.draftTheme.id) && <option value={theme.draftTheme.id}>{theme.draftTheme.name} — draft</option>}
         </select>
         <div className="theme-studio-command-row">
-          <button className="theme-studio-save" type="button" onClick={theme.save} disabled={!theme.isDirty}>Save</button>
+          <button className="theme-studio-save" type="button" onClick={saveCurrent} disabled={!theme.isDirty}>Save</button>
           <button type="button" onClick={() => setNameAction('saveAs')}>Save as</button>
           <button type="button" onClick={theme.revert} disabled={!theme.isDirty}>Revert</button>
           <span className="theme-studio-command-spacer" />
-          <button className="theme-studio-icon-btn" type="button" onClick={theme.undo} disabled={!theme.canUndo} title="Undo">↶</button>
-          <button className="theme-studio-icon-btn" type="button" onClick={theme.redo} disabled={!theme.canRedo} title="Redo">↷</button>
+          <button className="theme-studio-icon-btn" type="button" onClick={theme.undo} disabled={!theme.canUndo} title="Undo" aria-label="Undo theme edit">↶</button>
+          <button className="theme-studio-icon-btn" type="button" onClick={theme.redo} disabled={!theme.canRedo} title="Redo" aria-label="Redo theme edit">↷</button>
           <details className="theme-studio-more">
             <summary aria-label="Theme actions">•••</summary>
             <div>
@@ -173,8 +182,12 @@ function GeneratorView() {
   }));
 
   useEffect(() => {
-    if (draftTheme?.generator) setSettings({ ...DEFAULT_GENERATOR_SETTINGS, ...draftTheme.generator });
-  }, [draftTheme?.id]);
+    setSettings({
+      ...DEFAULT_GENERATOR_SETTINGS,
+      mode: draftTheme?.mode || activeTheme?.mode || 'dark',
+      ...(draftTheme?.generator || {}),
+    });
+  }, [activeTheme?.id, draftTheme?.id]);
 
   const update = (patch) => {
     const next = { ...settings, ...patch };
@@ -195,7 +208,10 @@ function GeneratorView() {
       </div>
       <div className="theme-studio-anchor-grid">
         <label><span>Primary anchor</span><input type="color" value={settings.primaryAnchor} onChange={(event) => update({ primaryAnchor: event.target.value })} /></label>
-        <label><span>Secondary</span><input type="color" value={settings.secondaryAnchor || settings.primaryAnchor} onChange={(event) => update({ secondaryAnchor: event.target.value })} /></label>
+        <div>
+          <label className="theme-studio-secondary-label"><input type="checkbox" checked={Boolean(settings.secondaryAnchor)} onChange={(event) => update({ secondaryAnchor: event.target.checked ? settings.primaryAnchor : '' })} />Secondary</label>
+          <input type="color" aria-label="Secondary anchor color" disabled={!settings.secondaryAnchor} value={settings.secondaryAnchor || settings.primaryAnchor} onChange={(event) => update({ secondaryAnchor: event.target.value })} />
+        </div>
       </div>
       <label className="theme-studio-field"><span>Harmony</span><select value={settings.harmony} onChange={(event) => update({ harmony: event.target.value })}><option value="analogous">Analogous</option><option value="complementary">Complementary</option><option value="split-complementary">Split complementary</option><option value="triadic">Triadic</option></select></label>
       {[['temperature', 'Temperature', -100, 100], ['saturation', 'Saturation', 0, 100], ['contrast', 'Contrast', 0, 100], ['glowStrength', 'Glow', 0, 60]].map(([id, label, min, max]) => (
@@ -260,6 +276,73 @@ function SelectedColor({ property, label, value, scope, onChange }) {
   );
 }
 
+const DEFAULT_GRADIENT = Object.freeze({
+  kind: 'linear-gradient',
+  angle: 145,
+  stops: [{ color: '#222222', position: 0 }, { color: '#555555', position: 100 }],
+});
+
+function gradientValue(value) {
+  return value?.kind === 'linear-gradient' ? structuredClone(value) : structuredClone(DEFAULT_GRADIENT);
+}
+
+function SelectedGradient({ value, onChange }) {
+  const gradient = gradientValue(value);
+  const update = (mutation) => {
+    const next = gradientValue(value);
+    mutation(next);
+    onChange(next);
+  };
+  const setStopCount = (count) => update((next) => {
+    if (count === 3 && next.stops.length === 2) {
+      next.stops.splice(1, 0, { color: '#3b3b3b', position: 50 });
+    } else if (count === 2 && next.stops.length === 3) {
+      next.stops = [next.stops[0], next.stops[2]];
+    }
+  });
+  return (
+    <details className="theme-studio-gradient" open={value?.kind === 'linear-gradient'}>
+      <summary>Linear gradient</summary>
+      <div>
+        <label className="theme-studio-gradient-angle">
+          <span>Angle <output>{gradient.angle}°</output></span>
+          <input type="range" min="0" max="360" value={gradient.angle} onChange={(event) => update((next) => { next.angle = Number(event.target.value); })} />
+        </label>
+        <label className="theme-studio-gradient-count">
+          <span>Color stops</span>
+          <select value={gradient.stops.length} onChange={(event) => setStopCount(Number(event.target.value))}>
+            <option value="2">2 stops</option>
+            <option value="3">3 stops</option>
+          </select>
+        </label>
+        {gradient.stops.map((stop, index) => (
+          <div className="theme-studio-gradient-stop" key={index}>
+            <label><span>Stop {index + 1}</span><input type="color" value={colorInputValue(stop.color)} onChange={(event) => update((next) => { next.stops[index].color = event.target.value; })} /></label>
+            <label><span>Position <output>{stop.position}%</output></span><input type="range" min="0" max="100" value={stop.position} onChange={(event) => update((next) => { next.stops[index].position = Number(event.target.value); })} /></label>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function SelectedShadow({ value, scope, onChange }) {
+  const shadow = value?.kind === 'shadow'
+    ? value
+    : { kind: 'shadow', color: '#777777', x: 0, y: 8, blur: 24, spread: 0, intensity: 0.45 };
+  const update = (patch) => onChange({ ...shadow, ...patch });
+  return (
+    <>
+      <SelectedColor property="boxShadow" label="Shadow / glow" value={shadow} scope={scope} onChange={(color) => update({ color })} />
+      <div className="theme-studio-shadow-controls">
+        <label className="theme-studio-range"><span>Blur<output>{shadow.blur}px</output></span><input type="range" min="0" max="120" value={shadow.blur} onChange={(event) => update({ blur: Number(event.target.value) })} /></label>
+        <label className="theme-studio-range"><span>Spread<output>{shadow.spread}px</output></span><input type="range" min="-24" max="48" value={shadow.spread} onChange={(event) => update({ spread: Number(event.target.value) })} /></label>
+        <label className="theme-studio-range"><span>Intensity<output>{Math.round(shadow.intensity * 100)}%</output></span><input type="range" min="0" max="1" step="0.01" value={shadow.intensity} onChange={(event) => update({ intensity: Number(event.target.value) })} /></label>
+      </div>
+    </>
+  );
+}
+
 function SelectedView() {
   const theme = useTheme();
   const [scope, setScope] = useState('role');
@@ -279,6 +362,7 @@ function SelectedView() {
   };
   return (
     <div className="theme-studio-view theme-studio-selected">
+      {theme.contrastWarnings.length > 0 && <div className="theme-studio-contrast-warning">{theme.contrastWarnings.map((warning) => <span key={warning}>△ {warning}</span>)}</div>}
       <div className="theme-studio-selection-heading"><span>SELECTED OBJECT</span><strong>{selected.label}</strong><small>{selected.componentId || 'Application'}{selected.instanceId ? ` / ${selected.instanceId}` : ''}</small></div>
       <div className="theme-studio-scope-list">
         <label><input type="radio" checked={scope === 'role'} onChange={() => setScope('role')} />All objects with this role <b>{theme.getTargetMatchCount('role')}</b></label>
@@ -291,15 +375,12 @@ function SelectedView() {
         {allowed.includes('color') && <SelectedColor property="color" label="Foreground" value={styles.color} scope={scope} onChange={(color) => set('color', { kind: 'color', value: color })} />}
         {allowed.includes('background') && <>
           <SelectedColor property="background" label="Background" value={styles.background} scope={scope} onChange={(color) => set('background', { kind: 'solid', color })} />
-          <details className="theme-studio-gradient"><summary>Linear gradient</summary><div>
-            <label><span>Angle</span><input type="range" min="0" max="360" value={styles.background?.kind === 'linear-gradient' ? styles.background.angle : 145} onChange={(event) => set('background', { kind: 'linear-gradient', angle: Number(event.target.value), stops: styles.background?.kind === 'linear-gradient' ? styles.background.stops : [{ color: '#222222', position: 0 }, { color: '#555555', position: 100 }] })} /></label>
-            {[0, 1].map((index) => <label key={index}><span>Stop {index + 1}</span><input type="color" value={styles.background?.kind === 'linear-gradient' ? styles.background.stops[index].color : index ? '#555555' : '#222222'} onChange={(event) => { const background = styles.background?.kind === 'linear-gradient' ? structuredClone(styles.background) : { kind: 'linear-gradient', angle: 145, stops: [{ color: '#222222', position: 0 }, { color: '#555555', position: 100 }] }; background.stops[index].color = event.target.value; set('background', background); }} /></label>)}
-          </div></details>
+          <SelectedGradient value={styles.background} onChange={(background) => set('background', background)} />
         </>}
         {allowed.includes('borderColor') && <SelectedColor property="borderColor" label="Border" value={styles.borderColor} scope={scope} onChange={(color) => set('borderColor', { kind: 'color', value: color })} />}
-        {allowed.includes('boxShadow') && <SelectedColor property="boxShadow" label="Shadow / glow" value={styles.boxShadow} scope={scope} onChange={(color) => set('boxShadow', { kind: 'shadow', color, x: 0, y: 8, blur: styles.boxShadow?.blur || 24, spread: styles.boxShadow?.spread || 0, intensity: styles.boxShadow?.intensity ?? 0.45 })} />}
+        {allowed.includes('boxShadow') && <SelectedShadow value={styles.boxShadow} scope={scope} onChange={(shadow) => set('boxShadow', shadow)} />}
       </section>
-      <section className="theme-studio-token-section"><h3>Shape</h3>{length('borderWidth', 'Border width', 12)}{allowed.includes('borderStyle') && <label className="theme-studio-field"><span>Border style</span><span className="theme-studio-select-reset"><select value={styles.borderStyle?.value || 'solid'} onChange={(event) => set('borderStyle', { kind: 'keyword', value: event.target.value })}><option>solid</option><option>dashed</option><option>dotted</option><option>double</option><option>none</option></select><ResetButton property="borderStyle" scope={scope} /></span></label>}{length('borderRadius', 'Radius', 64)}{allowed.includes('opacity') && <label className="theme-studio-range"><span>Opacity<output>{Math.round((styles.opacity?.value ?? 1) * 100)}%</output></span><span className="theme-studio-range-reset"><input type="range" min="0" max="1" step="0.01" value={styles.opacity?.value ?? 1} onChange={(event) => set('opacity', { kind: 'number', value: Number(event.target.value) })} /><ResetButton property="opacity" scope={scope} /></span></label>}</section>
+      <section className="theme-studio-token-section"><h3>Shape</h3>{length('borderWidth', 'Border width', 12)}{allowed.includes('borderStyle') && <label className="theme-studio-field"><span>Border style</span><span className="theme-studio-select-reset"><select value={styles.borderStyle?.value || 'solid'} onChange={(event) => set('borderStyle', { kind: 'keyword', value: event.target.value })}><option>solid</option><option>dashed</option><option>dotted</option><option>double</option><option>none</option></select><ResetButton property="borderStyle" scope={scope} /></span></label>}{allowed.includes('cornerShape') && <label className="theme-studio-field"><span>Corner shape</span><span className="theme-studio-select-reset"><select value={styles.cornerShape?.value || 'round'} onChange={(event) => set('cornerShape', { kind: 'keyword', value: event.target.value })}><option value="round">Round</option><option value="squircle">Squircle</option><option value="bevel">Bevel</option><option value="scoop">Scoop</option><option value="notch">Notch</option><option value="square">Square</option></select><ResetButton property="cornerShape" scope={scope} /></span></label>}{length('borderRadius', 'Radius', 64)}{allowed.includes('opacity') && <label className="theme-studio-range"><span>Opacity<output>{Math.round((styles.opacity?.value ?? 1) * 100)}%</output></span><span className="theme-studio-range-reset"><input type="range" min="0" max="1" step="0.01" value={styles.opacity?.value ?? 1} onChange={(event) => set('opacity', { kind: 'number', value: Number(event.target.value) })} /><ResetButton property="opacity" scope={scope} /></span></label>}</section>
       <details className="theme-studio-advanced"><summary>Type & spacing</summary><section className="theme-studio-token-section">{allowed.includes('fontFamily') && <label className="theme-studio-field"><span>Font</span><span className="theme-studio-select-reset"><select value={styles.fontFamily?.value || ''} onChange={(event) => set('fontFamily', { kind: 'font', value: event.target.value })}><option value="">Inherited</option>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select><ResetButton property="fontFamily" scope={scope} /></span></label>}{length('fontSize', 'Font size', 72)}{allowed.includes('fontWeight') && <label className="theme-studio-range"><span>Weight<output>{styles.fontWeight?.value || 400}</output></span><span className="theme-studio-range-reset"><input type="range" min="100" max="900" step="100" value={styles.fontWeight?.value || 400} onChange={(event) => set('fontWeight', { kind: 'number', value: Number(event.target.value) })} /><ResetButton property="fontWeight" scope={scope} /></span></label>}{length('letterSpacing', 'Letter spacing', 12)}{length('padding', 'Safe padding', 64)}{length('minHeight', 'Minimum height', 120)}</section></details>
     </div>
   );
@@ -328,6 +409,8 @@ export default function ThemeStudio({ isOpen, width, onWidthChange, onClose }) {
         className="theme-studio-resize"
         onPointerDown={startResize}
         onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
           if (event.key === 'ArrowLeft') onWidthChange(width + 10);
           if (event.key === 'ArrowRight') onWidthChange(width - 10);
         }}

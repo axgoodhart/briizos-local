@@ -6,7 +6,7 @@ export const COMPONENT_IDS = Object.freeze([
 
 const COLOR_PROPERTIES = ['color', 'background', 'borderColor', 'boxShadow', 'opacity'];
 const TYPE_PROPERTIES = ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing'];
-const SHAPE_PROPERTIES = ['borderWidth', 'borderStyle', 'borderRadius'];
+const SHAPE_PROPERTIES = ['borderWidth', 'borderStyle', 'borderRadius', 'cornerShape'];
 
 export const TARGET_REGISTRY = Object.freeze({
   canvas: { label: 'Application canvas', properties: [...COLOR_PROPERTIES] },
@@ -41,7 +41,7 @@ export const TARGET_IDS = Object.freeze(Object.keys(TARGET_REGISTRY));
 
 export const EDITABLE_PROPERTIES = Object.freeze([
   'color', 'background', 'borderColor', 'borderWidth', 'borderStyle',
-  'borderRadius', 'boxShadow', 'opacity', 'fontFamily', 'fontSize',
+  'borderRadius', 'cornerShape', 'boxShadow', 'opacity', 'fontFamily', 'fontSize',
   'fontWeight', 'letterSpacing', 'padding', 'minHeight',
 ]);
 
@@ -104,8 +104,10 @@ export const GLOBAL_TOKEN_GROUPS = Object.freeze([
       { id: 'fontDisplay', label: 'Display font', type: 'font', variables: ['--theme-font-display'] },
       { id: 'panelRadius', label: 'Panel radius', type: 'range', min: 0, max: 32, step: 1, unit: 'px', variables: ['--layout-panel-radius'] },
       { id: 'controlRadius', label: 'Control radius', type: 'range', min: 0, max: 24, step: 1, unit: 'px', variables: ['--ui-border-radius'] },
-      { id: 'cornerStyle', label: 'Corner style', type: 'select', variables: ['--theme-corner-style'], options: [
-        { label: 'Soft', value: 'soft' }, { label: 'Rounded', value: 'rounded' }, { label: 'Square', value: 'square' },
+      { id: 'cornerStyle', label: 'Corner style', type: 'select', variables: ['--ui-corner-shape', '--theme-corner-style'], options: [
+        { label: 'Round', value: 'round' }, { label: 'Squircle', value: 'squircle' },
+        { label: 'Bevel', value: 'bevel' }, { label: 'Scoop', value: 'scoop' },
+        { label: 'Notch', value: 'notch' }, { label: 'Square', value: 'square' },
       ] },
       { id: 'panelGap', label: 'Panel gap', type: 'range', min: 0, max: 16, step: 1, unit: 'px', variables: ['--layout-gap'] },
       { id: 'headerHeight', label: 'Header height', type: 'range', min: 28, max: 72, step: 1, unit: 'px', variables: ['--layout-header-height'] },
@@ -139,11 +141,6 @@ export function valuesForGlobalToken(tokenId, value) {
     normalized = `${Number.parseFloat(value) || 0}ms cubic-bezier(0.16, 1, 0.3, 1)`;
   }
   const entries = Object.fromEntries(token.variables.map((variable) => [variable, normalized]));
-  if (tokenId === 'cornerStyle') {
-    const radius = value === 'square' ? '0px' : value === 'rounded' ? '20px' : '8px';
-    entries['--layout-panel-radius'] = radius;
-    entries['--ui-border-radius'] = radius;
-  }
   if (tokenId === 'reducedMotion' && value === 'reduce') {
     entries['--layout-transition-fast'] = '0ms';
     entries['--layout-transition-normal'] = '0ms';
@@ -158,7 +155,6 @@ export const COMPONENT_SELECTOR_MAP = Object.freeze([
   ['.dashboard-modal-container', 'Dashboard'], ['.media-panel', 'Media'],
   ['.login-container', 'Login'], ['.canvas-modal', 'Canvas'], ['.briiztorm-overlay', 'Briiztorm'],
   ['.journal-panel', 'Journals'], ['.notefalls-panel', 'Notefalls'], ['.forest-panel', 'Forest'],
-  ['.app', 'Application'],
 ]);
 
 export const ROLE_SELECTOR_MAP = Object.freeze([
@@ -166,8 +162,10 @@ export const ROLE_SELECTOR_MAP = Object.freeze([
   ['.app-header, .panel-header, .actiondeck-header, .notes-drawer-header, .organizer-header, .calendar-header, .modal-header, .media-panel-header, .briiztorm-header, .canvas-header', 'header'],
   ['.resize-handle, .panel-resize-handle, .media-panel-resize-handle, .notes-resize-handle, [class*="resize-handle"]', 'resize-handle'],
   ['.modal-tabs, .organizer-tabs, [role="tablist"]', 'tabs'], ['.modal-tab, .organizer-tab, [role="tab"]', 'tab'],
-  ['.model-picker, .model-picker-trigger', 'model-picker'], ['.chat-input-container, .input-container, .composer', 'composer'],
-  ['.messages-container, .chat-messages, .interaction-messages', 'chat-canvas'], ['.message, .message-bubble', 'message'],
+  ['.model-picker, .model-picker-trigger', 'model-picker'],
+  ['.messages-container, .chat-messages, .interaction-messages, .messages-list', 'chat-canvas'],
+  ['.message, .message-bubble, .chat-message', 'message'],
+  ['.chat-input-container, .input-container, .composer, .chat-input-wrapper', 'composer'],
   ['progress, [role="progressbar"], .progress-bar', 'progress'], ['.badge, [class*="badge"], .tab-count, [class*="count"]', 'badge'],
   ['textarea', 'textarea'], ['input:not([type="range"]):not([type="color"]):not([type="checkbox"]):not([type="radio"]):not([type="file"])', 'input'],
   ['button[class*="danger"], button[class*="delete"], button[class*="destructive"], .modal-btn-danger', 'button-destructive'],
@@ -175,10 +173,10 @@ export const ROLE_SELECTOR_MAP = Object.freeze([
   ['button[class*="ghost"], .modal-btn-cancel', 'button-ghost'],
   ['button[class*="icon"], button[class*="close"], button[class*="control"], .panel-header-btn, .panel-control-btn', 'button-icon'],
   ['button', 'button-secondary'],
-  ['.modal-overlay, .organizer-overlay, .calendar-overlay, .login-overlay', 'overlay'],
-  ['.modal-container, .organizer-modal, .calendar-modal, .canvas-modal, .login-container', 'modal'],
+  ['.modal-overlay, .organizer-overlay, .calendar-overlay, .login-overlay, .canvas-backdrop', 'overlay'],
+  ['.modal-container, .organizer-modal, .calendar-modal, .canvas-modal, .login-container, .briiztorm-overlay', 'modal'],
   ['.task-card, .note-card, .journal-card, [class*="card"]', 'card'],
-  ['.panel-content, .actiondeck-body, .notes-drawer-content, .modal-content, .organizer-content, .calendar-content, .media-panel-content, .briiztorm-content, .canvas-content', 'body'],
-  ['.modal-footer, .panel-footer', 'footer'], ['.panel, .actiondeck-column, .media-panel', 'panel'],
+  ['.panel-content, .actiondeck-body, .actiondeck-content, .notes-drawer-content, .modal-content, .organizer-content, .calendar-content, .media-panel-content, .briiztorm-content, .canvas-content, .canvas-body, .canvas-settings-body', 'body'],
+  ['.modal-footer, .panel-footer, .organizer-footer, .calendar-footer', 'footer'], ['.panel, .actiondeck-column, .media-panel', 'panel'],
   ['.app-main', 'canvas'],
 ]);

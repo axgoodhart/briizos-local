@@ -15,5 +15,16 @@ describe('main-process theme validation', () => {
     const bypass = structuredClone(theme);
     bypass.variables['--layout-bg-panel'] = 'url(file:///etc/passwd)';
     expect(() => validateThemeLibrary({ schemaVersion: 1, themes: [bypass] })).toThrow(/unsafe CSS/);
+
+    const wrongTargetProperty = structuredClone(theme);
+    wrongTargetProperty.overrides = [{
+      id: 'canvas:role', targetId: 'canvas', scope: 'role',
+      styles: { borderRadius: { kind: 'length', value: 12, unit: 'px' } },
+    }];
+    expect(() => validateThemeLibrary({ schemaVersion: 1, themes: [wrongTargetProperty] })).toThrow(/not editable for canvas/);
+
+    const invalidGenerator = structuredClone(theme);
+    invalidGenerator.generator = { seed: 0, harmony: 'rainbow' };
+    expect(() => validateThemeLibrary({ schemaVersion: 1, themes: [invalidGenerator] })).toThrow(/seed|harmony/);
   });
 });

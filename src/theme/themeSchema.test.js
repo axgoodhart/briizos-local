@@ -39,6 +39,13 @@ describe('theme schema', () => {
     const unknownProperty = validTheme();
     unknownProperty.overrides[0].styles.transform = { kind: 'keyword', value: 'rotate(2deg)' };
     expect(() => validateThemeDocument(unknownProperty)).toThrow(/not editable/);
+
+    const wrongTargetProperty = validTheme();
+    wrongTargetProperty.overrides[0] = {
+      id: 'canvas:role', targetId: 'canvas', scope: 'role',
+      styles: { borderRadius: { kind: 'length', value: 12, unit: 'px' } },
+    };
+    expect(() => validateThemeDocument(wrongTargetProperty)).toThrow(/not editable for canvas/);
   });
 
   it('enforces library bounds and immutable built-in bases', () => {
@@ -47,5 +54,11 @@ describe('theme schema', () => {
     const invalidBase = validTheme();
     invalidBase.baseThemeId = 'missing-theme';
     expect(() => validateThemeDocument(invalidBase)).toThrow(/base does not exist/);
+  });
+
+  it('validates persisted generator settings as a curated contract', () => {
+    const invalidGenerator = validTheme();
+    invalidGenerator.generator = { seed: 0, harmony: 'rainbow', customCss: 'body{}' };
+    expect(() => validateThemeDocument(invalidGenerator)).toThrow(/unsupported fields|generator/i);
   });
 });

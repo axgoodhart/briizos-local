@@ -1,5 +1,5 @@
 import { BUILT_IN_THEME_IDS } from './builtInThemes';
-import { COMPONENT_IDS, CURATED_VARIABLES, EDITABLE_PROPERTIES, TARGET_IDS } from './themeRegistry';
+import { COMPONENT_IDS, CURATED_VARIABLES, EDITABLE_PROPERTIES, TARGET_IDS, TARGET_REGISTRY } from './themeRegistry';
 
 export const THEME_SCHEMA_VERSION = 1;
 export const EMPTY_THEME_LIBRARY = Object.freeze({ schemaVersion: 1, themes: [] });
@@ -7,6 +7,11 @@ export const EMPTY_THEME_LIBRARY = Object.freeze({ schemaVersion: 1, themes: [] 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const UNSAFE_CSS = /url\s*\(|javascript\s*:|expression\s*\(|<\/?script|@import|behavior\s*:/i;
 const COLOR_VALUE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%+-]+\)|hsla?\([\d\s.,%+-]+(?:deg|rad|turn)?\)|oklch\([\d\s.%+/-]+(?:deg|rad|turn)?\)|transparent|currentColor|[a-z]+)$/i;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const GENERATOR_KEYS = [
+  'mode', 'primaryAnchor', 'secondaryAnchor', 'harmony', 'temperature',
+  'saturation', 'contrast', 'glowStrength', 'material', 'seed',
+];
 
 function assertion(condition, message) {
   if (!condition) throw new Error(message);
@@ -29,6 +34,20 @@ function assertSafeString(value, label, max = 1000) {
 function assertColor(value, label) {
   assertSafeString(value, label, 160);
   assertion(COLOR_VALUE.test(value.trim()), `${label} must be a color.`);
+}
+
+function validateGeneratorSettings(value, label) {
+  assertObject(value, label);
+  assertExactKeys(value, GENERATOR_KEYS, label);
+  if (value.mode !== undefined) assertion(value.mode === 'dark' || value.mode === 'light', `${label}.mode is invalid.`);
+  if (value.primaryAnchor !== undefined) assertion(typeof value.primaryAnchor === 'string' && HEX_COLOR.test(value.primaryAnchor), `${label}.primaryAnchor must be a six-digit hex color.`);
+  if (value.secondaryAnchor !== undefined) assertion(value.secondaryAnchor === '' || (typeof value.secondaryAnchor === 'string' && HEX_COLOR.test(value.secondaryAnchor)), `${label}.secondaryAnchor must be empty or a six-digit hex color.`);
+  if (value.harmony !== undefined) assertion(['analogous', 'complementary', 'split-complementary', 'triadic'].includes(value.harmony), `${label}.harmony is invalid.`);
+  [['temperature', -100, 100], ['saturation', 0, 100], ['contrast', 0, 100], ['glowStrength', 0, 60]].forEach(([key, min, max]) => {
+    if (value[key] !== undefined) assertion(Number.isFinite(value[key]) && value[key] >= min && value[key] <= max, `${label}.${key} is invalid.`);
+  });
+  if (value.material !== undefined) assertion(['inherit', 'flat', 'layered', 'glass'].includes(value.material), `${label}.material is invalid.`);
+  if (value.seed !== undefined) assertion(Number.isSafeInteger(value.seed) && value.seed >= 1 && value.seed <= 2147483647, `${label}.seed is invalid.`);
 }
 
 function validateStructuredStyle(value, property, label) {
@@ -61,7 +80,8 @@ function validateStructuredStyle(value, property, label) {
       assertExactKeys(value, ['kind', 'color', 'x', 'y', 'blur', 'spread', 'intensity'], label);
       assertion(value.kind === 'shadow', `${label}.kind must be shadow.`);
       assertColor(value.color, `${label}.color`);
-      ['x', 'y', 'blur', 'spread'].forEach((key) => assertion(Number.isFinite(value[key]) && value[key] >= -100 && value[key] <= 200, `${label}.${key} is invalid.`));
+      ['x', 'y', 'spread'].forEach((key) => assertion(Number.isFinite(value[key]) && value[key] >= -100 && value[key] <= 200, `${label}.${key} is invalid.`));
+      assertion(Number.isFinite(value.blur) && value.blur >= 0 && value.blur <= 200, `${label}.blur is invalid.`);
       assertion(Number.isFinite(value.intensity) && value.intensity >= 0 && value.intensity <= 1, `${label}.intensity is invalid.`);
       break;
     case 'opacity':
@@ -81,6 +101,10 @@ function validateStructuredStyle(value, property, label) {
     case 'borderStyle':
       assertExactKeys(value, ['kind', 'value'], label);
       assertion(value.kind === 'keyword' && ['solid', 'dashed', 'dotted', 'double', 'none'].includes(value.value), `${label}.value is invalid.`);
+      break;
+    case 'cornerShape':
+      assertExactKeys(value, ['kind', 'value'], label);
+      assertion(value.kind === 'keyword' && ['round', 'squircle', 'bevel', 'scoop', 'notch', 'square'].includes(value.value), `${label}.value is invalid.`);
       break;
     case 'fontWeight':
       assertExactKeys(value, ['kind', 'value'], label);
@@ -111,6 +135,7 @@ export function validateThemeDocument(input) {
   if (input.generator) {
     const serialized = JSON.stringify(input.generator);
     assertion(serialized.length <= 10000 && !UNSAFE_CSS.test(serialized), 'Theme generator settings are unsafe or too large.');
+    validateGeneratorSettings(input.generator, 'theme.generator');
   }
 
   assertObject(input.variables, 'theme.variables');
@@ -134,6 +159,7 @@ export function validateThemeDocument(input) {
     assertObject(override.styles, `${label}.styles`);
     Object.entries(override.styles).forEach(([property, value]) => {
       assertion(EDITABLE_PROPERTIES.includes(property), `${label}.styles.${property} is not editable.`);
+      assertion(TARGET_REGISTRY[override.targetId].properties.includes(property), `${label}.styles.${property} is not editable for ${override.targetId}.`);
       validateStructuredStyle(value, property, `${label}.styles.${property}`);
     });
   });

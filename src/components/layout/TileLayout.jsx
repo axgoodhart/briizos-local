@@ -106,7 +106,6 @@ function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, 
     <div
       ref={wrapperRef}
       className={`panel-wrapper ${isDragging ? 'dragging' : ''} ${isOver && dropZone ? 'drop-target' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}
-      data-theme-role="panel"
       data-theme-component={componentId}
       data-theme-instance={panelId}
       onPointerDown={() => onActivate?.(panelId)}

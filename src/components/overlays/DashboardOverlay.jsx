@@ -1047,12 +1047,12 @@ function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatV
   );
 }
 
-function AppearanceTab({ onThemeSelected, getThemeChatBackground, onOpenChatViewPicker, openPickerForTheme, onPickerSave, onOpenThemeStudio }) {
+function AppearanceTab({ getThemeChatBackground, onOpenChatViewPicker, openPickerForTheme, onPickerSave, onOpenThemeStudio }) {
   const theme = useTheme();
   const currentTheme = theme.activeThemeId || 'default';
 
   const handleThemeChange = async (themeId) => {
-    if (await theme.selectTheme(themeId)) onThemeSelected(themeId);
+    await theme.selectTheme(themeId);
   };
 
   const getChatViewLabel = (themeKey) => {
@@ -1133,8 +1133,10 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
     setIsLoading(true);
     try {
       const allSettings = await window.api.localData.settings.list();
-      const savedTheme = allSettings.ui_theme || 'default';
-      setSettings({ ...allSettings, ui_theme: savedTheme });
+      const dashboardSettings = { ...allSettings };
+      delete dashboardSettings.ui_theme;
+      delete dashboardSettings.ui_theme_library;
+      setSettings(dashboardSettings);
     } catch (error) {
       logger.error('config', 'Failed to load settings', error?.message);
     } finally {
@@ -1167,7 +1169,9 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
     setIsSaving(true);
     try {
       for (const [key, value] of Object.entries(settings)) {
-        if (key !== 'github_token') await window.api.localData.settings.set(key, value);
+        if (!['github_token', 'ui_theme', 'ui_theme_library'].includes(key)) {
+          await window.api.localData.settings.set(key, value);
+        }
       }
       if (settings.github_token && window.api?.githubSetToken) {
         window.api.githubSetToken(settings.github_token);
@@ -1302,7 +1306,6 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
 
               {activeTab === 'appearance' && (
                 <AppearanceTab
-                  onThemeSelected={(themeId) => handleSettingChange('ui_theme', themeId)}
                   getThemeChatBackground={getThemeChatBackground}
                   onOpenChatViewPicker={handleOpenChatViewPicker}
                   openPickerForTheme={openPickerForTheme}

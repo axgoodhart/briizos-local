@@ -14,25 +14,56 @@ const CURATED_VARIABLES = new Set([
   '--layout-accent-cyan-dim', '--palette-success', '--palette-warning', '--palette-danger',
   '--layout-border-color', '--glass-border', '--layout-border-color-hover', '--layout-accent-cyan-glow',
   '--theme-studio-glow-strength', '--theme-studio-shadow-depth', '--ui-font-main', '--theme-font-display',
-  '--layout-panel-radius', '--ui-border-radius', '--theme-corner-style', '--layout-gap',
+  '--layout-panel-radius', '--ui-border-radius', '--ui-corner-shape', '--theme-corner-style', '--layout-gap',
   '--layout-header-height', '--layout-transition-fast', '--layout-transition-normal', '--theme-motion-reduced',
 ]);
-const TARGET_IDS = new Set([
-  'canvas', 'header', 'wordmark', 'control-dock', 'panel', 'body', 'footer', 'resize-handle',
-  'button-primary', 'button-secondary', 'button-ghost', 'button-icon', 'button-destructive',
-  'input', 'textarea', 'tabs', 'tab', 'badge', 'progress', 'modal', 'overlay', 'chat-canvas',
-  'message', 'composer', 'model-picker', 'card',
-]);
+const COLOR_PROPERTIES = ['color', 'background', 'borderColor', 'boxShadow', 'opacity'];
+const TYPE_PROPERTIES = ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing'];
+const SHAPE_PROPERTIES = ['borderWidth', 'borderStyle', 'borderRadius', 'cornerShape'];
+const TARGET_PROPERTIES = new Map(Object.entries({
+  canvas: COLOR_PROPERTIES,
+  header: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'minHeight'],
+  wordmark: ['color', 'opacity', ...TYPE_PROPERTIES],
+  'control-dock': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES],
+  panel: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, 'padding'],
+  body: [...COLOR_PROPERTIES, ...TYPE_PROPERTIES, 'padding'],
+  footer: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, 'padding'],
+  'resize-handle': ['color', 'background', 'opacity'],
+  'button-primary': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  'button-secondary': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  'button-ghost': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  'button-icon': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, 'padding'],
+  'button-destructive': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  input: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  textarea: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  tabs: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, 'padding'],
+  tab: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  badge: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding'],
+  progress: ['color', 'background', 'borderColor', 'borderRadius', 'opacity'],
+  modal: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, 'padding'],
+  overlay: ['background', 'opacity'],
+  'chat-canvas': [...COLOR_PROPERTIES, ...TYPE_PROPERTIES, 'padding'],
+  message: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding'],
+  composer: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES, 'padding', 'minHeight'],
+  'model-picker': [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, ...TYPE_PROPERTIES],
+  card: [...COLOR_PROPERTIES, ...SHAPE_PROPERTIES, 'padding'],
+}));
+const TARGET_IDS = new Set(TARGET_PROPERTIES.keys());
 const COMPONENT_IDS = new Set([
   'Application', 'ActionDeck', 'Tasks', 'Sources', 'Notes', 'Calendar', 'Organizer',
   'Dashboard', 'Media', 'Login', 'Canvas', 'Briiztorm', 'Chat', 'Journals', 'Notefalls', 'Forest',
 ]);
 const PROPERTIES = new Set([
-  'color', 'background', 'borderColor', 'borderWidth', 'borderStyle', 'borderRadius',
+  'color', 'background', 'borderColor', 'borderWidth', 'borderStyle', 'borderRadius', 'cornerShape',
   'boxShadow', 'opacity', 'fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'padding', 'minHeight',
 ]);
 const UNSAFE_CSS = /url\s*\(|javascript\s*:|expression\s*\(|<\/?script|@import|behavior\s*:/i;
 const COLOR_VALUE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%+-]+\)|hsla?\([\d\s.,%+-]+(?:deg|rad|turn)?\)|oklch\([\d\s.%+/-]+(?:deg|rad|turn)?\)|transparent|currentColor|[a-z]+)$/i;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const GENERATOR_KEYS = [
+  'mode', 'primaryAnchor', 'secondaryAnchor', 'harmony', 'temperature',
+  'saturation', 'contrast', 'glowStrength', 'material', 'seed',
+];
 
 function safeCssString(value, label, max = 1000) {
   value = v.string(value, label, { required: true, max });
@@ -44,6 +75,24 @@ function color(value, label) {
   value = safeCssString(value, label, 160);
   if (!COLOR_VALUE.test(value)) v.fail('INVALID_INPUT', `${label} must be a color`);
   return value;
+}
+
+function generatorSettings(input, label) {
+  v.object(input, label, GENERATOR_KEYS);
+  if (input.mode !== undefined) v.oneOf(input.mode, `${label}.mode`, ['dark', 'light']);
+  if (input.primaryAnchor !== undefined && !HEX_COLOR.test(v.string(input.primaryAnchor, `${label}.primaryAnchor`, { required: true, max: 7 }))) {
+    v.fail('INVALID_INPUT', `${label}.primaryAnchor must be a six-digit hex color`);
+  }
+  if (input.secondaryAnchor !== undefined && input.secondaryAnchor !== '' && !HEX_COLOR.test(v.string(input.secondaryAnchor, `${label}.secondaryAnchor`, { required: true, max: 7 }))) {
+    v.fail('INVALID_INPUT', `${label}.secondaryAnchor must be empty or a six-digit hex color`);
+  }
+  [['temperature', -100, 100], ['saturation', 0, 100], ['contrast', 0, 100], ['glowStrength', 0, 60]].forEach(([key, min, max]) => {
+    if (input[key] !== undefined) v.number(input[key], `${label}.${key}`, { min, max });
+  });
+  if (input.harmony !== undefined) v.oneOf(input.harmony, `${label}.harmony`, ['analogous', 'complementary', 'split-complementary', 'triadic']);
+  if (input.material !== undefined) v.oneOf(input.material, `${label}.material`, ['inherit', 'flat', 'layered', 'glass']);
+  if (input.seed !== undefined) v.integer(input.seed, `${label}.seed`, { min: 1, max: 2147483647 });
+  return { ...input };
 }
 
 function structuredStyle(input, property, label) {
@@ -76,7 +125,7 @@ function structuredStyle(input, property, label) {
       kind: 'shadow', color: color(input.color, `${label}.color`),
       x: v.number(input.x, `${label}.x`, { min: -100, max: 200 }),
       y: v.number(input.y, `${label}.y`, { min: -100, max: 200 }),
-      blur: v.number(input.blur, `${label}.blur`, { min: -100, max: 200 }),
+      blur: v.number(input.blur, `${label}.blur`, { min: 0, max: 200 }),
       spread: v.number(input.spread, `${label}.spread`, { min: -100, max: 200 }),
       intensity: v.number(input.intensity, `${label}.intensity`, { min: 0, max: 1 }),
     };
@@ -96,6 +145,11 @@ function structuredStyle(input, property, label) {
     v.object(input, label, ['kind', 'value']);
     if (input.kind !== 'keyword') v.fail('INVALID_INPUT', `${label}.kind must be keyword`);
     return { kind: 'keyword', value: v.oneOf(input.value, `${label}.value`, ['solid', 'dashed', 'dotted', 'double', 'none']) };
+  }
+  if (property === 'cornerShape') {
+    v.object(input, label, ['kind', 'value']);
+    if (input.kind !== 'keyword') v.fail('INVALID_INPUT', `${label}.kind must be keyword`);
+    return { kind: 'keyword', value: v.oneOf(input.value, `${label}.value`, ['round', 'squircle', 'bevel', 'scoop', 'notch', 'square']) };
   }
   if (property === 'fontFamily') {
     v.object(input, label, ['kind', 'value']);
@@ -120,7 +174,7 @@ function validateThemeDocument(input, label = 'theme') {
     if (!input.generator || typeof input.generator !== 'object' || Array.isArray(input.generator)) v.fail('INVALID_INPUT', `${label}.generator must be an object or null`);
     const json = JSON.stringify(input.generator);
     if (json.length > 10000 || UNSAFE_CSS.test(json)) v.fail('INVALID_INPUT', `${label}.generator is unsafe or too large`);
-    generator = input.generator;
+    generator = generatorSettings(input.generator, `${label}.generator`);
   }
   if (!input.variables || typeof input.variables !== 'object' || Array.isArray(input.variables)) v.fail('INVALID_INPUT', `${label}.variables must be an object`);
   if (Object.keys(input.variables).length > 512) v.fail('INVALID_INPUT', `${label}.variables has too many entries`);
@@ -147,6 +201,7 @@ function validateThemeDocument(input, label = 'theme') {
     const styles = {};
     Object.entries(override.styles).forEach(([property, value]) => {
       if (!PROPERTIES.has(property)) v.fail('INVALID_INPUT', `${itemLabel}.styles.${property} is not editable`);
+      if (!TARGET_PROPERTIES.get(targetId).includes(property)) v.fail('INVALID_INPUT', `${itemLabel}.styles.${property} is not editable for ${targetId}`);
       styles[property] = structuredStyle(value, property, `${itemLabel}.styles.${property}`);
     });
     return { id: v.identifier(override.id, `${itemLabel}.id`), targetId, scope, ...(componentId ? { componentId } : {}), ...(instanceId ? { instanceId } : {}), styles };

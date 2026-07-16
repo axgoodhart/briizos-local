@@ -9,11 +9,13 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let currentTheme;
 let root;
 let container;
+let normalClick;
+let normalPress;
 
 function CaptureTheme() {
   const theme = useTheme();
   useEffect(() => { currentTheme = theme; }, [theme]);
-  return <div data-theme-role="panel" data-theme-component="Tasks">Test panel</div>;
+  return <div data-theme-role="panel" data-theme-component="Tasks"><button id="picker-test-button" data-theme-role="button-primary" data-theme-component="Tasks" onMouseDown={normalPress} onClick={normalClick}>Test panel</button></div>;
 }
 
 async function renderProvider(settings = {}) {
@@ -31,6 +33,8 @@ async function renderProvider(settings = {}) {
 describe('ThemeProvider draft lifecycle', () => {
   beforeEach(() => {
     currentTheme = null;
+    normalClick = vi.fn();
+    normalPress = vi.fn();
     window.localStorage.clear();
     document.documentElement.removeAttribute('style');
     document.documentElement.removeAttribute('data-theme');
@@ -68,6 +72,15 @@ describe('ThemeProvider draft lifecycle', () => {
     expect(currentTheme.draftTheme.variables['--layout-panel-radius']).toBe('12px');
     await act(async () => currentTheme.revert());
     expect(currentTheme.isDirty).toBe(false);
+    expect(currentTheme.draftTheme).toBeNull();
+  });
+
+  it('removes a generated material override when returning to inherited recipes', async () => {
+    await renderProvider({ ui_theme: 'default', ui_theme_library: { schemaVersion: 1, themes: [] } });
+    await act(async () => currentTheme.applyGeneratedTheme({ seed: 42, material: 'layered' }));
+    expect(currentTheme.draftTheme.variables['--layout-bg-panel']).toMatch(/linear-gradient/);
+    await act(async () => currentTheme.applyGeneratedTheme({ seed: 42, material: 'inherit' }));
+    expect(currentTheme.draftTheme.variables['--layout-bg-panel']).toBeUndefined();
   });
 
   it('Save As creates an independent saved document and import resolves conflicts before preview', async () => {
@@ -93,6 +106,20 @@ describe('ThemeProvider draft lifecycle', () => {
     await renderProvider({ ui_theme: 'missing-custom', ui_theme_library: { schemaVersion: 1, themes: [] } });
     expect(currentTheme.activeThemeId).toBe('default');
     expect(currentTheme.warning).toMatch(/unavailable/);
+  });
+
+  it('selects a registered object without firing its normal press or click actions', async () => {
+    await renderProvider({ ui_theme: 'default', ui_theme_library: { schemaVersion: 1, themes: [] } });
+    await act(async () => currentTheme.startPicker());
+    const button = document.getElementById('picker-test-button');
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    expect(normalPress).not.toHaveBeenCalled();
+    expect(normalClick).not.toHaveBeenCalled();
+    expect(currentTheme.selectedTarget.role).toBe('button-primary');
+    expect(currentTheme.pickerActive).toBe(false);
   });
 
   it('recovers the built-in base of a malformed saved custom theme', async () => {

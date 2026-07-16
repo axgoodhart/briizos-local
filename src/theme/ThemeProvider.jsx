@@ -16,6 +16,34 @@ const ThemeContext = createContext(null);
 
 const clone = (value) => structuredClone(value);
 const same = (first, second) => JSON.stringify(first) === JSON.stringify(second);
+const GENERATED_GLOBAL_TOKEN_IDS = Object.freeze([
+  'canvas', 'recessed', 'panel', 'elevated', 'overlay',
+  'textStrong', 'textPrimary', 'textSoft', 'textMuted', 'textFaint',
+  'primary', 'secondary', 'tertiary', 'accentSoft',
+  'success', 'warning', 'danger', 'border', 'borderStrong',
+  'glowColor', 'glowStrength', 'panelRadius', 'controlRadius',
+]);
+
+function cssColorToHex(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
+  if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
+    return `#${trimmed.slice(1).split('').map((character) => character + character).join('')}`;
+  }
+  const match = trimmed.match(/^rgba?\(\s*([\d.]+)(?:\s*,\s*|\s+)([\d.]+)(?:\s*,\s*|\s+)([\d.]+)(?:\s*[,/]\s*([\d.]+))?/i);
+  if (!match) return null;
+  if (match[4] != null && Number(match[4]) === 0) return null;
+  return `#${match.slice(1, 4).map((part) => (
+    Math.min(255, Math.max(0, Math.round(Number(part)))).toString(16).padStart(2, '0')
+  )).join('')}`;
+}
+
+function backgroundColors(structured, fallback) {
+  if (structured?.kind === 'solid') return [cssColorToHex(structured.color)].filter(Boolean);
+  if (structured?.kind === 'linear-gradient') return structured.stops.map((stop) => cssColorToHex(stop.color)).filter(Boolean);
+  return [cssColorToHex(fallback)].filter(Boolean);
+}
 
 function uniqueName(base, themes) {
   const names = new Set(themes.map((theme) => (theme.name || theme.label || '').toLowerCase()));
@@ -70,6 +98,7 @@ export function ThemeProvider({ children }) {
   const hoverRef = useRef(null);
   const lastMutationRef = useRef({ key: null, at: 0 });
   const savedDraftRef = useRef(null);
+  const draftOriginRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState('default');
   const [library, setLibrary] = useState(EMPTY_THEME_LIBRARY);
@@ -166,12 +195,19 @@ export function ThemeProvider({ children }) {
       setPickerHighlight(hoverRef.current);
       setPickerHint(target ? { label: target.label, x: event.clientX, y: event.clientY } : null);
     };
-    const handleClick = (event) => {
-      const target = registeredTargetFromElement(event.target);
-      if (!target) return;
+    const interceptPress = (event) => {
+      if (event.target?.closest?.('[data-theme-studio]')) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation?.();
+    };
+    const handleClick = (event) => {
+      if (event.target?.closest?.('[data-theme-studio]')) return;
+      const target = registeredTargetFromElement(event.target);
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      if (!target) return;
       clearPickerHighlight(hoverRef.current);
       hoverRef.current = null;
       setPickerHint(null);
@@ -191,10 +227,14 @@ export function ThemeProvider({ children }) {
       setPickerActive(false);
     };
     window.addEventListener('pointermove', handlePointerMove, true);
+    window.addEventListener('pointerdown', interceptPress, true);
+    window.addEventListener('mousedown', interceptPress, true);
     window.addEventListener('click', handleClick, true);
     window.addEventListener('keydown', handleKey, true);
     return () => {
       window.removeEventListener('pointermove', handlePointerMove, true);
+      window.removeEventListener('pointerdown', interceptPress, true);
+      window.removeEventListener('mousedown', interceptPress, true);
       window.removeEventListener('click', handleClick, true);
       window.removeEventListener('keydown', handleKey, true);
       document.documentElement.classList.remove('theme-picker-active');
@@ -219,9 +259,14 @@ export function ThemeProvider({ children }) {
     setActiveThemeId(themeId);
     setDraftTheme(null);
     savedDraftRef.current = null;
+    draftOriginRef.current = null;
     setHistory({ past: [], future: [] });
     applyPreview(resolved);
-    await persistActiveId(themeId);
+    try {
+      await persistActiveId(themeId);
+    } catch (error) {
+      setWarning(`“${resolved.name || resolved.label}” is previewed, but the selection could not be saved: ${error.message}`);
+    }
     return true;
   }, [applyPreview, library.themes, persistActiveId]);
 
@@ -245,6 +290,7 @@ export function ThemeProvider({ children }) {
     if (draftTheme) return draftTheme;
     const next = documentForEditing();
     savedDraftRef.current = activeTheme?.variables ? clone(activeTheme) : clone(next);
+    draftOriginRef.current = activeTheme?.variables ? 'saved' : 'built-in';
     setDraftTheme(next);
     return next;
   }, [activeTheme, documentForEditing, draftTheme]);
@@ -255,6 +301,7 @@ export function ThemeProvider({ children }) {
       if (!current) {
         current = documentForEditing();
         savedDraftRef.current = activeTheme?.variables ? clone(activeTheme) : clone(current);
+        draftOriginRef.current = activeTheme?.variables ? 'saved' : 'built-in';
       }
       const before = clone(current);
       const next = mutation(clone(current));
@@ -276,11 +323,17 @@ export function ThemeProvider({ children }) {
     const generated = generateTheme(settings);
     mutateDraft((draft) => {
       const variables = { ...draft.variables };
-      Object.entries(generated.globals).forEach(([tokenId, value]) => {
-        if (value === undefined || !GLOBAL_TOKEN_REGISTRY[tokenId]) return;
+      GENERATED_GLOBAL_TOKEN_IDS.forEach((tokenId) => {
+        const token = GLOBAL_TOKEN_REGISTRY[tokenId];
+        if (!token) return;
+        const value = generated.globals[tokenId];
+        if (value === undefined) {
+          token.variables.forEach((variable) => delete variables[variable]);
+          return;
+        }
         Object.assign(variables, valuesForGlobalToken(tokenId, value));
       });
-      return { ...draft, mode: settings.mode, generator: clone(settings), variables };
+      return { ...draft, mode: generated.settings.mode, generator: clone(generated.settings), variables };
     }, `generator:${settings.seed}`);
     return generated;
   }, [mutateDraft]);
@@ -354,6 +407,7 @@ export function ThemeProvider({ children }) {
     setActiveThemeId(validated.id);
     setDraftTheme(clone(validated));
     savedDraftRef.current = clone(validated);
+    draftOriginRef.current = 'saved';
     setHistory({ past: [], future: [] });
     applyPreview(validated);
     return validated;
@@ -375,8 +429,13 @@ export function ThemeProvider({ children }) {
 
   const revert = useCallback(() => {
     if (!draftTheme) return;
-    if (savedDraftRef.current) setDraftTheme(clone(savedDraftRef.current));
-    else setDraftTheme(null);
+    if (draftOriginRef.current === 'saved' && savedDraftRef.current) {
+      setDraftTheme(clone(savedDraftRef.current));
+    } else {
+      setDraftTheme(null);
+      savedDraftRef.current = null;
+      draftOriginRef.current = null;
+    }
     setHistory({ past: [], future: [] });
     lastMutationRef.current = { key: null, at: 0 };
   }, [draftTheme]);
@@ -384,6 +443,7 @@ export function ThemeProvider({ children }) {
   const discardDraft = useCallback(() => {
     setDraftTheme(null);
     savedDraftRef.current = null;
+    draftOriginRef.current = null;
     setHistory({ past: [], future: [] });
     applyPreview(activeTheme);
   }, [activeTheme, applyPreview]);
@@ -395,7 +455,13 @@ export function ThemeProvider({ children }) {
       setPendingChange(null);
       return;
     }
-    if (choice === 'save') await save();
+    if (choice === 'save') {
+      try { await save(); }
+      catch (error) {
+        setWarning(`Theme changes could not be saved: ${error.message}`);
+        return;
+      }
+    }
     if (choice === 'discard') discardDraft();
     setPendingChange(null);
     if (pending.type === 'theme') await performThemeSelection(pending.themeId);
@@ -425,6 +491,7 @@ export function ThemeProvider({ children }) {
     };
     setDraftTheme(imported);
     savedDraftRef.current = null;
+    draftOriginRef.current = 'unsaved';
     setHistory({ past: [], future: [] });
     applyPreview(imported);
     return imported;
@@ -453,6 +520,7 @@ export function ThemeProvider({ children }) {
     const next = { ...document, id: uniqueId(`${themeId}-copy`, library.themes), name, createdAt: Date.now(), updatedAt: Date.now() };
     setDraftTheme(next);
     savedDraftRef.current = null;
+    draftOriginRef.current = 'unsaved';
     setHistory({ past: [], future: [] });
     applyPreview(next);
     return next;
@@ -461,9 +529,10 @@ export function ThemeProvider({ children }) {
   const renameTheme = useCallback(async (themeId, name) => {
     const target = library.themes.find((theme) => theme.id === themeId);
     if (!target) throw new Error('Built-in themes cannot be renamed.');
-    const next = { ...target, name: uniqueName(String(name).trim().slice(0, 80), library.themes.filter((theme) => theme.id !== themeId)), updatedAt: Date.now() };
+    const source = draftTheme?.id === themeId ? draftTheme : target;
+    const next = { ...source, name: uniqueName(String(name).trim().slice(0, 80), library.themes.filter((theme) => theme.id !== themeId)), updatedAt: Date.now() };
     return saveDocument(next);
-  }, [library.themes, saveDocument]);
+  }, [draftTheme, library.themes, saveDocument]);
 
   const deleteTheme = useCallback(async (themeId) => {
     const target = library.themes.find((theme) => theme.id === themeId);
@@ -497,14 +566,32 @@ export function ThemeProvider({ children }) {
 
   const contrastWarnings = useMemo(() => {
     if (!ready) return [];
-    const canvas = getGlobalTokenValue('canvas');
-    const text = getGlobalTokenValue('textPrimary');
-    const border = getGlobalTokenValue('borderStrong');
+    const canvas = cssColorToHex(getGlobalTokenValue('canvas'));
+    const text = cssColorToHex(getGlobalTokenValue('textPrimary'));
+    const border = cssColorToHex(getGlobalTokenValue('borderStrong'));
     const warnings = [];
-    if (/^#[0-9a-f]{6}$/i.test(canvas) && /^#[0-9a-f]{6}$/i.test(text) && contrastRatio(text, canvas) < 4.5) warnings.push('Primary text is below 4.5:1 against the canvas.');
-    if (/^#[0-9a-f]{6}$/i.test(canvas) && /^#[0-9a-f]{6}$/i.test(border) && contrastRatio(border, canvas) < 3) warnings.push('Strong borders are below 3:1 against the canvas.');
+    if (canvas && text && contrastRatio(text, canvas) < 4.5) warnings.push('Primary text is below 4.5:1 against the canvas.');
+    if (canvas && border && contrastRatio(border, canvas) < 3) warnings.push('Strong borders are below 3:1 against the canvas.');
+
+    (previewTheme?.overrides || []).forEach((override) => {
+      let computed = null;
+      try {
+        const element = document.querySelector(selectorForOverride(override));
+        if (element) computed = getComputedStyle(element);
+      } catch { /* The schema already rejects invalid target identifiers. */ }
+      const foreground = cssColorToHex(override.styles.color?.value) || cssColorToHex(computed?.color);
+      const backgrounds = backgroundColors(override.styles.background, computed?.backgroundColor);
+      const targetLabel = TARGET_REGISTRY[override.targetId]?.label || override.targetId;
+      if (foreground && backgrounds.some((background) => contrastRatio(foreground, background) < 4.5)) {
+        warnings.push(`${targetLabel} text is below 4.5:1 against its edited background.`);
+      }
+      const editedBorder = cssColorToHex(override.styles.borderColor?.value);
+      if (editedBorder && backgrounds.some((background) => contrastRatio(editedBorder, background) < 3)) {
+        warnings.push(`${targetLabel} border is below 3:1 against its edited background.`);
+      }
+    });
     return warnings;
-  }, [draftTheme, getGlobalTokenValue, ready]);
+  }, [getGlobalTokenValue, previewTheme, ready]);
 
   const value = useMemo(() => ({
     ready, activeTheme, activeThemeId, draftTheme, builtInThemes: BUILT_IN_THEMES, customThemes,
