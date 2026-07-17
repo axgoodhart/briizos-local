@@ -665,6 +665,93 @@ const tools = {
     },
   },
 
+  scheduleTask: {
+    requiresConfirmation: true,
+    description: 'Place an existing task on the Calendar without copying it',
+    parameters: {
+      task_id: { type: 'string', description: 'Tasks Panel task ID' },
+      date: { type: 'string', description: 'Occurrence date in YYYY-MM-DD' },
+      start_minute: { type: 'number', description: 'Minutes after midnight, 0-1439' },
+      duration_minutes: { type: 'number', description: 'Session length in minutes' },
+      recurrence: { type: 'string', description: 'daily, weekly, monthly, or none', optional: true },
+    },
+    handler: async (params) => {
+      const task = await localData().tasks.get(params.task_id);
+      if (!task) throw new Error(`Task "${params.task_id}" not found`);
+      const recurrenceType = params.recurrence && params.recurrence !== 'none' ? params.recurrence : null;
+      const result = await localData().placements.create({
+        refType: 'task',
+        refId: task.id,
+        date: params.date,
+        startMinute: params.start_minute,
+        durationMinutes: params.duration_minutes,
+        recurrence: recurrenceType
+          ? { enabled: true, type: recurrenceType, interval: 1, anchorDate: params.date }
+          : null,
+      });
+      logger.info('agent.planner', 'Task scheduled by confirmed agent action', {
+        taskId: task.id,
+        placementId: result.row?.id,
+        date: params.date,
+      });
+      return {
+        success: true,
+        message: `Scheduled "${task.title}" on ${params.date}.`,
+        placementId: result.row?.id,
+      };
+    },
+  },
+
+  unschedulePlacement: {
+    requiresConfirmation: true,
+    description: 'Remove one task placement from the Calendar without changing the task',
+    parameters: { placement_id: { type: 'string', description: 'Placement ID' } },
+    handler: async (params) => {
+      const placement = (await localData().placements.list({ id: params.placement_id, limit: 1 }))?.[0];
+      if (!placement) throw new Error(`Placement "${params.placement_id}" not found`);
+      await localData().placements.archive(placement.id, placement.revision);
+      logger.info('agent.planner', 'Task unscheduled by confirmed agent action', {
+        placementId: placement.id,
+        taskId: placement.ref_id,
+      });
+      return { success: true, message: `Unscheduled "${placement.task?.title || 'task'}".` };
+    },
+  },
+
+  completePlacement: {
+    requiresConfirmation: true,
+    description: 'Mark one scheduled task session complete without completing the whole task',
+    parameters: {
+      placement_id: { type: 'string', description: 'Placement ID' },
+      occurrence_date: { type: 'string', description: 'Occurrence date in YYYY-MM-DD' },
+      completed: { type: 'boolean', description: 'True to complete; false to reopen', optional: true },
+    },
+    handler: async (params) => {
+      const placement = (await localData().placements.list({
+        id: params.placement_id,
+        date: params.occurrence_date,
+        limit: 1,
+      }))?.[0];
+      if (!placement) throw new Error(`Placement occurrence "${params.placement_id}" not found`);
+      const completed = params.completed !== false;
+      await localData().placements.complete(
+        placement.id,
+        placement.revision,
+        params.occurrence_date,
+        completed,
+      );
+      logger.info('agent.planner', 'Task session completion changed by confirmed agent action', {
+        placementId: placement.id,
+        occurrenceDate: params.occurrence_date,
+        completed,
+      });
+      return {
+        success: true,
+        message: `${completed ? 'Completed' : 'Reopened'} the ${params.occurrence_date} session for "${placement.task?.title || 'task'}".`,
+      };
+    },
+  },
+
   createSingleCalendarEvent: {
     requiresConfirmation: true,
     description: 'Create a one-time calendar event',

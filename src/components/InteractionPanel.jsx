@@ -92,6 +92,7 @@ const CHAT_BACKGROUNDS = [
 const MODALITIES = [
 
   { id: 'prioritize', label: 'Prioritize' },
+  { id: 'planner', label: 'Day' },
   { id: 'stylofact', label: 'Stylofact' },
   { id: 'chat', label: 'Chat' },
   { id: 'research', label: 'Research' },
@@ -320,6 +321,20 @@ function InteractionPanel() {
   const textareaRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
+  useEffect(() => {
+    const openPlanner = (event) => {
+      const date = event.detail?.date;
+      setModality('planner');
+      setCollapsed(false);
+      setInputValue(date
+        ? `Help me think through ${date}. `
+        : 'Help me think through my day. ');
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    };
+    window.addEventListener('briizos-open-planner-chat', openPlanner);
+    return () => window.removeEventListener('briizos-open-planner-chat', openPlanner);
+  }, [setModality]);
+
   const loadPrioritizeCandidates = useCallback(async () => {
     setCandidateLoadState('loading');
     setCandidateLoadError('');
@@ -359,6 +374,7 @@ function InteractionPanel() {
               ? new Date(task.due_at).toISOString()
               : task.due_at,
           projectId: task.project_id || null,
+          forestProjectId: task.forest_project_id || null,
           subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
         }))
         .sort((a, b) => a.title.localeCompare(b.title));
@@ -1216,6 +1232,8 @@ function InteractionPanel() {
                 ? 'Answer the clarification...'
                 : modality === 'prioritize'
                   ? 'Describe your goals, timing, and available effort… (⌘+Enter)'
+                : modality === 'planner'
+                  ? 'Ask about your schedule or shape a day… (⌘+Enter)'
                 : filesInContext.length > 0
                   ? `Ask about ${filesInContext.length} file(s)...`
                   : "Ask anything (\u2318+Enter)"}

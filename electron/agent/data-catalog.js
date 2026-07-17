@@ -27,7 +27,7 @@ const DATA_OBJECTS = [
       'status: pending | active | deferred | completed',
       'priority: low | normal | medium | high | urgent',
       'due_at (ISO timestamp or null)',
-      'project_id (backlink to a Forest project, or null)',
+      'forest_project_id (backlink to a Forest project, or null)',
       'subtasks: [{ id, title, status, position }]',
     ],
     tools: ['briizos_list_tasks', 'briizos_get_task'],
@@ -43,6 +43,18 @@ const DATA_OBJECTS = [
       'optional scoring fields when set: deadline (YYYY-MM-DD), importance (1-10), size (hours), relevance',
     ],
     tools: ['briizos_list_projects', 'briizos_get_project'],
+  },
+  {
+    key: 'placements',
+    title: 'Scheduled task sessions',
+    description: 'Thin Calendar appearances of Tasks Panel tasks. The task value is joined live; recurring rows expand into occurrences at query time.',
+    fields: [
+      'id, ref_id (task id), occurrence_date',
+      'start_minute, duration_minutes, recurrence',
+      'session_completed (this occurrence happened)',
+      'task: live task title, status, priority, project backlink',
+    ],
+    tools: ['briizos_list_placements', 'briizos_get_schedule'],
   },
   {
     key: 'organizer_events',
@@ -76,9 +88,9 @@ const DATA_OBJECTS = [
 // this map fall back to the full 'chat' slice; modes mapped to [] get no
 // data section at all (research/code/report stay lean on tokens).
 const MODALITY_SLICES = {
-  chat: ['tasks', 'forest_projects', 'organizer_events', 'organizer_notes', 'timers'],
-  plan: ['tasks', 'forest_projects', 'organizer_events', 'organizer_notes', 'timers'],
-  planner: ['organizer_events', 'tasks', 'forest_projects'],
+  chat: ['tasks', 'forest_projects', 'organizer_events', 'placements', 'organizer_notes', 'timers'],
+  plan: ['tasks', 'forest_projects', 'organizer_events', 'placements', 'organizer_notes', 'timers'],
+  planner: ['organizer_events', 'placements', 'tasks', 'forest_projects'],
   prioritize: ['forest_projects', 'tasks'],
   research: [],
   code: [],

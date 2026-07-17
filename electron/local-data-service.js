@@ -1006,7 +1006,7 @@ class LocalDataService extends EventEmitter {
 
   listPlacements(input = {}) {
     this._assertReady();
-    v.object(input, 'placement filters', ['date', 'dateFrom', 'dateTo', 'refId', 'includeDeleted', 'limit']);
+    v.object(input, 'placement filters', ['id', 'date', 'dateFrom', 'dateTo', 'refId', 'includeDeleted', 'limit']);
     const includeDeleted = input.includeDeleted === undefined
       ? false
       : v.boolean(input.includeDeleted, 'includeDeleted');
@@ -1023,6 +1023,10 @@ class LocalDataService extends EventEmitter {
     const clauses = [];
     const params = [];
     if (!includeDeleted) clauses.push('p.deleted_at IS NULL');
+    if (input.id !== undefined) {
+      clauses.push('p.id = ?');
+      params.push(v.identifier(input.id, 'id'));
+    }
     if (input.refId !== undefined) {
       clauses.push('p.ref_id = ?');
       params.push(v.identifier(input.refId, 'refId'));
@@ -1055,6 +1059,53 @@ class LocalDataService extends EventEmitter {
       }
     }
     return occurrences.sort((a, b) => (
+      a.occurrence_date.localeCompare(b.occurrence_date)
+      || a.start_minute - b.start_minute
+      || a.id.localeCompare(b.id)
+    ));
+  }
+
+  listSchedule(input = {}) {
+    v.object(input, 'schedule filters', ['dateFrom', 'dateTo']);
+    const dateFrom = this._normalizeDate(input.dateFrom, 'dateFrom');
+    const dateTo = this._normalizeDate(input.dateTo, 'dateTo');
+    if (dateFrom > dateTo) v.fail('INVALID_INPUT', 'dateFrom must be on or before dateTo');
+    if (this._daysBetween(dateFrom, dateTo) > 366) v.fail('INVALID_INPUT', 'Schedule queries are limited to 366 days');
+
+    const dates = this._datesBetween(dateFrom, dateTo);
+    const events = this.listOrganizerItems({ type: 'event', limit: 5000 }).flatMap((event) => {
+      const anchorDate = event.scheduled_start_at == null
+        ? null
+        : this._localDateFromTimestamp(event.scheduled_start_at);
+      if (!anchorDate) return [];
+      return dates.filter((date) => this._placementOccursOnDate(anchorDate, event.recurrence, date))
+        .map((occurrenceDate) => {
+          const startDate = new Date(event.scheduled_start_at);
+          const endDate = event.scheduled_end_at == null ? null : new Date(event.scheduled_end_at);
+          const startMinute = startDate.getHours() * 60 + startDate.getMinutes();
+          const durationMinutes = event.duration_seconds != null
+            ? Math.max(1, Math.round(event.duration_seconds / 60))
+            : endDate
+              ? Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 60000))
+              : 60;
+          return {
+            kind: 'event',
+            id: event.id,
+            occurrence_date: occurrenceDate,
+            title: event.title,
+            status: event.status,
+            start_minute: startMinute,
+            duration_minutes: durationMinutes,
+            recurrence: event.recurrence,
+            tags: event.tags || [],
+          };
+        });
+    });
+    const placements = this.listPlacements({ dateFrom, dateTo, limit: 5000 }).map((placement) => ({
+      kind: 'task',
+      ...placement,
+    }));
+    return [...events, ...placements].sort((a, b) => (
       a.occurrence_date.localeCompare(b.occurrence_date)
       || a.start_minute - b.start_minute
       || a.id.localeCompare(b.id)
@@ -1100,12 +1151,12 @@ class LocalDataService extends EventEmitter {
       recurrence: ['recurrence_json', (value) => value == null ? null : this._stringifyRecurrence(value)],
     };
     return this._updateRow('placements', 'placements', placementId, expectedRevision, patch, columnMap, [], null,
-      (rowId) => this.listPlacements({ includeDeleted: true }).find((item) => item.id === rowId));
+      (rowId) => this.listPlacements({ id: rowId, includeDeleted: true })[0]);
   }
 
   archivePlacement(placementId, expectedRevision) {
     return this._archiveRow('placements', 'placements', placementId, expectedRevision, [],
-      (rowId) => this.listPlacements({ includeDeleted: true }).find((item) => item.id === rowId));
+      (rowId) => this.listPlacements({ id: rowId, includeDeleted: true })[0]);
   }
 
   setPlacementOccurrenceCompleted(placementId, expectedRevision, occurrenceDate, completed = true) {
@@ -1128,8 +1179,7 @@ class LocalDataService extends EventEmitter {
         UPDATE placements SET completed_dates_json = ?, updated_at = ?, revision = revision + 1 WHERE id = ?
       `).run(JSON.stringify(completedDates), timestamp, placementId);
       return {
-        row: this.listPlacements({ refId: current.ref_id, includeDeleted: true })
-          .find((item) => item.id === placementId),
+        row: this.listPlacements({ id: placementId, includeDeleted: true })[0],
         occurrenceDate,
         completed,
       };
@@ -3417,6 +3467,15 @@ class LocalDataService extends EventEmitter {
 
   _dateFromOrdinal(ordinal) {
     return new Date(ordinal * 86400000).toISOString().slice(0, 10);
+  }
+
+  _localDateFromTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
   }
 
   _daysBetween(from, to) {

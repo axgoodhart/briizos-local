@@ -54,6 +54,9 @@ const DESTRUCTIVE_TOOLS = new Set([
   'briizos_create_event',
   'briizos_update_event',
   'briizos_update_project_scoring',
+  'briizos_schedule_task',
+  'briizos_unschedule',
+  'briizos_complete_placement',
 ]);
 
 const DESTRUCTIVE_VERBS = new Set([
@@ -368,12 +371,34 @@ const briizos_update_project_scoring = makeBridgeTool({
   ),
 });
 
-const briizos_get_schedule = makeBridgeTool({
-  name: 'briizos_get_schedule',
-  description: "Schedule summary. time_range ∈ {'today','tomorrow','this week','next week','all'}.",
-  registryName: 'getScheduleSummary',
+const briizos_schedule_task = makeBridgeTool({
+  name: 'briizos_schedule_task',
+  description: 'Schedule an existing task by creating a Calendar placement. This persistent write requires confirmation and never copies the task.',
+  registryName: 'scheduleTask',
   schema: z.object({
-    time_range: z.enum(['today', 'tomorrow', 'this week', 'next week', 'all']).optional().default('today'),
+    task_id: z.string(),
+    date: z.string(),
+    start_minute: z.number().int().min(0).max(1439),
+    duration_minutes: z.number().int().min(1).max(1440),
+    recurrence: z.enum(['none', 'daily', 'weekly', 'monthly']).optional().default('none'),
+  }),
+});
+
+const briizos_unschedule = makeBridgeTool({
+  name: 'briizos_unschedule',
+  description: 'Archive one Calendar placement without changing its task. This persistent write requires confirmation.',
+  registryName: 'unschedulePlacement',
+  schema: z.object({ placement_id: z.string() }),
+});
+
+const briizos_complete_placement = makeBridgeTool({
+  name: 'briizos_complete_placement',
+  description: 'Complete or reopen one dated task session without changing the whole task. This persistent write requires confirmation.',
+  registryName: 'completePlacement',
+  schema: z.object({
+    placement_id: z.string(),
+    occurrence_date: z.string(),
+    completed: z.boolean().optional().default(true),
   }),
 });
 
@@ -397,6 +422,29 @@ function dayBoundsMs(dateStr, endOfDay = false) {
   return endOfDay ? parsed.getTime() + 24 * 60 * 60 * 1000 : parsed.getTime();
 }
 
+function localDateYmd(date = new Date()) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function shiftedDateYmd(dayOffset) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + dayOffset);
+  return localDateYmd(date);
+}
+
+function scheduleRange(timeRange) {
+  if (timeRange === 'tomorrow') return { dateFrom: shiftedDateYmd(1), dateTo: shiftedDateYmd(1) };
+  if (timeRange === 'this week') return { dateFrom: shiftedDateYmd(0), dateTo: shiftedDateYmd(6) };
+  if (timeRange === 'next week') return { dateFrom: shiftedDateYmd(7), dateTo: shiftedDateYmd(13) };
+  if (timeRange === 'all') return { dateFrom: shiftedDateYmd(0), dateTo: shiftedDateYmd(365) };
+  return { dateFrom: shiftedDateYmd(0), dateTo: shiftedDateYmd(0) };
+}
+
 function compactTask(task, { includeLog = false } = {}) {
   const subtasks = (task.subtasks || []).map((step) => ({
     id: step.id,
@@ -412,6 +460,7 @@ function compactTask(task, { includeLog = false } = {}) {
     priority: task.priority,
     due_at: isoOrNull(task.due_at),
     project_id: task.project_id || null,
+    forest_project_id: task.forest_project_id || null,
     subtasks,
   };
   if (includeLog) {
@@ -483,12 +532,14 @@ const briizos_list_tasks = makeDataReadTool({
     status: z.enum(['pending', 'active', 'deferred', 'completed']).optional(),
     priority: z.enum(['low', 'normal', 'medium', 'high', 'urgent']).optional(),
     project_id: z.string().optional(),
+    forest_project_id: z.string().optional(),
     limit: z.number().int().min(1).max(200).optional().default(50),
   }),
   run: (input) => {
     const filters = { limit: input.limit || 50 };
     if (input.status) filters.status = input.status;
     if (input.project_id) filters.projectId = input.project_id;
+    if (input.forest_project_id) filters.forestProjectId = input.forest_project_id;
     let tasks = localDataService.listTasksDetailed(filters);
     if (input.priority) tasks = tasks.filter((task) => task.priority === input.priority);
     const payload = tasks.map((task) => compactTask(task));
@@ -567,6 +618,42 @@ const briizos_query_organizer = makeDataReadTool({
       recurrence: item.recurrence || null,
       tags: item.tags || [],
     }));
+    return { rows: payload.length, payload };
+  },
+});
+
+const briizos_list_placements = makeDataReadTool({
+  name: 'briizos_list_placements',
+  description: 'List scheduled task appearances, joined live to their tasks and expanded into dated occurrences. Session completion and whole-task completion are separate fields.',
+  schema: z.object({
+    date_from: z.string().optional(),
+    date_to: z.string().optional(),
+    ref_id: z.string().optional(),
+    limit: z.number().int().min(1).max(500).optional().default(100),
+  }),
+  run: (input) => {
+    const defaultDate = localDateYmd();
+    const dateFrom = input.date_from || input.date_to || defaultDate;
+    const dateTo = input.date_to || input.date_from || defaultDate;
+    const placements = localDataService.listPlacements({
+      dateFrom,
+      dateTo,
+      refId: input.ref_id,
+      limit: 5000,
+    }).slice(0, input.limit || 100);
+    return { rows: placements.length, payload: placements };
+  },
+});
+
+const briizos_get_schedule = makeDataReadTool({
+  name: 'briizos_get_schedule',
+  description: "Get the union schedule of standalone events and task placements. time_range is today, tomorrow, this week, next week, or all (the next year).",
+  schema: z.object({
+    time_range: z.enum(['today', 'tomorrow', 'this week', 'next week', 'all']).optional().default('today'),
+  }),
+  run: (input) => {
+    const range = scheduleRange(input.time_range || 'today');
+    const payload = localDataService.listSchedule(range);
     return { rows: payload.length, payload };
   },
 });
@@ -1021,12 +1108,16 @@ const BASE_TOOLS = [
   briizos_create_event,
   briizos_update_event,
   briizos_update_project_scoring,
+  briizos_schedule_task,
+  briizos_unschedule,
+  briizos_complete_placement,
   briizos_get_schedule,
   briizos_list_tasks,
   briizos_get_task,
   briizos_list_projects,
   briizos_get_project,
   briizos_query_organizer,
+  briizos_list_placements,
   ls,
   read_file,
   write_file,

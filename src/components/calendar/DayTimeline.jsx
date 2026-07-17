@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useEffect, useMemo, useRef, useState } from 'react';
+import logger from '../../lib/logger';
 import './DayTimeline.css';
 
 const HOUR_HEIGHT = 56;
@@ -108,16 +109,18 @@ function TimelinePopover({ entry, dateStr, onClose, onUpdateOrganizer, onRemoveO
   const [time, setTime] = useState(minutesToInput(entry.startMinute));
   const [duration, setDuration] = useState(entry.durationMinutes);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const save = async () => {
     setSaving(true);
+    setError(null);
     try {
       const startMinute = inputToMinutes(time);
       const durationMinutes = Math.max(1, Math.min(1440, Number(duration) || 60));
       if (entry.kind === 'placement') {
         await onUpdatePlacement(entry.source, { date: dateStr, startMinute, durationMinutes });
       } else {
-        await onUpdateOrganizer(entry.source, {
+        await onUpdateOrganizer(entry.source.id, {
           name: title.trim() || entry.title,
           scheduledDate: dateStr,
           start: startMinute,
@@ -125,7 +128,15 @@ function TimelinePopover({ entry, dateStr, onClose, onUpdateOrganizer, onRemoveO
           end: startMinute + durationMinutes,
         });
       }
+      logger.info('calendar', entry.kind === 'placement' ? 'Task session edited' : 'Calendar event edited', {
+        id: entry.source.id,
+        date: dateStr,
+        startMinute,
+        durationMinutes,
+      });
       onClose();
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not save this block');
     } finally {
       setSaving(false);
     }
@@ -133,10 +144,17 @@ function TimelinePopover({ entry, dateStr, onClose, onUpdateOrganizer, onRemoveO
 
   const remove = async () => {
     setSaving(true);
+    setError(null);
     try {
       if (entry.kind === 'placement') await onArchivePlacement(entry.source);
       else await onRemoveOrganizer(entry.source.id);
+      logger.info('calendar', entry.kind === 'placement' ? 'Task session unscheduled' : 'Calendar event deleted', {
+        id: entry.source.id,
+        date: dateStr,
+      });
       onClose();
+    } catch (removeError) {
+      setError(removeError?.message || 'Could not remove this block');
     } finally {
       setSaving(false);
     }
@@ -178,6 +196,7 @@ function TimelinePopover({ entry, dateStr, onClose, onUpdateOrganizer, onRemoveO
         </button>
         <button type="button" className="primary" onClick={save} disabled={saving}>Save</button>
       </div>
+      {error && <div className="day-timeline-popover-error">{error}</div>}
       {entry.kind === 'placement' && !entry.taskCompleted && (
         <button
           type="button"
@@ -203,7 +222,7 @@ function TimelinePopover({ entry, dateStr, onClose, onUpdateOrganizer, onRemoveO
   );
 }
 
-export default function DayTimeline({
+function DayTimeline({
   dateStr,
   items,
   placements,
@@ -267,23 +286,36 @@ export default function DayTimeline({
                 style={{
                   top: `${top}px`,
                   height: `${height}px`,
-                  left: `calc(${entry.lane * width}% + 54px)`,
-                  width: `calc(${width}% - 58px)`,
+                  left: `calc(${entry.lane * width}% + ${54 - (58 * entry.lane / entry.laneCount)}px)`,
+                  width: `calc(${width}% - ${58 / entry.laneCount}px)`,
                 }}
                 onClick={() => entry.kind !== 'proposal' && setActiveKey(entry.key)}
+                role={entry.kind === 'proposal' ? undefined : 'button'}
+                tabIndex={entry.kind === 'proposal' ? undefined : 0}
+                onKeyDown={(event) => {
+                  if (entry.kind !== 'proposal' && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    setActiveKey(entry.key);
+                  }
+                }}
               >
                 {entry.kind !== 'proposal' && (
                   <button
                     type="button"
                     className="day-timeline-check"
                     aria-label={entry.completed ? 'Reopen session' : 'Complete session'}
-                    onClick={(event) => {
+                    onClick={async (event) => {
                       event.stopPropagation();
                       if (entry.kind === 'placement') {
-                        onCompletePlacement(entry.source, dateStr, !entry.completed);
+                        await onCompletePlacement(entry.source, dateStr, !entry.completed);
                       } else {
-                        onToggleOrganizer(entry.source.id);
+                        await onToggleOrganizer(entry.source.id);
                       }
+                      logger.info('calendar', entry.completed ? 'Calendar block reopened' : 'Calendar block completed', {
+                        kind: entry.kind,
+                        id: entry.source.id,
+                        date: dateStr,
+                      });
                     }}
                   >
                     {entry.completed ? '✓' : ''}
@@ -329,5 +361,45 @@ export default function DayTimeline({
         />
       )}
     </div>
+  );
+}
+
+class DayTimelineErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    logger.error('calendar', 'Day timeline could not render', { error: error?.message });
+  }
+
+  componentDidUpdate(previousProps) {
+    if (this.state.failed && previousProps.dateStr !== this.props.dateStr) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="day-timeline-fallback">
+          The day timeline could not render. Choose another day and return to retry.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function SafeDayTimeline(props) {
+  return (
+    <DayTimelineErrorBoundary dateStr={props.dateStr}>
+      <DayTimeline {...props} />
+    </DayTimelineErrorBoundary>
   );
 }

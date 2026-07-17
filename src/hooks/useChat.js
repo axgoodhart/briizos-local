@@ -34,6 +34,7 @@ const hasApi = typeof window !== 'undefined' && !!window.api;
 const MODALITY_SKILL_MAP = {
   chat: null,
   prioritize: 'prioritizer',
+  planner: 'day-planner',
   research: 'deep-research',
   code: 'frontend-design',
   report: 'consulting-analysis',
@@ -79,7 +80,7 @@ function buildFileContextAddendum(files = []) {
 }
 
 function threadKindForModality(modality) {
-  return modality === 'prioritize' ? 'prioritize' : 'chat';
+  return ['prioritize', 'planner'].includes(modality) ? modality : 'chat';
 }
 
 function candidateForPrompt(candidate) {
@@ -105,6 +106,7 @@ function candidateForPrompt(candidate) {
     priority: candidate?.priority || 'normal',
     due_at: candidate?.dueAt || candidate?.due_at || null,
     project_id: candidate?.projectId || candidate?.project_id || null,
+    forest_project_id: candidate?.forestProjectId || candidate?.forest_project_id || null,
     subtasks: Array.isArray(candidate?.subtasks)
       ? candidate.subtasks.map((step) => ({ title: step.title, status: step.status }))
       : [],
@@ -557,6 +559,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
 
     setSuggestions([]);
     const isPrioritizeTurn = modalityRef.current === 'prioritize';
+    const isPlannerTurn = modalityRef.current === 'planner';
     const selectedCandidates = Array.isArray(prioritizeCandidates) ? prioritizeCandidates : [];
     const pendingClarificationAnswer = pendingClarificationRef.current;
     const activeThreadId = pendingClarificationAnswer ? threadIdRef.current : await ensureThread();
@@ -621,7 +624,6 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       if (isPrioritizeTurn) {
         actualMessage += buildPrioritizeAddendum(selectedCandidates);
       }
-
       const threadId = activeThreadId;
 
       // Reset per-turn accumulators.
@@ -646,6 +648,9 @@ export function useChat({ selectedModel, requestSettings } = {}) {
           candidateCount: selectedCandidates.length,
           model: agentConfig.model,
         });
+      }
+      if (isPlannerTurn) {
+        logger.info('agent.planner', 'Planner chat turn started', { threadId, model: agentConfig.model });
       }
       logger.info('chat', 'Dispatching message to agent', {
         threadId, isRemote, modality: modalityRef.current, model: agentConfig.model,
@@ -682,10 +687,19 @@ export function useChat({ selectedModel, requestSettings } = {}) {
           responseChars: content?.length || 0,
         });
       }
+      if (isPlannerTurn) {
+        logger.info('agent.planner', 'Planner chat turn finished', {
+          threadId,
+          responseChars: content?.length || 0,
+        });
+      }
     } catch (error) {
       logger.error('chat', 'Agent turn failed', { error: error?.message });
       if (isPrioritizeTurn) {
         logger.error('agent.prioritize', 'Prioritization failed', { error: error?.message });
+      }
+      if (isPlannerTurn) {
+        logger.error('agent.planner', 'Planner chat turn failed', { error: error?.message });
       }
       if (threadIdRef.current) {
         await api.localData.threads.messages.append(threadIdRef.current, {

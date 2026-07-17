@@ -50,30 +50,41 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
   }, [dateStr]);
 
   const acceptProposal = useCallback(async (proposal) => {
-    if (proposal.kind === 'task') {
-      await createPlacement({
-        refType: 'task',
-        refId: proposal.taskId,
+    setError(null);
+    try {
+      if (proposal.kind === 'task') {
+        await createPlacement({
+          refType: 'task',
+          refId: proposal.taskId,
+          date: dateStr,
+          startMinute: proposal.startMinute,
+          durationMinutes: proposal.durationMinutes,
+        });
+      } else {
+        await addItem({
+          type: 'event',
+          name: proposal.title,
+          scheduledDate: dateStr,
+          start: proposal.startMinute,
+          duration: proposal.durationMinutes,
+          end: proposal.startMinute + proposal.durationMinutes,
+        });
+      }
+      setProposals((current) => current.filter((candidate) => candidate.id !== proposal.id));
+      logger.info('agent.planner', 'Day proposal accepted', {
+        proposalId: proposal.id,
+        kind: proposal.kind,
         date: dateStr,
-        startMinute: proposal.startMinute,
-        durationMinutes: proposal.durationMinutes,
       });
-    } else {
-      await addItem({
-        type: 'event',
-        name: proposal.title,
-        scheduledDate: dateStr,
-        start: proposal.startMinute,
-        duration: proposal.durationMinutes,
-        end: proposal.startMinute + proposal.durationMinutes,
+      return true;
+    } catch (acceptError) {
+      setError(acceptError?.message || 'Could not accept this proposal');
+      logger.error('agent.planner', 'Day proposal acceptance failed', {
+        proposalId: proposal.id,
+        error: acceptError?.message,
       });
+      return false;
     }
-    setProposals((current) => current.filter((candidate) => candidate.id !== proposal.id));
-    logger.info('agent.planner', 'Day proposal accepted', {
-      proposalId: proposal.id,
-      kind: proposal.kind,
-      date: dateStr,
-    });
   }, [addItem, createPlacement, dateStr]);
 
   const clearProposals = useCallback(() => {

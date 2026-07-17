@@ -117,9 +117,14 @@ function CalendarModal({ isOpen, onClose }) {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
+      if (addFromOpen) {
+        setAddFromOpen(false);
+        return;
+      }
       onClose();
       return;
     }
+    if (e.target?.closest?.('input, textarea, select')) return;
     // Arrow key navigation
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
       e.preventDefault();
@@ -397,6 +402,7 @@ function getDotColor(event) {
   if (src === 'gpt') return '#a855f7';
   if (src === 'canvas') return '#f59e0b';
   if (src === 'ical') return '#3b82f6';
+  if (src === 'task') return '#9ed765';
   if (tag === 'home') return '#4caf50';
   if (tag === 'school') return '#00e5e5';
   if (tag === 'music') return '#e040fb';
