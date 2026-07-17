@@ -57,8 +57,8 @@ export function computeFloatingShellChrome(shellRect) {
   const brMix = clamp01(tx * rightBias + ty * bottomBias);
   const blMix = clamp01(tx * leftBias + ty * bottomBias);
 
-  const outerR = 80;
-  const innerR = 24;
+  const outerR = 10;
+  const innerR = 4;
   const borderRadius = [
     lerp(innerR, outerR, tlMix),
     lerp(innerR, outerR, trMix),

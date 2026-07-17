@@ -1,0 +1,147 @@
+.add-from-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 610;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(1, 7, 11, 0.64);
+  backdrop-filter: blur(10px);
+}
+
+.add-from-picker {
+  width: min(560px, 94vw);
+  max-height: min(680px, 86vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(101, 222, 216, 0.3);
+  border-radius: 13px;
+  background: rgba(5, 18, 26, 0.98);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.62);
+  color: rgba(239, 249, 248, 0.88);
+}
+
+.add-from-head,
+.add-from-footer,
+.add-from-when {
+  display: flex;
+  align-items: center;
+}
+
+.add-from-head {
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+}
+
+.add-from-head span,
+.add-from-head strong { display: block; }
+.add-from-head span { color: #73dbd5; font-size: 13px; font-weight: 650; }
+.add-from-head strong { margin-top: 2px; color: rgba(234, 246, 245, 0.42); font-size: 9px; letter-spacing: 0.08em; }
+.add-from-head button { border: 0; background: transparent; color: rgba(241, 249, 248, 0.54); font-size: 22px; cursor: pointer; }
+
+.add-from-search {
+  margin: 0 18px 10px;
+  padding: 10px 11px;
+  border: 1px solid rgba(100, 213, 208, 0.18);
+  border-radius: 7px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(244, 251, 250, 0.9);
+  font: inherit;
+}
+
+.add-from-search:focus { border-color: rgba(100, 223, 216, 0.48); }
+
+.add-from-sources {
+  min-height: 190px;
+  overflow-y: auto;
+  padding: 0 12px 10px;
+}
+
+.add-from-sources > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 9px;
+  margin: 3px 0;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.add-from-sources > button:hover { background: rgba(255, 255, 255, 0.035); }
+.add-from-sources > button.selected { border-color: rgba(101, 222, 216, 0.25); background: rgba(92, 210, 204, 0.08); }
+
+.add-from-sources i {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(157, 215, 101, 0.14);
+  color: #b9df92;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.add-from-sources i.forest { background: rgba(77, 178, 157, 0.14); color: #73d3c0; }
+.add-from-sources span { min-width: 0; }
+.add-from-sources strong,
+.add-from-sources small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-from-sources strong { font-size: 11px; font-weight: 570; }
+.add-from-sources small { margin-top: 3px; color: rgba(232, 244, 243, 0.4); font-size: 9px; }
+.add-from-sources b { color: #72d9d3; font-size: 11px; }
+
+.add-from-empty { padding: 38px 12px; color: rgba(231, 243, 242, 0.42); font-size: 11px; text-align: center; }
+
+.add-from-when {
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid rgba(104, 219, 214, 0.1);
+  border-bottom: 1px solid rgba(104, 219, 214, 0.1);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.add-from-when label { flex: 1; }
+.add-from-when span { display: block; margin-bottom: 4px; color: rgba(230, 243, 242, 0.45); font-size: 8px; text-transform: uppercase; }
+.add-from-when input,
+.add-from-when select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid rgba(102, 213, 208, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(240, 249, 248, 0.8);
+  font: inherit;
+  font-size: 10px;
+}
+
+.add-from-error { padding: 8px 18px 0; color: #ff98a7; font-size: 10px; }
+
+.add-from-footer {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 18px 16px;
+}
+
+.add-from-footer span { min-width: 0; overflow: hidden; color: rgba(228, 241, 240, 0.46); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.add-from-footer button {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid rgba(103, 224, 218, 0.38);
+  border-radius: 6px;
+  background: rgba(87, 203, 196, 0.11);
+  color: #87dfda;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.add-from-footer button:disabled { opacity: 0.35; cursor: default; }

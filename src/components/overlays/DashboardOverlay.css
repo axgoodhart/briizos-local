@@ -10,6 +10,8 @@
 
 .appearance-theme-studio-btn {
   margin: 2px 0 14px;
+  corner-shape:var(--ui-corner-shape);
+  border-radius: var(--ui-border-radius)
 }
 
 

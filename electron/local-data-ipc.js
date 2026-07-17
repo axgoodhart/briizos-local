@@ -28,6 +28,11 @@ const CHANNELS = Object.freeze({
   tasksCreate: 'local-data:tasks:create',
   tasksUpdate: 'local-data:tasks:update',
   tasksArchive: 'local-data:tasks:archive',
+  placementsList: 'local-data:placements:list',
+  placementsCreate: 'local-data:placements:create',
+  placementsUpdate: 'local-data:placements:update',
+  placementsArchive: 'local-data:placements:archive',
+  placementsComplete: 'local-data:placements:complete',
   stepsList: 'local-data:task-steps:list',
   stepsCreate: 'local-data:task-steps:create',
   stepsUpdate: 'local-data:task-steps:update',
@@ -122,6 +127,17 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
     [CHANNELS.tasksCreate, (input) => service.createTask(input)],
     [CHANNELS.tasksUpdate, (taskId, expectedRevision, patch) => service.updateTask(taskId, expectedRevision, patch)],
     [CHANNELS.tasksArchive, (taskId, expectedRevision) => service.archiveTask(taskId, expectedRevision)],
+    [CHANNELS.placementsList, (filters) => service.listPlacements(filters)],
+    [CHANNELS.placementsCreate, (input) => service.createPlacement(input)],
+    [CHANNELS.placementsUpdate, (placementId, expectedRevision, patch) => (
+      service.updatePlacement(placementId, expectedRevision, patch)
+    )],
+    [CHANNELS.placementsArchive, (placementId, expectedRevision) => (
+      service.archivePlacement(placementId, expectedRevision)
+    )],
+    [CHANNELS.placementsComplete, (placementId, expectedRevision, occurrenceDate, completed) => (
+      service.setPlacementOccurrenceCompleted(placementId, expectedRevision, occurrenceDate, completed)
+    )],
     [CHANNELS.stepsList, (taskId, filters) => service.listTaskSteps(taskId, filters)],
     [CHANNELS.stepsCreate, (taskId, input) => service.createTaskStep(taskId, input)],
     [CHANNELS.stepsUpdate, (stepId, expectedRevision, patch) => service.updateTaskStep(stepId, expectedRevision, patch)],

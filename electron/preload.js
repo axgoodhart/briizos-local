@@ -72,6 +72,22 @@ contextBridge.exposeInMainWorld('api', {
           invokeLocalData('local-data:task-steps:archive', stepId, expectedRevision),
       },
     },
+    placements: {
+      list: (filters) => invokeLocalData('local-data:placements:list', filters),
+      create: (input) => invokeLocalData('local-data:placements:create', input),
+      update: (placementId, expectedRevision, patch) =>
+        invokeLocalData('local-data:placements:update', placementId, expectedRevision, patch),
+      archive: (placementId, expectedRevision) =>
+        invokeLocalData('local-data:placements:archive', placementId, expectedRevision),
+      complete: (placementId, expectedRevision, occurrenceDate, completed) =>
+        invokeLocalData(
+          'local-data:placements:complete',
+          placementId,
+          expectedRevision,
+          occurrenceDate,
+          completed,
+        ),
+    },
     organizer: {
       list: (filters) => invokeLocalData('local-data:organizer:list', filters),
       create: (input) => invokeLocalData('local-data:organizer:create', input),

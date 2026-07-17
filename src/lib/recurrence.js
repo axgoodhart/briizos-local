@@ -24,24 +24,28 @@ export function eventOccursOnDate(event, dateStr) {
     return compareDates.includes(dateStr);
   }
 
-  const recurrence = event.recurrence;
-  const anchorIso = normalizeDateStr(
-    recurrence.anchorDate || event.scheduledDate || event.dateValue || compareDates[0]
-  );
-  if (!anchorIso) return compareDates.includes(dateStr);
-
-  const anchor = parseDateYMD(anchorIso);
-  const target = parseDateYMD(dateStr);
-  const anchorStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-  const targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-
   // Exact match on any date field
   if (compareDates.includes(dateStr)) return true;
+  const anchorIso = normalizeDateStr(
+    event.recurrence.anchorDate || event.scheduledDate || event.dateValue || compareDates[0]
+  );
+  if (!anchorIso) return false;
+  return recurrenceOccursOnDate(anchorIso, event.recurrence, dateStr);
+}
 
-  // Before anchor
+/** Shared rule evaluator for organizer events and renderer-side previews. */
+export function recurrenceOccursOnDate(anchorDate, recurrence, targetDate) {
+  const anchorIso = normalizeDateStr(anchorDate);
+  const targetIso = normalizeDateStr(targetDate);
+  if (!anchorIso || !targetIso) return false;
+  if (!recurrence?.enabled) return anchorIso === targetIso;
+
+  const anchor = parseDateYMD(anchorIso);
+  const target = parseDateYMD(targetIso);
+  const anchorStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  const targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate());
   if (targetStart < anchorStart) return false;
 
-  // Check end date
   if (recurrence.endDate) {
     const endDate = parseDateYMD(normalizeDateStr(recurrence.endDate));
     if (targetStart > endDate) return false;
@@ -51,30 +55,29 @@ export function eventOccursOnDate(event, dateStr) {
     if (targetStart > fallbackEnd) return false;
   }
 
-  const type = recurrence.type || 'weekly';
-  const interval = Math.max(1, recurrence.interval || 1);
+  const type = recurrence.type || recurrence.frequency || 'weekly';
+  const interval = Math.max(1, Number(recurrence.interval) || 1);
+  const diffDays = Math.round((targetStart - anchorStart) / 86400000);
 
+  if (type === 'daily') return diffDays % interval === 0;
   if (type === 'monthly') {
-    const anchorDay = anchorStart.getDate();
     const monthsApart =
       (targetStart.getFullYear() - anchorStart.getFullYear()) * 12 +
       (targetStart.getMonth() - anchorStart.getMonth());
-    if (monthsApart < 0) return false;
-    if (monthsApart % interval !== 0) return false;
-    return targetStart.getDate() === anchorDay;
-  } else {
-    // Weekly (default)
-    const daysOfWeek =
-      Array.isArray(recurrence.daysOfWeek) && recurrence.daysOfWeek.length
-        ? recurrence.daysOfWeek.map(Number)
-        : [anchorStart.getDay()];
-
-    if (!daysOfWeek.includes(targetStart.getDay())) return false;
-
-    const diffDays = Math.floor((targetStart - anchorStart) / 86400000);
-    if (diffDays < 0) return false;
-    return Math.floor(diffDays / 7) % interval === 0;
+    return monthsApart >= 0
+      && monthsApart % interval === 0
+      && targetStart.getDate() === (recurrence.dayOfMonth || anchorStart.getDate());
   }
+  if (type === 'yearly') {
+    return (targetStart.getFullYear() - anchorStart.getFullYear()) % interval === 0
+      && targetStart.getMonth() === anchorStart.getMonth()
+      && targetStart.getDate() === anchorStart.getDate();
+  }
+
+  const daysOfWeek = Array.isArray(recurrence.daysOfWeek) && recurrence.daysOfWeek.length
+    ? recurrence.daysOfWeek.map(Number)
+    : [anchorStart.getDay()];
+  return daysOfWeek.includes(targetStart.getDay()) && Math.floor(diffDays / 7) % interval === 0;
 }
 
 /**

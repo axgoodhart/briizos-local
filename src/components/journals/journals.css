@@ -1780,6 +1780,7 @@ transition: all .5s ease;
   flex-direction: column;
   container-type: inline-size;
   height: 100%;
+  border:none;
   min-height: 0;
   transform-style: preserve-3d;
   /* Clips .jv-backdrop to the position-driven corner radii. */
@@ -1788,6 +1789,10 @@ transition: all .5s ease;
   backdrop-filter: blur(16px);
   /* Chrome tilt eases as it recomputes; dragging sets it per-frame. */
   transition: transform 0.35s ease;
+      border-width: 4px !important;
+      box-shadow:-3px 0 10px rgba(0,0,0,1);
+      border-radius: var(--ui-border-radius);
+      corner-shape:var(--ui-corner-shape);
 }
 .journal-float.dragging .journal-float__shell,
 .journal-float.resizing .journal-float__shell { transition: none; }
@@ -1808,6 +1813,7 @@ transition: all .5s ease;
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.12)),
     var(--layout-bg-panel-header);
   border-bottom-color: color-mix(in srgb, var(--layout-border-color) 72%, rgba(220, 196, 137, 0.55));
+  border-radius:0 !important;
 }
 
 /* The cover becomes identity chrome instead of a backdrop competing with
@@ -1821,7 +1827,7 @@ transition: all .5s ease;
   background-image: var(--journal-float-cover, none);
   background-position: center 38%;
   background-size: cover;
-  filter: blur(15px) brightness(0.58) saturate(1.25);
+  filter: blur(1.5px) brightness(.8) saturate(1.25);
   transform: scale(1.1);
   pointer-events: none;
 }
@@ -2100,6 +2106,9 @@ transition: all .5s ease;
   max-width: 200px;
 }
 .jr-cardwrap .jr-card { max-width: none; }
+
+
+button.jr-card  {background:none;}
 
 .jr-card__popout {
   position: absolute;

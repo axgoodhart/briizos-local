@@ -40,6 +40,8 @@ export function useTasks() {
         dueAt: options.dueAt || null,
         automated: !!options.automated,
         projectId: options.projectId || null,
+        forestProjectId: options.forestProjectId || null,
+        sourceKey: options.sourceKey || null,
       });
       return result.row.id;
     } catch (error) {
@@ -103,7 +105,7 @@ export function useTasks() {
       const current = await api.localData.tasks.get(id);
       if (!current) throw new Error('Task not found');
       const patch = {};
-      ['title', 'description', 'status', 'priority', 'dueAt', 'automated', 'projectId'].forEach((key) => {
+      ['title', 'description', 'status', 'priority', 'dueAt', 'automated', 'projectId', 'forestProjectId'].forEach((key) => {
         if (updates[key] !== undefined) patch[key] = updates[key];
       });
       if (Object.keys(patch).length) await api.localData.tasks.update(id, current.revision, patch);

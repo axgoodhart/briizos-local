@@ -69,7 +69,7 @@ export function OrganizerProvider({ children }) {
   // CRUD wrappers
   const addItem = useCallback(async (data) => {
     const startAt = data.scheduledDate
-      ? new Date(`${data.scheduledDate}T00:00:00`).getTime() + (data.start || 0) * 60000
+      ? new Date(`${data.scheduledDate}T00:00:00`).getTime() + (data.start ?? 0) * 60000
       : null;
     const result = await window.api.localData.organizer.create({
       type: data.type,
@@ -96,6 +96,24 @@ export function OrganizerProvider({ children }) {
     if (updates.status !== undefined) patch.status = updates.status;
     if (updates.tags !== undefined) patch.tags = updates.tags;
     if (updates.recurrence !== undefined) patch.recurrence = updates.recurrence;
+    if (
+      updates.scheduledDate !== undefined
+      || updates.start !== undefined
+      || updates.duration !== undefined
+      || updates.end !== undefined
+    ) {
+      const date = updates.scheduledDate ?? current.scheduledDate;
+      const startMinute = updates.start ?? current.start ?? 0;
+      const durationMinutes = updates.duration
+        ?? (updates.end != null ? updates.end - startMinute : current.duration)
+        ?? 60;
+      const startAt = date
+        ? new Date(`${date}T00:00:00`).getTime() + startMinute * 60000
+        : null;
+      patch.scheduledStartAt = startAt;
+      patch.scheduledEndAt = startAt == null ? null : startAt + durationMinutes * 60000;
+      patch.durationSeconds = durationMinutes * 60;
+    }
     return window.api.localData.organizer.update(id, current.revision, patch);
   }, [items]);
 

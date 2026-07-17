@@ -24,6 +24,7 @@ const SETTING_KEYS = new Set([
   'selected_model',
   'suggestions_enabled',
   'actiondeck_prioritizer_enabled',
+  'actiondeck_day_planner_enabled',
   'agent_config',
   'skills_config',
   'studio_video_url',
@@ -180,6 +181,7 @@ class LocalDataService extends EventEmitter {
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
     if (key === 'suggestions_enabled') return v.boolean(value, key);
     if (key === 'actiondeck_prioritizer_enabled') return v.boolean(value, key);
+    if (key === 'actiondeck_day_planner_enabled') return v.boolean(value, key);
     if (key.endsWith('_url')) {
       const candidate = v.string(value, key, { max: 2000 });
       if (candidate && !/^https?:\/\//i.test(candidate)) v.fail('INVALID_INPUT', `${key} must be an HTTP URL`);
@@ -850,7 +852,7 @@ class LocalDataService extends EventEmitter {
 
   listTasks(input = {}) {
     this._assertReady();
-    v.object(input, 'task filters', ['projectId', 'status', 'includeDeleted', 'limit']);
+    v.object(input, 'task filters', ['projectId', 'forestProjectId', 'sourceKey', 'status', 'includeDeleted', 'limit']);
     const includeDeleted = input.includeDeleted === undefined
       ? false
       : v.boolean(input.includeDeleted, 'includeDeleted');
@@ -861,6 +863,14 @@ class LocalDataService extends EventEmitter {
       clauses.push('project_id = ?');
       params.push(v.identifier(input.projectId, 'projectId'));
     }
+    if (input.forestProjectId !== undefined) {
+      clauses.push('forest_project_id = ?');
+      params.push(v.identifier(input.forestProjectId, 'forestProjectId'));
+    }
+    if (input.sourceKey !== undefined) {
+      clauses.push('source_key = ?');
+      params.push(v.string(input.sourceKey, 'sourceKey', { required: true, max: 500 }));
+    }
     if (input.status !== undefined) {
       clauses.push('status = ?');
       params.push(v.oneOf(input.status, 'status', TASK_STATUSES));
@@ -868,7 +878,7 @@ class LocalDataService extends EventEmitter {
     const limit = input.limit === undefined ? 500 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     return this.db.prepare(`
-      SELECT id, project_id, title, description, status, priority, due_at, automated,
+      SELECT id, project_id, forest_project_id, source_key, title, description, status, priority, due_at, automated,
              created_at, updated_at, revision, deleted_at
       FROM tasks ${where}
       ORDER BY created_at DESC LIMIT ?
@@ -883,7 +893,7 @@ class LocalDataService extends EventEmitter {
     this._assertReady();
     taskId = v.identifier(taskId, 'taskId');
     const task = this.db.prepare(`
-      SELECT id, project_id, title, description, status, priority, due_at, automated,
+      SELECT id, project_id, forest_project_id, source_key, title, description, status, priority, due_at, automated,
              created_at, updated_at, revision, deleted_at
       FROM tasks WHERE id = ? AND deleted_at IS NULL
     `).get(taskId);
@@ -927,10 +937,17 @@ class LocalDataService extends EventEmitter {
   }
 
   createTask(input) {
-    v.object(input, 'task', ['projectId', 'title', 'description', 'status', 'priority', 'dueAt', 'automated']);
+    v.object(input, 'task', [
+      'projectId', 'forestProjectId', 'sourceKey', 'title', 'description', 'status', 'priority', 'dueAt', 'automated',
+    ]);
     const row = {
       id: id(),
       projectId: v.optional(input.projectId, (value) => this._normalizeProjectId(value)) ?? null,
+      forestProjectId: v.optional(input.forestProjectId, (value) => this._normalizeForestProjectId(value)) ?? null,
+      sourceKey: v.optional(
+        input.sourceKey,
+        (value) => v.string(value, 'sourceKey', { nullable: true, max: 500 }),
+      ) ?? null,
       title: v.string(input.title, 'title', { required: true, max: 500 }),
       description: v.optional(input.description, (value) => v.string(value, 'description', { max: 50000 })) ?? '',
       status: v.optional(input.status, (value) => v.oneOf(value, 'status', TASK_STATUSES)) ?? 'pending',
@@ -941,10 +958,10 @@ class LocalDataService extends EventEmitter {
     return this._write('tasks', (timestamp) => {
       this.db.prepare(`
         INSERT INTO tasks (
-          id, project_id, title, description, status, priority, due_at, automated,
+          id, project_id, forest_project_id, source_key, title, description, status, priority, due_at, automated,
           created_at, updated_at, revision
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `).run(row.id, row.projectId, row.title, row.description, row.status, row.priority,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(row.id, row.projectId, row.forestProjectId, row.sourceKey, row.title, row.description, row.status, row.priority,
         row.dueAt, row.automated ? 1 : 0, timestamp, timestamp);
       return { row: toBooleanRow(this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(row.id), ['automated']) };
     });
@@ -953,9 +970,12 @@ class LocalDataService extends EventEmitter {
   updateTask(taskId, expectedRevision, patch) {
     taskId = v.identifier(taskId, 'taskId');
     expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
-    v.object(patch, 'task patch', ['projectId', 'title', 'description', 'status', 'priority', 'dueAt', 'automated']);
+    v.object(patch, 'task patch', [
+      'projectId', 'forestProjectId', 'title', 'description', 'status', 'priority', 'dueAt', 'automated',
+    ]);
     const columnMap = {
       projectId: ['project_id', (value) => this._normalizeProjectId(value)],
+      forestProjectId: ['forest_project_id', (value) => this._normalizeForestProjectId(value)],
       title: ['title', (value) => v.string(value, 'title', { required: true, max: 500 })],
       description: ['description', (value) => v.string(value, 'description', { max: 50000 })],
       status: ['status', (value) => v.oneOf(value, 'status', TASK_STATUSES)],
@@ -967,7 +987,153 @@ class LocalDataService extends EventEmitter {
   }
 
   archiveTask(taskId, expectedRevision) {
-    return this._archiveRow('tasks', 'tasks', taskId, expectedRevision, ['automated']);
+    taskId = v.identifier(taskId, 'taskId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    return this._writeDomains(['tasks', 'placements'], (timestamp) => {
+      this._requireCurrent('tasks', taskId, expectedRevision);
+      this.db.prepare(`
+        UPDATE tasks SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?
+      `).run(timestamp, timestamp, taskId);
+      this.db.prepare(`
+        UPDATE placements SET deleted_at = ?, updated_at = ?, revision = revision + 1
+        WHERE ref_type = 'task' AND ref_id = ? AND deleted_at IS NULL
+      `).run(timestamp, timestamp, taskId);
+      return {
+        row: toBooleanRow(this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId), ['automated']),
+      };
+    });
+  }
+
+  listPlacements(input = {}) {
+    this._assertReady();
+    v.object(input, 'placement filters', ['date', 'dateFrom', 'dateTo', 'refId', 'includeDeleted', 'limit']);
+    const includeDeleted = input.includeDeleted === undefined
+      ? false
+      : v.boolean(input.includeDeleted, 'includeDeleted');
+    const date = input.date === undefined ? null : this._normalizeDate(input.date, 'date');
+    const dateFrom = input.dateFrom === undefined ? date : this._normalizeDate(input.dateFrom, 'dateFrom');
+    const dateTo = input.dateTo === undefined ? date : this._normalizeDate(input.dateTo, 'dateTo');
+    if ((dateFrom && !dateTo) || (!dateFrom && dateTo)) {
+      v.fail('INVALID_INPUT', 'dateFrom and dateTo must be provided together');
+    }
+    if (dateFrom && dateTo && dateFrom > dateTo) v.fail('INVALID_INPUT', 'dateFrom must be on or before dateTo');
+    if (dateFrom && dateTo && this._daysBetween(dateFrom, dateTo) > 366) {
+      v.fail('INVALID_INPUT', 'Placement queries are limited to 366 days');
+    }
+    const clauses = [];
+    const params = [];
+    if (!includeDeleted) clauses.push('p.deleted_at IS NULL');
+    if (input.refId !== undefined) {
+      clauses.push('p.ref_id = ?');
+      params.push(v.identifier(input.refId, 'refId'));
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const limit = input.limit === undefined ? 2000 : v.integer(input.limit, 'limit', { min: 1, max: 5000 });
+    const rows = this.db.prepare(`
+      SELECT p.*, t.title AS task_title, t.description AS task_description,
+             t.status AS task_status, t.priority AS task_priority, t.due_at AS task_due_at,
+             t.project_id AS task_project_id, t.forest_project_id AS task_forest_project_id,
+             t.revision AS task_revision, t.deleted_at AS task_deleted_at
+      FROM placements p
+      JOIN tasks t ON t.id = p.ref_id
+      ${where}
+      ORDER BY p.date, p.start_minute, p.created_at
+      LIMIT ?
+    `).all(...params, limit);
+
+    const occurrences = [];
+    for (const row of rows) {
+      const recurrence = row.recurrence_json ? JSON.parse(row.recurrence_json) : null;
+      const completedDates = JSON.parse(row.completed_dates_json || '[]');
+      const occurrenceDates = dateFrom && dateTo
+        ? this._datesBetween(dateFrom, dateTo).filter((candidate) => (
+          this._placementOccursOnDate(row.date, recurrence, candidate)
+        ))
+        : [row.date];
+      for (const occurrenceDate of occurrenceDates) {
+        occurrences.push(this._mapPlacement(row, occurrenceDate, recurrence, completedDates));
+      }
+    }
+    return occurrences.sort((a, b) => (
+      a.occurrence_date.localeCompare(b.occurrence_date)
+      || a.start_minute - b.start_minute
+      || a.id.localeCompare(b.id)
+    ));
+  }
+
+  createPlacement(input) {
+    v.object(input, 'placement', ['refType', 'refId', 'date', 'startMinute', 'durationMinutes', 'recurrence']);
+    const refType = v.optional(input.refType, (value) => v.oneOf(value, 'refType', ['task'])) ?? 'task';
+    const refId = v.identifier(input.refId, 'refId');
+    const date = this._normalizeDate(input.date, 'date');
+    const startMinute = v.integer(input.startMinute, 'startMinute', { min: 0, max: 1439 });
+    const durationMinutes = v.optional(
+      input.durationMinutes,
+      (value) => v.integer(value, 'durationMinutes', { min: 1, max: 1440 }),
+    ) ?? 60;
+    const recurrenceJson = input.recurrence == null ? null : this._stringifyRecurrence({
+      ...input.recurrence,
+      anchorDate: input.recurrence.anchorDate || date,
+    });
+    return this._write('placements', (timestamp) => {
+      const task = this.db.prepare('SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL').get(refId);
+      if (!task) v.fail('INVALID_RELATION', 'refId must refer to an active task');
+      const placementId = id();
+      this.db.prepare(`
+        INSERT INTO placements (
+          id, ref_type, ref_id, date, start_minute, duration_minutes, recurrence_json,
+          completed_dates_json, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, 1)
+      `).run(placementId, refType, refId, date, startMinute, durationMinutes, recurrenceJson, timestamp, timestamp);
+      return { row: this.listPlacements({ refId, includeDeleted: true }).find((item) => item.id === placementId) };
+    });
+  }
+
+  updatePlacement(placementId, expectedRevision, patch) {
+    placementId = v.identifier(placementId, 'placementId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    v.object(patch, 'placement patch', ['date', 'startMinute', 'durationMinutes', 'recurrence']);
+    const columnMap = {
+      date: ['date', (value) => this._normalizeDate(value, 'date')],
+      startMinute: ['start_minute', (value) => v.integer(value, 'startMinute', { min: 0, max: 1439 })],
+      durationMinutes: ['duration_minutes', (value) => v.integer(value, 'durationMinutes', { min: 1, max: 1440 })],
+      recurrence: ['recurrence_json', (value) => value == null ? null : this._stringifyRecurrence(value)],
+    };
+    return this._updateRow('placements', 'placements', placementId, expectedRevision, patch, columnMap, [], null,
+      (rowId) => this.listPlacements({ includeDeleted: true }).find((item) => item.id === rowId));
+  }
+
+  archivePlacement(placementId, expectedRevision) {
+    return this._archiveRow('placements', 'placements', placementId, expectedRevision, [],
+      (rowId) => this.listPlacements({ includeDeleted: true }).find((item) => item.id === rowId));
+  }
+
+  setPlacementOccurrenceCompleted(placementId, expectedRevision, occurrenceDate, completed = true) {
+    placementId = v.identifier(placementId, 'placementId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    occurrenceDate = this._normalizeDate(occurrenceDate, 'occurrenceDate');
+    completed = v.boolean(completed, 'completed');
+    return this._write('placements', (timestamp) => {
+      this._requireCurrent('placements', placementId, expectedRevision);
+      const current = this.db.prepare('SELECT * FROM placements WHERE id = ?').get(placementId);
+      const recurrence = current.recurrence_json ? JSON.parse(current.recurrence_json) : null;
+      if (!this._placementOccursOnDate(current.date, recurrence, occurrenceDate)) {
+        v.fail('INVALID_INPUT', 'That date is not an occurrence of this placement');
+      }
+      const dates = new Set(JSON.parse(current.completed_dates_json || '[]'));
+      if (completed) dates.add(occurrenceDate);
+      else dates.delete(occurrenceDate);
+      const completedDates = [...dates].sort();
+      this.db.prepare(`
+        UPDATE placements SET completed_dates_json = ?, updated_at = ?, revision = revision + 1 WHERE id = ?
+      `).run(JSON.stringify(completedDates), timestamp, placementId);
+      return {
+        row: this.listPlacements({ refId: current.ref_id, includeDeleted: true })
+          .find((item) => item.id === placementId),
+        occurrenceDate,
+        completed,
+      };
+    });
   }
 
   listTaskSteps(taskId, input = {}) {
@@ -3217,6 +3383,118 @@ class LocalDataService extends EventEmitter {
     `).get(projectId);
     if (!project) v.fail('INVALID_RELATION', 'projectId must refer to an active organizer project');
     return projectId;
+  }
+
+  _normalizeForestProjectId(value) {
+    const projectId = v.identifier(value, 'forestProjectId', { nullable: true });
+    if (projectId == null) return null;
+    const project = this.db.prepare(`
+      SELECT id FROM forest_projects WHERE id = ? AND deleted_at IS NULL
+    `).get(projectId);
+    if (!project) v.fail('INVALID_RELATION', 'forestProjectId must refer to an active Forest project');
+    return projectId;
+  }
+
+  _normalizeDate(value, label = 'date') {
+    const date = v.string(value, label, { required: true, max: 10 });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) v.fail('INVALID_INPUT', `${label} must use YYYY-MM-DD`);
+    const [year, month, day] = date.split('-').map(Number);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (
+      parsed.getUTCFullYear() !== year
+      || parsed.getUTCMonth() !== month - 1
+      || parsed.getUTCDate() !== day
+    ) {
+      v.fail('INVALID_INPUT', `${label} must be a real calendar date`);
+    }
+    return date;
+  }
+
+  _dateOrdinal(date) {
+    const [year, month, day] = date.split('-').map(Number);
+    return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  }
+
+  _dateFromOrdinal(ordinal) {
+    return new Date(ordinal * 86400000).toISOString().slice(0, 10);
+  }
+
+  _daysBetween(from, to) {
+    return this._dateOrdinal(to) - this._dateOrdinal(from);
+  }
+
+  _datesBetween(from, to) {
+    const start = this._dateOrdinal(from);
+    const end = this._dateOrdinal(to);
+    const dates = [];
+    for (let ordinal = start; ordinal <= end; ordinal += 1) dates.push(this._dateFromOrdinal(ordinal));
+    return dates;
+  }
+
+  _placementOccursOnDate(anchorDate, recurrence, targetDate) {
+    if (!recurrence?.enabled) return anchorDate === targetDate;
+    const anchor = recurrence.anchorDate || anchorDate;
+    const diffDays = this._daysBetween(anchor, targetDate);
+    if (diffDays < 0) return false;
+    if (recurrence.endDate && targetDate > recurrence.endDate) return false;
+    if (recurrence.untilAt != null) {
+      const untilDate = new Date(recurrence.untilAt).toISOString().slice(0, 10);
+      if (targetDate > untilDate) return false;
+    }
+    const interval = Math.max(1, Number(recurrence.interval) || 1);
+    const [anchorYear, anchorMonth, anchorDay] = anchor.split('-').map(Number);
+    const [targetYear, targetMonth, targetDay] = targetDate.split('-').map(Number);
+    const type = recurrence.type || recurrence.frequency || 'weekly';
+
+    if (type === 'daily') return diffDays % interval === 0;
+    if (type === 'monthly') {
+      const monthsApart = (targetYear - anchorYear) * 12 + targetMonth - anchorMonth;
+      return monthsApart >= 0
+        && monthsApart % interval === 0
+        && targetDay === (recurrence.dayOfMonth || anchorDay);
+    }
+    if (type === 'yearly') {
+      return (targetYear - anchorYear) % interval === 0
+        && targetMonth === anchorMonth
+        && targetDay === anchorDay;
+    }
+
+    const targetWeekday = new Date(`${targetDate}T00:00:00Z`).getUTCDay();
+    const anchorWeekday = new Date(`${anchor}T00:00:00Z`).getUTCDay();
+    const daysOfWeek = Array.isArray(recurrence.daysOfWeek) && recurrence.daysOfWeek.length
+      ? recurrence.daysOfWeek.map(Number)
+      : [anchorWeekday];
+    return daysOfWeek.includes(targetWeekday) && Math.floor(diffDays / 7) % interval === 0;
+  }
+
+  _mapPlacement(row, occurrenceDate, recurrence, completedDates) {
+    return {
+      id: row.id,
+      ref_type: row.ref_type,
+      ref_id: row.ref_id,
+      date: row.date,
+      occurrence_date: occurrenceDate,
+      start_minute: row.start_minute,
+      duration_minutes: row.duration_minutes,
+      recurrence,
+      completed_dates: completedDates,
+      session_completed: completedDates.includes(occurrenceDate),
+      task: {
+        id: row.ref_id,
+        title: row.task_title,
+        description: row.task_description || '',
+        status: row.task_status,
+        priority: row.task_priority,
+        due_at: row.task_due_at,
+        project_id: row.task_project_id || null,
+        forest_project_id: row.task_forest_project_id || null,
+        revision: row.task_revision,
+      },
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      revision: row.revision,
+      deleted_at: row.deleted_at,
+    };
   }
 
   _updateRow(domain, table, rowId, expectedRevision, patch, columnMap, booleanFields = [], extend, getRow) {

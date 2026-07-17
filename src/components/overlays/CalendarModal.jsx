@@ -1,7 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useOrganizer } from '../../context/OrganizerContext';
 import { formatDateYMD, parseDateYMD } from '../../lib/dates';
 import { eventOccursOnDate, buildMonthEventMap } from '../../lib/recurrence';
+import { parseCalendarQuickAdd } from '../../lib/calendarQuickAdd';
+import { usePlacements } from '../../hooks/usePlacements';
+import { useDayPlanner } from '../../hooks/useDayPlanner';
+import DayTimeline from '../calendar/DayTimeline';
+import AddFromPicker from '../calendar/AddFromPicker';
 import logger from '../../lib/logger';
 import './CalendarModal.css';
 
@@ -18,17 +23,45 @@ const MONTH_NAMES = [
 const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function CalendarModal({ isOpen, onClose }) {
-  const { items, addItem, toggleDone, loading } = useOrganizer();
+  const { items, addItem, updateItem, toggleDone, removeItem, loading } = useOrganizer();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState(() => formatDateYMD(new Date()));
   const [quickAddText, setQuickAddText] = useState('');
+  const [addFromOpen, setAddFromOpen] = useState(false);
+  const [plannerEnabled, setPlannerEnabled] = useState(true);
+
+  const monthRange = useMemo(() => ({
+    dateFrom: formatDateYMD(new Date(viewYear, viewMonth, 1)),
+    dateTo: formatDateYMD(new Date(viewYear, viewMonth + 1, 0)),
+  }), [viewYear, viewMonth]);
+  const {
+    placements,
+    isLoading: placementsLoading,
+    createPlacement,
+    updatePlacement,
+    archivePlacement,
+    setOccurrenceCompleted,
+  } = usePlacements(monthRange);
+
+  useEffect(() => {
+    window.api.localData.settings.get('actiondeck_day_planner_enabled')
+      .then((saved) => { if (saved?.value === false) setPlannerEnabled(false); })
+      .catch(() => {});
+  }, []);
 
   // Build event map for current month
-  const eventMap = useMemo(
-    () => buildMonthEventMap(items, viewYear, viewMonth),
-    [items, viewYear, viewMonth]
-  );
+  const eventMap = useMemo(() => {
+    const map = buildMonthEventMap(items, viewYear, viewMonth);
+    placements.forEach((placement) => {
+      const existing = map.get(placement.occurrence_date) || [];
+      map.set(placement.occurrence_date, [
+        ...existing,
+        { id: `placement:${placement.id}`, type: 'placement', source: { mode: 'task' } },
+      ]);
+    });
+    return map;
+  }, [items, placements, viewYear, viewMonth]);
 
   // All non-project items for the selected date (events shown in daily panel)
   const selectedDayItems = useMemo(() => {
@@ -40,6 +73,47 @@ function CalendarModal({ isOpen, onClose }) {
       return item.scheduledDate === selectedDate || item.due === selectedDate;
     });
   }, [items, selectedDate]);
+
+  const selectedDayPlacements = useMemo(
+    () => placements.filter((placement) => placement.occurrence_date === selectedDate),
+    [placements, selectedDate],
+  );
+
+  const {
+    proposals,
+    summary: plannerSummary,
+    error: plannerError,
+    isPlanning,
+    planDay,
+    acceptProposal,
+    rejectProposal,
+    clearProposals,
+  } = useDayPlanner({
+    dateStr: selectedDate,
+    events: selectedDayItems,
+    placements: selectedDayPlacements,
+    createPlacement,
+    addItem,
+  });
+
+  useEffect(() => {
+    clearProposals();
+  }, [selectedDate, clearProposals]);
+
+  const selectDay = useCallback((nextDate) => {
+    const parsed = parseDateYMD(nextDate);
+    setSelectedDate(nextDate);
+    if (parsed.getMonth() !== viewMonth || parsed.getFullYear() !== viewYear) {
+      setViewMonth(parsed.getMonth());
+      setViewYear(parsed.getFullYear());
+    }
+  }, [viewMonth, viewYear]);
+
+  const shiftSelectedDay = useCallback((delta) => {
+    const next = parseDateYMD(selectedDate);
+    next.setDate(next.getDate() + delta);
+    selectDay(formatDateYMD(next));
+  }, [selectedDate, selectDay]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -57,13 +131,7 @@ function CalendarModal({ isOpen, onClose }) {
         ArrowDown: 7,
       }[e.key];
       current.setDate(current.getDate() + delta);
-      const newDate = formatDateYMD(current);
-      setSelectedDate(newDate);
-      // Auto-navigate month if needed
-      if (current.getMonth() !== viewMonth || current.getFullYear() !== viewYear) {
-        setViewMonth(current.getMonth());
-        setViewYear(current.getFullYear());
-      }
+      selectDay(formatDateYMD(current));
     }
   };
 
@@ -87,27 +155,11 @@ function CalendarModal({ isOpen, onClose }) {
     setSelectedDate(formatDateYMD(now));
   };
 
-  // Parse quick add text like "9am Meeting with team" or just "Meeting"
-  const parseQuickAdd = (text) => {
-    const timeMatch = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+(.+)$/i);
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1], 10);
-      const minutes = parseInt(timeMatch[2] || '0', 10);
-      const period = timeMatch[3]?.toLowerCase();
-      const title = timeMatch[4];
-
-      if (period === 'pm' && hours < 12) hours += 12;
-      if (period === 'am' && hours === 12) hours = 0;
-
-      const startMinutes = hours * 60 + minutes;
-      return { title, startMinutes, durationMinutes: 60 };
-    }
-    return { title: text, startMinutes: null, durationMinutes: null };
-  };
-
   const handleQuickAdd = async () => {
     if (!quickAddText.trim()) return;
-    const parsed = parseQuickAdd(quickAddText.trim());
+    const parsed = parseCalendarQuickAdd(quickAddText);
+    const startMinutes = parsed.startMinutes ?? 9 * 60;
+    const durationMinutes = parsed.durationMinutes ?? 60;
 
     try {
       await addItem({
@@ -116,15 +168,64 @@ function CalendarModal({ isOpen, onClose }) {
         scheduledDate: selectedDate,
         dateValue: selectedDate,
         dateMode: 'event',
-        start: parsed.startMinutes,
-        duration: parsed.durationMinutes,
-        end: parsed.startMinutes != null ? parsed.startMinutes + (parsed.durationMinutes || 60) : null,
+        start: startMinutes,
+        duration: durationMinutes,
+        end: startMinutes + durationMinutes,
+      });
+      logger.info('calendar.event', 'Quick event added', {
+        date: selectedDate,
+        startMinute: startMinutes,
+        durationMinutes,
       });
       setQuickAddText('');
     } catch (error) {
       logger.error('ui', 'Failed to add event', error?.message);
     }
   };
+
+  const handleScheduleTask = useCallback(async (task, placement) => (
+    createPlacement({ ...placement, refType: 'task', refId: task.id })
+  ), [createPlacement]);
+
+  const handlePromoteForestSource = useCallback(async (source, placement) => {
+    const existing = await window.api.localData.tasks.list({ sourceKey: source.sourceKey, limit: 1 });
+    let task = existing?.[0] || null;
+    if (!task) {
+      const milestone = source.milestone;
+      const dueAt = milestone?.date ? new Date(`${milestone.date}T00:00:00`).getTime() : null;
+      const created = await window.api.localData.tasks.create({
+        title: source.title,
+        description: milestone?.description
+          || `Forest work from ${source.project.name}`,
+        status: 'pending',
+        priority: 'normal',
+        dueAt,
+        forestProjectId: source.project.id,
+        sourceKey: source.sourceKey,
+      });
+      task = created.row;
+      logger.info('calendar.placement', 'Forest work promoted to a task', {
+        taskId: task.id,
+        forestProjectId: source.project.id,
+        milestoneId: milestone?.id || null,
+      });
+    }
+    return createPlacement({ ...placement, refType: 'task', refId: task.id });
+  }, [createPlacement]);
+
+  const handleCompleteTask = useCallback(async (task) => {
+    const current = await window.api.localData.tasks.get(task.id);
+    if (!current || current.status === 'completed') return;
+    await window.api.localData.tasks.update(current.id, current.revision, { status: 'completed' });
+    logger.info('calendar.placement', 'Whole task completed from Calendar', { taskId: task.id });
+  }, []);
+
+  const openPlannerChat = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('briizos-open-planner-chat', {
+      detail: { date: selectedDate },
+    }));
+    logger.info('agent.planner', 'Planner chat requested', { date: selectedDate });
+  }, [selectedDate]);
 
   // Build grid cells
   const gridCells = useMemo(() => {
@@ -192,7 +293,7 @@ function CalendarModal({ isOpen, onClose }) {
 
         {/* Main Content: Grid + Daily Panel */}
         <div className="calendar-content">
-          {loading ? (
+          {loading || placementsLoading ? (
             <div className="calendar-loading">Loading...</div>
           ) : (
             <div className="cal-split-layout">
@@ -215,15 +316,7 @@ function CalendarModal({ isOpen, onClose }) {
                         isToday={cell.isToday}
                         isSelected={cell.dateStr === selectedDate}
                         events={cellEvents}
-                        onClick={() => {
-                          setSelectedDate(cell.dateStr);
-                          // Navigate to that month if it's a pad cell
-                          if (cell.isPad) {
-                            const d = parseDateYMD(cell.dateStr);
-                            setViewMonth(d.getMonth());
-                            setViewYear(d.getFullYear());
-                          }
-                        }}
+                        onClick={() => selectDay(cell.dateStr)}
                       />
                     );
                   })}
@@ -235,7 +328,27 @@ function CalendarModal({ isOpen, onClose }) {
                 <DailyPanel
                   dateStr={selectedDate}
                   items={selectedDayItems}
-                  onToggleDone={toggleDone}
+                  placements={selectedDayPlacements}
+                  proposals={proposals}
+                  plannerSummary={plannerSummary}
+                  plannerError={plannerError}
+                  plannerEnabled={plannerEnabled}
+                  isPlanning={isPlanning}
+                  onPreviousDay={() => shiftSelectedDay(-1)}
+                  onToday={goToToday}
+                  onNextDay={() => shiftSelectedDay(1)}
+                  onAddFrom={() => setAddFromOpen(true)}
+                  onPlanDay={planDay}
+                  onOpenPlannerChat={openPlannerChat}
+                  onToggleOrganizer={toggleDone}
+                  onUpdateOrganizer={updateItem}
+                  onRemoveOrganizer={removeItem}
+                  onCompletePlacement={setOccurrenceCompleted}
+                  onUpdatePlacement={updatePlacement}
+                  onArchivePlacement={archivePlacement}
+                  onCompleteTask={handleCompleteTask}
+                  onAcceptProposal={acceptProposal}
+                  onRejectProposal={rejectProposal}
                 />
               </div>
             </div>
@@ -246,7 +359,7 @@ function CalendarModal({ isOpen, onClose }) {
             <input
               type="text"
               className="quick-add-input"
-              placeholder="Quick add: 9am Meeting with team..."
+              placeholder="Quick add: 9am 90m Rehearse set…"
               value={quickAddText}
               onChange={(e) => setQuickAddText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
@@ -258,10 +371,18 @@ function CalendarModal({ isOpen, onClose }) {
         {/* Footer */}
         <div className="calendar-footer">
           <span className="items-count">
-            {selectedDayItems.length} item{selectedDayItems.length !== 1 ? 's' : ''} on {selectedDate}
+            {selectedDayItems.length + selectedDayPlacements.length} block{selectedDayItems.length + selectedDayPlacements.length !== 1 ? 's' : ''} on {selectedDate}
           </span>
           <button className="calendar-btn close" onClick={onClose}>Close</button>
         </div>
+        {addFromOpen && (
+          <AddFromPicker
+            dateStr={selectedDate}
+            onClose={() => setAddFromOpen(false)}
+            onScheduleTask={handleScheduleTask}
+            onPromoteForestSource={handlePromoteForestSource}
+          />
+        )}
       </div>
     </div>
   );
@@ -306,35 +427,31 @@ function CalendarCell({ day, isPad, isToday, isSelected, events, onClick }) {
   );
 }
 
-/**
- * Format minutes from midnight to 12-hour time
- */
-function formatTime12(minutes) {
-  if (minutes == null) return '';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  const period = h >= 12 ? 'PM' : 'AM';
-  const displayH = h % 12 || 12;
-  return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
-}
-
-/**
- * Format a time range
- */
-function formatTimeRange(start, duration) {
-  if (start == null) return '';
-  const startStr = formatTime12(start);
-  if (duration) {
-    const endStr = formatTime12(start + duration);
-    return `${startStr} - ${endStr}`;
-  }
-  return startStr;
-}
-
-/**
- * Daily detail panel showing items for a selected date
- */
-function DailyPanel({ dateStr, items, onToggleDone }) {
+function DailyPanel({
+  dateStr,
+  items,
+  placements,
+  proposals,
+  plannerSummary,
+  plannerError,
+  plannerEnabled,
+  isPlanning,
+  onPreviousDay,
+  onToday,
+  onNextDay,
+  onAddFrom,
+  onPlanDay,
+  onOpenPlannerChat,
+  onToggleOrganizer,
+  onUpdateOrganizer,
+  onRemoveOrganizer,
+  onCompletePlacement,
+  onUpdatePlacement,
+  onArchivePlacement,
+  onCompleteTask,
+  onAcceptProposal,
+  onRejectProposal,
+}) {
   const dateObj = parseDateYMD(dateStr);
   const todayStr = formatDateYMD(new Date());
   const isToday = dateStr === todayStr;
@@ -345,50 +462,52 @@ function DailyPanel({ dateStr, items, onToggleDone }) {
     day: 'numeric',
   });
 
-  // Sort events by start time
-  const sorted = [...items].sort((a, b) => {
-    const aStart = a.start ?? 9999;
-    const bStart = b.start ?? 9999;
-    return aStart - bStart;
-  });
-
   return (
     <>
-      <div className="cal-daily-title">
-        {isToday && <span className="cal-daily-today-badge">Today</span>}
-        {dateLabel}
+      <div className="cal-day-head">
+        <div className="cal-day-nav">
+          <button type="button" onClick={onPreviousDay} title="Previous day">‹</button>
+          <button type="button" onClick={onToday} className={isToday ? 'active' : ''}>Today</button>
+          <button type="button" onClick={onNextDay} title="Next day">›</button>
+        </div>
+        <div className="cal-daily-title">
+          {isToday && <span className="cal-daily-today-badge">Today</span>}
+          {dateLabel}
+        </div>
       </div>
-      <div className="cal-daily-list">
-        {sorted.length === 0 ? (
-          <div className="cal-daily-empty">No items</div>
-        ) : (
-          sorted.map(item => (
-            <div
-              key={item.id}
-              className={`cal-daily-item ${item.status === 'done' ? 'done' : ''}`}
-            >
-              <div className="cal-daily-item-info">
-                <span className="cal-daily-item-name">{item.name}</span>
-                {item.type === 'event' && item.start != null && (
-                  <span className="cal-daily-item-time">
-                    {formatTimeRange(item.start, item.duration)}
-                  </span>
-                )}
-                {item.recurrence?.enabled && (
-                  <span className="cal-daily-item-rec">↻ recurring</span>
-                )}
-              </div>
-              <button
-                className={`cal-daily-done-btn ${item.status === 'done' ? 'checked' : ''}`}
-                onClick={() => onToggleDone(item.id)}
-                title={item.status === 'done' ? 'Mark as todo' : 'Mark as done'}
-              >
-                {item.status === 'done' ? '\u2713' : '\u25CB'}
-              </button>
-            </div>
-          ))
+
+      <div className="cal-day-actions">
+        <button type="button" onClick={onAddFrom}>＋ Add from…</button>
+        {plannerEnabled && (
+          <button type="button" className="plan-day" onClick={onPlanDay} disabled={isPlanning}>
+            {isPlanning ? '✦ Planning…' : '✦ Plan my day'}
+          </button>
         )}
+        <button type="button" className="planner-chat" onClick={onOpenPlannerChat}>Ask about this day</button>
       </div>
+
+      {(plannerSummary || plannerError) && (
+        <div className={`cal-planner-note ${plannerError ? 'error' : ''}`}>
+          {plannerError || plannerSummary}
+          {!plannerError && proposals.length > 0 && <span>Accept or reject each dashed block.</span>}
+        </div>
+      )}
+
+      <DayTimeline
+        dateStr={dateStr}
+        items={items}
+        placements={placements}
+        proposals={proposals}
+        onToggleOrganizer={onToggleOrganizer}
+        onUpdateOrganizer={onUpdateOrganizer}
+        onRemoveOrganizer={onRemoveOrganizer}
+        onCompletePlacement={onCompletePlacement}
+        onUpdatePlacement={onUpdatePlacement}
+        onArchivePlacement={onArchivePlacement}
+        onCompleteTask={onCompleteTask}
+        onAcceptProposal={onAcceptProposal}
+        onRejectProposal={onRejectProposal}
+      />
     </>
   );
 }
