@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import './App.css';
 import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
@@ -24,7 +24,7 @@ import { useTaskAutomation } from './hooks/useTaskAutomation';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
-import { BriiztormOverlay, ActionDeckColumn, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
+import { BriiztormOverlay, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
 import { NotesWidget } from './components/notes';
 import { CanvasesPopover, CanvasTile } from './components/canvases';
 import { useCanvases } from './hooks/useCanvases';
@@ -35,17 +35,11 @@ import { CANVAS_RENDER_ENGINES } from './lib/canvasUtils';
 import ThemeStudio from './components/theme-studio/ThemeStudio.jsx';
 import { useTheme } from './theme/ThemeProvider.jsx';
 import {
-  DEFAULT_ACTIONDECK_PANEL_SETTINGS,
   DEFAULT_CANVAS_PANEL_SETTINGS,
   PANEL_VIEW_OPTIONS,
-  hydratePanelSettings,
-  loadPanelSettings,
   normalizePanelSettings,
   resolvePanelStartView,
-  savePanelSettings,
 } from './lib/floatingPanelPrefs';
-
-const ACTIONDECK_SETTINGS_KEY = 'briizos.actiondeck.panel-settings';
 
 // Debug counter to track renders
 let appRenderCount = 0;
@@ -137,7 +131,7 @@ function HeaderDateTimeWeather() {
   const [date, setDate] = useState('');
   const [weather, setWeather] = useState('--°');
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tick = () => {
       const now = new Date();
       setTime(now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }));
@@ -225,9 +219,9 @@ function AppContent({ layout }) {
   // Workspace-persisted overlay states
   const workspace = layoutRow.workspace || {};
   const [briiztormOpen, setBriiztormOpen] = useState(false);
-  const [actionDeckFloating, setActionDeckFloating] = useState(false);
   const [organizerOpen, setOrganizerOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarPlanningFocus, setCalendarPlanningFocus] = useState(null);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   // The single journal torn off the shelf (id or null); its rect lives in
@@ -252,8 +246,33 @@ function AppContent({ layout }) {
   const canvasesHook = useCanvases();
 
   useEffect(() => {
-    hydratePanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS);
-  }, []);
+    if (!calendarOpen) setCalendarPlanningFocus(null);
+  }, [calendarOpen]);
+
+  // Phase 5 retirement migration: old layouts may still carry a tiled or
+  // floating ActionDeck shell. Remove only that appearance; its separate web
+  // app and old data are deliberately left untouched.
+  const actionDeckRetirementRef = useRef(false);
+  useLayoutEffect(() => {
+    if (layoutLoading || actionDeckRetirementRef.current) return;
+    actionDeckRetirementRef.current = true;
+    const retiredPanelIds = [
+      ...(layoutRow.columns || []).flatMap((column) => column.panels || []),
+      ...(layoutRow.hiddenPanels || []),
+    ]
+      .filter((panel) => panel.type === 'actiondeck' || panel.panelId === 'actiondeck')
+      .map((panel) => panel.panelId)
+      .filter(Boolean);
+    [...new Set(retiredPanelIds)].forEach((panelId) => removePanel(panelId));
+    const clearedFloatingState = layoutRow.workspace?.actionDeckFloating === true;
+    if (clearedFloatingState) updateWorkspace({ actionDeckFloating: false });
+    if (retiredPanelIds.length || clearedFloatingState) {
+      logger.info('ui', 'Retired embedded ActionDeck state removed from workspace', {
+        panelIds: [...new Set(retiredPanelIds)],
+        clearedFloatingState,
+      });
+    }
+  }, [layoutLoading, layoutRow.columns, layoutRow.hiddenPanels, layoutRow.workspace, removePanel, updateWorkspace]);
 
   // Restore workspace state once the local layout loads.
   const workspaceRestoredRef = useRef(false);
@@ -263,7 +282,6 @@ function AppContent({ layout }) {
       const ws = layoutRow.workspace;
       if (ws) {
         if (ws.notesOpen) setNotesOpen(true);
-        if (ws.actionDeckFloating) setActionDeckFloating(true);
         if (ws.mediaOpen) setMediaOpen(true);
         if (typeof ws.floatingJournalId === 'string' && ws.floatingJournalId) {
           setFloatingJournalId(ws.floatingJournalId);
@@ -280,17 +298,15 @@ function AppContent({ layout }) {
   // Persist overlay states to workspace (debounced via useLayout)
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
-    updateWorkspace({ notesOpen, actionDeckFloating, mediaOpen, openCanvases, floatingJournalId });
-  }, [notesOpen, actionDeckFloating, mediaOpen, openCanvases, floatingJournalId, updateWorkspace]);
+    updateWorkspace({ notesOpen, mediaOpen, openCanvases, floatingJournalId });
+  }, [notesOpen, mediaOpen, openCanvases, floatingJournalId, updateWorkspace]);
 
   // Get the panels from the layout hook
   const panels = getVisiblePanels();
   logger.debug('ui', 'App panels', panels.map(p => p.id));
-  const actionDeckPanel = getPanelByType('actiondeck');
   const journalPanel = getPanelByType('journal');
   const notefallsPanel = getPanelByType('notefalls');
   const forestPanel = getPanelByType('forest');
-  const actionDeckOpen = actionDeckFloating || actionDeckPanel?.visible === true;
 
   const openThemeStudio = useCallback(() => {
     setShowSettings(false);
@@ -323,35 +339,6 @@ function AppContent({ layout }) {
       setActivePanelId(null);
     }
   }, [layoutRow.columns, fullscreenPanelId, activePanelId]);
-
-  const getActionDeckPanelSettings = useCallback(() => (
-    loadPanelSettings(ACTIONDECK_SETTINGS_KEY, DEFAULT_ACTIONDECK_PANEL_SETTINGS)
-  ), []);
-
-  const saveActionDeckPanelSettings = useCallback((updater) => {
-    const current = getActionDeckPanelSettings();
-    const next = normalizePanelSettings(
-      typeof updater === 'function' ? updater(current) : { ...current, ...updater },
-      DEFAULT_ACTIONDECK_PANEL_SETTINGS
-    );
-    savePanelSettings(ACTIONDECK_SETTINGS_KEY, next, DEFAULT_ACTIONDECK_PANEL_SETTINGS);
-    return next;
-  }, [getActionDeckPanelSettings]);
-
-  const openActionDeckColumn = useCallback(() => {
-    saveActionDeckPanelSettings({ lastUsedView: PANEL_VIEW_OPTIONS.TILE });
-    if (actionDeckPanel?.visible) return;
-    if (actionDeckPanel) {
-      togglePanelVisibility(actionDeckPanel.id);
-      return;
-    }
-    addPanel({
-      id: 'actiondeck',
-      type: 'actiondeck',
-      size: 25,
-      visible: true
-    });
-  }, [actionDeckPanel, togglePanelVisibility, addPanel, saveActionDeckPanelSettings]);
 
   const openJournalPanel = useCallback(() => {
     if (journalPanel) {
@@ -427,59 +414,6 @@ function AppContent({ layout }) {
     addPanel({ id: 'forest', type: 'forest', size: 25, visible: true });
     logger.info('forest', 'Forest panel opened');
   }, [forestPanel, togglePanelVisibility, addPanel]);
-
-  const hideActionDeckColumn = useCallback(() => {
-    if (actionDeckPanel?.visible) {
-      togglePanelVisibility(actionDeckPanel.id);
-    }
-  }, [actionDeckPanel, togglePanelVisibility]);
-
-  const toggleActionDeck = useCallback(() => {
-    if (actionDeckFloating) {
-      setActionDeckFloating(false);
-      return;
-    }
-    if (actionDeckPanel?.visible) {
-      hideActionDeckColumn();
-      return;
-    }
-    const preferredView = resolvePanelStartView(
-      getActionDeckPanelSettings(),
-      PANEL_VIEW_OPTIONS.TILE
-    );
-    if (preferredView === PANEL_VIEW_OPTIONS.FLOATING) {
-      setActionDeckFloating(true);
-      saveActionDeckPanelSettings({ lastUsedView: PANEL_VIEW_OPTIONS.FLOATING });
-      return;
-    }
-    openActionDeckColumn();
-  }, [
-    actionDeckFloating,
-    actionDeckPanel,
-    getActionDeckPanelSettings,
-    hideActionDeckColumn,
-    openActionDeckColumn,
-    saveActionDeckPanelSettings,
-  ]);
-
-  const popOutActionDeck = useCallback(() => {
-    hideActionDeckColumn();
-    saveActionDeckPanelSettings({ lastUsedView: PANEL_VIEW_OPTIONS.FLOATING });
-    setActionDeckFloating(true);
-  }, [hideActionDeckColumn, saveActionDeckPanelSettings]);
-
-  const dockActionDeck = useCallback(() => {
-    setActionDeckFloating(false);
-    openActionDeckColumn();
-  }, [openActionDeckColumn]);
-
-  const closeActionDeck = useCallback(() => {
-    if (actionDeckFloating) {
-      setActionDeckFloating(false);
-      return;
-    }
-    hideActionDeckColumn();
-  }, [actionDeckFloating, hideActionDeckColumn]);
 
   // ----- Canvases (folder library of saved mini-apps) -----
 
@@ -846,7 +780,6 @@ function AppContent({ layout }) {
   // open). 'o'/'c' stay open-only on purpose — they always open, never close.
   const shortcuts = useMemo(() => [
     { key: 'b', label: 'Toggle briiZtorm', run: () => setBriiztormOpen((prev) => !prev) },
-    { key: 'a', label: 'Toggle ActionDeck', run: () => toggleActionDeck() },
     { key: 'o', label: 'Open Organizer', run: () => setOrganizerOpen(true) },
     { key: 'c', label: 'Open Calendar', run: () => setCalendarOpen(true) },
     { key: 'm', label: 'Toggle Media', run: () => setMediaOpen((prev) => !prev) },
@@ -864,7 +797,7 @@ function AppContent({ layout }) {
         else if (activePanelId) togglePanelFullscreen(activePanelId);
       },
     },
-  ], [toggleActionDeck, openJournalPanel, openNotefallsPanel, openForestPanel, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
+  ], [openJournalPanel, openNotefallsPanel, openForestPanel, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
 
   useEffect(() => {
     // Don't hijack Cmd/Ctrl+Shift+<letter> while the user is typing —
@@ -899,8 +832,6 @@ function AppContent({ layout }) {
         } else if (floatingJournalId && !isTypingTarget(document.activeElement)) {
           // Typing guard: Escape inside the float's editor shouldn't close it.
           closeJournalFloat();
-        } else if (actionDeckOpen) {
-          closeActionDeck();
         } else if (notesOpen) {
           setNotesOpen(false);
         } else if (showSettings) {
@@ -911,7 +842,23 @@ function AppContent({ layout }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, actionDeckOpen, closeActionDeck, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, fullscreenPanelId, floatingJournalId, closeJournalFloat]);
+  }, [shortcuts, organizerOpen, calendarOpen, briiztormOpen, notesOpen, showSettings, canvasOpen, canvasesPopoverOpen, fullscreenPanelId, floatingJournalId, closeJournalFloat]);
+
+  useEffect(() => {
+    const openPriorityPlanner = (event) => {
+      const candidate = event.detail?.candidate;
+      if (!candidate?.id || !['task', 'forest_project'].includes(candidate.type)) return;
+      setCalendarPlanningFocus(candidate);
+      setCalendarOpen(true);
+      logger.info('agent.prioritize', 'Priority result handed to day planner', {
+        candidateId: candidate.id,
+        candidateType: candidate.type,
+        label: candidate.label || null,
+      });
+    };
+    window.addEventListener('briizos-plan-priority-today', openPriorityPlanner);
+    return () => window.removeEventListener('briizos-plan-priority-today', openPriorityPlanner);
+  }, []);
 
   // Listen for canvas events from tool system
   useEffect(() => {
@@ -958,8 +905,6 @@ function AppContent({ layout }) {
         return <NotefallsPanel />;
       case 'forest':
         return <Forest />;
-      case 'actiondeck':
-        return <ActionDeckColumn embedded onClose={closeActionDeck} onPopOut={popOutActionDeck} />;
       case 'canvas': {
         const canvasFilename = String(panel.panelId || panel.id || '').replace(/^canvas:/, '');
         const canvasEntry = canvasesHook.canvases.find((entry) => entry.filename === canvasFilename);
@@ -996,7 +941,7 @@ function AppContent({ layout }) {
           </div>
         );
     }
-  }, [canvasesHook.canvases, closeActionDeck, popOutActionDeck, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, pendingOpenJournalId]);
+  }, [canvasesHook.canvases, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, pendingOpenJournalId]);
 
   return (
     <div
@@ -1016,14 +961,12 @@ function AppContent({ layout }) {
           <ControlBar
             variant="dock"
             briiztormOpen={briiztormOpen}
-            actionDeckOpen={actionDeckOpen}
             organizerOpen={organizerOpen}
             calendarOpen={calendarOpen}
             mediaOpen={mediaOpen}
             notesOpen={notesOpen}
             canvasesOpen={canvasesPopoverOpen}
             onToggleBriiztorm={() => setBriiztormOpen(!briiztormOpen)}
-            onToggleActionDeck={toggleActionDeck}
             onOpenOrganizer={() => setOrganizerOpen((prev) => !prev)}
             onOpenCalendar={() => setCalendarOpen((prev) => !prev)}
             onToggleMedia={() => setMediaOpen((prev) => !prev)}
@@ -1079,14 +1022,6 @@ function AppContent({ layout }) {
         onClose={() => setBriiztormOpen(false)}
       />
 
-      {actionDeckFloating && (
-        <ActionDeckColumn
-          floating
-          onClose={closeActionDeck}
-          onDock={dockActionDeck}
-        />
-      )}
-
       {/* Modals */}
       <OrganizerModal
         isOpen={organizerOpen}
@@ -1096,6 +1031,8 @@ function AppContent({ layout }) {
       <CalendarModal
         isOpen={calendarOpen}
         onClose={() => setCalendarOpen(false)}
+        planningFocus={calendarPlanningFocus}
+        onPlanningFocusHandled={() => setCalendarPlanningFocus(null)}
       />
 
       {/* Notes Widget */}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import logger from '../lib/logger';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
@@ -12,27 +12,43 @@ const api = typeof window !== 'undefined' && window.api ? window.api : {};
 export function usePlacements({ dateFrom, dateTo }) {
   const [placements, setPlacements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadedRange, setLoadedRange] = useState(null);
+  const requestRef = useRef(0);
 
   const loadPlacements = useCallback(async () => {
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    const rangeKey = `${dateFrom}:${dateTo}`;
     if (!api.localData?.placements) {
-      setPlacements([]);
-      setIsLoading(false);
+      if (requestRef.current === requestId) {
+        setPlacements([]);
+        setLoadedRange(rangeKey);
+        setIsLoading(false);
+      }
       return [];
     }
     try {
       const rows = await api.localData.placements.list({ dateFrom, dateTo, limit: 5000 });
-      setPlacements(rows || []);
+      if (requestRef.current === requestId) {
+        setPlacements(rows || []);
+        setLoadedRange(rangeKey);
+      }
       return rows || [];
     } catch (error) {
       logger.error('calendar.placement', 'Failed to load scheduled tasks', { error: error?.message });
+      if (requestRef.current === requestId) {
+        setPlacements([]);
+        setLoadedRange(rangeKey);
+      }
       return [];
     } finally {
-      setIsLoading(false);
+      if (requestRef.current === requestId) setIsLoading(false);
     }
   }, [dateFrom, dateTo]);
 
   useEffect(() => {
     setIsLoading(true);
+    setLoadedRange(null);
     loadPlacements();
     const unsubscribe = api.localData?.onChanged?.((change) => {
       if (change?.domains?.some((domain) => domain === 'placements' || domain === 'tasks')) {
@@ -90,6 +106,7 @@ export function usePlacements({ dateFrom, dateTo }) {
   return {
     placements,
     isLoading,
+    loadedRange,
     loadPlacements,
     createPlacement,
     updatePlacement,

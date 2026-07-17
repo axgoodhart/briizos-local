@@ -38,6 +38,18 @@ function formatActionText(toolName, params) {
       return `Rename "${params.panel_id}" to "${params.new_title}"`;
     case 'createPrioritizedTaskList':
       return `Create task list (${params.criteria})`;
+    case 'applyTaskPriorities': {
+      const assignments = Array.isArray(params.assignments) ? params.assignments : [];
+      const counts = assignments.reduce((summary, assignment) => ({
+        ...summary,
+        [assignment.priority]: (summary[assignment.priority] || 0) + 1,
+      }), {});
+      const bands = ['urgent', 'high', 'medium', 'normal', 'low']
+        .filter((priority) => counts[priority])
+        .map((priority) => `${counts[priority]} ${priority}`)
+        .join(', ');
+      return `Set ${assignments.length} task priorit${assignments.length === 1 ? 'y' : 'ies'}${bands ? ` (${bands})` : ''}`;
+    }
     default:
       return `Execute ${toolName}`;
   }

@@ -631,6 +631,84 @@ const tools = {
     },
   },
 
+  applyTaskPriorities: {
+    requiresConfirmation: true,
+    description: 'Apply a ranked result to existing Tasks Panel priority fields',
+    parameters: {
+      assignments: {
+        type: 'array',
+        description: 'Ordered task priority updates',
+        items: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Tasks Panel task ID' },
+            priority: { type: 'string', description: 'low, normal, medium, high, or urgent' },
+          },
+        },
+      },
+    },
+    handler: async (params) => {
+      const allowedPriorities = new Set(['low', 'normal', 'medium', 'high', 'urgent']);
+      if (!Array.isArray(params.assignments) || params.assignments.length === 0) {
+        throw new Error('At least one task priority assignment is required');
+      }
+      if (params.assignments.length > 100) throw new Error('At most 100 task priorities can be updated at once');
+
+      const seen = new Set();
+      const assignments = params.assignments.map((assignment) => {
+        const taskId = typeof assignment?.task_id === 'string' ? assignment.task_id.trim() : '';
+        const priority = assignment?.priority;
+        if (!taskId) throw new Error('Every priority assignment needs a task ID');
+        if (!allowedPriorities.has(priority)) throw new Error(`Invalid task priority "${priority}"`);
+        if (seen.has(taskId)) throw new Error(`Task "${taskId}" appears more than once`);
+        seen.add(taskId);
+        return { taskId, priority };
+      });
+
+      // Resolve every task before the first write, then retain the service's
+      // revision check on each update so stale ranked results fail visibly.
+      const tasks = await Promise.all(assignments.map(({ taskId }) => localData().tasks.get(taskId)));
+      const missingIndex = tasks.findIndex((task) => !task);
+      if (missingIndex >= 0) throw new Error(`Task "${assignments[missingIndex].taskId}" no longer exists`);
+
+      const changes = [];
+      try {
+        for (let index = 0; index < assignments.length; index += 1) {
+          const task = tasks[index];
+          const { priority } = assignments[index];
+          if (task.priority === priority) continue;
+          const result = await localData().tasks.update(task.id, task.revision, { priority });
+          changes.push({
+            taskId: task.id,
+            title: task.title,
+            from: task.priority,
+            to: result?.row?.priority || priority,
+          });
+        }
+      } catch (error) {
+        logger.error('agent.prioritize', 'Ranked task priorities only partially applied', {
+          requested: assignments.length,
+          updated: changes.length,
+          changes,
+          error: error?.message,
+        });
+        throw error;
+      }
+      logger.info('agent.prioritize', 'Ranked task priorities applied', {
+        requested: assignments.length,
+        updated: changes.length,
+        changes,
+      });
+      return {
+        success: true,
+        updated: changes.length,
+        message: changes.length
+          ? `Updated ${changes.length} task priorit${changes.length === 1 ? 'y' : 'ies'}.`
+          : 'Those task priorities already matched the ranking.',
+      };
+    },
+  },
+
   updateForestProjectScoring: {
     requiresConfirmation: true,
     description: 'Save optional prioritization signals on a Forest project',

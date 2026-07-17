@@ -3,14 +3,12 @@ import './ControlBar.css';
 function ControlBar({
   variant = 'dock',
   briiztormOpen,
-  actionDeckOpen,
   organizerOpen,
   calendarOpen,
   mediaOpen,
   notesOpen,
   canvasesOpen,
   onToggleBriiztorm,
-  onToggleActionDeck,
   onOpenOrganizer,
   onOpenCalendar,
   onToggleMedia,
@@ -44,17 +42,6 @@ function ControlBar({
       >
         <span className="cb-icon" id="briiztorm-icon">􁅥</span>
         <span className="cb-label">briiZtorm</span>
-      </button>
-
-      <button
-        type="button"
-        className={`cb-toggle ${actionDeckOpen ? 'active' : ''}`}
-        onClick={onToggleActionDeck}
-        title="ActionDeck - Task Management"
-        aria-pressed={actionDeckOpen}
-      >
-        <span className="cb-icon" id="actiondeck-icon">􁙕</span>
-        <span className="cb-label">ActionDeck</span>
       </button>
 
       <button

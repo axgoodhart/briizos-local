@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useOrganizer } from '../../context/OrganizerContext';
 import { formatDateYMD, parseDateYMD } from '../../lib/dates';
 import { eventOccursOnDate, buildMonthEventMap } from '../../lib/recurrence';
@@ -22,14 +22,15 @@ const MONTH_NAMES = [
 
 const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function CalendarModal({ isOpen, onClose }) {
+function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusHandled }) {
   const { items, addItem, updateItem, toggleDone, removeItem, loading } = useOrganizer();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState(() => formatDateYMD(new Date()));
   const [quickAddText, setQuickAddText] = useState('');
   const [addFromOpen, setAddFromOpen] = useState(false);
-  const [plannerEnabled, setPlannerEnabled] = useState(true);
+  const planningFocusKeyRef = useRef(null);
+  const planningFocusHandledRef = useRef(onPlanningFocusHandled);
 
   const monthRange = useMemo(() => ({
     dateFrom: formatDateYMD(new Date(viewYear, viewMonth, 1)),
@@ -38,6 +39,7 @@ function CalendarModal({ isOpen, onClose }) {
   const {
     placements,
     isLoading: placementsLoading,
+    loadedRange,
     createPlacement,
     updatePlacement,
     archivePlacement,
@@ -45,10 +47,8 @@ function CalendarModal({ isOpen, onClose }) {
   } = usePlacements(monthRange);
 
   useEffect(() => {
-    window.api.localData.settings.get('actiondeck_day_planner_enabled')
-      .then((saved) => { if (saved?.value === false) setPlannerEnabled(false); })
-      .catch(() => {});
-  }, []);
+    planningFocusHandledRef.current = onPlanningFocusHandled;
+  }, [onPlanningFocusHandled]);
 
   // Build event map for current month
   const eventMap = useMemo(() => {
@@ -108,6 +108,42 @@ function CalendarModal({ isOpen, onClose }) {
       setViewYear(parsed.getFullYear());
     }
   }, [viewMonth, viewYear]);
+
+  useEffect(() => {
+    if (!planningFocus?.id) {
+      planningFocusKeyRef.current = null;
+      return undefined;
+    }
+    if (!isOpen) return undefined;
+    const focusKey = `${planningFocus.type}:${planningFocus.id}`;
+    if (planningFocusKeyRef.current === focusKey) return undefined;
+
+    const today = formatDateYMD(new Date());
+    if (selectedDate !== today) {
+      selectDay(today);
+      return undefined;
+    }
+    const rangeKey = `${monthRange.dateFrom}:${monthRange.dateTo}`;
+    if (loading || placementsLoading || loadedRange !== rangeKey) return undefined;
+
+    planningFocusKeyRef.current = focusKey;
+    let active = true;
+    planDay(planningFocus).finally(() => {
+      if (active) planningFocusHandledRef.current?.();
+    });
+    return () => { active = false; };
+  }, [
+    isOpen,
+    loadedRange,
+    loading,
+    monthRange.dateFrom,
+    monthRange.dateTo,
+    placementsLoading,
+    planDay,
+    planningFocus,
+    selectedDate,
+    selectDay,
+  ]);
 
   const shiftSelectedDay = useCallback((delta) => {
     const next = parseDateYMD(selectedDate);
@@ -217,6 +253,10 @@ function CalendarModal({ isOpen, onClose }) {
     }
     return createPlacement({ ...placement, refType: 'task', refId: task.id });
   }, [createPlacement]);
+
+  const handleAcceptProposal = useCallback((proposal) => (
+    acceptProposal(proposal, { promoteForestSource: handlePromoteForestSource })
+  ), [acceptProposal, handlePromoteForestSource]);
 
   const handleCompleteTask = useCallback(async (task) => {
     const current = await window.api.localData.tasks.get(task.id);
@@ -337,7 +377,6 @@ function CalendarModal({ isOpen, onClose }) {
                   proposals={proposals}
                   plannerSummary={plannerSummary}
                   plannerError={plannerError}
-                  plannerEnabled={plannerEnabled}
                   isPlanning={isPlanning}
                   onPreviousDay={() => shiftSelectedDay(-1)}
                   onToday={goToToday}
@@ -352,7 +391,7 @@ function CalendarModal({ isOpen, onClose }) {
                   onUpdatePlacement={updatePlacement}
                   onArchivePlacement={archivePlacement}
                   onCompleteTask={handleCompleteTask}
-                  onAcceptProposal={acceptProposal}
+                  onAcceptProposal={handleAcceptProposal}
                   onRejectProposal={rejectProposal}
                 />
               </div>
@@ -440,7 +479,6 @@ function DailyPanel({
   proposals,
   plannerSummary,
   plannerError,
-  plannerEnabled,
   isPlanning,
   onPreviousDay,
   onToday,
@@ -484,11 +522,9 @@ function DailyPanel({
 
       <div className="cal-day-actions">
         <button type="button" onClick={onAddFrom}>＋ Add from…</button>
-        {plannerEnabled && (
-          <button type="button" className="plan-day" onClick={onPlanDay} disabled={isPlanning}>
-            {isPlanning ? '✦ Planning…' : '✦ Plan my day'}
-          </button>
-        )}
+        <button type="button" className="plan-day" onClick={onPlanDay} disabled={isPlanning}>
+          {isPlanning ? '✦ Planning…' : '✦ Plan my day'}
+        </button>
         <button type="button" className="planner-chat" onClick={onOpenPlannerChat}>Ask about this day</button>
       </div>
 

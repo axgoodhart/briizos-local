@@ -23,8 +23,6 @@ const SETTING_KEYS = new Set([
   'actiondeck_panel_settings',
   'selected_model',
   'suggestions_enabled',
-  'actiondeck_prioritizer_enabled',
-  'actiondeck_day_planner_enabled',
   'agent_config',
   'skills_config',
   'studio_video_url',
@@ -180,8 +178,6 @@ class LocalDataService extends EventEmitter {
     if (key === 'ui_theme_library') return validateThemeLibrary(value);
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
     if (key === 'suggestions_enabled') return v.boolean(value, key);
-    if (key === 'actiondeck_prioritizer_enabled') return v.boolean(value, key);
-    if (key === 'actiondeck_day_planner_enabled') return v.boolean(value, key);
     if (key.endsWith('_url')) {
       const candidate = v.string(value, key, { max: 2000 });
       if (candidate && !/^https?:\/\//i.test(candidate)) v.fail('INVALID_INPUT', `${key} must be an HTTP URL`);

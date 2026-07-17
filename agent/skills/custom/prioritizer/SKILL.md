@@ -47,7 +47,15 @@ Concise reasoning that connects deadlines, importance, relevance, and effort to 
 Only include this section when missing information materially lowers confidence.
 ```
 
-Do not return JSON. Do not claim numeric precision that the stored fields do not support.
+Keep the visible answer as normal markdown, not JSON. Do not claim numeric precision that the stored fields do not support.
+
+After a completed ranking, append exactly one machine-readable HTML comment on its own final line. Include every ranked candidate in the same order, using the exact candidate IDs and names from the picker or read-tool results:
+
+```markdown
+<!-- briizos-priority-order:[{"type":"task","id":"exact-task-id","label":"Exact task name"},{"type":"forest_project","id":"exact-project-id","label":"Exact project name"}] -->
+```
+
+The JSON array is allowed only inside this hidden comment. Use `task` for Tasks Panel tasks and `forest_project` for Forest projects. Emit valid compact JSON with double quotes, no ellipsis, no prose after the comment, and no candidates that are absent from the visible ranking. If you ask a question instead of ranking, do not emit the comment.
 
 ## Saving better project context
 

@@ -89,7 +89,7 @@ function normalizeEntries(items, placements, proposals) {
   const ghosts = proposals.map((proposal) => ({
     key: `proposal:${proposal.id}`,
     kind: 'proposal',
-    origin: proposal.kind === 'task' ? 'task' : 'event',
+    origin: proposal.kind === 'event' ? 'event' : 'task',
     title: proposal.title,
     startMinute: proposal.startMinute,
     durationMinutes: proposal.durationMinutes,

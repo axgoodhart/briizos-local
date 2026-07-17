@@ -85,7 +85,7 @@ function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, 
     if (!wrapperEl) return undefined;
 
     const disconnectDrop = drop(wrapperEl);
-    const dragHandle = wrapperEl.querySelector('.panel-header, .actiondeck-header');
+    const dragHandle = wrapperEl.querySelector('.panel-header');
     const disconnectDrag = drag(dragHandle || wrapperEl);
 
     return () => {
@@ -95,7 +95,7 @@ function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, 
   }, [drag, drop, panelId]);
 
   const handleDoubleClick = (event) => {
-    const header = event.target.closest('.panel-header, .actiondeck-header');
+    const header = event.target.closest('.panel-header');
     if (!header || !wrapperRef.current?.contains(header)) return;
     if (event.target.closest('button, input, textarea, select, a, [contenteditable="true"]')) return;
     event.preventDefault();
@@ -121,7 +121,6 @@ function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, 
 }
 
 const PANEL_TITLES = {
-  actiondeck: 'ActionDeck',
   interaction: 'Interaction',
   journal: 'Journal',
   media: 'Media',
@@ -133,7 +132,7 @@ const PANEL_TITLES = {
 };
 
 const PANEL_THEME_COMPONENTS = {
-  actiondeck: 'ActionDeck', interaction: 'Chat', journal: 'Journals', media: 'Media',
+  interaction: 'Chat', journal: 'Journals', media: 'Media',
   notefalls: 'Notefalls', sources: 'Sources', tasks: 'Tasks', forest: 'Forest', canvas: 'Canvas',
 };
 

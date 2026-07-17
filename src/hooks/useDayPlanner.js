@@ -10,29 +10,40 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
   const [error, setError] = useState(null);
   const [isPlanning, setIsPlanning] = useState(false);
 
-  const planDay = useCallback(async () => {
+  const planDay = useCallback(async (preferredCandidate = null) => {
     setIsPlanning(true);
     setError(null);
     setProposals([]);
     setSummary('');
-    logger.info('agent.planner', 'Day planning started', { date: dateStr });
+    logger.info('agent.planner', 'Day planning started', {
+      date: dateStr,
+      preferredCandidate: preferredCandidate?.id || null,
+    });
     try {
       const [tasks, forestState] = await Promise.all([
         window.api.localData.tasks.list({ limit: 500 }),
         window.api.forestLoadState(),
       ]);
       const openTasks = (tasks || []).filter((task) => !CLOSED_TASK_STATUSES.has(task.status));
+      const projects = forestState?.projects || [];
       const result = await runDayPlanner({
         date: dateStr,
         events,
         placements,
         tasks: openTasks,
-        projects: forestState?.projects || [],
+        projects,
+        preferredCandidate,
       });
       const knownIds = new Set(openTasks.map((task) => task.id));
-      const safeProposals = result.proposals.filter((proposal) => (
-        proposal.kind !== 'task' || knownIds.has(proposal.taskId)
-      ));
+      const projectsById = new Map(projects.map((project) => [project.id, project]));
+      const safeProposals = result.proposals
+        .filter((proposal) => (
+          (proposal.kind !== 'task' || knownIds.has(proposal.taskId))
+          && (proposal.kind !== 'forest_project' || projectsById.has(proposal.projectId))
+        ))
+        .map((proposal) => proposal.kind === 'forest_project'
+          ? { ...proposal, project: projectsById.get(proposal.projectId) }
+          : proposal);
       setProposals(safeProposals);
       setSummary(result.summary);
       return safeProposals;
@@ -49,13 +60,28 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
     logger.info('agent.planner', 'Day proposal rejected', { proposalId, date: dateStr });
   }, [dateStr]);
 
-  const acceptProposal = useCallback(async (proposal) => {
+  const acceptProposal = useCallback(async (proposal, handlers = {}) => {
     setError(null);
     try {
       if (proposal.kind === 'task') {
         await createPlacement({
           refType: 'task',
           refId: proposal.taskId,
+          date: dateStr,
+          startMinute: proposal.startMinute,
+          durationMinutes: proposal.durationMinutes,
+        });
+      } else if (proposal.kind === 'forest_project') {
+        if (typeof handlers.promoteForestSource !== 'function' || !proposal.project) {
+          throw new Error('This Forest project is no longer available to schedule');
+        }
+        await handlers.promoteForestSource({
+          kind: 'forest',
+          title: proposal.title,
+          project: proposal.project,
+          milestone: null,
+          sourceKey: `forest-project:${proposal.projectId}`,
+        }, {
           date: dateStr,
           startMinute: proposal.startMinute,
           durationMinutes: proposal.durationMinutes,
