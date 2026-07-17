@@ -225,6 +225,32 @@ display:flex;  gap: 18px;
   stroke: none;
 }
 
+.collapse-all-btn .collapse-glyph {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.collapse-all-btn .collapse-glyph-awake {
+  opacity: 0;
+  transform: scaleY(0.35);
+}
+
+.collapse-all-btn .collapse-glyph-wink {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.collapse-all-btn[data-state="expanded"] .collapse-glyph-awake {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.collapse-all-btn[data-state="expanded"] .collapse-glyph-wink {
+  opacity: 0;
+  transform: scaleY(0.35);
+}
+
 .collapse-all-btn:hover:not(:disabled) {
   color: #e4fbe9;
   background: rgba(13, 91, 59, 0.96);

@@ -1700,7 +1700,15 @@ function updateStats() {
   zoomReadoutEl.textContent = `${Math.round(state.viewport.scale * 100)}%`;
 
   if (collapseAllBtn) {
-    collapseAllBtn.disabled = !state.projects.some((project) => project.expanded);
+    const hasExpandedProjects = state.projects.some((project) => project.expanded);
+    const collapseLabel = hasExpandedProjects
+      ? 'Collapse all expanded projects'
+      : 'All projects are already mini';
+
+    collapseAllBtn.disabled = !hasExpandedProjects;
+    collapseAllBtn.dataset.state = hasExpandedProjects ? 'expanded' : 'mini';
+    collapseAllBtn.setAttribute('aria-label', collapseLabel);
+    collapseAllBtn.title = collapseLabel;
   }
 
   if (filehawkBtn) {
