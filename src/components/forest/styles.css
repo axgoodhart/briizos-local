@@ -189,8 +189,64 @@ display:flex;  gap: 18px;
   min-width: 220px;
 }
 
+.collapse-all-btn {
+  position: absolute;
+  top: 80px;
+  left: 4px;
+  z-index: 2;
+  display: grid;
+  width: 30px;
+  height: 29px;
+  padding: 0;
+  place-items: center;
+  color: #b9f5d3;
+  background: rgba(7, 55, 38, 0.9);
+  border: 1px solid rgba(160, 244, 198, 0.25) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 11px 11px;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08), 0 5px 16px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
+}
+
+.collapse-all-btn svg {
+  width: 24px;
+  height: 14px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.collapse-all-btn circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.collapse-all-btn:hover:not(:disabled) {
+  color: #e4fbe9;
+  background: rgba(13, 91, 59, 0.96);
+  transform: translateY(2px);
+}
+
+.collapse-all-btn:focus-visible {
+  outline: 2px solid rgba(185, 245, 211, 0.9);
+  outline-offset: 2px;
+}
+
+.collapse-all-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
 .dim-mode .search-wrap {
 top:3.4rem;
+}
+
+.dim-mode .collapse-all-btn {
+  top: 3.4rem;
 }
 
 .search-wrap::before {

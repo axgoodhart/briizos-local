@@ -17,6 +17,7 @@ const grid = document.getElementById('forest-grid');
 const dropOverlay = document.getElementById('forest-dropOverlay');
 const emptyState = document.getElementById('forest-emptyState');
 const searchInput = document.getElementById('forest-searchInput');
+const collapseAllBtn = document.getElementById('forest-collapseAllBtn');
 const resetViewBtn = document.getElementById('forest-resetViewBtn');
 const fitBtn = document.getElementById('forest-fitBtn');
 const projectCountEl = document.getElementById('forest-projectCount');
@@ -1697,6 +1698,10 @@ function updateStats() {
   projectCountEl.textContent = `${state.projects.length} project${state.projects.length === 1 ? '' : 's'}`;
   fileCountEl.textContent = `${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
   zoomReadoutEl.textContent = `${Math.round(state.viewport.scale * 100)}%`;
+
+  if (collapseAllBtn) {
+    collapseAllBtn.disabled = !state.projects.some((project) => project.expanded);
+  }
 
   if (filehawkBtn) {
     const probs = filehawkProblemCount();
@@ -3400,6 +3405,18 @@ dimToggle.addEventListener('click', () => {
 
 resetViewBtn.addEventListener('click', () => resetView(true));
 fitBtn.addEventListener('click', () => fitProjects());
+if (collapseAllBtn) {
+  collapseAllBtn.addEventListener('click', () => {
+    const expandedProjects = state.projects.filter((project) => project.expanded);
+    if (!expandedProjects.length) return;
+
+    expandedProjects.forEach((project) => {
+      project.expanded = false;
+    });
+    render();
+    scheduleSave();
+  });
+}
 if (filehawkBtn) filehawkBtn.addEventListener('click', () => (state.filehawkOpen ? closeFilehawk() : openFilehawk()));
 
 function onForestDragEnter(event) {
