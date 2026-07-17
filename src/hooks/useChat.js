@@ -33,6 +33,7 @@ const hasApi = typeof window !== 'undefined' && !!window.api;
 
 const MODALITY_SKILL_MAP = {
   chat: null,
+  prioritize: 'prioritizer',
   research: 'deep-research',
   code: 'frontend-design',
   report: 'consulting-analysis',
@@ -77,6 +78,60 @@ function buildFileContextAddendum(files = []) {
   ].join('\n');
 }
 
+function threadKindForModality(modality) {
+  return modality === 'prioritize' ? 'prioritize' : 'chat';
+}
+
+function candidateForPrompt(candidate) {
+  if (candidate?.kind === 'project') {
+    return {
+      type: 'forest_project',
+      id: candidate.id,
+      name: candidate.name,
+      deadline: candidate.deadline || null,
+      importance: candidate.importance ?? null,
+      size_hours: candidate.size ?? null,
+      relevance: candidate.relevance || null,
+      tags: Array.isArray(candidate.tags) ? candidate.tags : [],
+      milestones: Array.isArray(candidate.milestones) ? candidate.milestones : [],
+    };
+  }
+  return {
+    type: 'task',
+    id: candidate?.id,
+    title: candidate?.title || '',
+    description: candidate?.description || '',
+    status: candidate?.status || 'pending',
+    priority: candidate?.priority || 'normal',
+    due_at: candidate?.dueAt || candidate?.due_at || null,
+    project_id: candidate?.projectId || candidate?.project_id || null,
+    subtasks: Array.isArray(candidate?.subtasks)
+      ? candidate.subtasks.map((step) => ({ title: step.title, status: step.status }))
+      : [],
+  };
+}
+
+function buildPrioritizeAddendum(candidates = []) {
+  const selected = Array.isArray(candidates) ? candidates.filter((candidate) => candidate?.id) : [];
+  if (!selected.length) {
+    return [
+      '',
+      '---',
+      '<prioritization_candidates source="self-serve">',
+      'No candidates were pinned in the picker. Fetch open Forest projects and Tasks Panel tasks with the briizOS read tools, then prioritize the relevant active work.',
+      '</prioritization_candidates>',
+    ].join('\n');
+  }
+  return [
+    '',
+    '---',
+    '<prioritization_candidates source="picker">',
+    'Prioritize exactly these user-selected candidates:',
+    ...selected.map((candidate) => JSON.stringify(candidateForPrompt(candidate))),
+    '</prioritization_candidates>',
+  ].join('\n');
+}
+
 function newId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -94,7 +149,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   const [pendingClarification, setPendingClarification] = useState(null);
   const [threadTitle, setThreadTitle] = useState(null);
   const threadTitleRef = useRef(null);
-  const [modality, setModality] = useState('chat');
+  const [modality, setModalityState] = useState('chat');
+  const [isSwitchingThread, setIsSwitchingThread] = useState(true);
   const [subAgentTasks, setSubAgentTasks] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsEnabled, setSuggestionsEnabled] = useState(true);
@@ -108,6 +164,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   const requestSettingsRef = useRef(requestSettings || {});
   const suggestionsEnabledRef = useRef(suggestionsEnabled);
   const modalityRef = useRef(modality);
+  const activeThreadKindRef = useRef('chat');
 
   // One LangGraph thread per chat session (multi-turn context lives in the
   // agent's checkpointer, keyed by this thread_id).
@@ -145,24 +202,48 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       .finally(() => { suggestionsHydratedRef.current = true; });
   }, []);
 
+  const desiredThreadKind = threadKindForModality(modality);
+
   useEffect(() => {
     let active = true;
+    activeThreadKindRef.current = desiredThreadKind;
+    threadIdRef.current = null;
+    setActiveThread(null);
+    setIsSwitchingThread(true);
+    setMessages([]);
+    setSuggestions([]);
+    setThreadTitle(null);
+    threadTitleRef.current = null;
+    chatPolicyRef.current = restrictivePolicy('chat');
+
     const loadLatestThread = async () => {
-      const threads = await api.localData.threads.list({ kind: 'chat', limit: 1 });
+      const threads = await api.localData.threads.list({ kind: desiredThreadKind, limit: 1 });
       if (!active || !threads.length) return;
       const thread = threads[0];
+      const nextMessages = await api.localData.threads.messages.list(thread.id);
+      if (!active) return;
       threadIdRef.current = thread.id;
       setActiveThread(thread.id);
       threadTitleRef.current = thread.title || null;
       setThreadTitle(thread.title || null);
-      setMessages(await api.localData.threads.messages.list(thread.id));
+      setMessages(nextMessages);
       try {
         chatPolicyRef.current = await registerSurfaceForThread(thread.id, 'chat');
       } catch {
         chatPolicyRef.current = restrictivePolicy('chat');
       }
     };
-    loadLatestThread().catch((error) => logger.error('chat', 'Failed to load local chat history', { error: error?.message }));
+
+    loadLatestThread()
+      .catch((error) => logger.error('chat', `Failed to load ${desiredThreadKind} history`, { error: error?.message }))
+      .finally(() => {
+        if (active) setIsSwitchingThread(false);
+      });
+    return () => { active = false; };
+  }, [desiredThreadKind]);
+
+  useEffect(() => {
+    let active = true;
     const unsubscribe = api.localData.onChanged((change) => {
       const threadId = threadIdRef.current;
       if (!threadId || !change?.domains?.includes('threads')) return;
@@ -175,6 +256,13 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       unsubscribe();
     };
   }, []);
+
+  const setModality = useCallback((nextModality) => {
+    if (!nextModality || nextModality === modalityRef.current) return;
+    if (isLoading || pendingConfirmRef.current || pendingClarificationRef.current) return;
+    modalityRef.current = nextModality;
+    setModalityState(nextModality);
+  }, [isLoading]);
 
   // ---------------------------------------------------------------------
   // Backend status → isConfigured (agent reachable, not "API keys set").
@@ -374,7 +462,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     if (!hasApi || typeof api.langgraphCreateThread !== 'function') {
       throw new Error('Agent backend unavailable (no LangGraph IPC bindings)');
     }
-    const res = await api.langgraphCreateThread();
+    const kind = activeThreadKindRef.current || 'chat';
+    const res = await api.langgraphCreateThread(kind);
     const threadId = res?.thread_id || res?.threadId || res;
     if (!threadId) throw new Error('Failed to create agent thread');
     threadIdRef.current = threadId;
@@ -387,7 +476,11 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     } catch {
       chatPolicyRef.current = restrictivePolicy('chat');
     }
-    logger.info('agent.thread', 'Agent thread created', { threadId, mode: chatPolicyRef.current?.mode });
+    logger.info('agent.thread', 'Agent thread created', {
+      threadId,
+      kind,
+      mode: chatPolicyRef.current?.mode,
+    });
     return threadId;
   }, []);
 
@@ -403,6 +496,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       top_p: Number.isFinite(params.top_p) ? params.top_p : undefined,
       max_tokens: Number.isFinite(params.max_tokens) ? params.max_tokens : undefined,
       plan_mode: modalityRef.current === 'plan',
+      // Chat mode → the agent's per-mode data catalog (electron/agent/data-catalog.js).
+      modality: modalityRef.current,
       // Per-surface (chat column) effective level. permission_policy
       // carries the blacklist and confirmation level for bridge tools.
       tool_confirmation_mode: policy.mode || 'ask-always',
@@ -451,15 +546,18 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         logger.debug('agent.suggestions', 'Suggestion fetch failed', { error: err?.message });
       }
     }
+    return content;
   }, [messages, getSelectedModel]);
 
-  const sendMessage = useCallback(async (message, { isRemote = false } = {}) => {
-    if (!message?.trim() || isLoading) return null;
+  const sendMessage = useCallback(async (message, { isRemote = false, prioritizeCandidates = [] } = {}) => {
+    if (!message?.trim() || isLoading || isSwitchingThread) return null;
     if (!hasApi || typeof api.langgraphStreamMessage !== 'function') {
       return null;
     }
 
     setSuggestions([]);
+    const isPrioritizeTurn = modalityRef.current === 'prioritize';
+    const selectedCandidates = Array.isArray(prioritizeCandidates) ? prioritizeCandidates : [];
     const pendingClarificationAnswer = pendingClarificationRef.current;
     const activeThreadId = pendingClarificationAnswer ? threadIdRef.current : await ensureThread();
     if (!activeThreadId) throw new Error('Cannot save a message without an agent thread');
@@ -493,11 +591,23 @@ export function useChat({ selectedModel, requestSettings } = {}) {
           return null;
         }
         if (pendingClarificationRef.current) {
-          await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
+          const content = await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
+          if (isPrioritizeTurn) {
+            logger.info('agent.prioritize', 'Prioritization paused for clarification', {
+              threadId,
+              responseChars: content?.length || 0,
+            });
+          }
           return null;
         }
 
-        await finalizeAssistantTurn({ isRemote });
+        const content = await finalizeAssistantTurn({ isRemote });
+        if (isPrioritizeTurn) {
+          logger.info('agent.prioritize', 'Prioritization finished', {
+            threadId,
+            responseChars: content?.length || 0,
+          });
+        }
         return null;
       }
 
@@ -508,6 +618,9 @@ export function useChat({ selectedModel, requestSettings } = {}) {
 
       const selectedFiles = await loadSelectedFiles();
       actualMessage += buildFileContextAddendum(selectedFiles);
+      if (isPrioritizeTurn) {
+        actualMessage += buildPrioritizeAddendum(selectedCandidates);
+      }
 
       const threadId = activeThreadId;
 
@@ -521,6 +634,19 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       pendingConfirmRef.current = null;
 
       const agentConfig = buildConfig();
+      if (isPrioritizeTurn) {
+        logger.info('agent.prioritize', selectedCandidates.length
+          ? `${selectedCandidates.length} candidate${selectedCandidates.length === 1 ? '' : 's'} picked`
+          : 'No candidates picked; using self-serve data lookup', {
+          threadId,
+          candidates: selectedCandidates.map((candidate) => ({ kind: candidate.kind, id: candidate.id })),
+        });
+        logger.info('agent.prioritize', 'Prioritization started', {
+          threadId,
+          candidateCount: selectedCandidates.length,
+          model: agentConfig.model,
+        });
+      }
       logger.info('chat', 'Dispatching message to agent', {
         threadId, isRemote, modality: modalityRef.current, model: agentConfig.model,
       });
@@ -532,16 +658,35 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       // (after approve/reject → resume). Otherwise finalize now.
       if (pendingConfirmRef.current) {
         logger.info('chat', 'Turn paused awaiting tool confirmation');
+        if (isPrioritizeTurn) {
+          logger.info('agent.prioritize', 'Prioritization waiting for confirmation', { threadId });
+        }
         return null;
       }
       if (pendingClarificationRef.current) {
-        await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
+        const content = await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
+        if (isPrioritizeTurn) {
+          logger.info('agent.prioritize', 'Prioritization paused for clarification', {
+            threadId,
+            responseChars: content?.length || 0,
+          });
+        }
         return null;
       }
 
-      await finalizeAssistantTurn({ isRemote });
+      const content = await finalizeAssistantTurn({ isRemote });
+      if (isPrioritizeTurn) {
+        logger.info('agent.prioritize', 'Prioritization finished', {
+          threadId,
+          candidateCount: selectedCandidates.length,
+          responseChars: content?.length || 0,
+        });
+      }
     } catch (error) {
       logger.error('chat', 'Agent turn failed', { error: error?.message });
+      if (isPrioritizeTurn) {
+        logger.error('agent.prioritize', 'Prioritization failed', { error: error?.message });
+      }
       if (threadIdRef.current) {
         await api.localData.threads.messages.append(threadIdRef.current, {
           role: 'assistant',
@@ -560,7 +705,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     }
 
     return null;
-  }, [isLoading, loadSelectedFiles, ensureThread, runAgentTurn, buildConfig, finalizeAssistantTurn]);
+  }, [isLoading, isSwitchingThread, loadSelectedFiles, ensureThread, runAgentTurn, buildConfig, finalizeAssistantTurn]);
 
   // ---------------------------------------------------------------------
   // Tool confirmation resolution → resume the same thread.
@@ -591,10 +736,22 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         return;
       }
       if (pendingClarificationRef.current) {
-        await finalizeAssistantTurn({ isRemote: false, skipSuggestions: true });
+        const content = await finalizeAssistantTurn({ isRemote: false, skipSuggestions: true });
+        if (modalityRef.current === 'prioritize') {
+          logger.info('agent.prioritize', 'Prioritization paused for clarification', {
+            threadId,
+            responseChars: content?.length || 0,
+          });
+        }
         return;
       }
-      await finalizeAssistantTurn({ isRemote: false });
+      const content = await finalizeAssistantTurn({ isRemote: false });
+      if (modalityRef.current === 'prioritize') {
+        logger.info('agent.prioritize', 'Prioritization finished after confirmation', {
+          threadId,
+          responseChars: content?.length || 0,
+        });
+      }
     } catch (error) {
       logger.error('agent.confirm', 'Resume after confirmation failed', { error: error?.message });
       await api.localData.threads.messages.append(threadId, {
@@ -627,7 +784,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       toolCallsRef.current = [];
       setSubAgentTasks([]);
       subAgentTasksRef.current = [];
-      setModality('chat');
+      modalityRef.current = 'chat';
+      setModalityState('chat');
       setSuggestions([]);
       setThreadTitle(null);
       threadTitleRef.current = null;
@@ -653,6 +811,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   return {
     messages,
     isLoading,
+    isSwitchingThread,
     isConfigured,
     tokenUsage,
     filesInContext,

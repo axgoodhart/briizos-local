@@ -23,6 +23,7 @@ const SETTING_KEYS = new Set([
   'actiondeck_panel_settings',
   'selected_model',
   'suggestions_enabled',
+  'actiondeck_prioritizer_enabled',
   'agent_config',
   'skills_config',
   'studio_video_url',
@@ -178,6 +179,7 @@ class LocalDataService extends EventEmitter {
     if (key === 'ui_theme_library') return validateThemeLibrary(value);
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
     if (key === 'suggestions_enabled') return v.boolean(value, key);
+    if (key === 'actiondeck_prioritizer_enabled') return v.boolean(value, key);
     if (key.endsWith('_url')) {
       const candidate = v.string(value, key, { max: 2000 });
       if (candidate && !/^https?:\/\//i.test(candidate)) v.fail('INVALID_INPUT', `${key} must be an HTTP URL`);
@@ -1712,7 +1714,15 @@ class LocalDataService extends EventEmitter {
           typeGroup: file.kind,
           tags: JSON.parse(file.tags_json),
         }));
-        return { ...data, id: project.id, name: project.title, x: project.position_x, y: project.position_y, files };
+        return {
+          ...data,
+          id: project.id,
+          name: project.title,
+          x: project.position_x,
+          y: project.position_y,
+          files,
+          revision: project.revision,
+        };
       });
     return {
       version: 1,
@@ -1720,6 +1730,73 @@ class LocalDataService extends EventEmitter {
       hunterDirs: Array.isArray(view.hunterDirs) ? view.hunterDirs : [],
       projects,
     };
+  }
+
+  updateForestProjectScoring(projectId, expectedRevision, patch = {}) {
+    projectId = v.identifier(projectId, 'projectId');
+    expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
+    v.object(patch, 'Forest project scoring changes', ['deadline', 'importance', 'size', 'relevance']);
+    const keys = Object.keys(patch);
+    if (!keys.length) v.fail('INVALID_INPUT', 'At least one scoring change is required');
+
+    const normalized = {};
+    if (patch.deadline !== undefined) {
+      const deadline = v.string(patch.deadline, 'deadline', { nullable: true, max: 10 });
+      if (deadline != null && deadline !== '') {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+          v.fail('INVALID_INPUT', 'deadline must use YYYY-MM-DD');
+        }
+        const parsed = new Date(`${deadline}T00:00:00Z`);
+        if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== deadline) {
+          v.fail('INVALID_INPUT', 'deadline must be a real calendar date');
+        }
+        normalized.deadline = deadline;
+      } else {
+        normalized.deadline = null;
+      }
+    }
+    if (patch.importance !== undefined) {
+      normalized.importance = patch.importance == null
+        ? null
+        : v.integer(patch.importance, 'importance', { min: 1, max: 10 });
+    }
+    if (patch.size !== undefined) {
+      normalized.size = patch.size == null
+        ? null
+        : v.number(patch.size, 'size', { min: 0, max: 1000000 });
+    }
+    if (patch.relevance !== undefined) {
+      const relevance = v.string(patch.relevance, 'relevance', { nullable: true, max: 5000 });
+      normalized.relevance = relevance == null || relevance.trim() === '' ? null : relevance.trim();
+    }
+
+    return this._write('forest', (timestamp) => {
+      this._requireCurrent('forest_projects', projectId, expectedRevision);
+      const current = this.db.prepare('SELECT * FROM forest_projects WHERE id = ?').get(projectId);
+      const data = JSON.parse(current.data_json);
+      Object.entries(normalized).forEach(([key, value]) => {
+        if (value == null) delete data[key];
+        else data[key] = value;
+      });
+      this.db.prepare(`
+        UPDATE forest_projects
+        SET data_json = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(this._jsonValue(data, 'Forest project data', 5000000), timestamp, projectId);
+      const updated = this.db.prepare('SELECT * FROM forest_projects WHERE id = ?').get(projectId);
+      const updatedData = JSON.parse(updated.data_json);
+      return {
+        row: {
+          id: updated.id,
+          name: updated.title,
+          deadline: updatedData.deadline ?? null,
+          importance: updatedData.importance ?? null,
+          size: updatedData.size ?? null,
+          relevance: updatedData.relevance ?? null,
+          revision: updated.revision,
+        },
+      };
+    });
   }
 
   saveForestState(state = {}) {

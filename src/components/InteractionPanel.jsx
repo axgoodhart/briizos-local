@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense, Component } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, Component } from 'react';
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -90,12 +90,13 @@ const CHAT_BACKGROUNDS = [
 
 
 const MODALITIES = [
+
+  { id: 'prioritize', label: 'Prioritize' },
+  { id: 'stylofact', label: 'Stylofact' },
   { id: 'chat', label: 'Chat' },
   { id: 'research', label: 'Research' },
   { id: 'code', label: 'Code' },
-  { id: 'report', label: 'Report' },
-  { id: 'plan', label: 'Plan' },
-  { id: 'stylofact', label: 'Stylofact' },
+  { id: 'report', label: 'Report' }
 ];
 
 const TOOL_NAME_REGEX = '[A-Za-z][A-Za-z0-9_]*';
@@ -175,6 +176,7 @@ function InteractionPanel() {
   const {
     messages,
     isLoading,
+    isSwitchingThread,
     isConfigured,
     filesInContext,
     streamingContent,
@@ -207,6 +209,7 @@ function InteractionPanel() {
   });
   const [resolvedChatBg, setResolvedChatBg] = useState(chatBackground);
   const [resolvedChatBgBlur, setResolvedChatBgBlur] = useState(chatBgBlur);
+  const [prioritizerEnabled, setPrioritizerEnabled] = useState(true);
   const bgIframeRef = useRef(null);
 
   useEffect(() => {
@@ -214,6 +217,18 @@ function InteractionPanel() {
       setProvider(selectedProfile.provider);
     }
   }, [selectedProfile?.provider, provider, setProvider]);
+
+  useEffect(() => {
+    window.api.localData.settings.get('actiondeck_prioritizer_enabled')
+      .then((saved) => {
+        if (saved?.value === false) setPrioritizerEnabled(false);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!prioritizerEnabled && modality === 'prioritize') setModality('chat');
+  }, [prioritizerEnabled, modality, setModality]);
 
   // Collect every custom-property name declared on :root / :root[data-theme=...]
   // across same-origin stylesheets (App.css), then push the *computed* (i.e.
@@ -297,9 +312,93 @@ function InteractionPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState(null); // { index, role, x, y }
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [prioritizeCandidates, setPrioritizeCandidates] = useState([]);
+  const [selectedCandidateKeys, setSelectedCandidateKeys] = useState(() => new Set());
+  const [candidateLoadState, setCandidateLoadState] = useState('idle');
+  const [candidateLoadError, setCandidateLoadError] = useState('');
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const scrollContainerRef = useRef(null);
+
+  const loadPrioritizeCandidates = useCallback(async () => {
+    setCandidateLoadState('loading');
+    setCandidateLoadError('');
+    try {
+      const [forestState, tasks] = await Promise.all([
+        window.api.forestLoadState(),
+        window.api.localData.tasks.list({ limit: 500 }),
+      ]);
+      const projects = (forestState?.projects || []).map((project) => ({
+        key: `project:${project.id}`,
+        kind: 'project',
+        id: project.id,
+        name: project.name || 'Untitled Project',
+        tags: Array.isArray(project.tags) ? project.tags : [],
+        milestones: (project.milestones || []).map((milestone) => ({
+          name: milestone.name || milestone.title || milestone.label || '',
+          completed: !!milestone.completed,
+        })),
+        deadline: project.deadline || null,
+        importance: project.importance ?? null,
+        size: project.size ?? null,
+        relevance: project.relevance || null,
+      })).sort((a, b) => a.name.localeCompare(b.name));
+      const taskCandidates = (tasks || [])
+        .filter((task) => !['completed', 'cancelled'].includes(task.status))
+        .map((task) => ({
+          key: `task:${task.id}`,
+          kind: 'task',
+          id: task.id,
+          title: task.title || 'Untitled Task',
+          description: task.description || '',
+          status: task.status || 'pending',
+          priority: task.priority || 'normal',
+          dueAt: task.due_at == null
+            ? null
+            : typeof task.due_at === 'number'
+              ? new Date(task.due_at).toISOString()
+              : task.due_at,
+          projectId: task.project_id || null,
+          subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+        }))
+        .sort((a, b) => a.title.localeCompare(b.title));
+      const nextCandidates = [...projects, ...taskCandidates];
+      const availableKeys = new Set(nextCandidates.map((candidate) => candidate.key));
+      setPrioritizeCandidates(nextCandidates);
+      setSelectedCandidateKeys((current) => new Set(
+        [...current].filter((key) => availableKeys.has(key)),
+      ));
+      setCandidateLoadState('ready');
+    } catch (error) {
+      setCandidateLoadState('error');
+      setCandidateLoadError(error?.message || 'Could not load candidates');
+      logger.error('agent.prioritize', 'Candidate picker failed to load', { error: error?.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (modality !== 'prioritize') return undefined;
+    loadPrioritizeCandidates();
+    const unsubscribe = window.api.localData.onChanged((change) => {
+      if (change?.domains?.some((domain) => domain === 'tasks' || domain === 'forest')) {
+        loadPrioritizeCandidates();
+      }
+    });
+    return unsubscribe;
+  }, [modality, loadPrioritizeCandidates]);
+
+  const selectedPrioritizeCandidates = useMemo(() => (
+    prioritizeCandidates.filter((candidate) => selectedCandidateKeys.has(candidate.key))
+  ), [prioritizeCandidates, selectedCandidateKeys]);
+
+  const togglePrioritizeCandidate = useCallback((key) => {
+    setSelectedCandidateKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   // Drop zone for dragging source files into chat
   const [{ isOver, canDrop }, drop] = useDrop({
@@ -393,11 +492,13 @@ function InteractionPanel() {
     if (e) e.preventDefault();
     if (modelsLoading || !selectedModel) return;
     const message = inputValue.trim();
-    if (!message || isLoading) return;
+    if (!message || isLoading || isSwitchingThread) return;
 
     setInputValue('');
     if (textareaRef.current) textareaRef.current.style.height = '24px';
-    await sendMessage(message);
+    await sendMessage(message, {
+      prioritizeCandidates: modality === 'prioritize' ? selectedPrioritizeCandidates : [],
+    });
   };
 
   const handleKeyDown = (e) => {
@@ -467,7 +568,42 @@ function InteractionPanel() {
     .map((msg, idx) => (msg.role === 'user' ? idx : -1))
     .filter(idx => idx >= 0);
 
-  const showWelcome = messages.length === 0 && !isLoading && !streamingContent;
+  const showWelcome = messages.length === 0 && !isLoading && !isSwitchingThread && !streamingContent;
+
+  const projectCandidates = prioritizeCandidates.filter((candidate) => candidate.kind === 'project');
+  const taskCandidates = prioritizeCandidates.filter((candidate) => candidate.kind === 'task');
+
+  const renderPrioritizeCandidate = (candidate) => {
+    const selected = selectedCandidateKeys.has(candidate.key);
+    const scoreCount = candidate.kind === 'project'
+      ? ['deadline', 'importance', 'size', 'relevance']
+        .filter((field) => candidate[field] !== null && candidate[field] !== undefined && candidate[field] !== '').length
+      : null;
+    const label = candidate.kind === 'project' ? candidate.name : candidate.title;
+    return (
+      <button
+        type="button"
+        key={candidate.key}
+        className={`prioritize-candidate-chip ${candidate.kind} ${selected ? 'selected' : ''}`}
+        onClick={() => togglePrioritizeCandidate(candidate.key)}
+        aria-pressed={selected}
+        disabled={isLoading || isSwitchingThread}
+        title={candidate.kind === 'project'
+          ? `${label} · ${scoreCount}/4 priority signals set`
+          : `${label} · ${candidate.priority} priority`}
+      >
+        <span className="prioritize-candidate-kind" aria-hidden="true">
+          {candidate.kind === 'project' ? 'F' : 'T'}
+        </span>
+        <span className="prioritize-candidate-name">{label}</span>
+        {candidate.kind === 'project' && (
+          <span className={`prioritize-score-count ${scoreCount < 4 ? 'incomplete' : ''}`}>
+            {scoreCount}/4
+          </span>
+        )}
+      </button>
+    );
+  };
 
   const providerLabel = {
     openai: 'OpenAI',
@@ -495,11 +631,12 @@ function InteractionPanel() {
               apiKeyStatus={apiKeyStatus}
             />
             <div className="modality-selector" style={{ display: 'flex', gap: '4%' }}>
-              {MODALITIES.map(m => (
+              {MODALITIES.filter((m) => m.id !== 'prioritize' || prioritizerEnabled).map(m => (
                 <button
                   key={m.id}
                   className={`modality-chip ${modality === m.id ? 'active' : ''}`}
                   onClick={() => setModality(m.id)}
+                  disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation}
                   title={`${m.label} mode`}
                   style={{
                     padding: '2px 8px',
@@ -589,6 +726,66 @@ function InteractionPanel() {
             ))}
           </div>
         </div>
+      )}
+
+      {modality === 'prioritize' && (
+        <section className="prioritize-candidate-rail" aria-label="Prioritization candidates">
+          <div className="prioritize-candidate-header">
+            <div>
+              <span className="prioritize-candidate-eyebrow">What competes?</span>
+              <span className="prioritize-candidate-hint">
+                Pick candidates, or leave empty and briizOS will inspect your active work.
+              </span>
+            </div>
+            <div className="prioritize-candidate-actions">
+              <span className="prioritize-selection-count">
+                {selectedCandidateKeys.size ? `${selectedCandidateKeys.size} chosen` : 'AI chooses'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedCandidateKeys(new Set(prioritizeCandidates.map((candidate) => candidate.key)))}
+                disabled={!prioritizeCandidates.length || isLoading || isSwitchingThread}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCandidateKeys(new Set())}
+                disabled={!selectedCandidateKeys.size || isLoading || isSwitchingThread}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          {candidateLoadState === 'loading' && (
+            <div className="prioritize-candidate-loading">Reading Forest and Tasks…</div>
+          )}
+          {candidateLoadState === 'error' && (
+            <button type="button" className="prioritize-candidate-error" onClick={loadPrioritizeCandidates}>
+              {candidateLoadError} · Retry
+            </button>
+          )}
+          {candidateLoadState === 'ready' && prioritizeCandidates.length === 0 && (
+            <div className="prioritize-candidate-empty">No active projects or tasks yet.</div>
+          )}
+          {projectCandidates.length > 0 && (
+            <div className="prioritize-candidate-row">
+              <span className="prioritize-candidate-source">Forest</span>
+              <div className="prioritize-candidate-list">
+                {projectCandidates.map(renderPrioritizeCandidate)}
+              </div>
+            </div>
+          )}
+          {taskCandidates.length > 0 && (
+            <div className="prioritize-candidate-row">
+              <span className="prioritize-candidate-source">Tasks</span>
+              <div className="prioritize-candidate-list">
+                {taskCandidates.map(renderPrioritizeCandidate)}
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       {/* Drop zone overlay */}
@@ -1017,19 +1214,21 @@ function InteractionPanel() {
               ? 'Waiting for AI backend...'
               : pendingClarification
                 ? 'Answer the clarification...'
+                : modality === 'prioritize'
+                  ? 'Describe your goals, timing, and available effort… (⌘+Enter)'
                 : filesInContext.length > 0
                   ? `Ask about ${filesInContext.length} file(s)...`
                   : "Ask anything (\u2318+Enter)"}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading || !lgReady || modelsLoading || !selectedModel}
+            disabled={isLoading || isSwitchingThread || !lgReady || modelsLoading || !selectedModel}
             rows={1}
           />
           <button
             className="chat-send-btn"
             onClick={handleSubmit}
-            disabled={!inputValue.trim() || isLoading || !lgReady || modelsLoading || !selectedModel}
+            disabled={!inputValue.trim() || isLoading || isSwitchingThread || !lgReady || modelsLoading || !selectedModel}
           >
             {isLoading ? '...' : '\u2192'}
           </button>

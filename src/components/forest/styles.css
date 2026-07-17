@@ -1607,6 +1607,105 @@ margin-top:-10px;
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* ── Project priority signals ────────────────────────────────────── */
+
+.viewer-priority-section {
+  padding: 18px 0 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.viewer-priority-header {
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.viewer-priority-header p {
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.viewer-priority-completeness {
+  color: rgba(var(--accent-rgb), 0.92);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.viewer-priority-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(92px, 0.45fr) minmax(104px, 0.5fr) minmax(220px, 1.8fr);
+  gap: 18px;
+  align-items: end;
+}
+
+.viewer-priority-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.viewer-priority-field > span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.viewer-priority-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 2px 8px;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 0;
+  outline: none;
+  font-size: 0.78rem;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.viewer-priority-field input::placeholder {
+  color: rgba(255, 255, 255, 0.24);
+}
+
+.viewer-priority-field input:focus {
+  color: white;
+  border-color: rgba(var(--accent-rgb), 0.75);
+}
+
+.viewer-priority-input-unit {
+  position: relative;
+}
+
+.viewer-priority-input-unit input {
+  padding-right: 19px;
+}
+
+.viewer-priority-input-unit > span {
+  position: absolute;
+  right: 2px;
+  bottom: 9px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.68rem;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .viewer-priority-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .viewer-priority-field--relevance {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ── Viewer Sections ──────────────────────────────────────────────── */
 
 .viewer-section {

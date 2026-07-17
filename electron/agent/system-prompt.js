@@ -13,6 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getDataCatalogSection } = require('./data-catalog');
 
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
 const DEFAULT_DEER_HOME = process.env.DEER_FLOW_HOME
@@ -318,6 +319,8 @@ You are {agent_name}, a personal AI assistant in briizOS.
 - Wait for user response - do NOT continue with assumptions
 </clarification_system>
 
+{data_section}
+
 {skills_section}
 
 {subagent_section}
@@ -365,6 +368,7 @@ function applyPromptTemplate({
   agentName = null,
   availableSkills = null,
   injectMemory = true,
+  modality = null,
 } = {}) {
   const n = maxConcurrentSubagents || 3;
   const subagentSection = subagentEnabled ? buildSubagentSection(n) : '';
@@ -379,6 +383,7 @@ function applyPromptTemplate({
     .replace('{agent_name}', agentName || 'briizOS')
     .replace('{soul}', getAgentSoul(agentName))
     .replace('{memory_context}', getMemoryContext(agentName, injectMemory))
+    .replace('{data_section}', getDataCatalogSection(modality))
     .replace('{skills_section}', getSkillsPromptSection(availableSkills))
     .replace('{subagent_section}', subagentSection)
     .replace('{subagent_reminder}', subagentReminder)

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTasks } from '../hooks/useTasks';
+import { useDeckMaker } from '../hooks/useDeckMaker';
 import { updateTask as updateLocalTask } from '../lib/localTasks';
 import { automateTask, handleUserResponse } from '../lib/taskAutomation';
 import logger from '../lib/logger';
@@ -16,6 +17,17 @@ function TasksPanel() {
   const [closingCards, setClosingCards] = useState(new Set());
   const [addingSubtaskFor, setAddingSubtaskFor] = useState(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newDeckGoal, setNewDeckGoal] = useState('');
+  const [deckAnswer, setDeckAnswer] = useState('');
+
+  // AI Deck Maker (Phase 2, ActionDeck port): goal → optional clarifying
+  // question → parent task + subtasks. Auto-open the new deck when done.
+  const deckMaker = useDeckMaker({
+    onDeckCreated: (taskId) => {
+      setExpandedTasks((prev) => new Set([...prev, taskId]));
+      setOpenCards((prev) => new Set([...prev, taskId]));
+    },
+  });
 
   const {
     tasks,
@@ -42,6 +54,24 @@ function TasksPanel() {
     } catch (error) {
       logger.error('ui', 'Failed to add task', error?.message);
     }
+  };
+
+  // Start an AI deck from a goal
+  const handleStartDeck = async (e) => {
+    e.preventDefault();
+    const goal = newDeckGoal.trim();
+    if (!goal) return;
+    setNewDeckGoal('');
+    await deckMaker.startDeck(goal);
+  };
+
+  // Answer the deck maker's clarifying question
+  const handleAnswerDeck = async (e) => {
+    e.preventDefault();
+    const answer = deckAnswer.trim();
+    if (!answer) return;
+    setDeckAnswer('');
+    await deckMaker.answerClarification(answer);
   };
 
   // Add a subtask
@@ -241,7 +271,7 @@ function TasksPanel() {
       <div key={task.id} className="task-item-container">
         {/* Task row */}
         <div
-          className={`task-item ${task.status === 'completed' ? 'completed' : 'pending'} ${hasSubtasks ? 'has-subtasks' : ''} ${isCardOpen ? 'card-open' : ''}`}
+          className={`task-item ${task.status === 'completed' ? 'completed' : 'pending'} ${hasSubtasks ? 'has-subtasks' : ''} ${subtaskProgress && subtaskProgress.completed === subtaskProgress.total ? 'deck-complete' : ''} ${isCardOpen ? 'card-open' : ''}`}
           onClick={() => toggleCard(task.id)}
         >
           <span className={`task-expand-btn ${isCardOpen ? 'card-active' : ''}`}>
@@ -265,8 +295,8 @@ function TasksPanel() {
 
           <span className="task-row-end">
             {subtaskProgress && (
-              <span className="subtask-progress-badge" title={`${subtaskProgress.completed}/${subtaskProgress.total} subtasks`}>
-                {subtaskProgress.percent}%
+              <span className="subtask-progress-badge" title={`${subtaskProgress.percent}% of this deck done`}>
+                {subtaskProgress.completed} / {subtaskProgress.total}
               </span>
             )}
             <button
@@ -443,6 +473,54 @@ function TasksPanel() {
             +
           </button>
         </form>
+
+        {/* New Deck (AI): goal → optional clarifying question → deck */}
+        <form onSubmit={handleStartDeck} className="deck-input-form">
+          <input
+            type="text"
+            className="task-input deck-input"
+            placeholder="New deck: describe a goal…"
+            value={newDeckGoal}
+            onChange={(e) => setNewDeckGoal(e.target.value)}
+            disabled={deckMaker.status !== 'idle'}
+          />
+          <button
+            type="submit"
+            className="task-add-btn deck-add-btn"
+            disabled={!newDeckGoal.trim() || deckMaker.status !== 'idle'}
+            title="AI builds a deck of tasks from this goal"
+          >
+            {deckMaker.isWorking ? '…' : '✦'}
+          </button>
+        </form>
+        {deckMaker.status === 'thinking' && (
+          <div className="deck-status">Building deck…</div>
+        )}
+        {deckMaker.status === 'creating' && (
+          <div className="deck-status">Creating tasks…</div>
+        )}
+        {deckMaker.status === 'clarifying' && (
+          <div className="deck-clarify">
+            <div className="deck-clarify-question">{deckMaker.question}</div>
+            <form onSubmit={handleAnswerDeck} className="deck-clarify-form">
+              <input
+                type="text"
+                className="task-input"
+                placeholder="Your answer…"
+                value={deckAnswer}
+                onChange={(e) => setDeckAnswer(e.target.value)}
+                autoFocus
+              />
+              <button type="submit" className="task-add-btn" disabled={!deckAnswer.trim()}>
+                →
+              </button>
+              <button type="button" className="deck-cancel-btn" onClick={deckMaker.cancelDeck} title="Cancel deck">
+                ✕
+              </button>
+            </form>
+          </div>
+        )}
+        {deckMaker.error && <div className="deck-error">{deckMaker.error}</div>}
 
         {/* Overall Progress */}
         {stats.total > 0 && (

@@ -422,6 +422,15 @@ function normalizeProject(project = {}) {
     consolidated: Boolean(project.consolidated),
     coverFileId: project.coverFileId || null,
     coverPosition: project.coverPosition || '50% 50%',
+    deadline: typeof project.deadline === 'string' ? project.deadline : '',
+    importance: Number.isInteger(project.importance) && project.importance >= 1 && project.importance <= 10
+      ? project.importance
+      : null,
+    size: project.size !== null && project.size !== undefined && project.size !== ''
+      && Number.isFinite(Number(project.size)) && Number(project.size) >= 0
+      ? Number(project.size)
+      : null,
+    relevance: typeof project.relevance === 'string' ? project.relevance : '',
   };
 }
 
@@ -1157,6 +1166,8 @@ function renderViewer(project) {
 
   /* total estimates */
   const totalDays = (project.milestones || []).reduce((sum, m) => sum + (m.estimatedDays || 0), 0);
+  const scoringFieldsSet = ['deadline', 'importance', 'size', 'relevance']
+    .filter((field) => project[field] !== null && project[field] !== undefined && project[field] !== '').length;
 
   return `
     <div class="viewer-backdrop" data-action="close-viewer"></div>
@@ -1193,6 +1204,64 @@ function renderViewer(project) {
           `).join('')}
           ${activeFilters.size > 0 ? `<button class="viewer-tag-clear" data-action="clear-tag-filter">Clear</button>` : ''}
         </div>
+
+        <section class="viewer-section viewer-priority-section">
+          <div class="viewer-section-header viewer-priority-header">
+            <div>
+              <h3>Priority signals</h3>
+              <p>Optional context used when briizOS helps choose what comes next.</p>
+            </div>
+            <span class="viewer-priority-completeness">${scoringFieldsSet} / 4 set</span>
+          </div>
+          <div class="viewer-priority-grid">
+            <label class="viewer-priority-field">
+              <span>Deadline</span>
+              <input
+                type="date"
+                value="${escapeAttr(project.deadline || '')}"
+                data-role="project-score-deadline"
+              />
+            </label>
+            <label class="viewer-priority-field viewer-priority-field--compact">
+              <span>Importance</span>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                inputmode="numeric"
+                placeholder="1–10"
+                value="${project.importance ?? ''}"
+                data-role="project-score-importance"
+              />
+            </label>
+            <label class="viewer-priority-field viewer-priority-field--compact">
+              <span>Size</span>
+              <div class="viewer-priority-input-unit">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  inputmode="decimal"
+                  placeholder="Hours"
+                  value="${project.size ?? ''}"
+                  data-role="project-score-size"
+                />
+                <span>h</span>
+              </div>
+            </label>
+            <label class="viewer-priority-field viewer-priority-field--relevance">
+              <span>Relevance to your goals</span>
+              <input
+                type="text"
+                maxlength="5000"
+                placeholder="Why this matters now"
+                value="${escapeAttr(project.relevance || '')}"
+                data-role="project-score-relevance"
+              />
+            </label>
+          </div>
+        </section>
 
         <section class="viewer-section viewer-timeline-section">
           <div class="viewer-section-header">
@@ -2438,6 +2507,58 @@ function commitModalFields() {
   if (changed) { render(); scheduleSave(); }
 }
 
+async function commitProjectScoringField(project, field, rawValue) {
+  if (!project || !['deadline', 'importance', 'size', 'relevance'].includes(field)) return;
+  const previous = project[field];
+  let value = rawValue;
+  if (field === 'importance') {
+    value = rawValue === '' ? null : Math.round(Number(rawValue));
+    if (value !== null && (!Number.isFinite(value) || value < 1 || value > 10)) {
+      refreshViewer();
+      return;
+    }
+  } else if (field === 'size') {
+    value = rawValue === '' ? null : Number(rawValue);
+    if (value !== null && (!Number.isFinite(value) || value < 0)) {
+      refreshViewer();
+      return;
+    }
+  } else if (field === 'deadline') {
+    value = rawValue || null;
+  } else {
+    value = rawValue.trim() || null;
+  }
+
+  project[field] = value;
+  try {
+    const latestState = await window.api.forestLoadState();
+    const latest = (latestState?.projects || []).find((candidate) => candidate.id === project.id);
+    if (!latest?.revision) throw new Error('Could not resolve the latest project revision');
+    const result = await window.api.localData.forestProjects.updateScoring(
+      project.id,
+      latest.revision,
+      { [field]: value },
+    );
+    project[field] = result?.row?.[field] ?? (field === 'importance' || field === 'size' ? null : '');
+    render();
+    refreshViewer();
+    dispatchForestLog('info', 'Project priority signal updated', {
+      projectId: project.id,
+      project: project.name,
+      field,
+      value: project[field],
+    });
+  } catch (error) {
+    project[field] = previous;
+    refreshViewer();
+    dispatchForestLog('error', 'Project priority signal update failed', {
+      projectId: project.id,
+      field,
+      error: error?.message || 'Unknown error',
+    });
+  }
+}
+
 projectViewer.addEventListener('click', async (event) => {
   const actionEl = event.target.closest('[data-action]');
   if (!actionEl) return;
@@ -2607,11 +2728,15 @@ projectViewer.addEventListener('click', async (event) => {
 });
 
 /* Modal input change listeners */
-projectViewer.addEventListener('change', (event) => {
+projectViewer.addEventListener('change', async (event) => {
   const role = event.target.dataset?.role;
   if (!role) return;
   const project = getProject(state.viewerProjectId);
   if (!project) return;
+  if (role.startsWith('project-score-')) {
+    await commitProjectScoringField(project, role.slice('project-score-'.length), event.target.value);
+    return;
+  }
   const mid = event.target.dataset.milestoneId;
   const ms = mid ? project.milestones.find((m) => m.id === mid) : null;
 

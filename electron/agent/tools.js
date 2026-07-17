@@ -24,8 +24,20 @@ const { ThreadState } = require('./state');
 const { createChatModel } = require('./models');
 const { getSkillsPromptSection } = require('./system-prompt');
 
+const { logger } = require('../logger');
+
 const AGENT_DIR = path.resolve(__dirname, '../../agent');
 const GRAPH_CONFIRMED_KEY = '__agentGraphConfirmed';
+
+// Unified-database handle for direct read tools. Reads run in-process against
+// local-data-service (same process as the agent) so they work even when the
+// renderer is busy or absent (headless automation runs). Writes still go
+// through the renderer bridge + confirmation policy.
+let localDataService = null;
+
+function setLocalDataService(service) {
+  localDataService = service;
+}
 
 const DESTRUCTIVE_TOOLS = new Set([
   'bash',
@@ -41,6 +53,7 @@ const DESTRUCTIVE_TOOLS = new Set([
   'briizos_complete_task',
   'briizos_create_event',
   'briizos_update_event',
+  'briizos_update_project_scoring',
 ]);
 
 const DESTRUCTIVE_VERBS = new Set([
@@ -339,6 +352,22 @@ const briizos_update_event = makeBridgeTool({
   }),
 });
 
+const briizos_update_project_scoring = makeBridgeTool({
+  name: 'briizos_update_project_scoring',
+  description: 'Save optional deadline, importance (1-10), size in hours, or goal relevance on a Forest project. This is a persistent write and requires user confirmation. Never save inferred values without the user explicitly confirming them.',
+  registryName: 'updateForestProjectScoring',
+  schema: z.object({
+    project_id: z.string(),
+    deadline: z.string().nullable().optional(),
+    importance: z.number().int().min(1).max(10).nullable().optional(),
+    size: z.number().min(0).nullable().optional(),
+    relevance: z.string().nullable().optional(),
+  }).refine(
+    (input) => ['deadline', 'importance', 'size', 'relevance'].some((field) => input[field] !== undefined),
+    { message: 'At least one scoring field is required' },
+  ),
+});
+
 const briizos_get_schedule = makeBridgeTool({
   name: 'briizos_get_schedule',
   description: "Schedule summary. time_range ∈ {'today','tomorrow','this week','next week','all'}.",
@@ -346,6 +375,200 @@ const briizos_get_schedule = makeBridgeTool({
   schema: z.object({
     time_range: z.enum(['today', 'tomorrow', 'this week', 'next week', 'all']).optional().default('today'),
   }),
+});
+
+// =============================================================================
+// Unified-database read tools — direct, in-process queries against
+// local-data-service. Read-only by construction (not in DESTRUCTIVE_TOOLS →
+// never trigger confirmation). Every call logs an `agent.data` entry, which
+// the main logger broadcasts to the LogPanel and prints to the terminal.
+// The queryable surface these expose is documented in data-catalog.js and
+// injected into the system prompt per chat mode.
+// =============================================================================
+
+function isoOrNull(ms) {
+  return typeof ms === 'number' && Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
+function dayBoundsMs(dateStr, endOfDay = false) {
+  if (!dateStr) return null;
+  const parsed = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return endOfDay ? parsed.getTime() + 24 * 60 * 60 * 1000 : parsed.getTime();
+}
+
+function compactTask(task, { includeLog = false } = {}) {
+  const subtasks = (task.subtasks || []).map((step) => ({
+    id: step.id,
+    title: step.title,
+    status: step.status,
+    position: step.position,
+  }));
+  const compact = {
+    id: task.id,
+    title: task.title,
+    description: task.description || '',
+    status: task.status,
+    priority: task.priority,
+    due_at: isoOrNull(task.due_at),
+    project_id: task.project_id || null,
+    subtasks,
+  };
+  if (includeLog) {
+    compact.taskLog = (task.taskLog || []).slice(-10).map((entry) => ({
+      timestamp: isoOrNull(entry.timestamp) || entry.timestamp,
+      type: entry.type,
+      message: entry.message,
+    }));
+  }
+  return compact;
+}
+
+function compactForestProject(project, { detailed = false } = {}) {
+  const compact = {
+    id: project.id,
+    name: project.name,
+    tags: project.tags || [],
+    milestones: (project.milestones || []).map((milestone) => ({
+      name: milestone.name || milestone.title || milestone.label || '',
+      completed: !!milestone.completed,
+    })),
+    fileCount: (project.files || []).length,
+  };
+  // Optional prioritization scoring fields (live inside the project's
+  // data_json when the user has set them).
+  for (const field of ['deadline', 'importance', 'size', 'relevance']) {
+    if (project[field] !== undefined && project[field] !== null && project[field] !== '') {
+      compact[field] = project[field];
+    }
+  }
+  if (detailed) {
+    compact.files = (project.files || []).slice(0, 50).map((file) => ({
+      name: file.name,
+      path: file.path,
+    }));
+  }
+  return compact;
+}
+
+function makeDataReadTool({ name, description, schema, run }) {
+  return tool(
+    async (input) => {
+      const startedAt = Date.now();
+      if (!localDataService) {
+        logger.error('agent.data', `${name} failed: local data service unavailable`);
+        return 'Error: briizOS local data is not available yet. Try again shortly.';
+      }
+      try {
+        const { rows, payload } = run(input || {});
+        logger.info('agent.data', `${name} → ${rows} row${rows === 1 ? '' : 's'}`, {
+          args: input || {},
+          rows,
+          ms: Date.now() - startedAt,
+        });
+        return JSON.stringify(payload);
+      } catch (err) {
+        logger.error('agent.data', `${name} failed`, { args: input || {}, error: err?.message });
+        return `Error: ${err?.message || 'query failed'}`;
+      }
+    },
+    { name, description, schema },
+  );
+}
+
+const briizos_list_tasks = makeDataReadTool({
+  name: 'briizos_list_tasks',
+  description: 'List tasks from the unified database, with their subtasks. Filter by status, priority, or Forest project.',
+  schema: z.object({
+    status: z.enum(['pending', 'active', 'deferred', 'completed']).optional(),
+    priority: z.enum(['low', 'normal', 'medium', 'high', 'urgent']).optional(),
+    project_id: z.string().optional(),
+    limit: z.number().int().min(1).max(200).optional().default(50),
+  }),
+  run: (input) => {
+    const filters = { limit: input.limit || 50 };
+    if (input.status) filters.status = input.status;
+    if (input.project_id) filters.projectId = input.project_id;
+    let tasks = localDataService.listTasksDetailed(filters);
+    if (input.priority) tasks = tasks.filter((task) => task.priority === input.priority);
+    const payload = tasks.map((task) => compactTask(task));
+    return { rows: payload.length, payload };
+  },
+});
+
+const briizos_get_task = makeDataReadTool({
+  name: 'briizos_get_task',
+  description: 'Get one task by id, including subtasks and its recent activity log.',
+  schema: z.object({ task_id: z.string() }),
+  run: (input) => {
+    const task = localDataService.getTask(input.task_id);
+    if (!task) return { rows: 0, payload: { error: `No task with id ${input.task_id}` } };
+    return { rows: 1, payload: compactTask(task, { includeLog: true }) };
+  },
+});
+
+const briizos_list_projects = makeDataReadTool({
+  name: 'briizos_list_projects',
+  description: "List the user's Forest projects (the only kind of project in briizOS), with milestones, tags, and prioritization scoring fields when set.",
+  schema: z.object({
+    limit: z.number().int().min(1).max(200).optional().default(100),
+  }),
+  run: (input) => {
+    const projects = (localDataService.getForestState().projects || []).slice(0, input.limit || 100);
+    const payload = projects.map((project) => compactForestProject(project));
+    return { rows: payload.length, payload };
+  },
+});
+
+const briizos_get_project = makeDataReadTool({
+  name: 'briizos_get_project',
+  description: 'Get one Forest project by id, including milestones and attached files.',
+  schema: z.object({ project_id: z.string() }),
+  run: (input) => {
+    const project = (localDataService.getForestState().projects || [])
+      .find((candidate) => candidate.id === input.project_id);
+    if (!project) return { rows: 0, payload: { error: `No Forest project with id ${input.project_id}` } };
+    return { rows: 1, payload: compactForestProject(project, { detailed: true }) };
+  },
+});
+
+const briizos_query_organizer = makeDataReadTool({
+  name: 'briizos_query_organizer',
+  description: 'Query organizer items (calendar events, notes, timers) from the unified database, optionally within a date window (YYYY-MM-DD). Recurring items are always included, flagged with their recurrence rule.',
+  schema: z.object({
+    type: z.enum(['event', 'note', 'timer']).optional(),
+    date_from: z.string().optional(),
+    date_to: z.string().optional(),
+    limit: z.number().int().min(1).max(500).optional().default(100),
+  }),
+  run: (input) => {
+    const filters = { limit: 1000 };
+    if (input.type) filters.type = input.type;
+    const fromMs = dayBoundsMs(input.date_from, false);
+    const toMs = dayBoundsMs(input.date_to, true);
+    const items = localDataService.listOrganizerItems(filters).filter((item) => {
+      if (item.recurrence) return true;
+      if (fromMs === null && toMs === null) return true;
+      const anchor = item.scheduled_start_at ?? item.due_at;
+      if (anchor == null) return fromMs === null;
+      if (fromMs !== null && anchor < fromMs) return false;
+      if (toMs !== null && anchor >= toMs) return false;
+      return true;
+    });
+    const payload = items.slice(0, input.limit || 100).map((item) => ({
+      id: item.id,
+      type: item.type,
+      title: item.title,
+      status: item.status,
+      scheduled_start_at: isoOrNull(item.scheduled_start_at),
+      scheduled_end_at: isoOrNull(item.scheduled_end_at),
+      due_at: isoOrNull(item.due_at),
+      duration_seconds: item.duration_seconds ?? null,
+      recurrence: item.recurrence || null,
+      tags: item.tags || [],
+    }));
+    return { rows: payload.length, payload };
+  },
 });
 
 // =============================================================================
@@ -797,7 +1020,13 @@ const BASE_TOOLS = [
   briizos_complete_task,
   briizos_create_event,
   briizos_update_event,
+  briizos_update_project_scoring,
   briizos_get_schedule,
+  briizos_list_tasks,
+  briizos_get_task,
+  briizos_list_projects,
+  briizos_get_project,
+  briizos_query_organizer,
   ls,
   read_file,
   write_file,
@@ -824,4 +1053,5 @@ module.exports = {
   decideToolAction,
   formatToolSummary,
   mapReadableVirtualPath,
+  setLocalDataService,
 };

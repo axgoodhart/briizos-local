@@ -49,6 +49,10 @@ contextBridge.exposeInMainWorld('api', {
       get: () => invokeLocalData('local-data:briiztorm:get'),
       set: (key, value) => invokeLocalData('local-data:briiztorm:set', key, value),
     },
+    forestProjects: {
+      updateScoring: (projectId, expectedRevision, patch) =>
+        invokeLocalData('local-data:forest-projects:update-scoring', projectId, expectedRevision, patch),
+    },
     tasks: {
       list: (filters) => invokeLocalData('local-data:tasks:list', filters),
       get: (taskId) => invokeLocalData('local-data:tasks:get', taskId),

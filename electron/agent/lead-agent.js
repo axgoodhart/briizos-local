@@ -18,7 +18,7 @@ const { HumanMessage, AIMessage, SystemMessage } = require('@langchain/core/mess
 const { Command } = require('@langchain/langgraph');
 const { createReactAgent } = require('@langchain/langgraph/prebuilt');
 const { logger } = require('../logger');
-const { ALL_TOOLS } = require('./tools');
+const { ALL_TOOLS, setLocalDataService: setToolsLocalDataService } = require('./tools');
 const { ThreadState } = require('./state');
 const { createChatModel, setLocalDataService: setModelLocalDataService } = require('./models');
 const { applyPromptTemplate, setLocalDataService: setPromptLocalDataService } = require('./system-prompt');
@@ -43,6 +43,7 @@ function setLocalDataService(service) {
   setPromptLocalDataService(service);
   setCheckpointLocalDataService(service);
   setMemoryLocalDataService(service);
+  setToolsLocalDataService(service);
 }
 
 function getLocalDataService() {
@@ -138,6 +139,7 @@ function agentKey(opts) {
     opts.agentName || '',
     Array.isArray(opts.availableSkills) ? opts.availableSkills.join(',') : '',
     opts.injectMemory !== false,
+    opts.modality || '',
   ].join('|');
 }
 
@@ -154,6 +156,7 @@ function getOrBuildAgent({
   agentName,
   availableSkills,
   injectMemory,
+  modality,
 }) {
   const key = agentKey({
     modelName,
@@ -168,6 +171,7 @@ function getOrBuildAgent({
     agentName,
     availableSkills,
     injectMemory,
+    modality,
   });
   const cached = agentCache.get(key);
   if (cached) return cached;
@@ -180,6 +184,7 @@ function getOrBuildAgent({
     agentName,
     availableSkills,
     injectMemory,
+    modality,
   };
   const prompt = (state) => [
     new SystemMessage(applyPromptTemplate(promptConfig)),
@@ -331,6 +336,7 @@ async function streamAgentInput({ threadId, input, config = {}, onEvent }) {
     agentName: config.agent_name || null,
     availableSkills: config.available_skills || null,
     injectMemory: config.inject_memory !== false,
+    modality: config.modality || null,
   });
 
   const runtimeConfig = {
