@@ -513,6 +513,48 @@ class LocalDataService extends EventEmitter {
     `).all(purpose);
   }
 
+  listExternalFiles(input = {}) {
+    this._assertReady();
+    v.object(input, 'external file filters', ['id', 'kind', 'availability', 'query', 'limit']);
+    const clauses = ['f.deleted_at IS NULL'];
+    const params = [];
+    if (input.id !== undefined) {
+      clauses.push('f.id = ?');
+      params.push(v.identifier(input.id, 'id'));
+    }
+    if (input.kind !== undefined) {
+      clauses.push('f.kind = ?');
+      params.push(v.string(input.kind, 'kind', { required: true, max: 100 }));
+    }
+    if (input.availability !== undefined) {
+      clauses.push('f.availability = ?');
+      params.push(v.oneOf(input.availability, 'availability', ['available', 'missing', 'unknown']));
+    }
+    if (input.query !== undefined) {
+      const query = v.string(input.query, 'query', { required: true, max: 500 }).toLowerCase();
+      clauses.push('(LOWER(f.display_name) LIKE ? OR LOWER(f.path) LIKE ?)');
+      params.push(`%${query}%`, `%${query}%`);
+    }
+    const limit = input.limit === undefined ? 200 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
+    return this.db.prepare(`
+      SELECT f.id, f.path, f.display_name, f.kind, f.size, f.modified_at, f.availability,
+             f.created_at, f.updated_at, f.revision,
+             EXISTS(
+               SELECT 1 FROM selected_files s WHERE s.file_id = f.id
+             ) AS selected,
+             EXISTS(
+               SELECT 1 FROM media_queue_items q WHERE q.file_id = f.id AND q.deleted_at IS NULL
+             ) AS in_media_queue,
+             (
+               SELECT COUNT(*) FROM forest_files ff
+               WHERE ff.file_id = f.id AND ff.deleted_at IS NULL
+             ) AS forest_project_count
+      FROM external_files f
+      WHERE ${clauses.join(' AND ')}
+      ORDER BY f.updated_at DESC LIMIT ?
+    `).all(...params, limit).map((row) => toBooleanRow(row, ['selected', 'in_media_queue']));
+  }
+
   addSelectedFile(input) {
     v.object(input, 'selected file', ['path', 'displayName', 'kind', 'size', 'modifiedAt', 'purpose']);
     const file = this._normalizeExternalFile(input);
@@ -663,16 +705,23 @@ class LocalDataService extends EventEmitter {
 
   listCanvases(input = {}) {
     this._assertReady();
-    v.object(input, 'canvas filters', ['includeDeleted']);
+    v.object(input, 'canvas filters', ['includeDeleted', 'query']);
     const includeDeleted = input.includeDeleted === undefined
       ? false
       : v.boolean(input.includeDeleted, 'includeDeleted');
+    const clauses = includeDeleted ? [] : ['deleted_at IS NULL'];
+    const params = [];
+    if (input.query !== undefined) {
+      const query = v.string(input.query, 'query', { required: true, max: 500 }).toLowerCase();
+      clauses.push('(LOWER(title) LIKE ? OR LOWER(COALESCE(source_url, \'\')) LIKE ? OR LOWER(html_text) LIKE ?)');
+      params.push(`%${query}%`, `%${query}%`, `%${query}%`);
+    }
     return this.db.prepare(`
       SELECT id, title, length(html_text) AS size, source_kind, source_url, render_engine,
              form_factor, panel_settings_json, created_at, updated_at, revision, deleted_at
-      FROM canvases ${includeDeleted ? '' : 'WHERE deleted_at IS NULL'}
+      FROM canvases ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
       ORDER BY updated_at DESC
-    `).all().map((row) => this._canvasSummary(row));
+    `).all(...params).map((row) => this._canvasSummary(row));
   }
 
   _canvasSummary(row) {
@@ -2237,16 +2286,30 @@ class LocalDataService extends EventEmitter {
 
   listThreads(input = {}) {
     this._assertReady();
-    v.object(input, 'thread filters', ['kind', 'includeDeleted', 'limit']);
+    v.object(input, 'thread filters', ['id', 'kind', 'query', 'includeDeleted', 'limit']);
     const includeDeleted = input.includeDeleted === undefined
       ? false
       : v.boolean(input.includeDeleted, 'includeDeleted');
     const clauses = [];
     const params = [];
     if (!includeDeleted) clauses.push('deleted_at IS NULL');
+    if (input.id !== undefined) {
+      clauses.push('id = ?');
+      params.push(v.identifier(input.id, 'id'));
+    }
     if (input.kind !== undefined) {
       clauses.push('kind = ?');
       params.push(v.string(input.kind, 'kind', { required: true, max: 100 }));
+    }
+    if (input.query !== undefined) {
+      const query = v.string(input.query, 'query', { required: true, max: 500 }).toLowerCase();
+      clauses.push(`(
+        LOWER(title) LIKE ? OR EXISTS (
+          SELECT 1 FROM messages m
+          WHERE m.thread_id = threads.id AND m.deleted_at IS NULL AND LOWER(m.content_text) LIKE ?
+        )
+      )`);
+      params.push(`%${query}%`, `%${query}%`);
     }
     const limit = input.limit === undefined ? 500 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
     return this.db.prepare(`
@@ -3261,6 +3324,65 @@ class LocalDataService extends EventEmitter {
       input.data == null ? null : this._jsonValue(input.data, 'log data', 500000), row.level,
       input.threadId || null, input.sessionId || null, Number.isFinite(timestamp) ? timestamp : now());
     return row;
+  }
+
+  listLogs(input = {}) {
+    this._assertReady();
+    v.object(input, 'log filters', ['id', 'category', 'level', 'source', 'threadId', 'query', 'since', 'until', 'limit']);
+    const clauses = [];
+    const params = [];
+    if (input.id !== undefined) {
+      clauses.push('id = ?');
+      params.push(v.identifier(input.id, 'id'));
+    }
+    if (input.category !== undefined) {
+      clauses.push('category = ?');
+      params.push(v.string(input.category, 'category', { required: true, max: 100 }));
+    }
+    if (input.level !== undefined) {
+      clauses.push('level = ?');
+      params.push(v.oneOf(input.level, 'level', ['debug', 'info', 'warn', 'error']));
+    }
+    if (input.source !== undefined) {
+      clauses.push('source = ?');
+      params.push(v.string(input.source, 'source', { required: true, max: 100 }));
+    }
+    if (input.threadId !== undefined) {
+      clauses.push('thread_id = ?');
+      params.push(v.identifier(input.threadId, 'threadId'));
+    }
+    if (input.query !== undefined) {
+      const query = v.string(input.query, 'query', { required: true, max: 500 }).toLowerCase();
+      clauses.push('(LOWER(message) LIKE ? OR LOWER(type) LIKE ? OR LOWER(category) LIKE ? OR LOWER(COALESCE(data_json, \'\')) LIKE ?)');
+      params.push(`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`);
+    }
+    if (input.since !== undefined) {
+      clauses.push('created_at >= ?');
+      params.push(v.integer(input.since, 'since', { min: 0 }));
+    }
+    if (input.until !== undefined) {
+      clauses.push('created_at <= ?');
+      params.push(v.integer(input.until, 'until', { min: 0 }));
+    }
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 1000 });
+    return this.db.prepare(`
+      SELECT id, type, source, category, message, data_json, level, thread_id, session_id,
+             task_id, created_at
+      FROM logs ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
+      ORDER BY created_at DESC LIMIT ?
+    `).all(...params, limit).map((entry) => ({
+      id: entry.id,
+      type: entry.type,
+      source: entry.source,
+      category: entry.category,
+      message: entry.message,
+      data: entry.data_json ? JSON.parse(entry.data_json) : null,
+      level: entry.level,
+      threadId: entry.thread_id,
+      sessionId: entry.session_id,
+      taskId: entry.task_id,
+      timestamp: new Date(entry.created_at).toISOString(),
+    }));
   }
 
   getPendingSyncDomains() {

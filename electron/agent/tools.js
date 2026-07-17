@@ -23,6 +23,7 @@ const { callRendererTool } = require('./bridge');
 const { ThreadState } = require('./state');
 const { createChatModel } = require('./models');
 const { getSkillsPromptSection } = require('./system-prompt');
+const { QUERY_DATA_DOMAINS } = require('./data-catalog');
 
 const { logger } = require('../logger');
 
@@ -451,23 +452,30 @@ function compactTask(task, { includeLog = false } = {}) {
     title: step.title,
     status: step.status,
     position: step.position,
+    completed_at: isoOrNull(step.completed_at),
+    revision: step.revision,
   }));
   const compact = {
     id: task.id,
     title: task.title,
-    description: task.description || '',
+    description: clipCatalogText(task.description || '', 4000),
     status: task.status,
     priority: task.priority,
     due_at: isoOrNull(task.due_at),
     project_id: task.project_id || null,
     forest_project_id: task.forest_project_id || null,
+    source_key: task.source_key || null,
+    automated: !!task.automated,
+    created_at: isoOrNull(task.created_at),
+    updated_at: isoOrNull(task.updated_at),
+    revision: task.revision,
     subtasks,
   };
   if (includeLog) {
     compact.taskLog = (task.taskLog || []).slice(-10).map((entry) => ({
       timestamp: isoOrNull(entry.timestamp) || entry.timestamp,
       type: entry.type,
-      message: entry.message,
+      message: clipCatalogText(entry.message, 2000),
     }));
   }
   return compact;
@@ -483,6 +491,7 @@ function compactForestProject(project, { detailed = false } = {}) {
       completed: !!milestone.completed,
     })),
     fileCount: (project.files || []).length,
+    revision: project.revision,
   };
   // Optional prioritization scoring fields (live inside the project's
   // data_json when the user has set them).
@@ -493,8 +502,13 @@ function compactForestProject(project, { detailed = false } = {}) {
   }
   if (detailed) {
     compact.files = (project.files || []).slice(0, 50).map((file) => ({
+      id: file.id,
       name: file.name,
       path: file.path,
+      size: file.size ?? null,
+      modified_at: file.modifiedAt || null,
+      kind: file.typeGroup || null,
+      tags: file.tags || [],
     }));
   }
   return compact;
@@ -529,7 +543,10 @@ const briizos_list_tasks = makeDataReadTool({
   name: 'briizos_list_tasks',
   description: 'List tasks from the unified database, with their subtasks. Filter by status, priority, or Forest project.',
   schema: z.object({
-    status: z.enum(['pending', 'active', 'deferred', 'completed']).optional(),
+    status: z.enum([
+      'pending', 'created', 'running', 'in_progress', 'active', 'waiting',
+      'deferred', 'completed', 'cancelled', 'blocked',
+    ]).optional(),
     priority: z.enum(['low', 'normal', 'medium', 'high', 'urgent']).optional(),
     project_id: z.string().optional(),
     forest_project_id: z.string().optional(),
@@ -595,8 +612,11 @@ const briizos_query_organizer = makeDataReadTool({
   run: (input) => {
     const filters = { limit: 1000 };
     if (input.type) filters.type = input.type;
-    const fromMs = dayBoundsMs(input.date_from, false);
-    const toMs = dayBoundsMs(input.date_to, true);
+    const fromMs = input.date_from ? dateFilterMs(input.date_from, false) : null;
+    const toMs = input.date_to ? dateFilterMs(input.date_to, true) : null;
+    if (fromMs !== null && toMs !== null && fromMs >= toMs) {
+      throw new Error('date_from must be on or before date_to.');
+    }
     const items = localDataService.listOrganizerItems(filters).filter((item) => {
       if (item.recurrence) return true;
       if (fromMs === null && toMs === null) return true;
@@ -610,13 +630,18 @@ const briizos_query_organizer = makeDataReadTool({
       id: item.id,
       type: item.type,
       title: item.title,
+      body: clipCatalogText(item.body || '', 4000),
       status: item.status,
+      parent_id: item.parent_id || null,
       scheduled_start_at: isoOrNull(item.scheduled_start_at),
       scheduled_end_at: isoOrNull(item.scheduled_end_at),
       due_at: isoOrNull(item.due_at),
       duration_seconds: item.duration_seconds ?? null,
       recurrence: item.recurrence || null,
       tags: item.tags || [],
+      created_at: isoOrNull(item.created_at),
+      updated_at: isoOrNull(item.updated_at),
+      revision: item.revision,
     }));
     return { rows: payload.length, payload };
   },
@@ -656,6 +681,351 @@ const briizos_get_schedule = makeDataReadTool({
     const payload = localDataService.listSchedule(range);
     return { rows: payload.length, payload };
   },
+});
+
+const MAX_CATALOG_PAYLOAD_CHARS = 120000;
+const SENSITIVE_CATALOG_KEYS = new Set([
+  'apikey', 'secret', 'secrets', 'password', 'accesstoken', 'refreshtoken',
+  'encryptedvalue', 'credential', 'credentials', 'authorization', 'auth',
+  'bearer', 'sessioncookie',
+]);
+
+function clipCatalogText(value, maxChars) {
+  const text = String(value ?? '');
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, Math.max(0, maxChars - 24))}… [content clipped]`;
+}
+
+function sensitiveCatalogKey(key) {
+  const normalized = String(key || '').replace(/[-_]/g, '').toLowerCase();
+  if (SENSITIVE_CATALOG_KEYS.has(normalized)) return true;
+  return ['apikey', 'password', 'accesstoken', 'refreshtoken', 'clientsecret', 'privatekey']
+    .some((suffix) => normalized.endsWith(suffix));
+}
+
+function compactCatalogValue(value, options = {}, depth = 0) {
+  const stringLimit = options.stringLimit || 1200;
+  const arrayLimit = options.arrayLimit || 50;
+  if (value == null || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') return clipCatalogText(value, stringLimit);
+  if (depth >= 7) return '[nested data omitted]';
+  if (Array.isArray(value)) {
+    const items = value.slice(0, arrayLimit).map((item) => compactCatalogValue(item, options, depth + 1));
+    if (value.length > arrayLimit) items.push(`[${value.length - arrayLimit} more items omitted]`);
+    return items;
+  }
+  if (typeof value === 'object') {
+    const out = {};
+    const entries = Object.entries(value);
+    entries.slice(0, 100).forEach(([key, item]) => {
+      out[key] = sensitiveCatalogKey(key) ? '[redacted]' : compactCatalogValue(item, options, depth + 1);
+    });
+    if (entries.length > 100) out.__omitted_fields = entries.length - 100;
+    return out;
+  }
+  return String(value);
+}
+
+function catalogMatches(value, query) {
+  if (!query) return true;
+  try {
+    return JSON.stringify(value).toLowerCase().includes(query);
+  } catch {
+    return String(value).toLowerCase().includes(query);
+  }
+}
+
+function catalogResult(domain, items, input, totalMatches = items.length, extra = {}) {
+  const options = input.include_content
+    ? { stringLimit: 12000, arrayLimit: 100 }
+    : { stringLimit: 1200, arrayLimit: 50 };
+  const returned = [];
+  let usedChars = 0;
+  for (const item of items.slice(0, input.limit || 50)) {
+    let compact = compactCatalogValue(item, options);
+    let serialized = JSON.stringify(compact);
+    if (serialized.length > 50000) {
+      compact = compactCatalogValue(item, { stringLimit: 2000, arrayLimit: 25 });
+      serialized = JSON.stringify(compact);
+    }
+    if (serialized.length > MAX_CATALOG_PAYLOAD_CHARS) {
+      compact = compactCatalogValue(item, { stringLimit: 500, arrayLimit: 10 });
+      serialized = JSON.stringify(compact);
+    }
+    if (serialized.length > MAX_CATALOG_PAYLOAD_CHARS) {
+      compact = {
+        notice: 'Record exceeded the safe tool-result budget. Query a narrower child record for full detail.',
+        preview: clipCatalogText(serialized, 60000),
+      };
+      serialized = JSON.stringify(compact);
+    }
+    if (returned.length && usedChars + serialized.length > MAX_CATALOG_PAYLOAD_CHARS) break;
+    returned.push(compact);
+    usedChars += serialized.length;
+  }
+  return {
+    rows: returned.length,
+    payload: {
+      domain,
+      returned: returned.length,
+      total_matches: totalMatches,
+      truncated: returned.length < totalMatches,
+      items: returned,
+      ...extra,
+    },
+  };
+}
+
+function dateFilterMs(value, endOfDay = false) {
+  if (!value) return undefined;
+  const timestamp = dayBoundsMs(value, endOfDay);
+  if (timestamp == null) throw new Error(`Invalid date: ${value}. Use YYYY-MM-DD.`);
+  return timestamp;
+}
+
+function summarizeStylofactDetail(detail, includeContent) {
+  if (includeContent) return detail;
+  return {
+    project: detail.project,
+    sources: (detail.sources || []).map((source) => ({
+      ...source,
+      bodyText: clipCatalogText(source.bodyText || '', 500),
+    })),
+    artifacts: (detail.artifacts || []).map((artifact) => ({
+      ...artifact,
+      content: clipCatalogText(artifact.content || '', 500),
+      draftContent: clipCatalogText(artifact.draftContent || '', 500),
+      criticContent: clipCatalogText(artifact.criticContent || '', 500),
+    })),
+    runs: (detail.runs || []).map((run) => ({
+      id: run.id,
+      projectId: run.projectId,
+      stage: run.stage,
+      modelName: run.modelName,
+      criticModelName: run.criticModelName,
+      status: run.status,
+      error: run.error,
+      createdAt: run.createdAt,
+      updatedAt: run.updatedAt,
+      revision: run.revision,
+    })),
+  };
+}
+
+function queryCatalogData(input) {
+  const domain = input.domain;
+  const query = String(input.query || '').trim().toLowerCase();
+  const limit = input.limit || 50;
+
+  if (domain === 'journals') {
+    let journals = localDataService.listJournals();
+    if (input.id) journals = journals.filter((journal) => journal.id === input.id);
+    const items = [];
+    for (const journal of journals) {
+      const needsFolios = !!(input.id || input.include_content || query);
+      const folios = needsFolios ? localDataService.listFolios(journal.id) : [];
+      const item = needsFolios ? { ...journal, folios } : journal;
+      if (catalogMatches(item, query)) items.push(item);
+    }
+    return catalogResult(domain, items, input, items.length);
+  }
+
+  if (domain === 'notefall_posts') {
+    let posts = localDataService.listNotefallPosts();
+    if (input.id) posts = posts.filter((post) => post.id === input.id);
+    if (input.parent_id) posts = posts.filter((post) => post.journalId === input.parent_id);
+    posts = posts.filter((post) => catalogMatches(post, query));
+    return catalogResult(domain, posts, input, posts.length);
+  }
+
+  if (domain === 'canvases') {
+    let canvases = localDataService.listCanvases({ query: query || undefined });
+    if (input.id) canvases = canvases.filter((canvas) => canvas.id === input.id);
+    const items = [];
+    for (const canvas of canvases) {
+      const needsDetail = !!(input.id || input.include_content);
+      const detail = needsDetail ? localDataService.getCanvas(canvas.id) : canvas;
+      items.push(input.id || input.include_content ? detail : { ...canvas, content_match: query ? true : undefined });
+    }
+    return catalogResult(domain, items, input, items.length);
+  }
+
+  if (domain === 'files') {
+    const validAvailability = ['available', 'missing', 'unknown'];
+    if (input.status && !validAvailability.includes(input.status)) {
+      throw new Error('For files, status must be available, missing, or unknown.');
+    }
+    let files = localDataService.listExternalFiles({
+      id: input.id,
+      kind: input.kind,
+      availability: input.status,
+      query: query || undefined,
+      limit,
+    });
+    return catalogResult(domain, files, input, files.length);
+  }
+
+  if (domain === 'conversations') {
+    let threads = localDataService.listThreads({ id: input.id, kind: input.kind, query: query || undefined, limit: 500 });
+    if (input.status) threads = threads.filter((thread) => thread.status === input.status);
+    const totalMatches = threads.length;
+    const items = [];
+    for (const thread of threads) {
+      const messages = (input.id || input.include_content || query)
+        ? localDataService.listMessages(thread.id)
+        : [];
+      const item = input.id || input.include_content
+        ? { ...thread, messages }
+        : query
+          ? {
+              ...thread,
+              matching_messages: messages
+                .filter((message) => catalogMatches(message, query))
+                .slice(0, 10),
+            }
+          : thread;
+      if (catalogMatches({ thread, messages }, query)) items.push(item);
+      if (items.length >= limit) break;
+    }
+    return catalogResult(domain, items, input, totalMatches);
+  }
+
+  if (domain === 'memory') {
+    const profile = localDataService.getMemoryProfile(input.id || null);
+    if (query) {
+      profile.facts = (profile.facts || []).filter((fact) => catalogMatches(fact, query));
+      if (!catalogMatches(profile, query)) return catalogResult(domain, [], input, 0);
+    }
+    return catalogResult(domain, [profile], input, 1);
+  }
+
+  if (domain === 'recorder_sessions') {
+    let sessions = localDataService.listRecorderSessions();
+    if (input.id) sessions = sessions.filter((session) => session.id === input.id);
+    const items = [];
+    for (const session of sessions) {
+      const detail = input.id || input.include_content || query
+        ? localDataService.getRecorderSession(session.id)
+        : session;
+      if (catalogMatches(detail, query)) items.push(detail);
+    }
+    return catalogResult(domain, items, input, items.length);
+  }
+
+  if (domain === 'stylofact_projects') {
+    let projects = localDataService.listStylofactProjects({ limit: 500 });
+    if (input.id) projects = projects.filter((project) => project.id === input.id);
+    if (input.status) projects = projects.filter((project) => project.stage === input.status);
+    const items = [];
+    for (const project of projects) {
+      const detail = input.id || input.include_content || query
+        ? localDataService.getStylofactProject(project.id)
+        : project;
+      if (!catalogMatches(detail, query)) continue;
+      items.push(input.id || input.include_content || query
+        ? summarizeStylofactDetail(detail, !!input.include_content)
+        : project);
+    }
+    return catalogResult(domain, items, input, items.length);
+  }
+
+  if (domain === 'automation_runs') {
+    const statuses = input.status ? [input.status] : [];
+    let runs = localDataService.listRuns({ statuses });
+    if (input.id) runs = runs.filter((run) => run.id === input.id);
+    runs = runs.filter((run) => catalogMatches(run, query));
+    if (input.id || input.include_content) {
+      runs = runs.map((run) => localDataService.getRun(run.id) || run);
+    }
+    return catalogResult(domain, runs, input, runs.length);
+  }
+
+  if (domain === 'media') {
+    const state = localDataService.getMediaState();
+    let tracks = state.tracks || [];
+    if (input.id) tracks = tracks.filter((track) => track.file_id === input.id || track.queue_id === input.id);
+    if (input.kind) tracks = tracks.filter((track) => track.kind === input.kind);
+    tracks = tracks.filter((track) => catalogMatches(track, query)).slice(0, limit);
+    if ((input.id || input.kind || query) && !tracks.length) return catalogResult(domain, [], input, 0);
+    return catalogResult(domain, [{ ...state, tracks }], input, 1, { track_matches: tracks.length });
+  }
+
+  if (domain === 'briiztorm') {
+    const state = localDataService.getBriiztormState();
+    if (query && !catalogMatches(state, query)) return catalogResult(domain, [], input, 0);
+    return catalogResult(domain, [state], input, 1);
+  }
+
+  if (domain === 'workspace') {
+    const layout = localDataService.getWorkspaceLayout();
+    let panels = localDataService.listWorkspacePanels();
+    if (input.id) panels = panels.filter((panel) => panel.id === input.id);
+    if (input.kind) panels = panels.filter((panel) => panel.feature_key === input.kind);
+    if (input.status === 'visible') panels = panels.filter((panel) => panel.visible);
+    else if (input.status === 'hidden') panels = panels.filter((panel) => !panel.visible);
+    else if (input.status) throw new Error('For workspace, status must be visible or hidden.');
+    if (input.id && !panels.length) return catalogResult(domain, [], input, 0);
+    const item = { layout, panels: panels.slice(0, limit) };
+    if (query && !catalogMatches(item, query)) return catalogResult(domain, [], input, 0);
+    return catalogResult(domain, [item], input, 1, { panel_matches: panels.length });
+  }
+
+  if (domain === 'settings') {
+    const settings = { ...localDataService.listSettings() };
+    delete settings.actiondeck_panel_settings;
+    let settingEntries = Object.entries(settings);
+    if (query) settingEntries = settingEntries.filter(([key, value]) => catalogMatches({ key, value }, query));
+    const item = {
+      settings: Object.fromEntries(settingEntries),
+      model_profiles: localDataService.listModelProfiles(),
+      provider_keys_configured: localDataService.getProviderKeyStatus(),
+    };
+    if (query && !catalogMatches(item, query)) return catalogResult(domain, [], input, 0);
+    return catalogResult(domain, [item], input, 1, { setting_matches: settingEntries.length });
+  }
+
+  if (domain === 'logs') {
+    const logs = localDataService.listLogs({
+      id: input.id,
+      category: input.kind,
+      level: input.status,
+      threadId: input.parent_id,
+      query: query || undefined,
+      since: dateFilterMs(input.date_from, false),
+      until: input.date_to ? dateFilterMs(input.date_to, true) - 1 : undefined,
+      limit,
+    });
+    return catalogResult(domain, logs, input, logs.length);
+  }
+
+  if (domain === 'system_status') {
+    const item = {
+      database: localDataService.getStatus(),
+      domain_revisions: localDataService.getDomainRevisions(),
+      pending_sync_domains: localDataService.getPendingSyncDomains(),
+    };
+    return catalogResult(domain, [item], input, 1);
+  }
+
+  throw new Error(`Unsupported data domain: ${domain}`);
+}
+
+const briizos_query_data = makeDataReadTool({
+  name: 'briizos_query_data',
+  description: `Browse lower-frequency briizOS data domains (${QUERY_DATA_DOMAINS.join(', ')}). Start with summaries, then set id and include_content=true for exact detail. This tool is read-only and never returns credentials.`,
+  schema: z.object({
+    domain: z.enum(QUERY_DATA_DOMAINS),
+    id: z.string().optional(),
+    parent_id: z.string().optional(),
+    query: z.string().max(500).optional(),
+    kind: z.string().max(100).optional(),
+    status: z.string().max(100).optional(),
+    date_from: z.string().optional(),
+    date_to: z.string().optional(),
+    include_content: z.boolean().optional().default(false),
+    limit: z.number().int().min(1).max(100).optional().default(50),
+  }),
+  run: queryCatalogData,
 });
 
 // =============================================================================
@@ -1118,6 +1488,7 @@ const BASE_TOOLS = [
   briizos_get_project,
   briizos_query_organizer,
   briizos_list_placements,
+  briizos_query_data,
   ls,
   read_file,
   write_file,

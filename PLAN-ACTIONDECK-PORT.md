@@ -1,6 +1,6 @@
 # Plan: ActionDeck Features → briizOS.Local (Native Port) + AI Data Access
 
-Status: code-complete — Phases 0–5 implemented (Phase 1: 2026-07-16, Phases 2–5: 2026-07-17); in-app acceptance pending (user-run)
+Status: code-complete — Phases 0–6 implemented (Phase 1: 2026-07-16, Phases 2–6: 2026-07-17); in-app acceptance pending (user-run)
 Scope: briizOS.local only (Web/Mobile parity comes free at the data layer via sync, but no Web/Mobile UI work is planned here)
 Author: Claude (session 2026-07-16), grounded in a read of both codebases
 
@@ -81,12 +81,13 @@ New read tools (names final at implementation, shapes validated with the existin
 | `briizos_get_project({id})` | Forest project detail: milestones, files, tags, scoring fields | `forest_projects` + `forest_files` |
 | `briizos_query_organizer({types?, dateFrom?, dateTo?, limit})` | events/notes/timers in range | organizer domain |
 | `briizos_list_placements({dateFrom?, dateTo?, refId?})` *(Phase 4)* | appearance records joined to their task values, recurrence expanded | placements + tasks |
+| `briizos_query_data({domain, id?, parent_id?, query?, kind?, status?, date_from?, date_to?, include_content?, limit?})` *(Phase 6)* | bounded summaries or exact detail for journals, Notefall, canvases, known files, conversations, memory, recorder, Stylofact, automations, Media, briiZtorm, workspace, non-secret settings, logs, and data status | unified local domains via their service-layer reads |
 | *(existing)* `briizos_get_schedule`, `briizos_search_notes` | unchanged in v1; in Phase 4 `get_schedule` returns the union view (events + scheduled tasks); migrating both to main-process reads is a hygiene TODO | — |
 
 ### D5 — The Data Catalog: one source of truth for "what can the AI see"
 New module `electron/agent/data-catalog.js`:
 
-- Enumerates every queryable object (tasks, subtasks, organizer notes/events/projects/timers, Forest projects/milestones/files, threads, schedule) with its fields and which tool queries it.
+- Enumerates every queryable user-facing object: tasks, subtasks, organizer notes/events/timers, placements, Forest projects/files, journals/folios, Notefall posts, canvases, known files, conversations, memory, recorder sessions, Stylofact projects, automation runs, Media, briiZtorm, workspace state, non-secret settings/model profiles, logs, and local data status.
 - Renders a **system-prompt section** (same pattern as the existing skills/memory sections in `system-prompt.js`, with a token budget like memory's `max_injection_tokens`).
 - Carries a **per-modality relevance map** — this is requirement 2.1's "prompts that provide the information relevant to the chat mode":
 
@@ -95,9 +96,12 @@ New module `electron/agent/data-catalog.js`:
 | `chat` | compact summary of all objects |
 | `prioritize` *(new)* | Forest projects + tasks, with scoring fields explained |
 | `planner` *(new, used by Calendar day view)* | today's schedule + open tasks + projects |
-| `research` / `code` / `report` / `plan` | minimal (notes search + files), unchanged behavior |
+| `research` | notes, journals/folios, Notefall, canvases, Forest projects/files, conversations, Stylofact |
+| `code` | Forest projects/files, canvases, conversations, automation runs, logs, local data status |
+| `report` | work/calendar state, journals, Notefall, conversations, runs, recorder history, logs |
+| `plan` | work/calendar state plus notes, journals, Notefall, conversations, runs, recorder history |
 
-(Found during implementation: `npm run tools:catalog` points at `scripts/generate-tool-catalog.mjs`, which does not exist — a stale package.json reference. The catalog module `electron/agent/data-catalog.js` is now the single source of truth; a doc generator that reads it is a small TODO, and the dead script reference should be fixed alongside it.)
+Phase 6 restored `scripts/generate-tool-catalog.mjs`: `npm run tools:catalog` now writes `electron/agent/DATA-CATALOG.md` directly from the live registry, while `npm run tools:catalog:check` can detect drift. The registry also explicitly records data that remains unavailable by design (credentials, raw sync internals, checkpoints, operation receipts, and device identity).
 
 ---
 
@@ -179,6 +183,7 @@ Everything in sections D4/D5 above, built **first**, because A5, B, and C all co
 | **3. Prioritizer (B1–B3)** 🔨 | **Code-complete 2026-07-17:** `prioritizer` skill; dedicated stored thread kind; live Forest/task candidate rail + exact message context; logged self-serve fallback; optional Forest scoring fields with revision-checked mini editor and confirmed AI write-back | M (3–5 days) | **User-run acceptance:** Forest projects **and** active tasks appear as options; selected candidates produce ranked markdown + reasoning; empty selection visibly calls the project/task read tools; Priority Signals edits survive reopen and influence the next run; `agent.prioritize` entries appear in LogPanel |
 | **4. Calendar / TODAY (A)** 🔨 | **Code-complete 2026-07-17:** A1–A5; native day timeline/navigation; duration quick-add; placement domain with multi-slot + recurring sessions; Forest/task picker; stored structured planner + ghost-block decisions; planner chat/read/write tools/logging | L (6–9 days) | **User-run acceptance:** schedule the same task twice and confirm both blocks stay joined to one task; try a recurring session and complete only one date; edit/unschedule a block; promote the same Forest milestone twice without duplicate tasks; run “Plan my day” and Accept/Reject ghost blocks; confirm `calendar`, `calendar.placement`, `agent.planner`, and `agent.data` entries in LogPanel |
 | **5. Retirement & polish** 🔨 | **Code-complete 2026-07-17:** embedded iframe routes/toggle/shortcut/export removed; stale layout appearances purged; source archived as unimported legacy files; temporary native rollout flags removed; B4 confirmed priority application + focused A5 handoff; retirement retro below | S (1–2 days) | **User-run acceptance:** no ActionDeck toggle or tile returns after relaunch; latest Prioritize result shows both action chips; Apply asks for confirmation and changes live task badges; Schedule opens today, runs the planner around the exact top pick, and leaves an Accept/Reject ghost block; `agent.prioritize` / `agent.planner` entries appear in LogPanel |
+| **6. Comprehensive data catalog** 🔨 | **Code-complete 2026-07-17:** expanded the prompt registry from 6 to 21 user-facing object families; added one bounded, read-only `briizos_query_data` tool for 15 lower-frequency domains; added safe file/log service reads, whole-record payload budgets, recursive credential redaction, modality-specific slices, explicit internal-data exclusions, and generated catalog documentation | M | Source reviewed only; automated and in-app testing intentionally not run at user direction. Runtime acceptance remains user-run. |
 
 Order rationale: D unblocks everything; C is the cheapest end-to-end proof of the skill+clarification pattern; B exercises the catalog; A is the largest UI build and lands last, in three sub-steps that are each independently useful.
 
