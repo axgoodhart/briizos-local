@@ -71,7 +71,8 @@ font-family:var(--ui-font-main, Chillax);}
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 12px;
-    position: relative;
+    position:relative;
+    height:70px;
     top:0;
     z-index:99999999;
     color: var(--ui-header-text, whitesmoke);
@@ -178,7 +179,8 @@ border:none;
     font-size: 0px;}
 .app-main {
     display: flex;
-    height:auto;
+    z-index:8000;
+    height:calc(100vh - 70px);
     flex: 1;
     overflow: hidden;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
@@ -4599,7 +4601,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
 
 
 :root[data-theme='antarctic-teafog']{
---ui-border-radius: 3px;
+--ui-border-radius: 4px;
     --ui-font-main: Warbler Variable;;
     --chat-input-border-color:palegoldenrod;
 --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(224, 255, 247, 0.08) 30%, transparent 60%, rgba(212, 163, 115, 0.1) 130%);
