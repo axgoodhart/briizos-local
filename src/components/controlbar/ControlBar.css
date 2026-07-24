@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: flex-start;
 top:0;
-z-index:999;
+ z-index:27;
   min-height: 58px;
   padding: 0 clamp(12px, 2vw, 22px);
   overflow: visible;

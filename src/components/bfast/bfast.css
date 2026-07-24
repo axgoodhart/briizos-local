@@ -18,7 +18,7 @@
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
-  z-index: 9000;
+  z-index: 30;
   pointer-events: none;
   display: flex;
   flex-direction: column;

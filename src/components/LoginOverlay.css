@@ -13,7 +13,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 100000;
+  z-index: 32;
   transition: opacity 1s ease;
   transition-delay: 0.8s;
 }

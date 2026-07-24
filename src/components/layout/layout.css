@@ -42,7 +42,7 @@
   display: none;
   position: absolute;
   inset: 0;
-  z-index: 80;
+   z-index: 14;
   min-width: 0;
   min-height: 0;
   overflow: hidden;

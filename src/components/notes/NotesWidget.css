@@ -14,7 +14,7 @@ background:var(--theme-components-notes-noteswidget-notes-drawer-background-grad
 width:300px;
 overflow:hidden;
   backdrop-filter:blur(5px);
-  z-index: 300;
+   z-index: 18;
   display: flex;
   visibility: hidden;
   flex-direction: column;
@@ -311,7 +311,7 @@ backdrop-filter:blur(10px);  color:var(--theme-components-notes-noteswidget-note
 .floating-note {
   background:var(--theme-components-notes-noteswidget-floating-note-background-gradient, linear-gradient(to bottom, transparent, black, transparent));
   position: fixed;
-  z-index: 350;
+   z-index: 21;
   min-width: 220px; 
   min-height: 60px;
   cursor: grab;
@@ -331,7 +331,7 @@ backdrop-filter:blur(10px);  color:var(--theme-components-notes-noteswidget-note
 .floating-note:active,
 .floating-note.dragging {
   cursor: grabbing;
-  z-index: 360;
+   z-index: 22;
   box-shadow: 0 12px 40px var(--theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe, rgba(0, 0, 0, 0.6));
   transform: scale(.99);
 }
@@ -395,7 +395,7 @@ backdrop-filter: blur(8px)brightness(.4);
   cursor: nwse-resize;
   opacity: 0;
   transition: opacity 0.2s ease;
-  z-index: 10;
+   z-index: 6;
 }
 
 .drawer-resize-handle::after {
