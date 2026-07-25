@@ -11,6 +11,7 @@ build/
 *.log
 introduction.html
 public/assets/
+omi-main/
 
 # Quarantined legacy direct-streaming AI path (pending `git rm`).
 # See .rewire-removed/README.md

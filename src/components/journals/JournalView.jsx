@@ -110,16 +110,26 @@ function formatValue(v, format) {
    Consecutive folios sharing a type+title form one "pagegroup": a single
    continuity rendered as numbered pages ("Notes — pg. 3 of 10"). Groups
    carry their own tag strip (stored on the group's first folio) and are
-   the unit the sidebar jumps between. */
+   the unit the sidebar jumps between.
+
+   A row with `content.groupStart` begins a NEW group even when its
+   type+title matches the row above. Deliberate folio creation (folio+,
+   template folios) stamps it; overflow pages born from typing rollover
+   don't, so they keep extending their group. */
 
 const groupKeyOf = (f) => `${f.type}|${f.title}`;
+
+/* True when `next` continues `folio`'s pagegroup: same type+title and not
+   an explicit new-folio start. */
+const continuesGroup = (folio, next) =>
+  !!next && groupKeyOf(next) === groupKeyOf(folio) && !next.content?.groupStart;
 
 function computeGroups(folios) {
   const out = [];
   (folios || []).forEach((f, i) => {
     const key = groupKeyOf(f);
     const last = out[out.length - 1];
-    if (last && last.key === key) last.folios.push(f);
+    if (last && last.key === key && !f.content?.groupStart) last.folios.push(f);
     else out.push({ key, type: f.type, title: f.title || TYPE_LABELS[f.type] || 'page', folios: [f], start: i });
   });
   return out;
@@ -860,8 +870,46 @@ function TypographyModal({ typo, onChange, onClose }) {
 
 /* ── Page + spread ───────────────────────────────────────────────────── */
 
+/* The page-head title, editable in place. Commit on Enter/blur, Escape
+   cancels. Renaming goes through onRename, which renames the whole
+   pagegroup (title is half the group key, so a lone renamed page would
+   split off its own folio). */
+function FolioTitle({ folio, onRename }) {
+  const [draft, setDraft] = useState(folio.title);
+  const cancelRef = useRef(false);
+  useEffect(() => setDraft(folio.title), [folio.id, folio.title]);
+
+  if (!onRename) return <h3>{folio.title}</h3>;
+  return (
+    <input
+      className="jv-page__titleedit"
+      type="text"
+      value={draft}
+      placeholder={TYPE_LABELS[folio.type] || folio.type}
+      aria-label="Folio title"
+      title="Rename this folio"
+      onInput={(e) => setDraft(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        else if (e.key === 'Escape') {
+          cancelRef.current = true;
+          setDraft(folio.title);
+          e.currentTarget.blur();
+        }
+      }}
+      onBlur={() => {
+        if (cancelRef.current) {
+          cancelRef.current = false;
+          return;
+        }
+        onRename(draft);
+      }}
+    />
+  );
+}
+
 function FolioPage({
-  folio, siblings, pageUrl, onSave, onDelete,
+  folio, siblings, pageUrl, onSave, onDelete, onRename,
   onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick,
 }) {
   if (!folio) return <div className="jv-page jv-page--empty" />;
@@ -872,7 +920,7 @@ function FolioPage({
     <div className="jv-page" style={pageUrl ? { backgroundImage: `url(${pageUrl})` } : undefined}>
       <div className={'jv-page__paper' + (fixed ? ' jv-page__paper--fixed' : '')}>
         <header className="jv-page__head">
-          <h3>{folio.title}</h3>
+          <FolioTitle folio={folio} onRename={onRename} />
           <span className="jv-page__type">
             {TYPE_LABELS[folio.type] || folio.type}
             {onDelete && (
@@ -1491,7 +1539,7 @@ export function JournalView({
     const list = foliosRef.current || [];
     const idx = list.findIndex((f) => f.id === folio.id);
     const next = idx >= 0 ? list[idx + 1] : null;
-    if (!next || groupKeyOf(next) !== groupKeyOf(folio)) return null;
+    if (!continuesGroup(folio, next)) return null;
     const nextEd = editorsRef.current.get(next.id);
     if (nextEd && !nextEd.isDestroyed && nextEd.isFocused) return null; // never yank under a live cursor
     const doc = next.content?.doc;
@@ -1510,7 +1558,7 @@ export function JournalView({
     const idx = list.findIndex((f) => f.id === folio.id);
     if (idx < 0) return;
     const next = list[idx + 1];
-    const sameGroup = next && groupKeyOf(next) === groupKeyOf(folio);
+    const sameGroup = continuesGroup(folio, next);
 
     const writeNext = (target, doc) => {
       if (JSON.stringify(target.content?.doc) === JSON.stringify(doc)) return;
@@ -1616,7 +1664,11 @@ export function JournalView({
   }, [isFloat, floatTray, folios?.length, toolbarEditor, floatChrome?.onTrayHeightChange]);
 
   const addPage = (spec) => {
-    api.foliosCreate(journal.id, spec).then((created) => {
+    /* Folio+ means a NEW folio: stamp groupStart so the row starts its own
+       pagegroup instead of merging into a same-type+title group above it.
+       Overflow pages (handleRebalanced) stay unstamped continuations. */
+    const stamped = { ...spec, content: { ...(spec.content || {}), groupStart: true } };
+    api.foliosCreate(journal.id, stamped).then((created) => {
       const newIdx = foliosRef.current?.length ?? 0;
       setFolios((prev) => [...(prev || []), created]);
       setCursor(newIdx); // jump to the new page
@@ -1626,8 +1678,10 @@ export function JournalView({
 
   const deleteFolio = (folio) => () => {
     if (!window.confirm(`Remove the page “${folio.title}”? Its contents will be lost.`)) return;
-    // Folio-level flags (tags, scroll) ride on the first page — hand them
-    // to the next page before deleting their carrier.
+    // Folio-level flags (tags, scroll, the new-folio start marker) ride on
+    // the first page — hand them to the next page before deleting their
+    // carrier. Without the groupStart hand-off, a folio losing its first
+    // page would silently merge into a same-type+title group above it.
     const gs = computeGroups(foliosRef.current || []);
     const g = gs.find((x) => x.folios.some((f) => f.id === folio.id));
     if (g && g.folios[0].id === folio.id && g.folios[1]) {
@@ -1635,6 +1689,7 @@ export function JournalView({
       const carry = {};
       if (folio.content?.groupTags) carry.groupTags = folio.content.groupTags;
       if (folio.content?.groupScroll) carry.groupScroll = folio.content.groupScroll;
+      if (folio.content?.groupStart) carry.groupStart = true;
       if (Object.keys(carry).length) saveFolio(heir)({ content: { ...heir.content, ...carry } });
     }
     api.foliosDelete(folio.id).then(() => {
@@ -1644,6 +1699,61 @@ export function JournalView({
         return next;
       });
     }).catch((err) => logger.error('journal', 'folios:delete failed', err?.message));
+  };
+
+  /* Renaming a folio renames its whole pagegroup in one motion — the
+     title is half the group key, so a lone renamed page would split off
+     its own folio. If the new name makes this group's key collide with a
+     neighbouring group of the same type, groupStart stamps keep the
+     boundary from fusing (legacy groups may not carry one yet). */
+  const renameFolio = (folio) => (rawTitle) => {
+    const title = String(rawTitle ?? '').trim();
+    if (title === folio.title) return;
+    const gs = computeGroups(foliosRef.current || []);
+    const gi = gs.findIndex((x) => x.folios.some((f) => f.id === folio.id));
+    if (gi < 0) return;
+    const g = gs[gi];
+    const newKey = `${g.type}|${title}`;
+
+    const patches = new Map();
+    g.folios.forEach((f) => patches.set(f.id, { title }));
+    const first = g.folios[0];
+    const prev = gs[gi - 1];
+    if (prev && prev.key === newKey && !first.content?.groupStart) {
+      patches.set(first.id, { title, content: { ...first.content, groupStart: true } });
+    }
+    const after = gs[gi + 1];
+    const afterFirst = after?.folios[0];
+    if (afterFirst && after.key === newKey && !afterFirst.content?.groupStart) {
+      patches.set(afterFirst.id, { content: { ...afterFirst.content, groupStart: true } });
+    }
+
+    /* Dashboard widgets bind to their source folio BY TITLE (see
+       computeWidgetValue) — retarget any widget pointing at this group's
+       old name so live stats survive the rename. */
+    const oldTitle = folio.title;
+    (foliosRef.current || []).forEach((f) => {
+      if (f.type !== 'dashboard') return;
+      const widgets = f.content?.widgets;
+      if (!Array.isArray(widgets)) return;
+      const points = (w) => w?.source && w.source.from === g.type && w.source.folio === oldTitle;
+      if (!widgets.some(points)) return;
+      const nextWidgets = widgets.map((w) => (points(w) ? { ...w, source: { ...w.source, folio: title } } : w));
+      const base = patches.get(f.id) || {};
+      patches.set(f.id, { ...base, content: { ...f.content, ...(base.content || {}), widgets: nextWidgets } });
+    });
+
+    setFolios((prevList) => prevList.map((f) => (patches.has(f.id) ? { ...f, ...patches.get(f.id) } : f)));
+    Promise.all([...patches.entries()].map(([id, patch]) => api.foliosUpdate(id, patch)))
+      .then(() => {
+        logger.info('journal', 'Folio renamed', {
+          journalId: journal.id,
+          from: folio.title || '(untitled)',
+          to: title || '(untitled)',
+          pages: g.folios.length,
+        });
+      })
+      .catch((err) => logger.error('journal', 'folios:update rename failed', err?.message));
   };
 
   const saveFolio = (folio) => (patch) => {
@@ -1698,6 +1808,7 @@ export function JournalView({
     pageUrl,
     onSave: folio ? saveFolio(folio) : undefined,
     onDelete: folio ? deleteFolio(folio) : undefined,
+    onRename: folio ? renameFolio(folio) : undefined,
     onRebalanced: folio ? handleRebalanced(folio) : undefined,
     pullSource: folio ? pullSourceFor(folio) : undefined,
     registerEditor,

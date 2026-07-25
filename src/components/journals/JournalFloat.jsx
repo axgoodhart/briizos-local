@@ -18,16 +18,24 @@ import logger from '../../lib/logger';
    the float announces itself on close/unmount (so the shelf refreshes
    folio counts) and closes itself when the shelf deletes its journal. */
 
-/* Float geometry mirrors the CSS: 20px frame padding, fixed shell borders,
-   then the 54px header. The remaining surface stays at the page's exact
-   3:4 proportion, so resize never creates letterboxing or crops the page. */
+/* Float geometry mirrors the CSS (.journal-float / .journal-float__header
+   in journals.css — keep these in sync when either changes): the frame has
+   no padding, just fixed shell borders and the 34px header. The remaining
+   surface stays at the page's exact 3:4 proportion, so resize never
+   creates letterboxing or crops the page. */
 const FLOAT_PAGE_ASPECT = 3 / 4;
-const FLOAT_FRAME_INSET = 40;
 const FLOAT_SHELL_BORDER_X = 4;
 const FLOAT_SHELL_BORDER_Y = 7;
-const FLOAT_HEADER_HEIGHT = 54;
+const FLOAT_HEADER_HEIGHT = 34;
 const DEFAULT_FLOAT_WIDTH = 620;
-const MIN_W = 420;
+const MIN_W = 320;
+
+/* Click-and-hold drag: the pointer must stay put this long (and this
+   still) before the frame grabs the window. Early movement or release
+   means the user was editing text, so the hold cancels. */
+const HOLD_MS = 400;
+const HOLD_SLOP = 6;
+const GRAB_PULSE_MS = 500;
 
 export function normalizeJournalFloatSize(size = {}) {
   const requestedWidth = Number(size.width);
@@ -36,10 +44,9 @@ export function normalizeJournalFloatSize(size = {}) {
     Number.isFinite(requestedWidth) ? requestedWidth : DEFAULT_FLOAT_WIDTH,
   );
   const height = Math.round(
-    FLOAT_FRAME_INSET
-      + FLOAT_SHELL_BORDER_Y
+    FLOAT_SHELL_BORDER_Y
       + FLOAT_HEADER_HEIGHT
-      + (width - FLOAT_FRAME_INSET - FLOAT_SHELL_BORDER_X) / FLOAT_PAGE_ASPECT,
+      + (width - FLOAT_SHELL_BORDER_X) / FLOAT_PAGE_ASPECT,
   );
   return { width, height };
 }
@@ -61,6 +68,7 @@ export function JournalFloat({
   const [trayHeight, setTrayHeight] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
+  const [grabPulse, setGrabPulse] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({
     mouseX: 0,
@@ -163,6 +171,60 @@ export function JournalFloat({
     setDragging(true);
   };
 
+  /* The page surface is a text editor, so mousedown must reach it untouched
+     (caret placement, selection, double-click word-select). The frame only
+     grabs the window when the pointer holds still for HOLD_MS; moving or
+     releasing early cancels the hold and leaves the editor alone. The
+     header keeps ordinary single-press drag via its own handler, which
+     preventDefaults before this one runs. */
+  const holdTimerRef = useRef(null);
+  const cancelHoldRef = useRef(() => {});
+
+  const handleFrameMouseDown = (e) => {
+    if (e.defaultPrevented || e.button !== 0) return;
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.journal-float__resize')) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const cancelHold = () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+      window.removeEventListener('mousemove', onHoldMove);
+      window.removeEventListener('mouseup', cancelHold);
+    };
+    const onHoldMove = (ev) => {
+      if (Math.abs(ev.clientX - startX) > HOLD_SLOP || Math.abs(ev.clientY - startY) > HOLD_SLOP) cancelHold();
+    };
+
+    cancelHoldRef.current = cancelHold;
+    window.addEventListener('mousemove', onHoldMove);
+    window.addEventListener('mouseup', cancelHold);
+
+    holdTimerRef.current = setTimeout(() => {
+      cancelHold();
+      const rect = frameRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      if (!panelPos) setPanelPos({ x: rect.left, y: rect.top });
+      setDragOffset({ x: startX - rect.left, y: startY - rect.top });
+      /* The un-prevented mousedown may have armed a text selection; clear
+         it so dragging the window doesn't also smear a selection. */
+      window.getSelection()?.removeAllRanges();
+      setDragging(true);
+      setGrabPulse(true);
+      logger.info('journal', 'Floating journal drag armed via click-and-hold', { journalId });
+    }, HOLD_MS);
+  };
+
+  /* Pending hold must not outlive the component. */
+  useEffect(() => () => cancelHoldRef.current(), []);
+
+  useEffect(() => {
+    if (!grabPulse) return undefined;
+    const timer = setTimeout(() => setGrabPulse(false), GRAB_PULSE_MS);
+    return () => clearTimeout(timer);
+  }, [grabPulse]);
+
   const handleResizeStart = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -195,12 +257,10 @@ export function JournalFloat({
       const dy = e.clientY - resizeStart.mouseY;
       const horizontalChange = Math.abs(dx) / Math.max(1, resizeStart.width);
       const verticalChange = Math.abs(dy) / Math.max(1, resizeStart.height);
-      const widthFromHeight = FLOAT_FRAME_INSET
-        + FLOAT_SHELL_BORDER_X
+      const widthFromHeight = FLOAT_SHELL_BORDER_X
         + Math.max(
           0,
           resizeStart.height + dy
-            - FLOAT_FRAME_INSET
             - FLOAT_SHELL_BORDER_Y
             - FLOAT_HEADER_HEIGHT,
         ) * FLOAT_PAGE_ASPECT;
@@ -256,13 +316,14 @@ export function JournalFloat({
   return (
     <div
       ref={frameRef}
-      className={`journal-float ${dragging ? 'dragging' : ''} ${resizing ? 'resizing' : ''}`}
+      className={`journal-float ${dragging ? 'dragging' : ''} ${resizing ? 'resizing' : ''} ${grabPulse ? 'grab-pulse' : ''}`}
       style={{
         left: panelPos?.x ?? fallbackX,
         top: panelPos?.y ?? fallbackY,
         width: panelSize.width,
         height: panelSize.height + trayHeight,
       }}
+      onMouseDown={handleFrameMouseDown}
     >
       <div
         className="journal-float__shell"

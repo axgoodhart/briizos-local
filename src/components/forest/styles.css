@@ -113,7 +113,9 @@ display:flex;  gap: 18px;
   background: linear-gradient(115deg, rgba(10, 52, 32, 0.9), rgba(20, 74, 46, 0.72) 45%, rgba(146, 176, 144, 0.38));
   border: 1px solid var(--border);
   backdrop-filter: blur(30px) saturate(260%);
-  box-shadow: var(--shadowTop)}
+  user-select:none;
+  box-shadow: var(--shadowTop)
+}
 
 
 .brand {
@@ -192,13 +194,14 @@ display:flex;  gap: 18px;
 .collapse-all-btn {
   position: absolute;
   top: 80px;
-  left: 4px;
+  right: 14px;
   z-index: 2;
   display: grid;
-  width: 30px;
+  width: 60px;
   height: 29px;
   padding: 0;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
   color: #b9f5d3;
   background: rgba(7, 55, 38, 0.9);
   border: 1px solid rgba(160, 244, 198, 0.25) !important;
@@ -209,46 +212,9 @@ display:flex;  gap: 18px;
   transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
 }
 
-.collapse-all-btn svg {
-  width: 24px;
-  height: 14px;
-  overflow: visible;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.45;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 
-.collapse-all-btn circle {
-  fill: currentColor;
-  stroke: none;
-}
-
-.collapse-all-btn .collapse-glyph {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.collapse-all-btn .collapse-glyph-awake {
-  opacity: 0;
-  transform: scaleY(0.35);
-}
-
-.collapse-all-btn .collapse-glyph-wink {
-  opacity: 1;
-  transform: scaleY(1);
-}
-
-.collapse-all-btn[data-state="expanded"] .collapse-glyph-awake {
-  opacity: 1;
-  transform: scaleY(1);
-}
-
-.collapse-all-btn[data-state="expanded"] .collapse-glyph-wink {
-  opacity: 0;
-  transform: scaleY(0.35);
+.collapse-all-btn span {
+  font-family:SF Pro;
 }
 
 .collapse-all-btn:hover:not(:disabled) {
@@ -798,58 +764,48 @@ overflow:auto;  min-height: 48px;
 
 .project-card {
   position: absolute;
-  width: var(--card-w);
-  padding: 10px;
   max-height:400px;
-  border-radius: 5px 80px 28px 78px;
+  width: var(--card-w);
+  border-radius:var(--ui-forest-card-radius, 10px 80px 2px 130px);
   corner-shape: var(--ui-corner-shape);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  border: 1.2px solid rgba(40, 255, 30, 1);
   background: linear-gradient(180deg, rgba(24, 48, 32, 0.86), rgba(10, 22, 28, 0.78));
-  box-shadow:
-    0 22px 60px rgba(0, 0, 0, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),    
-    0 0 15px rgba(0, 0, 0, 0),
-    0 0 0 1px rgba(var(--accent-rgb), 0);
-  user-select: none;
+  box-shadow:    0 22px 60px rgba(0, 0, 0, 0.36);
+      user-select: none;
   cursor:grab;
   transition: all .4s ease;
   min-height:80px;
-  padding-bottom:0;
+ padding-left:3px;
+ padding-right:20px;
+}
+
+.project-card::-webkit-scrollbar {
+  display: none;
 }
 
 .project-card.forest-dragging {
   transition: none;
-  opacity:.75;
+  transition:opacity .1s linear;
+  opacity:.15;
    z-index: 16 !important;
 }
 
 .project-card::before {
   content: "";
-  position: absolute;
-  inset: 0;
+position:absolute;
+  inset:0;
   pointer-events: none;
   cursor:grab;
+  box-shadow:inset 0 0 20px white;
   background: linear-gradient(
-    135deg,
-    rgba(var(--accent-rgb), 0.2),
-    transparent 34%,
-    transparent 70%,
-    rgba(var(--accent-rgb), 0.07)
-  );
+    125deg,
+    rgba(0, 180, 0, 0.602),
+    rgb(26, 78, 32), rgb(52, 79, 47), rgb(0,40,25));
 }
 .project-card:hover {
-  box-shadow:
-    0 22px 60px rgba(0, 0, 0, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),    
-    0 0 18px rgba(46, 230, 160, 0.5),
-    0 0 0 1px rgba(var(--accent-rgb), .5);
-}
-.project-card.forest-selected {
-  border-color: rgba(var(--accent-rgb), 0.5);
-
-}
-
+  border-color:white;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.86);}
 .project-accent {
   position: absolute;
   top: 0;
@@ -1183,13 +1139,10 @@ margin-top:-10px;
 .project-body {
   position: relative;
   z-index: 2;
-  margin-left:-10px;
   padding:20px;
-  margin-right:-10px;
-  margin-top:8px;
   height:85%;
   border: 1px solid rgba(var(--accent-rgb, 22, 199, 132), 0.45);
-  border-radius: 27px;
+  border-radius:var(--ui-forest-card-radius, 10px 80px 2px 130px);
   overflow:hidden;
   display: none;
   backdrop-filter:blur(0px);
@@ -1199,13 +1152,19 @@ margin-top:-10px;
 .project-card.expanded {
   max-height: 1000px;
     overflow: scroll;
-}
+margin:0;}
 .project-card.expanded .project-body {
-  display: block;
-    border-radius:27px;
-
+  display: flex;
+  flex-direction: column;
+  border-top:2px solid var(--accent);
+  border-radius:var(--ui-forest-card-radius, 10px 80px 2px 130px);
+  width: calc(var(--card-w) + -10px);
    z-index: 10;
-  backdrop-filter:blur(70px)brightness(1);;
+  backdrop-filter:blur(20px)brightness(1);;
+}
+
+.project-body ::-webkit-scrollbar {
+  display: none;
 }
 .dim-mode .project-card.expanded .project-body {
   backdrop-filter:blur(70px)brightness(.1);
@@ -2680,7 +2639,6 @@ margin-top:-10px;
 .viewer-carousel {
   display: flex;
   gap: 12px;
-  overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 8px;
   scroll-snap-type: x mandatory;
@@ -2732,7 +2690,7 @@ margin-top:-10px;
 video.viewer-carousel-img,
 video.viewer-hero-img,
 video.project-cover-img {
-  object-fit: cover;
+  object-fit:fill;
 }
 
 .audio-preview {

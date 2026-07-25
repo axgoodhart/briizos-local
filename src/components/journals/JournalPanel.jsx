@@ -295,7 +295,13 @@ export function JournalPanel({
   }, [journals, query]);
 
   const handleCreate = async (input) => {
-    const created = await api.create(input);
+    /* Every template-born folio starts its own pagegroup (see the
+       groupStart contract in JournalView's computeGroups). */
+    const folios = (input.folios || []).map((f) => ({
+      ...f,
+      content: { ...(f.content || {}), groupStart: true },
+    }));
+    const created = await api.create({ ...input, folios });
     setJournals((prev) => [...prev, created]);
     setSelectedId(created.id);
     logger.info('journal', 'Journal created', { id: created.id, title: created.title });

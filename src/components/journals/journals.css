@@ -453,13 +453,14 @@ transition: all .5s ease;
   color: rgba(255, 255, 255, 0.85);
   border-radius: var(--ui-border-radius);
   font-size: 13.5px;
+  opacity:.6;
   text-transform: lowercase;
-  padding: 9px 18px;
-  cursor: pointer;
+padding: 1px 1px;  cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .jr-btn:hover:not(:disabled) {
+  opacity:1;
   border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.1);
 }
@@ -792,6 +793,25 @@ transition: all .5s ease;
   font-weight: 500;
   color: #fff;
 }
+
+/* Editable folio title: dressed as the plain h3 until it's touched. */
+.jv-page__titleedit {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  outline: none;
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: #fff;
+}
+.jv-page__titleedit::placeholder { color: rgba(255, 255, 255, 0.35); }
+.jv-page__titleedit:hover { background: rgba(255, 255, 255, 0.06); }
+.jv-page__titleedit:focus { background: rgba(255, 255, 255, 0.09); }
 
 .jv-page__type {
   font-size: 10px;
@@ -1702,7 +1722,7 @@ transition: all .5s ease;
 .jvb__tags {
   position: absolute;
   top: 0;
-  right: 0;
+  left: 0;
   width: 130px;
   display: flex;
   align-items: center;
@@ -1712,11 +1732,12 @@ transition: all .5s ease;
   border-radius: 999px;
   padding: 5px 14px;
   background: rgba(0, 0, 0, 0.4);
-  transition: width 0.18s ease;
+  transition: all 0.3s ease;
   z-index: 2;
 }
-.jvb__tags.is-expanded { width: 340px; overflow-x: auto; }
-.jvb__tags::-webkit-scrollbar { height: 0; }
+.jvb__tags.is-expanded { padding: 5px 20px;overflow-x: auto;width:200px; background:black;border: 1px solid rgba(120, 180, 255, 1);transform:scale(1.4);}
+.jvb__tags.is-expanded::placeholder {color: white;}
+.jvb__tags::-webkit-scrollbar { display: none; }
 
 .jvb__taginput {
   appearance: none;
@@ -1759,11 +1780,11 @@ transition: all .5s ease;
 
 .journal-float {
   position: fixed;
-   z-index: 20;
-  min-width: 420px;
-  min-height: 520px;
-  /* Breathing room so the tilted shell never clips at the frame edge. */
-  padding: 20px;
+  z-index: 30;
+  /* Mins mirror normalizeJournalFloatSize (JournalFloat.jsx) at MIN_W:
+     the frame carries no padding — the shell fills it edge to edge. */
+  min-width: 320px;
+  min-height: 462px;
   box-sizing: border-box;
   animation: jfPopIn 0.2s ease;
 }
@@ -1774,6 +1795,21 @@ transition: all .5s ease;
 }
 
 .journal-float.resizing { cursor: nwse-resize; }
+.journal-float.dragging { cursor: grabbing; user-select: none; }
+
+/* Hold-to-drag activation: a quick citrus jolt — shrink and brighten,
+   then spring back and dim. Runs on the frame so it never fights the
+   shell's inline perspective transform. Duration mirrors GRAB_PULSE_MS
+   in JournalFloat.jsx. */
+.journal-float.grab-pulse {
+  animation: jfGrabPulse 0.5s infinite cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes jfGrabPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(0.955); filter: brightness(.8) saturate(1.25); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
 
 .journal-float__shell {
   position: relative;
@@ -1806,8 +1842,8 @@ transition: all .5s ease;
   flex-shrink: 0;
   user-select: none;
   gap: 8px;
-  height: 54px;
-  min-height: 54px;
+  height: 34px;
+  min-height: 34px;
   padding: 0 12px;
   text-transform: none;
   background:
