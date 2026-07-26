@@ -108,15 +108,15 @@ top:0;
 .control-bar-dock:hover .cb-icon,
 .control-bar-dock:focus-within .cb-icon {
   opacity: 0.82;
-  filter: blur(0.8px) saturate(1);
+  filter: blur(0px) saturate(1);
 }
 
 .cb-toggle.active .cb-icon,
 .cb-toggle:focus-visible .cb-icon,
 .cb-toggle:hover .cb-icon {
   opacity: 1;
-  filter: none;
-  transform: translateY(-1px);
+  filter: blur(0px) saturate(2);
+    transform: translateY(-1px);
 }
 
 #notes-icon {
