@@ -3741,6 +3741,783 @@ class LocalDataService extends EventEmitter {
     return this.safeStorage.decryptString(row.encrypted_value);
   }
 
+  // ------------------------------------------------------------------
+  // briizy work memory (PLAN-BRIIZY.md §8)
+  //
+  // Electron owns all of this metadata (I4). Writes use the 'rewind' domain,
+  // which is deliberately absent from CONTINUITY_DOMAINS, so nothing here can
+  // reach sync_outbox and therefore Firestore (I9).
+  //
+  // Rows handed to the renderer never carry an archive path (§2): frame
+  // identifiers are opaque and images are fetched by id through IPC. Only the
+  // main-process callers that must unlink files ask for paths explicitly.
+  // ------------------------------------------------------------------
+
+  getBriizyState() {
+    this._assertReady();
+    const rows = this.db.prepare(`
+      SELECT key, value_json FROM embedded_app_state WHERE app_id = 'briizy'
+    `).all();
+    const state = {};
+    rows.forEach((row) => {
+      try {
+        state[row.key] = JSON.parse(row.value_json);
+      } catch {
+        state[row.key] = null;
+      }
+    });
+    return state;
+  }
+
+  setBriizyState(key, value) {
+    key = v.identifier(key, 'briizy state key');
+    const valueJson = this._jsonValue(value, `briizy state ${key}`, 2000000);
+    return this._write('briizy', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO embedded_app_state (app_id, key, value_json, created_at, updated_at, revision)
+        VALUES ('briizy', ?, ?, ?, ?, 1)
+        ON CONFLICT(app_id, key) DO UPDATE SET
+          value_json = excluded.value_json,
+          updated_at = excluded.updated_at,
+          revision = embedded_app_state.revision + 1
+      `).run(key, valueJson, timestamp, timestamp);
+      return { key, value };
+    });
+  }
+
+  _rewindSessionRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      kind: row.kind,
+      topApps: JSON.parse(row.top_apps_json || '[]'),
+      headline: row.headline,
+      frameCount: row.frame_count,
+      bytes: row.bytes,
+      notefallPostId: row.notefall_post_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  /**
+   * Frame row for consumers. `includePath` is main-process only — the IPC layer
+   * must never pass it, so the renderer cannot learn where the archive lives.
+   */
+  _rewindFrameRow(row, { includePath = false } = {}) {
+    if (!row) return null;
+    const frame = {
+      frameId: row.id,
+      sessionId: row.session_id,
+      capturedAt: row.captured_at,
+      appName: row.app_name,
+      bundleId: row.bundle_id,
+      windowTitle: row.window_title,
+      captureMode: row.capture_mode,
+      width: row.width,
+      height: row.height,
+      bytes: row.bytes,
+      phash: row.phash,
+      ocrStatus: row.ocr_status,
+      hasImage: !!(row.image_path || row.media_path),
+    };
+    if (row.ocr_text !== undefined) frame.ocrText = row.ocr_text;
+    if (includePath) {
+      frame.imagePath = row.image_path;
+      frame.mediaPath = row.media_path;
+      frame.mediaOffset = row.media_offset;
+    }
+    return frame;
+  }
+
+  createRewindSession(input = {}) {
+    v.object(input, 'rewind session', ['kind', 'startedAt']);
+    const kind = v.oneOf(input.kind || 'auto', 'kind', ['auto', 'display']);
+    const startedAt = input.startedAt === undefined
+      ? now()
+      : v.integer(input.startedAt, 'startedAt', { min: 1 });
+    const sessionId = id();
+    return this._write('rewind', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO rewind_sessions (id, started_at, kind, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, 1)
+      `).run(sessionId, startedAt, kind, timestamp, timestamp);
+      return { row: this._rewindSessionRow(this._getRewindSessionRow(sessionId)) };
+    });
+  }
+
+  _getRewindSessionRow(sessionId) {
+    return this.db.prepare('SELECT * FROM rewind_sessions WHERE id = ?').get(sessionId);
+  }
+
+  getRewindSession(sessionId) {
+    this._assertReady();
+    sessionId = v.identifier(sessionId, 'sessionId');
+    return this._rewindSessionRow(this._getRewindSessionRow(sessionId));
+  }
+
+  /** The session currently accepting frames, if any. */
+  getOpenRewindSession(kind = null) {
+    this._assertReady();
+    if (kind != null) v.oneOf(kind, 'kind', ['auto', 'display']);
+    const row = kind
+      ? this.db.prepare(`
+          SELECT * FROM rewind_sessions
+          WHERE ended_at IS NULL AND deleted_at IS NULL AND kind = ?
+          ORDER BY started_at DESC LIMIT 1
+        `).get(kind)
+      : this.db.prepare(`
+          SELECT * FROM rewind_sessions
+          WHERE ended_at IS NULL AND deleted_at IS NULL
+          ORDER BY started_at DESC LIMIT 1
+        `).get();
+    return this._rewindSessionRow(row);
+  }
+
+  /**
+   * Recompute a session's aggregates from its frames. Called when a session
+   * closes and after pruning, so frame_count/bytes/top_apps never drift from
+   * what is actually on disk.
+   */
+  _recomputeRewindSession(sessionId, timestamp) {
+    const totals = this.db.prepare(`
+      SELECT COUNT(*) AS frames, COALESCE(SUM(bytes), 0) AS bytes
+      FROM rewind_frames WHERE session_id = ? AND deleted_at IS NULL
+    `).get(sessionId);
+    const topApps = this.db.prepare(`
+      SELECT app_name AS appName, COUNT(*) AS frames
+      FROM rewind_frames
+      WHERE session_id = ? AND deleted_at IS NULL AND app_name IS NOT NULL
+      GROUP BY app_name ORDER BY frames DESC LIMIT 8
+    `).all(sessionId);
+    this.db.prepare(`
+      UPDATE rewind_sessions
+      SET frame_count = ?, bytes = ?, top_apps_json = ?, updated_at = ?, revision = revision + 1
+      WHERE id = ?
+    `).run(totals.frames, totals.bytes, JSON.stringify(topApps), timestamp, sessionId);
+  }
+
+  endRewindSession(sessionId, input = {}) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    v.object(input, 'session close', ['endedAt', 'headline']);
+    const endedAt = input.endedAt === undefined ? now() : v.integer(input.endedAt, 'endedAt', { min: 1 });
+    const headline = input.headline === undefined
+      ? undefined
+      : v.string(input.headline, 'headline', { nullable: true, max: 500 });
+    return this._write('rewind', (timestamp) => {
+      const current = this._getRewindSessionRow(sessionId);
+      if (!current) v.fail('NOT_FOUND', 'Session not found');
+      this.db.prepare(`
+        UPDATE rewind_sessions SET ended_at = ?, headline = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(endedAt, headline === undefined ? current.headline : headline, timestamp, sessionId);
+      this._recomputeRewindSession(sessionId, timestamp);
+      return { row: this._rewindSessionRow(this._getRewindSessionRow(sessionId)) };
+    });
+  }
+
+  updateRewindSession(sessionId, patch = {}) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    v.object(patch, 'session changes', ['headline', 'notefallPostId']);
+    const headline = patch.headline === undefined
+      ? undefined
+      : v.string(patch.headline, 'headline', { nullable: true, max: 500 });
+    const notefallPostId = patch.notefallPostId === undefined
+      ? undefined
+      : v.identifier(patch.notefallPostId, 'notefallPostId', { nullable: true });
+    return this._write('rewind', (timestamp) => {
+      const current = this._getRewindSessionRow(sessionId);
+      if (!current) v.fail('NOT_FOUND', 'Session not found');
+      this.db.prepare(`
+        UPDATE rewind_sessions SET headline = ?, notefall_post_id = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(
+        headline === undefined ? current.headline : headline,
+        notefallPostId === undefined ? current.notefall_post_id : notefallPostId,
+        timestamp,
+        sessionId,
+      );
+      return { row: this._rewindSessionRow(this._getRewindSessionRow(sessionId)) };
+    });
+  }
+
+  listRewindSessions(input = {}) {
+    this._assertReady();
+    v.object(input, 'session filters', ['from', 'to', 'kind', 'limit', 'openOnly']);
+    const clauses = ['deleted_at IS NULL'];
+    const params = [];
+    if (input.from !== undefined) {
+      clauses.push('started_at >= ?');
+      params.push(v.integer(input.from, 'from', { min: 0 }));
+    }
+    if (input.to !== undefined) {
+      clauses.push('started_at <= ?');
+      params.push(v.integer(input.to, 'to', { min: 0 }));
+    }
+    if (input.kind !== undefined) {
+      clauses.push('kind = ?');
+      params.push(v.oneOf(input.kind, 'kind', ['auto', 'display']));
+    }
+    if (input.openOnly === true) clauses.push('ended_at IS NULL');
+    const limit = input.limit === undefined ? 200 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
+    return this.db.prepare(`
+      SELECT * FROM rewind_sessions WHERE ${clauses.join(' AND ')}
+      ORDER BY started_at DESC LIMIT ?
+    `).all(...params, limit).map((row) => this._rewindSessionRow(row));
+  }
+
+  /**
+   * Record one captured frame. The privacy gate has already run (I3) — a frame
+   * that reaches this method is one the user permitted, already written to disk
+   * by the helper.
+   */
+  recordRewindFrame(input = {}) {
+    v.object(input, 'frame', [
+      'sessionId', 'capturedAt', 'appName', 'bundleId', 'windowTitle', 'captureMode',
+      'imagePath', 'bytes', 'width', 'height', 'phash', 'ocrStatus', 'ocrText', 'ocrBlocks',
+    ]);
+    const sessionId = v.identifier(input.sessionId, 'sessionId', { nullable: true });
+    const capturedAt = input.capturedAt === undefined
+      ? now()
+      : v.integer(input.capturedAt, 'capturedAt', { min: 1 });
+    const appName = v.string(input.appName, 'appName', { nullable: true, max: 300 }) ?? null;
+    const bundleId = v.string(input.bundleId, 'bundleId', { nullable: true, max: 300 }) ?? null;
+    const windowTitle = v.string(input.windowTitle, 'windowTitle', { nullable: true, max: 2000 }) ?? null;
+    const captureMode = v.oneOf(input.captureMode || 'window', 'captureMode', ['window', 'display']);
+    const imagePath = v.string(input.imagePath, 'imagePath', { nullable: true, max: 4000 }) ?? null;
+    const bytes = input.bytes === undefined ? 0 : v.integer(input.bytes, 'bytes', { min: 0 });
+    const width = v.integer(input.width, 'width', { nullable: true, min: 0, max: 100000 });
+    const height = v.integer(input.height, 'height', { nullable: true, min: 0, max: 100000 });
+    const phash = v.string(input.phash, 'phash', { nullable: true, max: 64 }) ?? null;
+    const ocrStatus = v.oneOf(
+      input.ocrStatus || 'pending', 'ocrStatus',
+      ['pending', 'done', 'skipped', 'deferred', 'failed', 'duplicate'],
+    );
+    const ocrText = v.string(input.ocrText, 'ocrText', { nullable: true, max: 2000000 }) ?? null;
+    const frameId = id();
+
+    return this._write('rewind', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO rewind_frames (
+          id, captured_at, session_id, app_name, bundle_id, window_title, capture_mode,
+          image_path, bytes, width, height, phash, ocr_status, ocr_text, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        frameId, capturedAt, sessionId, appName, bundleId, windowTitle, captureMode,
+        imagePath, bytes, width, height, phash, ocrStatus, ocrText, timestamp,
+      );
+      if (Array.isArray(input.ocrBlocks) && input.ocrBlocks.length) {
+        this._replaceRewindOcrBlocks(frameId, input.ocrBlocks);
+      }
+      if (sessionId) {
+        this.db.prepare(`
+          UPDATE rewind_sessions
+          SET frame_count = frame_count + 1, bytes = bytes + ?, updated_at = ?, revision = revision + 1
+          WHERE id = ?
+        `).run(bytes, timestamp, sessionId);
+      }
+      return { row: this._rewindFrameRow(this.db.prepare('SELECT * FROM rewind_frames WHERE id = ?').get(frameId)) };
+    });
+  }
+
+  _replaceRewindOcrBlocks(frameId, blocks) {
+    if (!Array.isArray(blocks)) v.fail('INVALID_INPUT', 'ocrBlocks must be a list');
+    // Cap per frame: a dense IDE screenshot yields a few hundred blocks; beyond
+    // this the extra rows cost more than the highlighting they enable.
+    const capped = blocks.slice(0, 600);
+    this.db.prepare('DELETE FROM rewind_ocr_blocks WHERE frame_id = ?').run(frameId);
+    const insert = this.db.prepare(`
+      INSERT INTO rewind_ocr_blocks (frame_id, position, text, x, y, w, h, confidence)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    capped.forEach((block, position) => {
+      if (!block || typeof block !== 'object') return;
+      const text = v.string(block.text, 'block text', { nullable: true, max: 5000 }) ?? '';
+      if (!text) return;
+      insert.run(
+        frameId, position, text,
+        v.number(Number(block.x) || 0, 'block x', { min: -1, max: 2 }),
+        v.number(Number(block.y) || 0, 'block y', { min: -1, max: 2 }),
+        v.number(Number(block.w) || 0, 'block w', { min: 0, max: 2 }),
+        v.number(Number(block.h) || 0, 'block h', { min: 0, max: 2 }),
+        v.number(Number(block.confidence) || 0, 'block confidence', { min: 0, max: 1 }),
+      );
+    });
+  }
+
+  /** Attach (or update) OCR output for a frame captured earlier. */
+  setRewindFrameOcr(frameId, input = {}) {
+    frameId = v.identifier(frameId, 'frameId');
+    v.object(input, 'frame OCR', ['status', 'text', 'blocks']);
+    const status = v.oneOf(
+      input.status || 'done', 'status',
+      ['pending', 'done', 'skipped', 'deferred', 'failed', 'duplicate'],
+    );
+    const text = v.string(input.text, 'text', { nullable: true, max: 2000000 }) ?? null;
+    return this._write('rewind', (timestamp) => {
+      const current = this.db.prepare('SELECT id FROM rewind_frames WHERE id = ?').get(frameId);
+      if (!current) v.fail('NOT_FOUND', 'Frame not found');
+      this.db.prepare('UPDATE rewind_frames SET ocr_status = ?, ocr_text = ? WHERE id = ?')
+        .run(status, text, frameId);
+      if (input.blocks !== undefined) this._replaceRewindOcrBlocks(frameId, input.blocks || []);
+      return { frameId, status, indexedAt: timestamp };
+    });
+  }
+
+  listRewindFrames(input = {}) {
+    this._assertReady();
+    v.object(input, 'frame filters', ['from', 'to', 'apps', 'sessionId', 'limit', 'withText', 'includePath']);
+    const clauses = ['deleted_at IS NULL'];
+    const params = [];
+    if (input.from !== undefined) {
+      clauses.push('captured_at >= ?');
+      params.push(v.integer(input.from, 'from', { min: 0 }));
+    }
+    if (input.to !== undefined) {
+      clauses.push('captured_at <= ?');
+      params.push(v.integer(input.to, 'to', { min: 0 }));
+    }
+    if (input.sessionId !== undefined) {
+      clauses.push('session_id = ?');
+      params.push(v.identifier(input.sessionId, 'sessionId'));
+    }
+    if (input.apps !== undefined) {
+      const apps = v.stringArray(input.apps, 'apps', { maxItems: 50, maxLength: 300 });
+      if (apps.length) {
+        clauses.push(`app_name IN (${apps.map(() => '?').join(', ')})`);
+        params.push(...apps);
+      }
+    }
+    if (input.withText === true) clauses.push("ocr_text IS NOT NULL AND ocr_text <> ''");
+    const limit = input.limit === undefined ? 500 : v.integer(input.limit, 'limit', { min: 1, max: 5000 });
+    const includePath = input.includePath === true;
+    return this.db.prepare(`
+      SELECT * FROM rewind_frames WHERE ${clauses.join(' AND ')}
+      ORDER BY captured_at DESC LIMIT ?
+    `).all(...params, limit).map((row) => this._rewindFrameRow(row, { includePath }));
+  }
+
+  /**
+   * FTS5 keyword search over OCR text and window titles, ranked by bm25 then
+   * recency (omi RewindDatabase.swift:2796-2819). Semantic search is the one
+   * deferral in the plan (§13); this contract does not change when it lands.
+   */
+  searchRewindFrames(input = {}) {
+    this._assertReady();
+    v.object(input, 'work memory query', ['text', 'from', 'to', 'apps', 'sessionId', 'limit']);
+    const text = v.string(input.text, 'text', { required: true, max: 500 });
+    const matchExpression = this._toFtsMatchExpression(text);
+    if (!matchExpression) return [];
+
+    const clauses = ['f.deleted_at IS NULL'];
+    const params = [matchExpression];
+    if (input.from !== undefined) {
+      clauses.push('f.captured_at >= ?');
+      params.push(v.integer(input.from, 'from', { min: 0 }));
+    }
+    if (input.to !== undefined) {
+      clauses.push('f.captured_at <= ?');
+      params.push(v.integer(input.to, 'to', { min: 0 }));
+    }
+    if (input.sessionId !== undefined) {
+      clauses.push('f.session_id = ?');
+      params.push(v.identifier(input.sessionId, 'sessionId'));
+    }
+    if (input.apps !== undefined) {
+      const apps = v.stringArray(input.apps, 'apps', { maxItems: 50, maxLength: 300 });
+      if (apps.length) {
+        clauses.push(`f.app_name IN (${apps.map(() => '?').join(', ')})`);
+        params.push(...apps);
+      }
+    }
+    const limit = input.limit === undefined ? 50 : v.integer(input.limit, 'limit', { min: 1, max: 500 });
+
+    const rows = this.db.prepare(`
+      SELECT f.*, snippet(rewind_frames_fts, 0, '⟦', '⟧', '…', 12) AS snippet
+      FROM rewind_frames_fts
+      JOIN rewind_frames f ON f.rowid = rewind_frames_fts.rowid
+      WHERE rewind_frames_fts MATCH ? AND ${clauses.join(' AND ')}
+      ORDER BY bm25(rewind_frames_fts) ASC, f.captured_at DESC
+      LIMIT ?
+    `).all(...params, limit);
+
+    return rows.map((row) => ({
+      ...this._rewindFrameRow(row),
+      snippet: row.snippet,
+      // Only the blocks that actually contain a query term, so the caller can
+      // highlight the match without pulling several hundred boxes per frame.
+      blocks: this._matchingRewindBlocks(row.id, text),
+    }));
+  }
+
+  /**
+   * Turn user text into a safe FTS5 MATCH expression. Every term is quoted, so
+   * punctuation, `NEAR`, `OR`, and column filters in user input are treated as
+   * literal text rather than as query syntax.
+   */
+  _toFtsMatchExpression(text) {
+    const terms = String(text)
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}_]+/u)
+      .filter((term) => term.length > 0)
+      .slice(0, 12);
+    if (!terms.length) return null;
+    return terms.map((term) => `"${term.replace(/"/g, '""')}"`).join(' AND ');
+  }
+
+  _matchingRewindBlocks(frameId, text) {
+    const terms = String(text).toLowerCase().split(/[^\p{L}\p{N}_]+/u).filter(Boolean).slice(0, 8);
+    if (!terms.length) return [];
+    const blocks = this.db.prepare(`
+      SELECT text, x, y, w, h, confidence FROM rewind_ocr_blocks
+      WHERE frame_id = ? ORDER BY position LIMIT 600
+    `).all(frameId);
+    return blocks
+      .filter((block) => {
+        const lower = block.text.toLowerCase();
+        return terms.some((term) => lower.includes(term));
+      })
+      .slice(0, 40);
+  }
+
+  getRewindFrame(frameId, { includePath = false } = {}) {
+    this._assertReady();
+    frameId = v.identifier(frameId, 'frameId');
+    const row = this.db.prepare('SELECT * FROM rewind_frames WHERE id = ? AND deleted_at IS NULL').get(frameId);
+    if (!row) return null;
+    return {
+      ...this._rewindFrameRow(row, { includePath }),
+      blocks: this.db.prepare(`
+        SELECT text, x, y, w, h, confidence FROM rewind_ocr_blocks
+        WHERE frame_id = ? ORDER BY position LIMIT 600
+      `).all(frameId),
+    };
+  }
+
+  /**
+   * Segment a session into contiguous (app, window) runs — the filmstrip
+   * structure the Notefalls drawer renders. One entry per run, not per frame.
+   */
+  getRewindSessionTimeline(sessionId) {
+    this._assertReady();
+    sessionId = v.identifier(sessionId, 'sessionId');
+    const session = this._rewindSessionRow(this._getRewindSessionRow(sessionId));
+    if (!session) return null;
+    const frames = this.db.prepare(`
+      SELECT id, captured_at, app_name, bundle_id, window_title, ocr_status, bytes
+      FROM rewind_frames WHERE session_id = ? AND deleted_at IS NULL
+      ORDER BY captured_at ASC LIMIT 20000
+    `).all(sessionId);
+
+    const segments = [];
+    for (const frame of frames) {
+      const last = segments[segments.length - 1];
+      const sameContext = last
+        && last.appName === frame.app_name
+        && last.windowTitle === frame.window_title;
+      if (sameContext) {
+        last.endedAt = frame.captured_at;
+        last.frameCount += 1;
+        last.bytes += frame.bytes;
+        if (last.frameIds.length < 60) last.frameIds.push(frame.id);
+      } else {
+        segments.push({
+          appName: frame.app_name,
+          bundleId: frame.bundle_id,
+          windowTitle: frame.window_title,
+          startedAt: frame.captured_at,
+          endedAt: frame.captured_at,
+          frameCount: 1,
+          bytes: frame.bytes,
+          coverFrameId: frame.id,
+          frameIds: [frame.id],
+        });
+      }
+    }
+    return { session, segments };
+  }
+
+  /**
+   * Compact digest of recent activity, for `get_recent_activity` — the tool
+   * that closes the app-state awareness gap. Text is truncated per app so the
+   * digest stays small enough to sit in a prompt.
+   */
+  getRecentRewindActivity(minutes = 30, { maxChars = 4000 } = {}) {
+    this._assertReady();
+    const windowMinutes = v.integer(minutes, 'minutes', { min: 1, max: 24 * 60 });
+    const since = now() - windowMinutes * 60 * 1000;
+    const apps = this.db.prepare(`
+      SELECT app_name AS appName, COUNT(*) AS frames,
+        MIN(captured_at) AS firstSeen, MAX(captured_at) AS lastSeen
+      FROM rewind_frames
+      WHERE captured_at >= ? AND deleted_at IS NULL
+      GROUP BY app_name ORDER BY frames DESC LIMIT 12
+    `).all(since);
+    const titles = this.db.prepare(`
+      SELECT DISTINCT app_name AS appName, window_title AS windowTitle, MAX(captured_at) AS lastSeen
+      FROM rewind_frames
+      WHERE captured_at >= ? AND deleted_at IS NULL AND window_title IS NOT NULL AND window_title <> ''
+      GROUP BY app_name, window_title ORDER BY lastSeen DESC LIMIT 30
+    `).all(since);
+
+    const textRows = this.db.prepare(`
+      SELECT app_name AS appName, window_title AS windowTitle, captured_at AS capturedAt, ocr_text AS ocrText
+      FROM rewind_frames
+      WHERE captured_at >= ? AND deleted_at IS NULL AND ocr_text IS NOT NULL AND ocr_text <> ''
+      ORDER BY captured_at DESC LIMIT 40
+    `).all(since);
+
+    let budget = v.integer(maxChars, 'maxChars', { min: 200, max: 40000 });
+    const excerpts = [];
+    for (const row of textRows) {
+      if (budget <= 0) break;
+      const excerpt = row.ocrText.replace(/\s+/g, ' ').trim().slice(0, Math.min(600, budget));
+      if (!excerpt) continue;
+      budget -= excerpt.length;
+      excerpts.push({
+        appName: row.appName,
+        windowTitle: row.windowTitle,
+        capturedAt: row.capturedAt,
+        excerpt,
+      });
+    }
+
+    return { since, until: now(), windowMinutes, apps, titles, excerpts };
+  }
+
+  getRewindStorageUsage() {
+    this._assertReady();
+    const frames = this.db.prepare(`
+      SELECT COUNT(*) AS frames, COALESCE(SUM(bytes), 0) AS bytes,
+        MIN(captured_at) AS oldest, MAX(captured_at) AS newest
+      FROM rewind_frames WHERE deleted_at IS NULL
+    `).get();
+    const pendingOcr = this.db.prepare(`
+      SELECT COUNT(*) AS count FROM rewind_frames
+      WHERE deleted_at IS NULL AND ocr_status IN ('pending', 'deferred')
+    `).get().count;
+    const sessions = this.db.prepare(
+      'SELECT COUNT(*) AS count FROM rewind_sessions WHERE deleted_at IS NULL',
+    ).get().count;
+    return { ...frames, pendingOcr, sessions };
+  }
+
+  /**
+   * Retention under BOTH caps (I8): anything older than retentionDays goes,
+   * then oldest-first until total bytes fit under retentionBytes. At 3s cadence
+   * the byte cap is what actually bites until Phase 7 compaction lands — that
+   * is the intended behaviour, not a bug (§3).
+   *
+   * Returns the removed rows WITH paths so the caller can unlink the files.
+   * Main-process only; never exposed over IPC.
+   */
+  pruneRewindFrames(input = {}) {
+    v.object(input, 'prune options', ['retentionDays', 'retentionBytes', 'keepSessionIds', 'maxDeletes']);
+    const retentionDays = input.retentionDays === undefined
+      ? null
+      : v.integer(input.retentionDays, 'retentionDays', { min: 1, max: 3650 });
+    const retentionBytes = input.retentionBytes === undefined
+      ? null
+      : v.integer(input.retentionBytes, 'retentionBytes', { min: 0 });
+    const keepSessionIds = input.keepSessionIds === undefined
+      ? []
+      : v.stringArray(input.keepSessionIds, 'keepSessionIds', { maxItems: 50, maxLength: 128 });
+    // Bound each pass so a first prune on a very full archive cannot hold the
+    // write lock for an unbounded stretch; the caller re-runs until clean.
+    const maxDeletes = input.maxDeletes === undefined
+      ? 5000
+      : v.integer(input.maxDeletes, 'maxDeletes', { min: 1, max: 100000 });
+
+    return this._write('rewind', (timestamp) => {
+      const keepClause = keepSessionIds.length
+        ? ` AND (session_id IS NULL OR session_id NOT IN (${keepSessionIds.map(() => '?').join(', ')}))`
+        : '';
+      const doomed = [];
+      const touchedSessions = new Set();
+
+      if (retentionDays != null) {
+        const cutoff = timestamp - retentionDays * 24 * 60 * 60 * 1000;
+        doomed.push(...this.db.prepare(`
+          SELECT id, image_path, media_path, bytes, session_id FROM rewind_frames
+          WHERE captured_at < ?${keepClause}
+          ORDER BY captured_at ASC LIMIT ?
+        `).all(cutoff, ...keepSessionIds, maxDeletes));
+      }
+
+      if (retentionBytes != null) {
+        let total = this.db.prepare(
+          'SELECT COALESCE(SUM(bytes), 0) AS bytes FROM rewind_frames WHERE deleted_at IS NULL',
+        ).get().bytes;
+        const alreadyDoomed = new Set(doomed.map((row) => row.id));
+        total -= doomed.reduce((sum, row) => sum + row.bytes, 0);
+        if (total > retentionBytes) {
+          const candidates = this.db.prepare(`
+            SELECT id, image_path, media_path, bytes, session_id FROM rewind_frames
+            WHERE deleted_at IS NULL${keepClause}
+            ORDER BY captured_at ASC LIMIT ?
+          `).all(...keepSessionIds, maxDeletes);
+          for (const row of candidates) {
+            if (total <= retentionBytes || doomed.length >= maxDeletes) break;
+            if (alreadyDoomed.has(row.id)) continue;
+            alreadyDoomed.add(row.id);
+            doomed.push(row);
+            total -= row.bytes;
+          }
+        }
+      }
+
+      if (!doomed.length) return { deleted: [], freedBytes: 0 };
+
+      const remove = this.db.prepare('DELETE FROM rewind_frames WHERE id = ?');
+      let freedBytes = 0;
+      for (const row of doomed) {
+        remove.run(row.id);
+        freedBytes += row.bytes;
+        if (row.session_id) touchedSessions.add(row.session_id);
+      }
+      touchedSessions.forEach((sessionId) => this._recomputeRewindSession(sessionId, timestamp));
+
+      return {
+        deleted: doomed.map((row) => ({
+          frameId: row.id,
+          imagePath: row.image_path,
+          mediaPath: row.media_path,
+          bytes: row.bytes,
+        })),
+        freedBytes,
+      };
+    });
+  }
+
+  /**
+   * User-initiated history deletion (§4 "both clear-history flows"): a time
+   * range, one session, or everything. Returns removed paths for file cleanup.
+   */
+  deleteRewindHistory(input = {}) {
+    v.object(input, 'delete history', ['from', 'to', 'sessionId', 'all']);
+    const all = input.all === true;
+    const from = input.from === undefined ? null : v.integer(input.from, 'from', { min: 0 });
+    const to = input.to === undefined ? null : v.integer(input.to, 'to', { min: 0 });
+    const sessionId = input.sessionId === undefined
+      ? null
+      : v.identifier(input.sessionId, 'sessionId');
+    if (!all && from == null && to == null && sessionId == null) {
+      v.fail('INVALID_INPUT', 'Specify a range, a session, or all: true');
+    }
+
+    return this._write('rewind', (timestamp) => {
+      const clauses = [];
+      const params = [];
+      if (!all) {
+        if (from != null) { clauses.push('captured_at >= ?'); params.push(from); }
+        if (to != null) { clauses.push('captured_at <= ?'); params.push(to); }
+        if (sessionId != null) { clauses.push('session_id = ?'); params.push(sessionId); }
+      }
+      const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+      const doomed = this.db.prepare(
+        `SELECT id, image_path, media_path, bytes, session_id FROM rewind_frames ${where}`,
+      ).all(...params);
+      this.db.prepare(`DELETE FROM rewind_frames ${where}`).run(...params);
+
+      let removedSessions = 0;
+      if (all) {
+        removedSessions = this.db.prepare('DELETE FROM rewind_sessions').run().changes;
+      } else {
+        // Drop sessions left with no frames; recompute the rest.
+        const affected = new Set(doomed.map((row) => row.session_id).filter(Boolean));
+        if (sessionId) affected.add(sessionId);
+        affected.forEach((affectedId) => {
+          const remaining = this.db.prepare(
+            'SELECT COUNT(*) AS count FROM rewind_frames WHERE session_id = ? AND deleted_at IS NULL',
+          ).get(affectedId).count;
+          if (remaining === 0) {
+            removedSessions += this.db.prepare('DELETE FROM rewind_sessions WHERE id = ?')
+              .run(affectedId).changes;
+          } else {
+            this._recomputeRewindSession(affectedId, timestamp);
+          }
+        });
+      }
+
+      this.logger?.info?.('rewind', 'History deleted', {
+        frames: doomed.length,
+        sessions: removedSessions,
+        scope: all ? 'all' : { from, to, sessionId },
+      });
+
+      return {
+        deleted: doomed.map((row) => ({
+          frameId: row.id,
+          imagePath: row.image_path,
+          mediaPath: row.media_path,
+          bytes: row.bytes,
+        })),
+        removedSessions,
+      };
+    });
+  }
+
+  /**
+   * Post (or update) the one Notefalls card for a closed session (§8: one card
+   * per session, never one per frame). Frames are NOT attached as files —
+   * the renderer fetches them by opaque frame id, so no archive path is ever
+   * handed to the UI (§2).
+   */
+  upsertRewindSessionPost(sessionId, input = {}) {
+    sessionId = v.identifier(sessionId, 'sessionId');
+    v.object(input, 'session post', ['body', 'notes', 'sourceApp', 'tags']);
+    const body = v.string(input.body, 'body', { required: true, max: 200000 });
+    const notes = v.string(input.notes, 'notes', { nullable: true, max: 500000 }) ?? null;
+    const sourceApp = v.string(input.sourceApp, 'sourceApp', { nullable: true, max: 300 }) ?? null;
+    const tags = input.tags === undefined
+      ? []
+      : v.stringArray(input.tags, 'tags', { maxItems: 100, maxLength: 200 });
+
+    return this._writeDomains(['rewind', 'forest'], (timestamp) => {
+      const session = this._getRewindSessionRow(sessionId);
+      if (!session) v.fail('NOT_FOUND', 'Session not found');
+
+      const existingId = session.notefall_post_id
+        && this.db.prepare('SELECT id FROM notefall_posts WHERE id = ? AND deleted_at IS NULL')
+          .get(session.notefall_post_id)?.id;
+
+      if (existingId) {
+        this.db.prepare(`
+          UPDATE notefall_posts
+          SET body = ?, notes = ?, source_app = ?, tags_json = ?, session_start = ?, session_end = ?,
+            updated_at = ?, revision = revision + 1
+          WHERE id = ?
+        `).run(body, notes, sourceApp, JSON.stringify(tags), session.started_at, session.ended_at,
+          timestamp, existingId);
+        return {
+          postId: existingId,
+          row: this._notefallRow(this.db.prepare('SELECT * FROM notefall_posts WHERE id = ?').get(existingId)),
+        };
+      }
+
+      const postId = id();
+      this.db.prepare(`
+        INSERT INTO notefall_posts (
+          id, title, body, author_type, author_agent_id, tags_json, source_app, source_icon,
+          capture_mode, session_start, session_end, notes, created_at, updated_at, revision
+        ) VALUES (?, '', ?, 'agent', 'briizy', ?, ?, 'note', 'auto', ?, ?, ?, ?, ?, 1)
+      `).run(postId, body, JSON.stringify(tags), sourceApp, session.started_at, session.ended_at,
+        notes, session.started_at, timestamp);
+      this.db.prepare(`
+        UPDATE rewind_sessions SET notefall_post_id = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(postId, timestamp, sessionId);
+
+      return {
+        postId,
+        row: this._notefallRow(this.db.prepare('SELECT * FROM notefall_posts WHERE id = ?').get(postId)),
+      };
+    });
+  }
+
   close() {
     if (!this.db) return;
     this.db.close();

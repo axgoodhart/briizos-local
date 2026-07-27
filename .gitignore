@@ -19,3 +19,7 @@ omi-main/
 # Throwaway build dirs used to verify the rewire/port compiles.
 dist_rewire_verify/
 dist_jsport_verify/
+
+# Compiled briizy capture/OCR helper — rebuilt from source at postinstall
+# (scripts/build-briizy-helper.sh). Never commit the binary.
+electron/bin/

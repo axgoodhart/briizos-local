@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "dev:debug": "concurrently \"vite\" \"wait-on http://localhost:5173 && LOG_LEVEL=debug electron .\"",
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "electron-rebuild -f -w better-sqlite3 && npm run helper:build",
+    "helper:build": "bash scripts/build-briizy-helper.sh",
+    "helper:rebuild": "FORCE=1 bash scripts/build-briizy-helper.sh",
     "build": "vite build",
     "test:theme": "vitest run src/theme --reporter=verbose",
     "preview": "vite preview",

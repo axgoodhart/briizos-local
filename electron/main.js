@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, powerMonitor, nativeImage } = require('electron');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -24,12 +24,18 @@ const operationReceipts = require('./agent-op-receipts');
 // Forest filesystem discovery remains a bounded Main-process capability;
 // all persistent Forest state is owned by LocalDataService.
 const forestFs = require('./forest-fs');
+// briizy work memory: supervised native capture helper + indexer + assistants.
+// Screen data is local-only and stays outside the SyncContract entirely.
+const { createBriizy } = require('./briizy');
+const { registerBriizyIPC } = require('./briizy-ipc');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
 let unregisterLocalDataIPC = null;
 let cloudGateway = null;
 let automationRunner = null;
+let briizy = null;
+let unregisterBriizyIPC = null;
 let shutdownStarted = false;
 
 function redactUrlApiKey(rawUrl) {
@@ -1006,6 +1012,20 @@ app.whenReady().then(() => {
     onRunChanged: (run) => cloudGateway.publishRun(run),
   });
 
+  // briizy runtime. Nothing captures until the user completes onboarding (I10);
+  // start() only loads config and reports state when capture is off.
+  briizy = createBriizy({
+    service: localDataService,
+    logger,
+    powerMonitor,
+    nativeImage,
+    userDataPath: app.getPath('userData'),
+    // Never capture briizOS itself. In dev the frontmost app is Electron.
+    ownBundleIds: [app.getName(), 'com.briizos.app', 'com.github.Electron', 'com.electron.briizos'],
+  });
+  unregisterBriizyIPC = registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger });
+  briizy.start();
+
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {
     // Send USB change event to all windows
@@ -1046,13 +1066,23 @@ app.on('before-quit', (event) => {
   if (!shutdownStarted) {
     event.preventDefault();
     shutdownStarted = true;
+    // Explicit Quit flushes and stops the helper (§9). The helper also exits on
+    // its own when this process dies (stdin EOF + parent-pid watchdog), so a
+    // crash or SIGKILL cannot leave it running either (I5).
     Promise.race([
-      cloudGateway?.flushContinuity() || Promise.resolve(),
+      Promise.all([
+        cloudGateway?.flushContinuity() || Promise.resolve(),
+        briizy?.stop() || Promise.resolve(),
+      ]),
       new Promise((resolve) => setTimeout(resolve, 1500)),
     ]).finally(() => app.quit());
     return;
   }
   langgraph.stop();
+  unregisterBriizyIPC?.();
+  unregisterBriizyIPC = null;
+  briizy?.helper?.stop();
+  briizy = null;
   cloudGateway?.close();
   cloudGateway = null;
   automationRunner = null;

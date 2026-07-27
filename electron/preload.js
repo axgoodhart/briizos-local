@@ -8,6 +8,47 @@ async function invokeLocalData(channel, ...args) {
   throw error;
 }
 
+async function invokeBriizy(channel, ...args) {
+  const response = await ipcRenderer.invoke(channel, ...args);
+  if (response?.ok) return response.value;
+  const error = new Error(response?.error?.message || 'briizy operation failed');
+  error.code = response?.error?.code || 'BRIIZY_ERROR';
+  throw error;
+}
+
+/**
+ * briizy work memory (PLAN-BRIIZY.md §2).
+ *
+ * Deliberately narrow: no archive paths, no raw SQL, no capture control beyond
+ * the documented commands. Frame images come back as data URLs from main, so the
+ * renderer never learns where the frames live on disk.
+ */
+contextBridge.exposeInMainWorld('briizy', {
+  getStatus: () => invokeBriizy('briizy:status'),
+  getDefaults: () => invokeBriizy('briizy:defaults'),
+  getConfig: () => invokeBriizy('briizy:config:get'),
+  setConfig: (patch) => invokeBriizy('briizy:config:set', patch),
+  completeOnboarding: (input) => invokeBriizy('briizy:onboard', input),
+  pause: (reason) => invokeBriizy('briizy:pause', reason),
+  resume: (reason) => invokeBriizy('briizy:resume', reason),
+  startDisplaySession: () => invokeBriizy('briizy:display-session:start'),
+  endDisplaySession: () => invokeBriizy('briizy:display-session:end'),
+  search: (query) => invokeBriizy('briizy:search', query),
+  listSessions: (filters) => invokeBriizy('briizy:sessions:list', filters),
+  getSessionTimeline: (sessionId) => invokeBriizy('briizy:session:timeline', sessionId),
+  getFrame: (frameId) => invokeBriizy('briizy:frame:get', frameId),
+  getFrameImage: (frameId, options) => invokeBriizy('briizy:frame:image', frameId, options),
+  getRecentActivity: (minutes) => invokeBriizy('briizy:recent-activity', minutes),
+  explainCurrentWindow: () => invokeBriizy('briizy:explain-current-window'),
+  deleteHistory: (scope) => invokeBriizy('briizy:history:delete', scope),
+  // Push channel: { type, payload } for status/frame/session/proposal events.
+  onEvent: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('briizy:event', handler);
+    return () => ipcRenderer.removeListener('briizy:event', handler);
+  },
+});
+
 contextBridge.exposeInMainWorld('api', {
   // Platform info
   platform: process.platform,
