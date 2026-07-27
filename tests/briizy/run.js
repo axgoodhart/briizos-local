@@ -18,6 +18,10 @@ const SUITES = [
   { name: 'shell', module: './shell.test' },
   { name: 'assistants', module: './assistants.test' },
   { name: 'compaction', module: './compaction.test' },
+  // Opt-in: needs Screen Recording permission, which belongs to the briizOS app
+  // rather than to a bare `electron` run. Excluded from the default sweep so the
+  // suite never appears to pass a capture check it actually skipped.
+  { name: 'capture', module: './capture.test', optIn: true },
 ];
 
 const { summarize } = require('./harness');
@@ -26,7 +30,7 @@ async function main() {
   const filters = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
   const selected = filters.length
     ? SUITES.filter((suite) => filters.some((filter) => suite.name.includes(filter)))
-    : SUITES;
+    : SUITES.filter((suite) => !suite.optIn);
 
   if (!selected.length) {
     process.stdout.write(`No suite matches ${filters.join(', ')}. Available: ${SUITES.map((s) => s.name).join(', ')}\n`);

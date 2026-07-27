@@ -273,6 +273,13 @@ class BriizyShell {
       },
       { type: 'separator' },
       {
+        // Runs inside the app, which is where the Screen Recording grant lives.
+        // Captures only a window it creates itself — see self-test.js.
+        label: 'Run capture self-test…',
+        enabled: status.helper?.state === 'ready',
+        click: () => this.runSelfTest(),
+      },
+      {
         label: 'Open briizOS…',
         click: () => this.focusMainWindow(),
       },
@@ -308,6 +315,48 @@ class BriizyShell {
     if (value < 1024 ** 2) return `${Math.round(value / 1024)} KB`;
     if (value < 1024 ** 3) return `${Math.round(value / 1024 ** 2)} MB`;
     return `${(value / 1024 ** 3).toFixed(1)} GB`;
+  }
+
+  /**
+   * Verify the capture path end to end, from inside the app that holds the
+   * Screen Recording grant. Reads only a window it creates; see self-test.js for
+   * why this is safe to run at any time, including while screen-sharing.
+   */
+  async runSelfTest() {
+    const { dialog } = this.electron;
+    const { runCaptureSelfTest } = require('./self-test');
+    try {
+      const result = await runCaptureSelfTest({
+        helper: this.briizy.helper,
+        logger: this.logger,
+        BrowserWindow: this.electron.BrowserWindow,
+        screen: this.electron.screen,
+      });
+      const failed = result.checks.filter((check) => !check.passed);
+      await dialog.showMessageBox({
+        type: result.ok ? 'info' : (result.skipped ? 'warning' : 'error'),
+        message: result.ok ? 'Capture is working' : 'Capture self-test did not pass',
+        detail: [
+          result.summary,
+          '',
+          'This test captured only a window it created itself. Nothing else on your',
+          'screen was read, and the captured file was deleted.',
+          failed.length ? '' : null,
+          ...failed.map((check) => `✗ ${check.label}`),
+        ].filter((line) => line !== null).join('\n'),
+        buttons: ['OK'],
+      });
+      return result;
+    } catch (error) {
+      this._log('error', 'Self-test crashed', { error: error?.message });
+      await dialog.showMessageBox({
+        type: 'error',
+        message: 'Capture self-test crashed',
+        detail: error?.message || String(error),
+        buttons: ['OK'],
+      });
+      return { ok: false, error: error?.message };
+    }
   }
 
   /** Bring the main briizOS window forward, optionally asking it to navigate. */

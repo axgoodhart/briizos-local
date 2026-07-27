@@ -16,6 +16,13 @@
 //        {"id":4,"cmd":"ping"}
 //        {"id":5,"cmd":"encode","frames":["/a.jpg",…],"out":"/chunk.mov","fps":6}
 //        {"id":6,"cmd":"extract","path":"/chunk.mov","index":12,"out":"/frame.jpg"}
+//        {"id":7,"cmd":"windows"}                       — enumerate capturable windows
+//        {"id":8,"cmd":"capture","out":"…","windowId":42} — capture ONE named window
+//
+// `capture` with an explicit `windowId` reads only that window's own pixels;
+// ScreenCaptureKit composites the window independently of what is in front of
+// it, so nothing else on the display is ever read. That is what makes the
+// capture path testable against a window the test itself owns.
 //   out: {"id":1,"ok":true,"result":{…}}
 //        {"id":1,"ok":false,"error":"…","code":"…"}
 //        {"event":"ready","version":"1","protocol":1}   (unsolicited, once)
@@ -442,7 +449,14 @@ func handleCapture(id: Int?, request: [String: Any]) async {
   let wantsOCR = (request["ocr"] as? Bool) ?? false
   let fastOCR = (request["ocrFast"] as? Bool) ?? true
   let languages = (request["ocrLanguages"] as? [String]) ?? ["en-US"]
-  let window = resolveActiveWindow()
+  // An explicit windowId targets one specific window instead of whatever is
+  // frontmost. Used by tests to capture a window they created themselves, so no
+  // other window on the display is ever read.
+  let explicitWindowId = (request["windowId"] as? Int).map { CGWindowID($0) }
+  let window = explicitWindowId == nil
+    ? resolveActiveWindow()
+    : ActiveWindow(appName: nil, bundleId: nil, windowTitle: nil,
+                   windowId: explicitWindowId, bounds: nil, titleFromAccessibility: false)
 
   do {
     let image: CGImage
@@ -479,6 +493,46 @@ func handleCapture(id: Int?, request: [String: Any]) async {
   } catch {
     respond(id: id, error: error.localizedDescription, code: "CAPTURE_FAILED")
   }
+}
+
+/// Enumerate capturable windows — metadata only, no pixels are read.
+///
+/// Two uses: a test can find the window it just created without guessing at a
+/// window id, and a support session can see exactly what the helper considers
+/// capturable (including which windows `isFilterSafe` would refuse).
+func handleWindows(id: Int?) {
+  guard CGPreflightScreenCaptureAccess() else {
+    respond(id: id, error: "Screen Recording permission not granted", code: "PERMISSION_REQUIRED")
+    return
+  }
+  let semaphore = DispatchSemaphore(value: 0)
+  Task {
+    do {
+      let content = try await ContentCache.shared.content(forceRefresh: true)
+      let windows: [[String: Any]] = content.windows.map { window in
+        var entry: [String: Any] = [
+          "windowId": Int(window.windowID),
+          "onScreen": window.isOnScreen,
+          "filterSafe": isFilterSafe(window),
+          "frame": [
+            "x": window.frame.origin.x, "y": window.frame.origin.y,
+            "w": window.frame.size.width, "h": window.frame.size.height,
+          ],
+        ]
+        if let title = window.title { entry["title"] = title }
+        if let app = window.owningApplication {
+          entry["appName"] = app.applicationName
+          entry["bundleId"] = app.bundleIdentifier
+        }
+        return entry
+      }
+      respond(id: id, result: ["windows": windows, "count": windows.count])
+    } catch {
+      respond(id: id, error: error.localizedDescription, code: "WINDOWS_FAILED")
+    }
+    semaphore.signal()
+  }
+  semaphore.wait()
 }
 
 func handleOCR(id: Int?, request: [String: Any]) {
@@ -702,6 +756,8 @@ func handle(line: String) {
     handleMeta(id: id)
   case "ocr":
     handleOCR(id: id, request: request)
+  case "windows":
+    handleWindows(id: id)
   case "encode":
     handleEncode(id: id, request: request)
   case "extract":
