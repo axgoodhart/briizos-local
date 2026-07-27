@@ -21,6 +21,7 @@ const path = require('path');
 const SHELL_CHANNELS = Object.freeze({
   // main → overlay
   state: 'briizy:shell:state',
+  focus: 'briizy:shell:focus',
   suggestion: 'briizy:shell:suggestion',
   dismissSuggestion: 'briizy:shell:dismiss-suggestion',
   actionResult: 'briizy:shell:action-result',
@@ -374,13 +375,18 @@ class BriizyShell {
       this._refreshTray();
     };
     const onSuggestion = (suggestion) => this.showSuggestion(suggestion);
+    // Focus is ambient: it tints the overlay edge, it does not open a bubble
+    // and it does not show the avatar if it is hidden (§11).
+    const onFocus = (focus) => this._send(SHELL_CHANNELS.focus, focus);
     this.briizy.on('status', onStatus);
     this.briizy.on('suggestion', onSuggestion);
     this.briizy.on('proposal', onSuggestion);
+    this.briizy.on('focus', onFocus);
     this.unsubscribers.push(() => {
       this.briizy.off('status', onStatus);
       this.briizy.off('suggestion', onSuggestion);
       this.briizy.off('proposal', onSuggestion);
+      this.briizy.off('focus', onFocus);
     });
 
     this.createTray();

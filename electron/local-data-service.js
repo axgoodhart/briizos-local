@@ -4412,6 +4412,51 @@ class LocalDataService extends EventEmitter {
   }
 
   /**
+   * Point a run of frames at a video chunk instead of their loose JPEGs (§13).
+   *
+   * One transaction for the whole chunk: a partial rewrite would leave some
+   * frames pointing at files the compactor is about to delete. `media_offset` is
+   * positional, so the caller must pass every frame in the chunk, in order.
+   */
+  compactRewindFrames(input = {}) {
+    v.object(input, 'compaction', ['mediaPath', 'mediaBytes', 'frames']);
+    const mediaPath = v.string(input.mediaPath, 'mediaPath', { required: true, max: 4000 });
+    const mediaBytes = input.mediaBytes === undefined
+      ? 0
+      : v.integer(input.mediaBytes, 'mediaBytes', { min: 0 });
+    const frames = Array.isArray(input.frames) ? input.frames : [];
+    if (!frames.length || frames.length > 5000) {
+      v.fail('INVALID_INPUT', 'frames must be a non-empty list of at most 5000 entries');
+    }
+    frames.forEach((frame, index) => {
+      v.identifier(frame?.frameId, `frames[${index}].frameId`);
+      v.integer(frame?.mediaOffset, `frames[${index}].mediaOffset`, { min: 0 });
+    });
+
+    // The chunk's bytes are attributed to its first frame, so SUM(bytes) still
+    // reflects real disk usage and the byte cap keeps working after compaction.
+    const perFrameBytes = frames.map((_, index) => (index === 0 ? mediaBytes : 0));
+
+    return this._write('rewind', (timestamp) => {
+      const update = this.db.prepare(`
+        UPDATE rewind_frames
+        SET image_path = NULL, media_path = ?, media_offset = ?, bytes = ?
+        WHERE id = ? AND deleted_at IS NULL
+      `);
+      let updated = 0;
+      const touchedSessions = new Set();
+      frames.forEach((frame, index) => {
+        const row = this.db.prepare('SELECT session_id FROM rewind_frames WHERE id = ?').get(frame.frameId);
+        if (!row) return;
+        updated += update.run(mediaPath, frame.mediaOffset, perFrameBytes[index], frame.frameId).changes;
+        if (row.session_id) touchedSessions.add(row.session_id);
+      });
+      touchedSessions.forEach((sessionId) => this._recomputeRewindSession(sessionId, timestamp));
+      return { updated, mediaPath, mediaBytes };
+    });
+  }
+
+  /**
    * User-initiated history deletion (§4 "both clear-history flows"): a time
    * range, one session, or everything. Returns removed paths for file cleanup.
    */

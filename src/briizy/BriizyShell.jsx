@@ -51,6 +51,7 @@ export function BriizyShell() {
   const [status, setStatus] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
   const [result, setResult] = useState(null);
+  const [focus, setFocus] = useState(null);
   const [hovered, setHovered] = useState(false);
   const [side, setSide] = useState('left');
 
@@ -119,6 +120,7 @@ export function BriizyShell() {
     const offDismiss = bridge.onDismissSuggestion((payload) => {
       setSuggestion((current) => (!payload?.id || current?.id === payload.id ? null : current));
     });
+    const offFocus = bridge.onFocus?.((payload) => setFocus(payload?.state ? payload : null));
     const offResult = bridge.onActionResult((payload) => {
       setResult(payload);
       // Let the outcome read for a beat, then clear the bubble.
@@ -133,6 +135,7 @@ export function BriizyShell() {
       offState?.();
       offSuggestion?.();
       offDismiss?.();
+      offFocus?.();
       offResult?.();
     };
   }, []);
@@ -241,6 +244,17 @@ export function BriizyShell() {
 
   return (
     <div className="briizy-stage">
+      {/* Ambient focus feedback: a coloured screen edge, no popup, no sound, and
+          nothing to dismiss. Rendered in the existing overlay rather than a
+          second transparent window — this one already covers the display and is
+          already click-through. */}
+      {focus && (
+        <div
+          className={`briizy-glow is-${focus.state}`}
+          title={focus.note || `${focus.state} — ${focus.goal || ''}`}
+        />
+      )}
+
       <div
         className={`briizy-avatar-wrap briizy-avatar-wrap--${side}`}
         ref={avatarRef}

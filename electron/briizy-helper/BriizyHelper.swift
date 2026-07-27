@@ -14,6 +14,8 @@
 //        {"id":2,"cmd":"capture","out":"/abs/path.jpg","mode":"window","ocr":true}
 //        {"id":3,"cmd":"ocr","path":"/abs/path.jpg"}
 //        {"id":4,"cmd":"ping"}
+//        {"id":5,"cmd":"encode","frames":["/a.jpg",…],"out":"/chunk.mov","fps":6}
+//        {"id":6,"cmd":"extract","path":"/chunk.mov","index":12,"out":"/frame.jpg"}
 //   out: {"id":1,"ok":true,"result":{…}}
 //        {"id":1,"ok":false,"error":"…","code":"…"}
 //        {"event":"ready","version":"1","protocol":1}   (unsolicited, once)
@@ -21,8 +23,10 @@
 // Coordinates in OCR blocks are normalized 0–1 with a TOP-LEFT origin (Vision's
 // bottom-left origin is flipped here) so the renderer can use them directly.
 
+import AVFoundation
 import AppKit
 import CoreGraphics
+import CoreVideo
 import Foundation
 import ImageIO
 import ScreenCaptureKit
@@ -450,6 +454,170 @@ func handleOCR(id: Int?, request: [String: Any]) {
   }
 }
 
+// MARK: - Compaction (Phase 7)
+
+/// Fold a run of JPEGs into one H.265 chunk.
+///
+/// Replaces omi's VideoChunkEncoder, which shelled out to ffmpeg; AVAssetWriter
+/// with VideoToolbox is hardware-accelerated, ships with the OS, and needs no
+/// third-party binary in the app bundle. Frame N in the chunk corresponds to
+/// `media_offset = N` in rewind_frames, so a compacted frame stays addressable.
+func encodeChunk(framePaths: [String], out: String, fps: Int32) throws -> [String: Any] {
+  guard !framePaths.isEmpty else { throw HelperError.unsupported("no frames to encode") }
+
+  // The first frame fixes the chunk's dimensions; the caller groups frames so a
+  // dimension change starts a new chunk.
+  let firstImage = try loadImage(at: framePaths[0])
+  let width = firstImage.width - (firstImage.width % 2)
+  let height = firstImage.height - (firstImage.height % 2)
+  guard width > 1, height > 1 else { throw HelperError.unsupported("frame too small to encode") }
+
+  let outURL = URL(fileURLWithPath: out)
+  try FileManager.default.createDirectory(
+    at: outURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+  if FileManager.default.fileExists(atPath: out) {
+    try FileManager.default.removeItem(at: outURL)
+  }
+
+  let writer = try AVAssetWriter(outputURL: outURL, fileType: .mov)
+  let settings: [String: Any] = [
+    AVVideoCodecKey: AVVideoCodecType.hevc,
+    AVVideoWidthKey: width,
+    AVVideoHeightKey: height,
+    AVVideoCompressionPropertiesKey: [
+      // Screen content is mostly static, so quality-per-bit is very high here.
+      AVVideoAverageBitRateKey: max(400_000, width * height / 4),
+      AVVideoMaxKeyFrameIntervalKey: 60,
+    ],
+  ]
+  let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+  input.expectsMediaDataInRealTime = false
+
+  let attributes: [String: Any] = [
+    kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA),
+    kCVPixelBufferWidthKey as String: width,
+    kCVPixelBufferHeightKey as String: height,
+  ]
+  let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+    assetWriterInput: input, sourcePixelBufferAttributes: attributes)
+
+  guard writer.canAdd(input) else { throw HelperError.unsupported("writer rejected the video input") }
+  writer.add(input)
+  guard writer.startWriting() else {
+    throw HelperError.unsupported("writer failed to start: \(writer.error?.localizedDescription ?? "unknown")")
+  }
+  writer.startSession(atSourceTime: .zero)
+
+  var encoded = 0
+  var skipped: [String] = []
+
+  for (index, framePath) in framePaths.enumerated() {
+    guard let image = try? loadImage(at: framePath) else {
+      skipped.append(framePath)
+      continue
+    }
+    // Wait for the encoder rather than dropping frames: the offsets in the
+    // database have to match the chunk exactly.
+    while !input.isReadyForMoreMediaData {
+      Thread.sleep(forTimeInterval: 0.01)
+    }
+    guard let pool = adaptor.pixelBufferPool else {
+      throw HelperError.unsupported("no pixel buffer pool")
+    }
+    var pixelBuffer: CVPixelBuffer?
+    guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &pixelBuffer) == kCVReturnSuccess,
+      let buffer = pixelBuffer
+    else { throw HelperError.unsupported("could not allocate a pixel buffer") }
+
+    CVPixelBufferLockBaseAddress(buffer, [])
+    if let base = CVPixelBufferGetBaseAddress(buffer),
+      let context = CGContext(
+        data: base, width: width, height: height, bitsPerComponent: 8,
+        bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+          | CGBitmapInfo.byteOrder32Little.rawValue)
+    {
+      context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+    }
+    CVPixelBufferUnlockBaseAddress(buffer, [])
+
+    let time = CMTime(value: CMTimeValue(index), timescale: fps)
+    if !adaptor.append(buffer, withPresentationTime: time) {
+      throw HelperError.unsupported("append failed at frame \(index): \(writer.error?.localizedDescription ?? "unknown")")
+    }
+    encoded += 1
+  }
+
+  input.markAsFinished()
+  let semaphore = DispatchSemaphore(value: 0)
+  writer.finishWriting { semaphore.signal() }
+  semaphore.wait()
+
+  if writer.status != .completed {
+    throw HelperError.unsupported("encode failed: \(writer.error?.localizedDescription ?? "unknown")")
+  }
+
+  let bytes = ((try? FileManager.default.attributesOfItem(atPath: out))?[.size] as? Int) ?? 0
+  return [
+    "path": out,
+    "frames": encoded,
+    "skipped": skipped,
+    "bytes": bytes,
+    "width": width,
+    "height": height,
+    "fps": Int(fps),
+  ]
+}
+
+/// Pull one frame back out of a chunk by its offset, so a compacted frame can
+/// still be shown in the timeline.
+func extractFrame(path: String, index: Int, out: String, fps: Int32) throws -> [String: Any] {
+  let asset = AVURLAsset(url: URL(fileURLWithPath: path))
+  let generator = AVAssetImageGenerator(asset: asset)
+  generator.appliesPreferredTrackTransform = true
+  // Exact frame, not the nearest keyframe: an off-by-a-few-seconds thumbnail
+  // would silently mislabel which moment the user is looking at.
+  generator.requestedTimeToleranceBefore = .zero
+  generator.requestedTimeToleranceAfter = .zero
+
+  let time = CMTime(value: CMTimeValue(index), timescale: fps)
+  let image = try generator.copyCGImage(at: time, actualTime: nil)
+  let bytes = try writeJPEG(image, to: out)
+  return ["path": out, "bytes": bytes, "width": image.width, "height": image.height, "index": index]
+}
+
+func handleEncode(id: Int?, request: [String: Any]) {
+  guard let frames = request["frames"] as? [String], !frames.isEmpty,
+    let out = request["out"] as? String, !out.isEmpty
+  else {
+    respond(id: id, error: "encode requires 'frames' and 'out'", code: "BAD_REQUEST")
+    return
+  }
+  let fps = Int32((request["fps"] as? Int) ?? 6)
+  do {
+    respond(id: id, result: try encodeChunk(framePaths: frames, out: out, fps: max(1, fps)))
+  } catch {
+    respond(id: id, error: "\(error)", code: "ENCODE_FAILED")
+  }
+}
+
+func handleExtract(id: Int?, request: [String: Any]) {
+  guard let path = request["path"] as? String, !path.isEmpty,
+    let out = request["out"] as? String, !out.isEmpty,
+    let index = request["index"] as? Int
+  else {
+    respond(id: id, error: "extract requires 'path', 'index' and 'out'", code: "BAD_REQUEST")
+    return
+  }
+  let fps = Int32((request["fps"] as? Int) ?? 6)
+  do {
+    respond(id: id, result: try extractFrame(path: path, index: index, out: out, fps: max(1, fps)))
+  } catch {
+    respond(id: id, error: "\(error)", code: "EXTRACT_FAILED")
+  }
+}
+
 // MARK: - Lifecycle
 
 /// I5: the helper must not outlive its supervisor. stdin EOF is the primary
@@ -490,6 +658,10 @@ func handle(line: String) {
     handleMeta(id: id)
   case "ocr":
     handleOCR(id: id, request: request)
+  case "encode":
+    handleEncode(id: id, request: request)
+  case "extract":
+    handleExtract(id: id, request: request)
   case "capture":
     // Bridge the async capture back to the sequential command loop. The
     // indexer never issues overlapping captures, so serializing here keeps

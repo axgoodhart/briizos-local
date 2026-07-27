@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('briizy', {
   archiveGoal: (goalId) => invokeBriizy('briizy:goals:archive', goalId),
   getDailySummary: (options) => invokeBriizy('briizy:daily-summary', options),
   getCoordinatorStatus: () => invokeBriizy('briizy:coordinator-status'),
+  getSessionFocus: (sessionId) => invokeBriizy('briizy:session:focus', sessionId),
+  compactNow: (options) => invokeBriizy('briizy:compact-now', options),
   // Push channel: { type, payload } for status/frame/session/proposal events.
   onEvent: (callback) => {
     const handler = (_event, data) => callback(data);
@@ -85,6 +87,11 @@ contextBridge.exposeInMainWorld('briizy', {
       const handler = (_event, data) => callback(data);
       ipcRenderer.on('briizy:shell:suggestion', handler);
       return () => ipcRenderer.removeListener('briizy:shell:suggestion', handler);
+    },
+    onFocus: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('briizy:shell:focus', handler);
+      return () => ipcRenderer.removeListener('briizy:shell:focus', handler);
     },
     onDismissSuggestion: (callback) => {
       const handler = (_event, data) => callback(data);

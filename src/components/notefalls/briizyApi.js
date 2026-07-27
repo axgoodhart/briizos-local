@@ -60,6 +60,11 @@ export const briizyApi = {
     { facts: [], proposals: [], extractions: [] }),
   forgetFact: (factId) => guard('forget-fact', (api) => api.forgetFact(factId), null),
   getDailySummary: (options) => guard('daily-summary', (api) => api.getDailySummary(options), null),
+  listGoals: (filters) => guard('goals:list', (api) => api.listGoals(filters), []),
+  createGoal: (input) => guard('goals:create', (api) => api.createGoal(input), null),
+  updateGoal: (goalId, patch) => guard('goals:update', (api) => api.updateGoal(goalId, patch), null),
+  archiveGoal: (goalId) => guard('goals:archive', (api) => api.archiveGoal(goalId), null),
+  getSessionFocus: (sessionId) => guard('session:focus', (api) => api.getSessionFocus(sessionId), null),
   onEvent: (callback) => {
     const api = bridge();
     if (!api?.onEvent) return () => {};

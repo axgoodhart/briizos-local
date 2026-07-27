@@ -500,6 +500,79 @@ function AssistantSettings({ capture }) {
   );
 }
 
+/* ── Goals (§11) ─────────────────────────────────────────────────────
+   Small on purpose. Goals only matter because the goals and focus assistants
+   read them; there is no goal-tracking product hiding in here. */
+
+function GoalSettings() {
+  const [goals, setGoals] = useState([]);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    briizyApi.listGoals({ status: 'active' }).then((rows) => setGoals(rows || []));
+  }, []);
+  useEffect(load, [load]);
+
+  const add = async () => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    try {
+      await briizyApi.createGoal({ title: trimmed });
+      logger.info('briizy', 'Goal created', { title: trimmed });
+      setTitle('');
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const finish = async (goal, status) => {
+    await briizyApi.updateGoal(goal.id, { status });
+    logger.info('briizy', `Goal marked ${status}`, { goalId: goal.id });
+    load();
+  };
+
+  return (
+    <div className="nf-capture__goals">
+      <span className="nf-drawer__label">goals</span>
+      <p className="nf-capture__hint">
+        What you are trying to get done. briizy checks recent work against these and tints
+        the screen edge when you have drifted. With no goals set, both stay quiet.
+      </p>
+      {goals.map((goal) => (
+        <div className="nf-capture__goal" key={goal.id}>
+          <span className="nf-capture__goal-title">{goal.title}</span>
+          {goal.lastEvaluatedAt && (
+            <span className="nf-capture__goal-meta">
+              last checked {relativeTime(goal.lastEvaluatedAt)}
+            </span>
+          )}
+          <button type="button" className="nf-capture__btn" onClick={() => finish(goal, 'achieved')}>
+            done
+          </button>
+          <button type="button" className="nf-capture__btn" onClick={() => finish(goal, 'abandoned')}>
+            drop
+          </button>
+        </div>
+      ))}
+      <div className="nf-capture__goal-add">
+        <input
+          type="text"
+          placeholder="e.g. ship the briizy capture pipeline"
+          value={title}
+          onInput={(e) => setTitle(e.currentTarget.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+        />
+        <button type="button" className="nf-capture__btn is-accept" disabled={busy || !title.trim()} onClick={add}>
+          add goal
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** I7 made visible: what briizy wrote, where it came from, and how to undo it. */
 function LearningLog() {
   const [log, setLog] = useState(null);
@@ -693,6 +766,7 @@ function CaptureSettings({ capture, onClose }) {
       )}
 
       <AssistantSettings capture={capture} />
+      <GoalSettings />
       <LearningLog />
 
       <div className="nf-capture__danger">

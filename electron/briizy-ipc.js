@@ -37,6 +37,8 @@ const CHANNELS = Object.freeze({
   goalArchive: 'briizy:goals:archive',
   dailySummary: 'briizy:daily-summary',
   coordinatorStatus: 'briizy:coordinator-status',
+  sessionFocus: 'briizy:session:focus',
+  compactNow: 'briizy:compact-now',
   event: 'briizy:event',
 });
 
@@ -55,6 +57,8 @@ const FORWARDED_EVENTS = Object.freeze([
   'proposal',
   'proposal-decided',
   'daily-summary',
+  'focus',
+  'task-planned',
 ]);
 
 function serializeError(error) {
@@ -105,6 +109,8 @@ function registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger }) {
         : briizy.buildDailySummary()
     )],
     [CHANNELS.coordinatorStatus, () => briizy.getCoordinatorStatus()],
+    [CHANNELS.sessionFocus, (sessionId) => briizy.getSessionFocus(sessionId)],
+    [CHANNELS.compactNow, (options) => briizy.compactNow(options || {})],
   ];
 
   for (const [channel, operation] of registrations) {

@@ -1025,6 +1025,17 @@ app.whenReady().then(() => {
     userDataPath: app.getPath('userData'),
     // Never capture briizOS itself. In dev the frontmost app is Electron.
     ownBundleIds: [app.getName(), 'com.briizos.app', 'com.github.Electron', 'com.electron.briizos'],
+    // Automation is reachable only by the TaskAgent, and only when immediate
+    // execution has been explicitly enabled for it (I6, §12). Everything else in
+    // briizy stages and stops.
+    automation: {
+      acceptCommand: (input) => localDataService.acceptCommand(input),
+      executeRun: (runId) => {
+        const run = localDataService.getRun(runId);
+        if (!run) throw new Error('Run not found');
+        return automationRunner.execute(run, null);
+      },
+    },
   });
   unregisterBriizyIPC = registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger });
   briizy.start();

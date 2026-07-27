@@ -142,29 +142,30 @@ async function run() {
 
     section('frame images cross IPC as bounded JPEG data URLs');
 
-    const thumb = briizy.getFrameImage(listed.coverFrameId, { maxWidth: 120 });
+    const thumb = await briizy.getFrameImage(listed.coverFrameId, { maxWidth: 120 });
     assert('a thumbnail comes back as a data URL',
       typeof thumb.dataUrl === 'string' && thumb.dataUrl.startsWith('data:image/jpeg'),
       { width: thumb.width, bytes: thumb.bytes });
     assert('the thumbnail honours the requested width', thumb.width === 120, thumb.width);
     assert('a thumbnail is small enough to ship freely', thumb.bytes < 40 * 1024, thumb.bytes);
-    const full = briizy.getFrameImage(listed.coverFrameId, { full: true });
+    const full = await briizy.getFrameImage(listed.coverFrameId, { full: true });
     assert('the full frame is larger than the thumbnail', full.bytes > thumb.bytes,
       { thumb: thumb.bytes, full: full.bytes });
     assert('a request wider than the source does not upscale',
-      briizy.getFrameImage(listed.coverFrameId, { maxWidth: 5000 }).width === full.width, undefined, 'I2');
+      (await briizy.getFrameImage(listed.coverFrameId, { maxWidth: 5000 })).width === full.width,
+      undefined, 'I2');
     assert('the image payload carries no path',
       !('imagePath' in thumb) && !('mediaPath' in thumb), Object.keys(thumb), 'I2');
-    assert('a missing file is reported rather than thrown', (() => {
+    assert('a missing file is reported rather than thrown', await (async () => {
       const [victim] = service.listRewindFrames({
         sessionId: session.row.id, limit: 1, includePath: true,
       });
       fs.unlinkSync(victim.imagePath);
-      const result = briizy.getFrameImage(victim.frameId);
+      const result = await briizy.getFrameImage(victim.frameId);
       return result.dataUrl === null && result.reason === 'missing';
     })());
     assert('an unknown frame id returns null, not a throw',
-      briizy.getFrameImage('00000000-0000-4000-8000-000000000000') === null);
+      (await briizy.getFrameImage('00000000-0000-4000-8000-000000000000')) === null);
 
     section('IPC surface shape');
 

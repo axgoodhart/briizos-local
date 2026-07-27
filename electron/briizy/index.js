@@ -23,6 +23,10 @@ const { AssistantCoordinator } = require('./coordinator');
 const { createInsightAssistant } = require('./assistants/insight');
 const { createTaskExtractionAssistant } = require('./assistants/task-extraction');
 const { createMemoryExtractionAssistant } = require('./assistants/memory-extraction');
+const { createGoalsAssistant } = require('./assistants/goals');
+const { createFocusAssistant, summarizeSessionFocus } = require('./assistants/focus');
+const { createTaskAgent } = require('./assistants/task-agent');
+const { Compactor } = require('../rewind/compactor');
 
 const CONFIG_STATE_KEY = 'config';
 const LAST_SUMMARY_DAY_KEY = 'lastSummaryDay';
@@ -30,6 +34,8 @@ const LAST_SUMMARY_DAY_KEY = 'lastSummaryDay';
 const SUMMARY_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 /** Proposals nobody touched in a week retire themselves. */
 const PROPOSAL_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+/** Compaction runs on a slow cadence — it is disk maintenance, not a feature. */
+const COMPACTION_INTERVAL_MS = 60 * 60 * 1000;
 /** Thumbnail width for filmstrip/session-card requests. */
 const DEFAULT_THUMBNAIL_WIDTH = 320;
 /**
@@ -74,12 +80,18 @@ function describeSession(session) {
 }
 
 class Briizy extends EventEmitter {
-  constructor({ service, logger, powerMonitor, nativeImage, userDataPath, ownBundleIds = [] }) {
+  constructor({
+    service, logger, powerMonitor, nativeImage, userDataPath, ownBundleIds = [],
+    automation = null,
+  }) {
     super();
     this.service = service;
     this.logger = logger;
     this.nativeImage = nativeImage;
     this.userDataPath = userDataPath;
+    // The one route to automation, used only by the TaskAgent and only when
+    // immediate execution has been explicitly enabled (I6, §12).
+    this.automation = automation;
 
     this.helper = new BriizyHelper({ logger });
     this.indexer = new RewindIndexer({
@@ -112,11 +124,29 @@ class Briizy extends EventEmitter {
       });
       this.emit('proposal', proposal);
     };
+    // Focus is ambient: it tints the overlay edge and records what it saw. It
+    // never raises a proposal, because being told you are distracted is the most
+    // resented thing a tool like this can do.
+    const onFocus = (focus) => {
+      this._log('debug', 'Focus classified', focus);
+      this.emit('focus', focus);
+    };
+    this.taskAgent = createTaskAgent({ service, logger, automation });
     [
       createInsightAssistant({ service, logger, onProposal }),
       createTaskExtractionAssistant({ service, logger, onProposal }),
       createMemoryExtractionAssistant({ service, logger, onProposal }),
+      createGoalsAssistant({ service, logger, onProposal }),
+      createFocusAssistant({ service, logger, onFocus }),
     ].forEach((assistant) => this.coordinator.register(assistant));
+
+    this.compactor = new Compactor({
+      service,
+      helper: this.helper,
+      logger,
+      userDataPath,
+    });
+    this.compactionTimer = null;
 
     // Re-emit the pipeline events the Phase 3 shell and Phase 4 coordinator
     // subscribe to, so neither reaches into the indexer directly.
@@ -163,6 +193,7 @@ class Briizy extends EventEmitter {
       this.helper.start();
       this.indexer.start();
       this.coordinator.start();
+      this._startCompactionTimer();
     } else {
       this._log('info', 'Capture is off — helper not spawned (nothing is silently enabled)');
     }
@@ -179,6 +210,10 @@ class Briizy extends EventEmitter {
     if (this.summaryTimer) {
       clearInterval(this.summaryTimer);
       this.summaryTimer = null;
+    }
+    if (this.compactionTimer) {
+      clearInterval(this.compactionTimer);
+      this.compactionTimer = null;
     }
     this.coordinator.stop();
     await this.indexer.stop().catch(() => {});
@@ -224,11 +259,16 @@ class Briizy extends EventEmitter {
       this.helper.start();
       this.indexer.start();
       this.coordinator.start();
+      this._startCompactionTimer();
     } else if (!next.enabled && previous.enabled) {
       // One switch stops capture AND analysis together (I10).
       this.coordinator.stop();
       this.indexer.stop().catch(() => {});
       this.helper.stop();
+      if (this.compactionTimer) {
+        clearInterval(this.compactionTimer);
+        this.compactionTimer = null;
+      }
     }
 
     this.emit('config', next);
@@ -367,19 +407,36 @@ class Briizy extends EventEmitter {
    * renderer; the path stays in main (§2). Thumbnails are resized here so the
    * filmstrip does not ship full-size JPEGs over IPC.
    */
-  getFrameImage(frameId, { maxWidth = DEFAULT_THUMBNAIL_WIDTH, full = false } = {}) {
+  async getFrameImage(frameId, { maxWidth = DEFAULT_THUMBNAIL_WIDTH, full = false } = {}) {
     const frame = this.service.getRewindFrame(frameId, { includePath: true });
     if (!frame) return null;
-    if (!frame.imagePath) {
-      // Compacted into a video chunk (Phase 7) or the file is gone.
-      return { frameId, dataUrl: null, reason: frame.mediaPath ? 'compacted' : 'missing' };
+
+    let sourcePath = frame.imagePath;
+    let extractedPath = null;
+    if (!sourcePath && frame.mediaPath) {
+      // Compacted (§13): pull the frame back out of its chunk on demand. The
+      // temp file is deleted below, so a compacted archive never re-grows.
+      //
+      // Reading compacted history needs the helper, and the helper is not
+      // running when capture is off — so it is started for the read. Without
+      // this, turning capture off would silently make everything older than the
+      // compaction window unviewable.
+      await this._ensureHelperForRead();
+      extractedPath = await this.compactor.extractFrame(frameId);
+      if (!extractedPath) {
+        return { frameId, dataUrl: null, reason: 'compacted' };
+      }
+      sourcePath = extractedPath;
     }
-    if (!fs.existsSync(frame.imagePath)) {
+    if (!sourcePath) {
+      return { frameId, dataUrl: null, reason: 'missing' };
+    }
+    if (!fs.existsSync(sourcePath)) {
       this._log('warn', 'Frame file missing on disk', { frameId });
       return { frameId, dataUrl: null, reason: 'missing' };
     }
     try {
-      const image = this.nativeImage.createFromPath(frame.imagePath);
+      const image = this.nativeImage.createFromPath(sourcePath);
       if (image.isEmpty()) return { frameId, dataUrl: null, reason: 'unreadable' };
 
       // Never upscale: a 320px request against a small frame should return the
@@ -409,7 +466,29 @@ class Briizy extends EventEmitter {
     } catch (error) {
       this._log('warn', 'Frame image read failed', { frameId, error: error?.message });
       return { frameId, dataUrl: null, reason: 'error' };
+    } finally {
+      if (extractedPath) storage.deleteFiles([extractedPath]);
     }
+  }
+
+  /**
+   * Bring the helper up for a read-only operation (frame extraction), whether or
+   * not capture is enabled. It stays supervised and still exits with this process
+   * (I5); it simply is not exclusively a capture dependency.
+   */
+  async _ensureHelperForRead({ timeoutMs = 6000 } = {}) {
+    if (this.helper.getStatus().state === 'ready') return true;
+    if (!this.helper.isAvailable()) return false;
+    if (this.helper.state === 'stopped' || this.helper.state === 'error') {
+      this._log('info', 'Starting the helper to read compacted history');
+      this.helper.stopping = false;
+      this.helper.start();
+    }
+    const deadline = Date.now() + timeoutMs;
+    while (this.helper.getStatus().state !== 'ready' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return this.helper.getStatus().state === 'ready';
   }
 
   /** Both clear-history flows (§4): a range/session, or everything. */
@@ -500,6 +579,19 @@ class Briizy extends EventEmitter {
       });
       this.emit('status', this.getStatus());
       this.emit('proposal-decided', result);
+
+      // Phase 6: an accepted task may get a plan. This runs after the decision
+      // has already been committed, so a TaskAgent failure cannot undo an accept
+      // or turn it into something the user did not ask for.
+      if (result.task) {
+        this._planAcceptedTask(result.task, result.row).catch((error) => {
+          this._log('warn', 'Task planning failed', {
+            taskId: result.task.id,
+            error: error?.message,
+          });
+        });
+      }
+
       return {
         ok: true,
         state: result.row.state,
@@ -664,6 +756,41 @@ class Briizy extends EventEmitter {
       counts,
       hasContent: !!(themes.length || learning.facts.length || staged.length || insights.length),
     };
+  }
+
+  async _planAcceptedTask(task, proposal) {
+    const assistantConfig = this.config.assistants?.taskAgent;
+    if (!assistantConfig?.enabled) return null;
+    const result = await this.taskAgent.planAcceptedTask(
+      { task, proposal },
+      { config: this.config, assistantConfig },
+    );
+    if (result?.steps) this.emit('task-planned', { taskId: task.id, ...result });
+    return result;
+  }
+
+  /** Focus statistics for a session, derived from its focus extractions (§11). */
+  getSessionFocus(sessionId) {
+    return summarizeSessionFocus(this.service, sessionId);
+  }
+
+  // ------------------------------------------------------------------
+  // Compaction (§13)
+  // ------------------------------------------------------------------
+
+  _startCompactionTimer() {
+    if (this.compactionTimer) return;
+    this.compactionTimer = setInterval(() => {
+      this.compactor.run().catch((error) => {
+        this._log('warn', 'Compaction pass failed', { error: error?.message });
+      });
+    }, COMPACTION_INTERVAL_MS);
+    this.compactionTimer.unref?.();
+  }
+
+  /** Manual trigger, for Settings and for tests. */
+  compactNow(options = {}) {
+    return this.compactor.run(options);
   }
 
   getCoordinatorStatus() {
