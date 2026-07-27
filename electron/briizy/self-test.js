@@ -55,12 +55,30 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * @param {object}   deps.screen
  * @returns {Promise<{ok: boolean, skipped?: string, checks: Array, summary: string}>}
  */
-async function runCaptureSelfTest({ helper, logger, BrowserWindow, screen }) {
+async function runCaptureSelfTest({ helper, logger, BrowserWindow, screen, userDataPath = null }) {
   const checks = [];
+  const controls = [];
+
   const check = (label, passed, detail) => {
     checks.push({ label, passed: !!passed, detail });
     logger?.[passed ? 'info' : 'error']?.('briizy.selftest', `${passed ? 'PASS' : 'FAIL'} — ${label}`, detail);
     return !!passed;
+  };
+
+  /**
+   * A control is an assertion that MUST fail. It proves the checking mechanism
+   * can produce a negative result at all — without it, a row of PASS lines is
+   * indistinguishable from a stub that prints PASS unconditionally. If a control
+   * comes back true, the whole run is reported as untrustworthy regardless of
+   * what else passed.
+   */
+  const control = (label, shouldBeFalse, detail) => {
+    const behaved = shouldBeFalse === false;
+    controls.push({ label, behaved, detail });
+    logger?.[behaved ? 'info' : 'error']?.('briizy.selftest',
+      `${behaved ? 'CONTROL OK (correctly failed)' : 'CONTROL BROKEN (should have failed)'} — ${label}`,
+      detail);
+    return behaved;
   };
 
   const status = helper.getStatus();
@@ -132,13 +150,37 @@ async function runCaptureSelfTest({ helper, logger, BrowserWindow, screen }) {
     })());
     check('a perceptual hash came back', /^[0-9a-f]+$/.test(captured.phash || ''), captured.phash);
 
-    const text = (captured.ocr?.fullText || '').toUpperCase();
-    check('OCR ran', typeof captured.ocr?.fullText === 'string', {
-      chars: captured.ocr?.fullText?.length, blocks: captured.ocr?.blocks?.length,
+    const rawText = captured.ocr?.fullText || '';
+    const text = rawText.toUpperCase();
+
+    // Log the recognized text verbatim. It is text this test drew itself, so
+    // there is nothing private in it — and printing it is the only way a reader
+    // can confirm the comparison rather than take the PASS on trust.
+    logger?.info?.('briizy.selftest', 'OCR returned this text, verbatim', {
+      drew: `${MARKER} ${code}`,
+      read: rawText,
+      chars: rawText.length,
+      blocks: (captured.ocr?.blocks || []).length,
+      blockTexts: (captured.ocr?.blocks || []).map((b) => b.text),
+    });
+
+    check('OCR returned non-empty text', rawText.trim().length > 0, {
+      read: rawText, chars: rawText.length,
     });
     check('OCR read back the marker this test drew', text.includes('BRIIZY') || text.includes('CAPTURE'),
-      (captured.ocr?.fullText || '').slice(0, 120));
-    check('OCR read back the one-time code', text.includes(code), { expected: code });
+      { drew: MARKER, read: rawText });
+    check('OCR read back the one-time code', text.includes(code), {
+      drew: code, read: rawText, matched: text.includes(code),
+    });
+
+    // Controls. These must fail. A code the test never drew must not be found,
+    // and a nonsense string must not be found. If either is "found", the
+    // comparison is not really happening.
+    const neverDrawn = String((Number(code) + 111111) % 1000000).padStart(6, '0');
+    control(`a code that was never drawn (${neverDrawn}) is NOT found`, text.includes(neverDrawn), {
+      neverDrawn, read: rawText,
+    });
+    control('a nonsense string is NOT found', text.includes('ZZQXJVWK'), { read: rawText });
 
     const secondPath = path.join(dir, 'selftest2.jpg');
     const second = await helper.capture({ out: secondPath, windowId: mine.windowId }, { timeoutMs: 25000 });
@@ -163,21 +205,43 @@ async function runCaptureSelfTest({ helper, logger, BrowserWindow, screen }) {
     return finish(error);
   } finally {
     if (testWindow && !testWindow.isDestroyed()) testWindow.destroy();
-    // Nothing captured here is kept: the files never enter the archive.
-    written.forEach((filePath) => { try { fs.unlinkSync(filePath); } catch { /* gone */ } });
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* gone */ }
+    // The evidence frame is kept deliberately — it is a picture of a window this
+    // test created, containing text this test wrote, so there is nothing private
+    // in it, and being able to OPEN it is the difference between believing the
+    // result and checking it. Everything else is deleted, and nothing here ever
+    // enters the frames archive or the database.
+    written.slice(1).forEach((filePath) => { try { fs.unlinkSync(filePath); } catch { /* gone */ } });
+    if (!evidencePath) {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* gone */ }
+    }
   }
 
   function finish(error) {
     const failed = checks.filter((entry) => !entry.passed);
-    const ok = failed.length === 0 && !error;
-    const summary = ok
-      ? `Capture works: ${checks.length} checks passed, including OCR reading back the test's own text.`
-      : `${failed.length} of ${checks.length} checks failed${error ? `: ${error.message}` : ''}.`;
+    const brokenControls = controls.filter((entry) => !entry.behaved);
+    // A passing run with a broken control is not a passing run: it means the
+    // checks cannot produce a negative, so none of them mean anything.
+    const ok = failed.length === 0 && brokenControls.length === 0 && !error;
+
+    let summary;
+    if (brokenControls.length) {
+      summary = `UNTRUSTWORTHY: ${brokenControls.length} control(s) that must fail did not. `
+        + 'The checks are not really comparing anything — ignore the passes.';
+    } else if (ok) {
+      summary = `Capture works. ${checks.length} checks passed and ${controls.length} controls `
+        + 'correctly failed, so the checks can tell right from wrong.';
+    } else {
+      summary = `${failed.length} of ${checks.length} checks failed${error ? `: ${error.message}` : ''}.`;
+    }
+
     logger?.[ok ? 'info' : 'error']?.('briizy.selftest', 'Capture self-test finished', {
-      ok, passed: checks.length - failed.length, failed: failed.length,
+      ok,
+      passed: checks.length - failed.length,
+      failed: failed.length,
+      controlsBehaved: `${controls.length - brokenControls.length}/${controls.length}`,
+      evidence: evidencePath,
     });
-    return { ok, checks, summary };
+    return { ok, checks, controls, summary, evidencePath };
   }
 }
 

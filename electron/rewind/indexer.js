@@ -98,7 +98,14 @@ class RewindIndexer extends EventEmitter {
   }
 
   _emptyStats() {
-    return { captures: 0, kept: 0, duplicates: 0, heartbeats: 0, ocr: 0, denied: 0, errors: 0, bytes: 0 };
+    return {
+      captures: 0, kept: 0, duplicates: 0, heartbeats: 0, ocr: 0, denied: 0, errors: 0, bytes: 0,
+      // WHY frames were denied, and for which apps. A bare "deniedByPrivacy: 60"
+      // says the pipeline is refusing everything but not what to change — and
+      // the per-tick reason is logged at debug, which nobody sees by default.
+      deniedBy: {},
+      deniedApps: {},
+    };
   }
 
   _log(level, message, data) {
@@ -416,6 +423,10 @@ class RewindIndexer extends EventEmitter {
 
     if (!verdict.allowed) {
       this.stats.denied += 1;
+      const reasonKey = verdict.detail ? `${verdict.reason} (${verdict.detail})` : verdict.reason;
+      this.stats.deniedBy[reasonKey] = (this.stats.deniedBy[reasonKey] || 0) + 1;
+      const appKey = meta.appName || meta.bundleId || 'unknown';
+      this.stats.deniedApps[appKey] = (this.stats.deniedApps[appKey] || 0) + 1;
       // Excluded windows are not activity: an hour in a password manager should
       // close the session by inactivity, not extend it.
       this._log('debug', 'Frame denied by privacy gate', {
@@ -771,6 +782,10 @@ class RewindIndexer extends EventEmitter {
     const stats = this.stats;
     this.stats = this._emptyStats();
     if (!stats.captures && !stats.denied && !stats.errors) return;
+
+    const byReason = Object.entries(stats.deniedBy).sort((a, b) => b[1] - a[1]);
+    const byApp = Object.entries(stats.deniedApps).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
     this._log('info', 'Capture window summary', {
       windowSec: elapsedSec,
       captures: stats.captures,
@@ -782,7 +797,24 @@ class RewindIndexer extends EventEmitter {
       errors: stats.errors,
       megabytes: +(stats.bytes / 1024 ** 2).toFixed(2),
       state: this.captureState,
+      // Always present when anything was denied, so "why is it not recording"
+      // is answerable from the default log level without reproducing anything.
+      ...(stats.denied ? {
+        deniedReasons: Object.fromEntries(byReason),
+        deniedApps: Object.fromEntries(byApp),
+      } : {}),
     });
+
+    // Recording literally nothing is a failure state, not a quiet minute. Say so
+    // at warn, with the dominant reason, rather than leaving it to be inferred
+    // from a zero in a row of numbers.
+    if (stats.denied && !stats.captures) {
+      this._log('warn', 'Nothing was captured this minute — every frame was refused', {
+        topReason: byReason[0] ? `${byReason[0][0]} (${byReason[0][1]}x)` : 'unknown',
+        apps: Object.fromEntries(byApp),
+        hint: 'Settings → the exclusion list, or briizy.explainCurrentWindow()',
+      });
+    }
   }
 }
 

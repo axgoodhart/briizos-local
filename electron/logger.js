@@ -96,8 +96,13 @@ function write(level, category, message, data, opts = {}) {
   let line = `${ts} ${cat} ${lvl} ${msg}`;
 
   if (data !== undefined && data !== null) {
+    // One entry must be one line. A raw multi-line string (OCR output, a stack
+    // trace, a shell result) previously split a single entry across several
+    // terminal lines with no prefix on the continuations, which reads as
+    // corrupted output and once caused a correct result to look like a failure.
     const serialized = typeof data === 'string' ? data : JSON.stringify(data, null, 0);
-    line += `  ${COLORS.dim}${serialized}${COLORS.reset}`;
+    const flattened = String(serialized).replace(/\r\n|\r|\n/g, ' ⏎ ');
+    line += `  ${COLORS.dim}${flattened}${COLORS.reset}`;
   }
 
   const stream = level === 'error' || level === 'warn' ? process.stderr : process.stdout;
