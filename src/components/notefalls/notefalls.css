@@ -1274,3 +1274,45 @@
   outline: none;
 }
 .nf-capture__goal-add input::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+/* ── First-run onboarding (I10) ─────────────────────────────────────── */
+
+.nf-onboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(75, 139, 255, 0.4);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(75, 139, 255, 0.1), rgba(10, 14, 26, 0.7));
+}
+
+.nf-onboard__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.nf-onboard__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
+.nf-onboard__list strong { color: rgba(255, 255, 255, 0.92); font-weight: 600; }
+.nf-onboard__list em { color: rgba(255, 255, 255, 0.85); font-style: italic; }
+
+.nf-onboard__actions { display: flex; gap: 8px; align-items: center; }
+.nf-onboard__actions .nf-capture__btn { padding: 8px 18px; font-size: 13px; }
+
+.nf-onboard__foot {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}

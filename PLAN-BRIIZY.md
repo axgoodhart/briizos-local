@@ -27,6 +27,7 @@ Both source plans and both assessments carried stale or unverifiable figures. Co
 | "AI has no app-state awareness" gap | **✔** | `BRIIZOS-IMPLEMENTATION-REPORT.md:96` and its auditor note |
 | omi sources present | **✔** | `ScreenCaptureService.swift`, `Rewind/Core/{RewindOCRService,RewindDatabase,VideoChunkEncoder,GoalStorage}.swift`, and all six `ProactiveAssistants/Assistants/` directories |
 | "Project CLAUDE.md — LogPanel rule, SyncContract, Hard Rule 1" | **✘ not found** | No `CLAUDE.md` or `AGENTS.md` at the briizOS root or in `.claude/`; the only ones in the tree are inside `omi-main/`. The *concepts* are real — SyncContract in `forest-db.js`, `src/lib/syncAdapters.js`, `src/lib/firestore.js`; LogPanel in `src/hooks/useChat.js` and `PLAN-ACTIONDECK-PORT.md` — but they are not a recorded rules file. Treated below as design preferences, not as binding prior rules. |
+| ↑ **corrected 2026-07-26 during implementation** | **✘ that row was wrong** | `/Users/alex/Documents/Cufolio/briizOS/CLAUDE.md` exists (dated Jul 16), as does `.claude/CLAUDE.md`. Hard Rule 1 (LogPanel), the SyncContract, the debug-logging rule, and two-layer problem resolution are **binding**, not preferences. Built accordingly: every pipeline step logs, per-frame detail at `debug` with a rolled-up `info` line every 60s so the LogPanel is never dark at the default level. |
 
 ## 1. Invariants
 
@@ -222,10 +223,38 @@ Both plans were assessed by their own author, and each author picked itself. The
 
 **What each plan was actually good for.** They are different genres, which is why picking a winner discarded half the material. A is a port map — source file to target file, migration numbers, what is reusable as-is. B is a product spec — invariants, state enums, interface contracts, failure cases. A had no verification story; B had no file map. This document is B's contract governing A's map.
 
+---
+
+# Part IV — Implementation record (2026-07-26)
+
+All seven phases are built. Commits `77a86d73` → onward on the `langchain` branch;
+operational notes in `electron/briizy/README.md`; 360 assertions in
+`npm run test:briizy`.
+
+Where the implementation departed from Part II, and why:
+
+| # | Plan said | Built instead | Why |
+|---|---|---|---|
+| 1 | Accepting a proposal goes through `acceptCommand` (§10) | `createTask` with `status: pending, automated: 0, source_key: briizy:proposal:<id>` | `acceptCommand` creates a command **and a run** — an automation request. I6 and §4 assertion 2 require that accepting cannot trigger an action. `acceptCommand` is used in exactly one place now: the TaskAgent, when immediate execution has been explicitly enabled (§12). |
+| 2 | Focus glow via "a dedicated transparent overlay window" (§11) | rendered inside the existing avatar overlay | That window already covers the display and is already click-through. A second one would add a surface to keep in sync and buy nothing. |
+| 3 | FTS5 mirrors `ocr_text` with sync triggers, as omi does (§8) | external-content FTS5 over `rewind_frames` | Same trigger structure, but the index does not duplicate the text. A month of OCR gets indexed once instead of stored twice. |
+| 4 | Daily summary implied a model pass (§10) | built from SQL | The data is already structured. It therefore works with cloud text analysis switched off, and it cannot hallucinate a commitment into a summary. |
+| 5 | — | duplicate frames get a "presence heartbeat" row every ~30s | Dedup deletes near-identical frames, which would otherwise collapse a 20-minute read into a single timeline instant. A row with no file costs ~200 bytes instead of ~200 KB. |
+| 6 | — | `getFrameImage` starts the helper on demand | Reading a *compacted* frame needs the helper, which is not running when capture is off. Without this, turning capture off silently made everything older than the compaction window unviewable. |
+
+Two efficiency fixes found in testing, both in `getFrameImage`: `nativeImage.toDataURL()`
+always emits PNG (a 3000px frame would have crossed IPC as several MB rather than
+the JPEG already on disk), and `resize` was upscaling small frames past their
+natural width. A 120px thumbnail went from 31 KB to 2.8 KB.
+
+One hygiene fix outside the plan's scope, per Hard Rule 4: `electron/logger.js`
+read `app.isPackaged` unguarded, which made every module that logs impossible to
+require outside a full Electron main — and therefore untestable.
+
 ## 14. Open questions
 
 - **Session segmentation threshold.** The inactivity gap that closes a session is configurable, but the default needs calibrating against real captured data — available from Phase 1 onward.
 - **Proposal fatigue.** The dismissal log feeds back into prompt context so briizy learns what gets rejected. Whether that is sufficient, or whether a hard daily proposal ceiling is needed, is a Phase 4 tuning question.
 - **Overlay over fullscreen apps.** `screen-saver` level plus `visibleOnFullScreen` covers most cases; needs manual testing over fullscreen video and across Spaces.
-- **Avatar art.** State sprites (idle, attentive, speaking, working) do not exist in `public/assets/` yet. An asset task, not a code task, but it blocks Phase 3 looking like anything.
+- ~~**Avatar art.**~~ **Resolved.** `briizy sprites/New Folder With Items/work_moods.png` is a 6-frame sheet (1983×499) whose poses map 1:1 onto idle / working / error / thinking / sleeping / speaking. Copied to `src/briizy/assets/briizy-moods.png` and driven by `background-position-x`.
 - **Stale figures elsewhere.** `BRIIZOS-IMPLEMENTATION-REPORT.md` cites 18 bridged tools; the real count is 21. Worth a refresh pass on that document independently of this plan.

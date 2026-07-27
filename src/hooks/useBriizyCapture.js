@@ -16,6 +16,7 @@ export function useBriizyCapture() {
   const [config, setConfig] = useState(null);
   const [defaults, setDefaults] = useState(null);
   const [proposals, setProposals] = useState([]);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
 
@@ -79,20 +80,35 @@ export function useBriizyCapture() {
 
   /**
    * The single switch behind the composer's "auto capture is ON/OFF" control.
-   * Turning it on for the first time runs onboarding rather than silently
-   * enabling capture (I10).
+   *
+   * Turning it on for the first time does NOT enable capture — it asks the panel
+   * to show the onboarding sheet. I10 requires explicit first-run onboarding, and
+   * a toggle click is not informed consent about a tool that reads your screen.
    */
   const toggleCapture = useCallback(async (nextEnabled) => {
     const enable = nextEnabled ?? !status.enabled;
     if (enable && !status.onboarded) {
-      return act('Capture onboarding accepted', () => briizyApi.completeOnboarding({ enabled: true }), {
-        enabled: true,
-      });
+      logger.info('briizy', 'Capture onboarding requested');
+      setNeedsOnboarding(true);
+      return null;
     }
     return act(`Capture turned ${enable ? 'on' : 'off'}`, () => briizyApi.setConfig({ enabled: enable }), {
       enabled: enable,
     });
   }, [act, status.enabled, status.onboarded]);
+
+  /** Called only from the onboarding sheet, after the user has read it. */
+  const completeOnboarding = useCallback(async ({ enabled, cloudTextAnalysisAllowed }) => {
+    setNeedsOnboarding(false);
+    return act('Capture onboarding completed',
+      () => briizyApi.completeOnboarding({ enabled, cloudTextAnalysisAllowed }),
+      { enabled, cloudTextAnalysisAllowed });
+  }, [act]);
+
+  const dismissOnboarding = useCallback(() => {
+    logger.info('briizy', 'Capture onboarding declined');
+    setNeedsOnboarding(false);
+  }, []);
 
   const togglePause = useCallback(async () => {
     const paused = !!status.paused;
@@ -143,9 +159,12 @@ export function useBriizyCapture() {
     config,
     defaults,
     proposals,
+    needsOnboarding,
     busy,
     refresh,
     toggleCapture,
+    completeOnboarding,
+    dismissOnboarding,
     togglePause,
     toggleDisplaySession,
     updateConfig,

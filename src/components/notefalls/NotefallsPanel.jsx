@@ -288,6 +288,81 @@ function renderSnippet(snippet) {
   ));
 }
 
+/* ── First-run onboarding (I10) ───────────────────────────────────────
+   Capture cannot be enabled by a toggle click. I10 requires explicit first-run
+   onboarding, and this is that: what is recorded, what is never recorded, where
+   it lives, and the separate question of whether text may reach a model. Both
+   answers default to no. */
+
+function CaptureOnboarding({ capture }) {
+  const { defaults, busy, completeOnboarding, dismissOnboarding } = capture;
+  const [allowCloudText, setAllowCloudText] = useState(false);
+  const excludedCount = defaults?.excludedBundleIds?.length ?? 0;
+  const patternCount = defaults?.excludedTitlePatterns?.length ?? 0;
+
+  return (
+    <div className="nf-onboard">
+      <h3 className="nf-onboard__title">Let briizy watch your screen?</h3>
+
+      <ul className="nf-onboard__list">
+        <li>
+          <strong>What it does.</strong> Every few seconds it takes a picture of your
+          <em> active window only</em> — not your whole screen — reads the text in it, and keeps
+          both so you can search back through what you were doing.
+        </li>
+        <li>
+          <strong>Where it stays.</strong> The pictures never leave this Mac. They live in briizOS's
+          own folder, and they are never synced to the cloud or included in a backup of your notes.
+        </li>
+        <li>
+          <strong>What it skips.</strong> {excludedCount} apps and {patternCount} window-title
+          patterns are excluded before anything is written to disk — password managers, the lock
+          screen, private-browsing windows. You can add your own, and nothing from an excluded
+          window is ever recorded in the first place.
+        </li>
+        <li>
+          <strong>How much space.</strong> Up to 10 GB or 30 days, whichever comes first. Oldest
+          first out. You can change both, and you can delete everything at any time.
+        </li>
+        <li>
+          <strong>You can stop it.</strong> One switch pauses recording and analysis together.
+        </li>
+      </ul>
+
+      <label className="nf-capture__consent">
+        <input
+          type="checkbox"
+          checked={allowCloudText}
+          onChange={(e) => setAllowCloudText(e.currentTarget.checked)}
+        />
+        <span>
+          Separately: let briizy send the recognized <strong>text</strong> to your configured AI
+          model, so it can spot commitments and remember useful things about you.
+          <em> Images are never sent, whatever you choose here.</em> You can turn this on later —
+          searching your history works without it.
+        </span>
+      </label>
+
+      <div className="nf-onboard__actions">
+        <button
+          type="button"
+          className="nf-capture__btn is-accept"
+          disabled={busy}
+          onClick={() => completeOnboarding({ enabled: true, cloudTextAnalysisAllowed: allowCloudText })}
+        >
+          Start recording
+        </button>
+        <button type="button" className="nf-capture__btn" disabled={busy} onClick={dismissOnboarding}>
+          Not now
+        </button>
+      </div>
+      <p className="nf-onboard__foot">
+        macOS will ask for Screen Recording permission the first time briizy tries to capture.
+      </p>
+    </div>
+  );
+}
+
 /* ── Proposal inbox ───────────────────────────────────────────────────
    A quiet inbox at the top of the feed (§10). Deliberately understated: this is
    the surface that decides whether briizy feels helpful or naggy. Accepting says
@@ -1310,6 +1385,8 @@ export function NotefallsPanel() {
           <div className="nf-main">
             <div className="nf-feed" ref={feedRef} onScroll={onFeedScroll}>
               <Composer onPost={handlePost} capture={capture} />
+
+              {capture.needsOnboarding && <CaptureOnboarding capture={capture} />}
 
               <ProposalInbox
                 proposals={capture.proposals}
