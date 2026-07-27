@@ -1069,6 +1069,16 @@ app.whenReady().then(() => {
   });
 
   ensureMainWindow();
+
+  // The overlay's former 'panel' window type could flip macOS activation to
+  // accessory mode, which removes the Dock icon. The type is gone, but the Dock
+  // icon is asserted here anyway so no window configuration can silently take
+  // it away again — briizOS must always be reachable from the Dock.
+  if (process.platform === 'darwin' && app.dock && !app.dock.isVisible()) {
+    app.dock.show();
+    logger.warn('app', 'Dock icon was hidden at startup — restored it');
+  }
+
   langgraph.start().then((ok) => {
     logger.info('app', 'In-process agent runtime ready', { ok, status: langgraph.getStatus()?.status });
   });

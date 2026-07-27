@@ -66,6 +66,15 @@ contextBridge.exposeInMainWorld('briizy', {
     return () => ipcRenderer.removeListener('briizy:event', handler);
   },
 
+  // Navigation requests from the menu-bar item and the avatar ("Settings…",
+  // "open in briizOS"). Until this existed, those messages had no listener and
+  // both controls silently did nothing.
+  onNavigate: (callback) => {
+    const handler = (_event, options) => callback(options || {});
+    ipcRenderer.on('briizy:navigate', handler);
+    return () => ipcRenderer.removeListener('briizy:navigate', handler);
+  },
+
   /**
    * Overlay-only surface (§9). Used by the transparent avatar window and nothing
    * else. `setInteractive` is how the renderer's hit test turns click-through

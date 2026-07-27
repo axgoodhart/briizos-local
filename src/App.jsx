@@ -199,6 +199,8 @@ function AppContent({ layout }) {
 
   // Existing state
   const [showSettings, setShowSettings] = useState(false);
+  /** Which Dashboard tab to land on when it opens (menu-bar "Settings…" → briizy). */
+  const [dashboardTab, setDashboardTab] = useState(null);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
@@ -405,6 +407,22 @@ function AppContent({ layout }) {
     addPanel({ id: 'notefalls', type: 'notefalls', size: 25, visible: true });
     logger.info('notefalls', 'Notefalls panel opened');
   }, [notefallsPanel, togglePanelVisibility, addPanel]);
+
+  // Navigation from the briizy menu-bar item and avatar. Until 2026-07-27
+  // nothing listened on this channel, so "Settings…" and "open in briizOS"
+  // silently did nothing.
+  useEffect(() => {
+    const off = window.briizy?.onNavigate?.((options) => {
+      logger.info('briizy', 'Navigate request from menu bar / avatar', options);
+      if (options.route === 'briizy-settings') {
+        setDashboardTab('briizy');
+        setShowSettings(true);
+      } else if (options.route === 'notefalls') {
+        openNotefallsPanel();
+      }
+    });
+    return () => off?.();
+  }, [openNotefallsPanel]);
 
   const openForestPanel = useCallback(() => {
     if (forestPanel) {
@@ -1108,8 +1126,9 @@ function AppContent({ layout }) {
       {/* Dashboard (replaces Settings Modal) */}
       <DashboardOverlay
         isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={() => { setShowSettings(false); setDashboardTab(null); }}
         onOpenThemeStudio={openThemeStudio}
+        initialTab={dashboardTab}
       />
 
       <ThemeStudio

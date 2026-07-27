@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useChatSettings } from '../../context/ChatSettingsContext';
 import logger from '../../lib/logger';
 import { useTheme } from '../../theme/ThemeProvider.jsx';
+import { useBriizyCapture } from '../../hooks/useBriizyCapture.js';
+import CaptureSettingsPanel from '../briizy/CaptureSettingsPanel.jsx';
 import './DashboardOverlay.css';
 
 // Chat background lists (mirrors InteractionPanel)
@@ -1101,11 +1103,33 @@ function AppearanceTab({ getThemeChatBackground, onOpenChatViewPicker, openPicke
   );
 }
 
+/**
+ * briizy tab — screen capture, assistants, and history controls. The same
+ * component the Notefalls drawer shows, so the two never disagree; this tab is
+ * the findable home for it.
+ */
+function BriizyTab() {
+  const capture = useBriizyCapture();
+  if (!capture.available) {
+    return (
+      <div className="settings-section">
+        <h3 className="settings-section-title">briizy — screen memory</h3>
+        <p className="settings-hint">briizy is not available in this build.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="settings-section">
+      <CaptureSettingsPanel capture={capture} />
+    </div>
+  );
+}
+
 /* ─────────────────────
    Main DashboardOverlay
    ───────────────────── */
 
-function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
+function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio, initialTab }) {
   const { user, logout, isAuthenticated } = useAuth();
   const { setThemeChatBackground, getThemeChatBackground } = useChatSettings();
 
@@ -1128,6 +1152,11 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
       loadGdriveStatus();
     }
   }, [isOpen]);
+
+  // The menu-bar item can ask for a specific tab (e.g. "Settings…" → briizy).
+  useEffect(() => {
+    if (isOpen && initialTab) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   const loadSettings = async () => {
     setIsLoading(true);
@@ -1260,6 +1289,7 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
 
   const tabs = [
     { id: 'model', label: 'Model' },
+    { id: 'briizy', label: 'briizy' },
     { id: 'appearance', label: 'Appearance' },
     { id: 'integrations', label: 'Integrations' },
     { id: 'memory', label: 'Memory' },
@@ -1296,12 +1326,16 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio }) {
 
         {/* Content */}
         <div className="modal-content">
-          {isLoading && activeTab !== 'memory' && activeTab !== 'permissions' && activeTab !== 'health' ? (
+          {isLoading && activeTab !== 'memory' && activeTab !== 'permissions' && activeTab !== 'health' && activeTab !== 'briizy' ? (
             <div className="settings-loading">Loading settings...</div>
           ) : (
             <>
               {activeTab === 'model' && (
                 <ModelTab isOpen={isOpen} />
+              )}
+
+              {activeTab === 'briizy' && (
+                <BriizyTab />
               )}
 
               {activeTab === 'appearance' && (

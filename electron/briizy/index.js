@@ -481,7 +481,6 @@ class Briizy extends EventEmitter {
     if (!this.helper.isAvailable()) return false;
     if (this.helper.state === 'stopped' || this.helper.state === 'error') {
       this._log('info', 'Starting the helper to read compacted history');
-      this.helper.stopping = false;
       this.helper.start();
     }
     const deadline = Date.now() + timeoutMs;

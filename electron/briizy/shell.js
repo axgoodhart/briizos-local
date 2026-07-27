@@ -85,10 +85,15 @@ class BriizyShell {
       minimizable: false,
       maximizable: false,
       fullscreenable: false,
-      focusable: true,
+      // Never focusable: clicks on the avatar still land, but the overlay can
+      // never become the key window, steal focus from real work, or stop the
+      // main window's activation. NOT type:'panel' — on macOS a panel window
+      // flips the whole app toward accessory mode: the Dock icon disappears,
+      // the main window stops activating (looks frozen, animations throttle),
+      // and AppKit logs a styleMask complaint twice per launch. All three were
+      // observed on 2026-07-27.
+      focusable: false,
       show: false,
-      // Keep it out of the window list and off the Dock's window menu.
-      type: process.platform === 'darwin' ? 'panel' : undefined,
       backgroundColor: '#00000000',
       webPreferences: {
         nodeIntegration: false,
@@ -154,6 +159,13 @@ class BriizyShell {
     this.window.hide();
     this.visible = false;
     this._log('info', 'Avatar hidden');
+    // With the avatar gone the menu-bar icon is the only way back into briizy
+    // (and, with the main window closed, into briizOS). Recreate it if
+    // anything took it down; hiding must never cost the icon.
+    if (!this.tray) {
+      this._log('warn', 'Menu bar icon was missing while hiding the avatar — recreating it');
+      this.createTray();
+    }
     this._refreshTray();
   }
 
@@ -238,7 +250,6 @@ class BriizyShell {
     if (!this.tray) return;
     const { Menu, app } = this.electron;
     const status = this.briizy.getStatus();
-    const displayActive = status.session?.kind === 'display';
     const storage = status.storage;
 
     const menu = Menu.buildFromTemplate([
@@ -261,14 +272,6 @@ class BriizyShell {
         click: () => {
           if (status.paused) this.briizy.resume('tray');
           else this.briizy.pause('tray');
-        },
-      },
-      {
-        label: displayActive ? 'Stop display session' : 'Start display session',
-        enabled: status.enabled,
-        click: async () => {
-          if (displayActive) await this.briizy.endDisplaySession();
-          else await this.briizy.startDisplaySession();
         },
       },
       { type: 'separator' },
@@ -341,7 +344,9 @@ class BriizyShell {
           result.summary,
           '',
           'This test captured only a window it created itself. Nothing else on your',
-          'screen was read, and the captured file was deleted.',
+          'screen was read. One evidence frame of that test window is kept so the',
+          'result can be checked rather than believed:',
+          result.evidencePath || 'evidence frame unavailable',
           failed.length ? '' : null,
           ...failed.map((check) => `✗ ${check.label}`),
         ].filter((line) => line !== null).join('\n'),
@@ -370,7 +375,14 @@ class BriizyShell {
     if (!mainWindow.isVisible()) mainWindow.show();
     mainWindow.focus();
     if (options.route || options.frameId || options.sessionId) {
-      mainWindow.webContents.send('briizy:navigate', options);
+      // If the window was just created it has no listeners yet — a navigate
+      // sent now lands in the void. Wait for the renderer before sending.
+      const send = () => mainWindow.webContents.send('briizy:navigate', options);
+      if (mainWindow.webContents.isLoading()) {
+        mainWindow.webContents.once('did-finish-load', send);
+      } else {
+        send();
+      }
     }
     this._log('info', 'Main window focused', options);
   }

@@ -151,6 +151,20 @@ async function run() {
   }
   assert('requests after stop are refused, not queued forever', afterStop !== null, afterStop?.code);
 
+  section('capture toggled off then on — start() revives a stopped helper');
+
+  // The exact user-visible failure from 2026-07-27: stop() latches `stopping`
+  // to keep the auto-restart timer dead, and start() used to early-return on
+  // that latch forever — so toggling capture off and back on left the helper
+  // permanently stopped until briizOS itself was relaunched. This fails
+  // without the fix: waitForState times out because start() is a no-op.
+  helper.start();
+  assert('start() after stop() actually starts — the stopping latch is cleared',
+    await waitForState(helper, 'ready', 5000), helper.getStatus());
+  assert('the revived helper answers requests', (await helper.ping()).pong === true);
+  helper.stop();
+  await sleep(500);
+
   section('I5 — a SIGKILLed parent leaves nothing behind (assertion 3)');
 
   // A child of *this* process would be reparented to launchd on our exit, so the

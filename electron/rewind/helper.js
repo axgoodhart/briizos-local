@@ -60,7 +60,17 @@ class BriizyHelper extends EventEmitter {
   }
 
   start() {
-    if (this.child || this.stopping) return;
+    if (this.child) return;
+    if (this.stopping) {
+      // stop() latches this flag so the auto-restart timer stays dead. An
+      // explicit start() after that is a deliberate restart — capture toggled
+      // back on — so the latch clears and the crash history starts over.
+      // Without this, turning capture off and on again could never revive the
+      // helper until briizOS itself was relaunched (observed 2026-07-27).
+      this.stopping = false;
+      this.consecutiveFailures = 0;
+      this.lastError = null;
+    }
     if (!this.isAvailable()) {
       this.lastError = 'helper binary not built';
       this._setState('unavailable', {
