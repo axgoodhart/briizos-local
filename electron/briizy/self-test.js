@@ -97,6 +97,8 @@ async function runCaptureSelfTest({ helper, logger, BrowserWindow, screen, userD
   const title = `briizy-capture-test-${code}`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'briizy-selftest-'));
   const written = [];
+  /** The kept frame, so the result can be checked by opening it rather than believed. */
+  let evidencePath = null;
   let testWindow = null;
 
   logger?.info?.('briizy.selftest', 'Capture self-test starting', {
@@ -138,6 +140,21 @@ async function runCaptureSelfTest({ helper, logger, BrowserWindow, screen, userD
       out: outPath, windowId: mine.windowId, ocr: true, ocrFast: true,
     }, { timeoutMs: 25000 });
     written.push(captured.path);
+
+    // Keep this one frame somewhere the user can actually open it. It is a
+    // picture of a window this test created, containing text this test wrote.
+    try {
+      const keepDir = userDataPath ? path.join(userDataPath, 'briizy-selftest') : dir;
+      fs.mkdirSync(keepDir, { recursive: true });
+      const keepPath = path.join(keepDir, `selftest-${code}.jpg`);
+      fs.copyFileSync(captured.path, keepPath);
+      evidencePath = keepPath;
+      logger?.info?.('briizy.selftest', 'Evidence frame kept — open it to check this yourself', {
+        path: keepPath,
+      });
+    } catch (error) {
+      logger?.warn?.('briizy.selftest', 'Could not keep the evidence frame', { error: error?.message });
+    }
 
     check('the helper survived building a content filter (the 2026-07-26 crash)',
       helper.getStatus().state === 'ready', helper.getStatus().state);

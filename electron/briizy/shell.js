@@ -331,6 +331,7 @@ class BriizyShell {
         logger: this.logger,
         BrowserWindow: this.electron.BrowserWindow,
         screen: this.electron.screen,
+        userDataPath: this.electron.app?.getPath?.('userData') || null,
       });
       const failed = result.checks.filter((check) => !check.passed);
       await dialog.showMessageBox({
