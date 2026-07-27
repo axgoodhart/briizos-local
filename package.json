@@ -11,6 +11,7 @@
     "helper:rebuild": "FORCE=1 bash scripts/build-briizy-helper.sh",
     "build": "vite build",
     "test:theme": "vitest run src/theme --reporter=verbose",
+    "test:briizy": "electron tests/briizy/run.js",
     "preview": "vite preview",
     "electron": "electron .",
     "db:studio": "prisma studio --url \"file:$HOME/Library/Application Support/briizos/briizos.db\"",
