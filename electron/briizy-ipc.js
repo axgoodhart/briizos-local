@@ -36,6 +36,7 @@ const FORWARDED_EVENTS = Object.freeze([
   'context-switch',
   'session-open',
   'session-close',
+  'session-card',
   'paused',
   'resumed',
   'suggestion',

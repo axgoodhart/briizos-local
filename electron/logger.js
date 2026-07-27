@@ -4,9 +4,14 @@
  * Receives renderer logs via IPC (fire-and-forget).
  */
 
+// `app` and `BrowserWindow` are undefined when this module is loaded outside a
+// full Electron main process — ELECTRON_RUN_AS_NODE, a test runner, or a
+// utility script. Reading `app.isPackaged` unguarded made every module that
+// logs (i.e. all of them) impossible to require in those contexts, which is why
+// this is optional-chained rather than assumed present.
 const { app, BrowserWindow } = require('electron');
 
-const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
+const isDev = process.env.NODE_ENV !== 'production' && !app?.isPackaged;
 
 // Log level hierarchy
 const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
@@ -61,6 +66,7 @@ function createEntry(level, category, message, data) {
 }
 
 function broadcastEntry(entry) {
+  if (!BrowserWindow?.getAllWindows) return;
   BrowserWindow.getAllWindows().forEach((window) => {
     if (!window.isDestroyed()) {
       window.webContents.send('terminal-log-entry', entry);

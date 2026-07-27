@@ -23,6 +23,46 @@ const privacy = require('../rewind/privacy');
 const CONFIG_STATE_KEY = 'config';
 /** Thumbnail width for filmstrip/session-card requests. */
 const DEFAULT_THUMBNAIL_WIDTH = 320;
+/**
+ * A session only earns a Notefalls card if it represents real work. A
+ * ten-second stretch between two excluded windows is noise, and one card per
+ * session is already the rule (§8) — this stops the feed filling with stubs.
+ */
+const CARD_MIN_DURATION_MS = 60 * 1000;
+const CARD_MIN_FRAMES = 2;
+/** One app this dominant reads as "worked in X" rather than "spread across". */
+const DOMINANT_APP_SHARE = 0.6;
+
+function formatMinutes(ms) {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 1) return 'under a minute';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const hourPart = `${hours} hour${hours === 1 ? '' : 's'}`;
+  return rest ? `${hourPart} ${rest} min` : hourPart;
+}
+
+/**
+ * Headline for a session card, derived from what was actually captured. Phase 4's
+ * insight assistant can replace this with a model-written summary; until then the
+ * card says something true rather than something generated.
+ */
+function describeSession(session) {
+  const duration = formatMinutes((session.endedAt || Date.now()) - session.startedAt);
+  const apps = (session.topApps || []).filter((entry) => entry.appName);
+  if (!apps.length) return `Screen session — ${duration}`;
+
+  const total = apps.reduce((sum, entry) => sum + entry.frames, 0) || 1;
+  const [leader] = apps;
+  if (apps.length === 1 || leader.frames / total >= DOMINANT_APP_SHARE) {
+    return `Worked in ${leader.appName} for ${duration}`;
+  }
+  const named = apps.slice(0, 3).map((entry) => entry.appName);
+  const extra = apps.length - named.length;
+  const list = extra > 0 ? `${named.join(', ')} +${extra} more` : named.join(', ');
+  return `${duration} across ${list}`;
+}
 
 class Briizy extends EventEmitter {
   constructor({ service, logger, powerMonitor, nativeImage, userDataPath, ownBundleIds = [] }) {
@@ -50,7 +90,10 @@ class Briizy extends EventEmitter {
     this.indexer.on('frame', (frame) => this.emit('frame', frame));
     this.indexer.on('context-switch', (event) => this.emit('context-switch', event));
     this.indexer.on('session-open', (session) => this.emit('session-open', session));
-    this.indexer.on('session-close', (event) => this.emit('session-close', event));
+    this.indexer.on('session-close', (event) => {
+      this._postSessionCard(event.session);
+      this.emit('session-close', event);
+    });
     this.indexer.on('state', (status) => this.emit('status', status));
     this.indexer.on('paused', (event) => this.emit('paused', event));
     this.indexer.on('resumed', (event) => this.emit('resumed', event));
@@ -208,6 +251,42 @@ class Briizy extends EventEmitter {
     }
   }
 
+  /**
+   * One Notefalls card per closed session (§8). Failure here must never take
+   * the pipeline down — a missing card is cosmetic, a crashed indexer is not.
+   */
+  _postSessionCard(session) {
+    if (!session) return null;
+    const duration = (session.endedAt || 0) - session.startedAt;
+    if (duration < CARD_MIN_DURATION_MS || session.frameCount < CARD_MIN_FRAMES) {
+      this._log('debug', 'Session too short for a Notefalls card', {
+        sessionId: session.id,
+        durationMs: duration,
+        frames: session.frameCount,
+      });
+      return null;
+    }
+    try {
+      const result = this.service.upsertRewindSessionPost(session.id, {
+        body: describeSession(session),
+        sourceApp: session.topApps?.[0]?.appName || null,
+      });
+      this._log('info', 'Session card posted to Notefalls', {
+        sessionId: session.id,
+        postId: result.postId,
+        body: result.row?.body,
+      });
+      this.emit('session-card', result.row);
+      return result;
+    } catch (error) {
+      this._log('warn', 'Failed to post session card', {
+        sessionId: session.id,
+        error: error?.message,
+      });
+      return null;
+    }
+  }
+
   // ------------------------------------------------------------------
   // Queries (renderer-facing — never return a path)
   // ------------------------------------------------------------------
@@ -257,13 +336,30 @@ class Briizy extends EventEmitter {
     try {
       const image = this.nativeImage.createFromPath(frame.imagePath);
       if (image.isEmpty()) return { frameId, dataUrl: null, reason: 'unreadable' };
-      const sized = full ? image : image.resize({ width: Math.max(64, Math.min(2000, maxWidth)) });
+
+      // Never upscale: a 320px request against a small frame should return the
+      // frame, not a blurry enlargement that costs more bytes than the original.
+      const natural = image.getSize();
+      const targetWidth = Math.max(64, Math.min(2000, maxWidth));
+      const sized = full || natural.width <= targetWidth
+        ? image
+        : image.resize({ width: targetWidth });
+
+      // Encode as JPEG, not via toDataURL(). toDataURL() always emits PNG, which
+      // for a 3000px screenshot is several megabytes over IPC — an order of
+      // magnitude more than the JPEG already sitting on disk.
+      const buffer = sized.toJPEG(full ? 88 : 76);
+      if (!buffer?.length) return { frameId, dataUrl: null, reason: 'unreadable' };
+
       return {
         frameId,
         capturedAt: frame.capturedAt,
         appName: frame.appName,
         windowTitle: frame.windowTitle,
-        dataUrl: sized.toDataURL(),
+        width: sized.getSize().width,
+        height: sized.getSize().height,
+        bytes: buffer.length,
+        dataUrl: `data:image/jpeg;base64,${buffer.toString('base64')}`,
       };
     } catch (error) {
       this._log('warn', 'Frame image read failed', { frameId, error: error?.message });

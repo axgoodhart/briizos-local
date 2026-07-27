@@ -3963,10 +3963,22 @@ class LocalDataService extends EventEmitter {
     }
     if (input.openOnly === true) clauses.push('ended_at IS NULL');
     const limit = input.limit === undefined ? 200 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
-    return this.db.prepare(`
+    const rows = this.db.prepare(`
       SELECT * FROM rewind_sessions WHERE ${clauses.join(' AND ')}
       ORDER BY started_at DESC LIMIT ?
-    `).all(...params, limit).map((row) => this._rewindSessionRow(row));
+    `).all(...params, limit);
+    // Earliest frame that still has an image, so a feed card can show a
+    // thumbnail without pulling the whole timeline. Indexed by (session_id,
+    // captured_at), so this stays cheap across the listing.
+    const coverStatement = this.db.prepare(`
+      SELECT id FROM rewind_frames
+      WHERE session_id = ? AND deleted_at IS NULL AND image_path IS NOT NULL
+      ORDER BY captured_at ASC LIMIT 1
+    `);
+    return rows.map((row) => ({
+      ...this._rewindSessionRow(row),
+      coverFrameId: coverStatement.get(row.id)?.id || null,
+    }));
   }
 
   /**

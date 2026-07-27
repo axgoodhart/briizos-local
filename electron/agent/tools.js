@@ -1465,6 +1465,122 @@ const task = tool(
 );
 
 // =============================================================================
+// briizy work memory (PLAN-BRIIZY.md §8)
+//
+// Main-process tools, not renderer bridges: they read the local frames index
+// directly, so the bridged tool count is unchanged. What crosses to the model is
+// OCR text plus app name, window title and timestamp — never image bytes and
+// never an archive path (I2). The service layer strips paths for us; the
+// truncation here is about prompt budget, not privacy.
+// =============================================================================
+
+/** Parse an ISO string or epoch value into epoch ms; undefined when absent. */
+function toEpochMs(value, label) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value);
+  const parsed = Date.parse(String(value));
+  if (Number.isNaN(parsed)) throw new Error(`${label} must be an ISO date-time or epoch milliseconds`);
+  return parsed;
+}
+
+/** Per-result OCR excerpt cap, so a dense IDE frame cannot dominate the turn. */
+const SCREEN_MEMORY_EXCERPT_CHARS = 400;
+
+const briizos_search_screen_memory = makeDataReadTool({
+  name: 'briizos_search_screen_memory',
+  description: [
+    'Full-text search the user\'s own screen history (OCR text and window titles captured on this Mac).',
+    'Use this to answer "what was that thing I was looking at", to recover a name, number, error message,',
+    'or link the user saw earlier, or to ground an answer in what they actually had on screen.',
+    'Returns matching moments with the app, window title, time and a text snippet — never images.',
+    'Returns an empty list when screen capture is off or nothing matches; say so rather than guessing.',
+  ].join(' '),
+  schema: z.object({
+    query: z.string().min(1).max(500).describe('Keywords to search for. Terms are ANDed.'),
+    after: z.string().optional().describe('Only moments at or after this ISO date-time.'),
+    before: z.string().optional().describe('Only moments at or before this ISO date-time.'),
+    apps: z.array(z.string()).max(20).optional().describe('Restrict to these application names.'),
+    limit: z.number().int().min(1).max(50).optional().default(15),
+  }),
+  run: (input) => {
+    const query = {
+      text: input.query,
+      limit: input.limit || 15,
+    };
+    const after = toEpochMs(input.after, 'after');
+    const before = toEpochMs(input.before, 'before');
+    if (after !== undefined) query.from = after;
+    if (before !== undefined) query.to = before;
+    if (Array.isArray(input.apps) && input.apps.length) query.apps = input.apps;
+
+    const results = localDataService.searchRewindFrames(query);
+    const payload = {
+      query: input.query,
+      matches: results.map((result) => ({
+        frame_id: result.frameId,
+        session_id: result.sessionId,
+        at: new Date(result.capturedAt).toISOString(),
+        app: result.appName,
+        window_title: result.windowTitle,
+        snippet: result.snippet,
+        excerpt: (result.ocrText || '').replace(/\s+/g, ' ').trim().slice(0, SCREEN_MEMORY_EXCERPT_CHARS),
+      })),
+    };
+    if (!payload.matches.length) {
+      payload.note = 'No screen history matched. Capture may be off, or the archive may not go back that far.';
+    }
+    return { rows: payload.matches.length, payload };
+  },
+});
+
+const briizos_get_recent_activity = makeDataReadTool({
+  name: 'briizos_get_recent_activity',
+  description: [
+    'Summarize what the user has been doing on this Mac over the last N minutes:',
+    'which apps and windows, and short excerpts of the text that was on screen.',
+    'Use this when the user refers to what they are "working on" or says "this" / "here" without naming it,',
+    'and before offering help that depends on their current context.',
+    'Returns an empty summary when screen capture is off.',
+  ].join(' '),
+  schema: z.object({
+    minutes: z.number().int().min(1).max(1440).optional().default(30)
+      .describe('How far back to look, in minutes. Capped at 24 hours.'),
+  }),
+  run: (input) => {
+    const minutes = input.minutes || 30;
+    const digest = localDataService.getRecentRewindActivity(minutes);
+    const payload = {
+      window: {
+        minutes: digest.windowMinutes,
+        from: new Date(digest.since).toISOString(),
+        to: new Date(digest.until).toISOString(),
+      },
+      apps: digest.apps.map((app) => ({
+        app: app.appName,
+        moments: app.frames,
+        first_seen: new Date(app.firstSeen).toISOString(),
+        last_seen: new Date(app.lastSeen).toISOString(),
+      })),
+      windows: digest.titles.map((title) => ({
+        app: title.appName,
+        window_title: title.windowTitle,
+        last_seen: new Date(title.lastSeen).toISOString(),
+      })),
+      on_screen_text: digest.excerpts.map((excerpt) => ({
+        app: excerpt.appName,
+        window_title: excerpt.windowTitle,
+        at: new Date(excerpt.capturedAt).toISOString(),
+        excerpt: excerpt.excerpt,
+      })),
+    };
+    if (!payload.apps.length) {
+      payload.note = 'No recent screen activity recorded. Screen capture may be off or paused.';
+    }
+    return { rows: payload.apps.length, payload };
+  },
+});
+
+// =============================================================================
 // Public set used by the lead_agent.
 // =============================================================================
 
@@ -1489,6 +1605,8 @@ const BASE_TOOLS = [
   briizos_query_organizer,
   briizos_list_placements,
   briizos_query_data,
+  briizos_search_screen_memory,
+  briizos_get_recent_activity,
   ls,
   read_file,
   write_file,
