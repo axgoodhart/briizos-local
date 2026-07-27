@@ -21,6 +21,8 @@ const DEFAULT_TIMEOUT_MS = 15000;
 const RESTART_BACKOFF_MS = [500, 1000, 2000, 5000, 15000, 30000];
 /** Stop restarting after this many consecutive failures; report unavailable. */
 const MAX_CONSECUTIVE_FAILURES = 6;
+/** Ready for this long counts as stable, so a later exit is an incident not a loop. */
+const STABLE_UPTIME_MS = 60 * 1000;
 
 class BriizyHelper extends EventEmitter {
   constructor({ logger, binaryPath = HELPER_BINARY } = {}) {
@@ -33,6 +35,8 @@ class BriizyHelper extends EventEmitter {
     this.nextId = 1;
     this.stdoutBuffer = '';
     this.consecutiveFailures = 0;
+    /** When the current process reached 'ready'; used to tell an incident from a loop. */
+    this.readyAt = null;
     this.restartTimer = null;
     this.stopping = false;
     this.lastError = null;
@@ -89,7 +93,10 @@ class BriizyHelper extends EventEmitter {
     child.stdout.on('data', (chunk) => this._onStdout(chunk));
     child.stderr.on('data', (chunk) => {
       const text = String(chunk).trim();
-      if (text) this._log('debug', 'Helper stderr', text);
+      // `warn`, not `debug`: this is the channel a dying helper uses to say why.
+      // At debug it was suppressed at the default log level, which hid the
+      // reason for a SIGABRT crash loop behind an otherwise silent restart.
+      if (text) this._log('warn', 'Helper stderr', text);
     });
     child.on('error', (error) => {
       this.lastError = error?.message || 'helper process error';
@@ -128,7 +135,12 @@ class BriizyHelper extends EventEmitter {
 
     if (message.event) {
       if (message.event === 'ready') {
-        this.consecutiveFailures = 0;
+        this.readyAt = Date.now();
+        // NOT a reset of consecutiveFailures: a helper that crashes on its first
+        // real request reaches 'ready' every time, so resetting here made the
+        // crash-loop guard unreachable and the backoff never escalate. The
+        // counter clears when the helper proves it works (a successful response)
+        // or when it has been up long enough to count as stable.
         this.capabilities = {
           permission: message.permission === true,
           accessibility: message.accessibility === true,
@@ -157,6 +169,11 @@ class BriizyHelper extends EventEmitter {
     this.pending.delete(message.id);
     clearTimeout(pending.timer);
     if (message.ok) {
+      // It answered a real request, so it works: forgive the history.
+      if (this.consecutiveFailures) {
+        this._log('info', 'Helper recovered', { after: this.consecutiveFailures });
+        this.consecutiveFailures = 0;
+      }
       pending.resolve(message.result || {});
     } else {
       const error = new Error(message.error || 'helper error');
@@ -167,6 +184,8 @@ class BriizyHelper extends EventEmitter {
 
   _onExit(code, signal) {
     const wasStopping = this.stopping;
+    const uptimeMs = this.readyAt ? Date.now() - this.readyAt : 0;
+    this.readyAt = null;
     this.child = null;
     this.stdoutBuffer = '';
     this._rejectAll(new Error(`helper exited (code ${code}, signal ${signal || 'none'})`));
@@ -176,15 +195,21 @@ class BriizyHelper extends EventEmitter {
       return;
     }
 
-    this.consecutiveFailures += 1;
+    // A helper that ran happily for a while and then died is one incident, not a
+    // crash loop; one that dies seconds after every start is a crash loop.
+    this.consecutiveFailures = uptimeMs >= STABLE_UPTIME_MS ? 1 : this.consecutiveFailures + 1;
     this._log('warn', 'Helper exited unexpectedly', {
       code,
       signal,
+      uptimeMs,
       consecutiveFailures: this.consecutiveFailures,
     });
     if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-      this.lastError = `helper exited ${this.consecutiveFailures} times in a row`;
-      this._setState('unavailable', { reason: this.lastError });
+      this.lastError = `helper crashed ${this.consecutiveFailures} times in a row`
+        + `${signal ? ` (${signal})` : ''} — capture is unavailable until briizOS restarts`;
+      // Stop restarting. An endless respawn loop burns CPU, spams the log, and
+      // hides the failure; 'unavailable' surfaces it in the UI instead.
+      this._setState('unavailable', { reason: this.lastError, signal, code });
       return;
     }
     this._setState('error', { code, signal });

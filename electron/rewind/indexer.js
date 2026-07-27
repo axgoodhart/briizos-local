@@ -44,6 +44,8 @@ const RECONCILE_INTERVAL_MS = 30 * 60 * 1000;
 const HEARTBEAT_MIN_MS = 30 * 1000;
 /** Deferred-OCR frames processed per tick once back on AC power. */
 const OCR_BACKFILL_PER_TICK = 2;
+/** How long a context that crashed the helper stays quarantined. */
+const POISON_RETRY_MS = 5 * 60 * 1000;
 
 class RewindIndexer extends EventEmitter {
   constructor({ helper, service, logger, powerMonitor, userDataPath, ownBundleIds = [] }) {
@@ -78,6 +80,15 @@ class RewindIndexer extends EventEmitter {
     this.sessionDayKey = null;
     this.lastActivityAt = 0;
 
+    /**
+     * Contexts whose capture killed the helper. A SIGABRT inside
+     * ScreenCaptureKit cannot be caught in-process, so if some window does
+     * manage to abort the helper despite the safety checks, remembering it here
+     * keeps capture working for every other window instead of turning into a
+     * crash loop. Cleared on restart, since the cause is usually transient
+     * window state.
+     */
+    this.poisonedContexts = new Map();
     this.lastSummaryAt = Date.now();
     this.lastPruneAt = 0;
     this.lastReconcileAt = 0;
@@ -460,6 +471,21 @@ class RewindIndexer extends EventEmitter {
     const wantsOcr = isNewContext || this.framesSinceOcr + 1 >= this.config.ocrEveryNthFrame;
     const deferOcr = onBattery && this.config.batteryBehavior === 'deferOcr';
 
+    const poisonedAt = this.poisonedContexts.get(contextKey);
+    if (poisonedAt) {
+      // Retry occasionally — a window that was un-capturable while minimized or
+      // on another Space usually is not five minutes later.
+      if (now - poisonedAt < POISON_RETRY_MS) {
+        this.lastCaptureAt = now;
+        this._log('debug', 'Skipping a context that previously crashed the helper', {
+          app: meta.appName,
+          title: meta.windowTitle,
+        });
+        return;
+      }
+      this.poisonedContexts.delete(contextKey);
+    }
+
     const sessionId = await this._ensureSession(now, mode === 'display' ? 'display' : 'auto');
     const outPath = storage.framePath(this.userDataPath, now, `${mode}`);
 
@@ -481,6 +507,18 @@ class RewindIndexer extends EventEmitter {
         this._refreshState();
       } else if (error?.code === 'NO_ACTIVE_WINDOW' || error?.code === 'WINDOW_GONE') {
         this._log('debug', 'Capture skipped', { code: error.code });
+      } else if (/helper exited|HELPER_UNAVAILABLE/.test(`${error?.code} ${error?.message}`)) {
+        // The helper died mid-capture. Whatever was on screen is the prime
+        // suspect: quarantine it so the next tick tries something else rather
+        // than reproducing the crash forever.
+        this.poisonedContexts.set(contextKey, now);
+        this._log('error', 'Helper died capturing this window — quarantining it', {
+          app: meta.appName,
+          title: meta.windowTitle,
+          bundleId: meta.bundleId,
+          retryInMs: POISON_RETRY_MS,
+          error: error?.message,
+        });
       } else {
         this.lastError = error?.message || 'capture failed';
         this._log('warn', 'Capture failed', { code: error?.code, error: this.lastError });

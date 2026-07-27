@@ -268,7 +268,31 @@ func scaledConfiguration(for size: CGSize) -> SCStreamConfiguration {
   return config
 }
 
-func captureWindowImage(windowId: CGWindowID) async throws -> CGImage {
+/// Is this window safe to build an SCContentFilter from?
+///
+/// `SCContentFilter(desktopIndependentWindow:)` calls SkyLight's
+/// `SLSGetDisplaysWithRect`, which does not fail gracefully on a degenerate or
+/// off-display rect — it trips an assertion and `abort()`s the whole process.
+/// SIGABRT cannot be caught, so the only defence is to never hand it such a
+/// window. Anything rejected here is reported as WINDOW_GONE and skipped.
+func isFilterSafe(_ window: SCWindow) -> Bool {
+  let frame = window.frame
+  guard frame.origin.x.isFinite, frame.origin.y.isFinite,
+    frame.size.width.isFinite, frame.size.height.isFinite
+  else { return false }
+  // Zero and sub-pixel rects are what actually trip the assertion.
+  guard frame.size.width >= 2, frame.size.height >= 2 else { return false }
+  // A window on no display — minimized, or on another Space — has no rect for
+  // SLSGetDisplaysWithRect to resolve.
+  guard window.isOnScreen else { return false }
+  // Sanity bound: a rect far outside any plausible display geometry is bogus.
+  guard abs(frame.origin.x) < 200_000, abs(frame.origin.y) < 200_000,
+    frame.size.width < 200_000, frame.size.height < 200_000
+  else { return false }
+  return true
+}
+
+func captureWindowImage(windowId: CGWindowID, bundleId: String?) async throws -> CGImage {
   var content = try await ContentCache.shared.content()
   if !content.windows.contains(where: { $0.windowID == windowId }) {
     content = try await ContentCache.shared.content(forceRefresh: true)
@@ -276,7 +300,27 @@ func captureWindowImage(windowId: CGWindowID) async throws -> CGImage {
   // ScreenCaptureKit object graphs accumulate in the cooperative thread pool,
   // which does not drain autorelease pools between tasks.
   let prepared: (SCContentFilter, SCStreamConfiguration)? = autoreleasepool {
-    guard let window = content.windows.first(where: { $0.windowID == windowId }) else { return nil }
+    var target = content.windows.first(where: { $0.windowID == windowId })
+
+    if let candidate = target, !isFilterSafe(candidate) {
+      trace("window \(windowId) is unsafe to filter: frame=\(candidate.frame) onScreen=\(candidate.isOnScreen)")
+      target = nil
+    }
+
+    // The Accessibility API can name a focused window that is minimized, on
+    // another Space, or zero-sized. Rather than skip the tick entirely, fall
+    // back to the same app's largest on-screen window — the same heuristic the
+    // metadata path uses when AX is unavailable.
+    if target == nil, let bundleId, !bundleId.isEmpty {
+      target = content.windows
+        .filter { $0.owningApplication?.bundleIdentifier == bundleId && isFilterSafe($0) }
+        .max(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height })
+      if let fallback = target {
+        trace("falling back to window \(fallback.windowID) for \(bundleId)")
+      }
+    }
+
+    guard let window = target else { return nil }
     return (SCContentFilter(desktopIndependentWindow: window), scaledConfiguration(for: window.frame.size))
   }
   guard let (filter, config) = prepared else { throw HelperError.windowGone }
@@ -406,7 +450,7 @@ func handleCapture(id: Int?, request: [String: Any]) async {
       image = try await captureDisplayImage()
     } else {
       guard let windowId = window.windowId else { throw HelperError.noActiveWindow }
-      image = try await captureWindowImage(windowId: windowId)
+      image = try await captureWindowImage(windowId: windowId, bundleId: window.bundleId)
     }
 
     let bytes = try writeJPEG(image, to: out)
@@ -685,6 +729,22 @@ if #unavailable(macOS 14.0) {
   exit(1)
 }
 
+/// Initialize AppKit explicitly, with a policy that keeps the helper invisible.
+///
+/// Belt and braces rather than the fix for anything: measurement showed
+/// `NSScreen` establishes the WindowServer connection lazily on its own, so the
+/// SIGABRT in `SLSGetDisplaysWithRect` was a bad window rect (see
+/// `isFilterSafe`), not a missing connection. This stays because it makes the
+/// AppKit state deterministic instead of dependent on which call happens to
+/// touch it first, and `.prohibited` guarantees no Dock icon or menu bar
+/// whatever else initializes later. No run loop is started: requests are still
+/// served synchronously from stdin.
+func connectToWindowServer() {
+  let application = NSApplication.shared
+  application.setActivationPolicy(.prohibited)
+}
+
+connectToWindowServer()
 startParentWatchdog()
 emit([
   "event": "ready",
@@ -693,6 +753,10 @@ emit([
   "pid": Int(getpid()),
   "permission": CGPreflightScreenCaptureAccess(),
   "accessibility": AXIsProcessTrusted(),
+  // Proof that connectToWindowServer() worked. Reading NSScreen requires the
+  // same CGS connection ScreenCaptureKit's filters need, so a non-zero count
+  // means window capture will not abort in SkyLight. Zero means it would.
+  "displays": NSScreen.screens.count,
 ])
 
 while let line = readLine(strippingNewline: true) {
