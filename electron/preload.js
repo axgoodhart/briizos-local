@@ -47,6 +47,40 @@ contextBridge.exposeInMainWorld('briizy', {
     ipcRenderer.on('briizy:event', handler);
     return () => ipcRenderer.removeListener('briizy:event', handler);
   },
+
+  /**
+   * Overlay-only surface (§9). Used by the transparent avatar window and nothing
+   * else. `setInteractive` is how the renderer's hit test turns click-through
+   * off while the pointer is actually over the avatar — without it the overlay
+   * would either swallow every desktop click or never receive one.
+   */
+  shell: {
+    ready: () => ipcRenderer.send('briizy:shell:ready'),
+    setInteractive: (interactive) => ipcRenderer.send('briizy:shell:set-interactive', !!interactive),
+    hide: () => ipcRenderer.send('briizy:shell:hide'),
+    openInApp: (options) => ipcRenderer.send('briizy:shell:open-in-app', options || {}),
+    decide: (decision) => ipcRenderer.invoke('briizy:shell:decide', decision),
+    onState: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('briizy:shell:state', handler);
+      return () => ipcRenderer.removeListener('briizy:shell:state', handler);
+    },
+    onSuggestion: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('briizy:shell:suggestion', handler);
+      return () => ipcRenderer.removeListener('briizy:shell:suggestion', handler);
+    },
+    onDismissSuggestion: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('briizy:shell:dismiss-suggestion', handler);
+      return () => ipcRenderer.removeListener('briizy:shell:dismiss-suggestion', handler);
+    },
+    onActionResult: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('briizy:shell:action-result', handler);
+      return () => ipcRenderer.removeListener('briizy:shell:action-result', handler);
+    },
+  },
 });
 
 contextBridge.exposeInMainWorld('api', {

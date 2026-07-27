@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The overlay is a local-only surface: no remote scripts, no network.
+         Tighter than the main window's policy on purpose — nothing here needs it. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob:; img-src 'self' data: blob:; connect-src 'self' ws://localhost:* http://localhost:*; form-action 'none';">
+    <title>briizy</title>
+    <style>
+      /* The window itself is transparent; anything painted here floats over the
+         desktop. No background on html/body, ever. */
+      html, body, #briizy-root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        /* Click-through is enforced by the window, but this keeps stray
+           selections and drags from happening on the way past. */
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="briizy-root"></div>
+    <script type="module" src="/src/briizy/main.jsx"></script>
+  </body>
+</html>

@@ -28,6 +28,7 @@ const forestFs = require('./forest-fs');
 // Screen data is local-only and stays outside the SyncContract entirely.
 const { createBriizy } = require('./briizy');
 const { registerBriizyIPC } = require('./briizy-ipc');
+const { BriizyShell } = require('./briizy/shell');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
@@ -35,7 +36,9 @@ let unregisterLocalDataIPC = null;
 let cloudGateway = null;
 let automationRunner = null;
 let briizy = null;
+let briizyShell = null;
 let unregisterBriizyIPC = null;
+let mainWindow = null;
 let shutdownStarted = false;
 
 function redactUrlApiKey(rawUrl) {
@@ -1026,6 +1029,24 @@ app.whenReady().then(() => {
   unregisterBriizyIPC = registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger });
   briizy.start();
 
+  // Avatar overlay + menu bar item. The overlay is only shown once capture is
+  // actually running — before onboarding there is nothing for briizy to say,
+  // and a floating robot over an app that is not watching anything is a lie.
+  briizyShell = new BriizyShell({
+    briizy,
+    logger,
+    electron: require('electron'),
+    isDev,
+  });
+  // "Open briizOS…" from the menu bar must work even after the workspace window
+  // has been closed — monitoring lives in main and outlives any window (§9).
+  briizyShell.start({ getMainWindow: () => ensureMainWindow() });
+  if (briizy.getConfig().enabled) briizyShell.show();
+  briizy.on('config', (config) => {
+    if (config.enabled) briizyShell?.show();
+    else briizyShell?.hide();
+  });
+
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {
     // Send USB change event to all windows
@@ -1036,23 +1057,35 @@ app.whenReady().then(() => {
     });
   });
 
-  const win = createWindow();
-
-  // Wire the renderer window into the in-process agent bridge so the
-  // lead_agent (running here in main) can reach the renderer tool
-  // registry via IPC. No HTTP socket; no port 2025.
-  langgraph.setMainWindow(win);
+  ensureMainWindow();
   langgraph.start().then((ok) => {
     logger.info('app', 'In-process agent runtime ready', { ok, status: langgraph.getStatus()?.status });
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const newWin = createWindow();
-      langgraph.setMainWindow(newWin);
-    }
+    // Not `getAllWindows().length === 0` any more: the briizy overlay is also a
+    // BrowserWindow, so that test would never be true once the shell is up.
+    ensureMainWindow();
   });
 });
+
+/**
+ * The workspace window, creating it if it is gone. Also rebinds the agent
+ * bridge, which needs a live renderer to reach the tool registry.
+ */
+function ensureMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (!mainWindow.isVisible()) mainWindow.show();
+    return mainWindow;
+  }
+  mainWindow = createWindow();
+  mainWindow.on('closed', () => { mainWindow = null; });
+  // Wire the renderer window into the in-process agent bridge so the
+  // lead_agent (running here in main) can reach the renderer tool
+  // registry via IPC. No HTTP socket; no port 2025.
+  langgraph.setMainWindow(mainWindow);
+  return mainWindow;
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -1079,6 +1112,8 @@ app.on('before-quit', (event) => {
     return;
   }
   langgraph.stop();
+  briizyShell?.stop();
+  briizyShell = null;
   unregisterBriizyIPC?.();
   unregisterBriizyIPC = null;
   briizy?.helper?.stop();
