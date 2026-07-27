@@ -15,19 +15,22 @@ export function useBriizyCapture() {
   const [status, setStatus] = useState(UNAVAILABLE_STATUS);
   const [config, setConfig] = useState(null);
   const [defaults, setDefaults] = useState(null);
+  const [proposals, setProposals] = useState([]);
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
 
   const available = isBriizyAvailable();
 
   const refresh = useCallback(async () => {
-    const [nextStatus, nextConfig] = await Promise.all([
+    const [nextStatus, nextConfig, nextProposals] = await Promise.all([
       briizyApi.getStatus(),
       briizyApi.getConfig(),
+      briizyApi.listProposals({ state: 'pending' }),
     ]);
     if (!mounted.current) return;
     if (nextStatus) setStatus(nextStatus);
     if (nextConfig) setConfig(nextConfig);
+    setProposals(nextProposals || []);
   }, []);
 
   useEffect(() => {
@@ -42,6 +45,15 @@ export function useBriizyCapture() {
       if (type === 'status') setStatus(payload);
       else if (type === 'config') setConfig(payload);
       else if (type === 'paused' || type === 'resumed') refresh();
+      else if (type === 'proposal') {
+        // A proposal can also be decided from the avatar overlay, so the panel
+        // takes its list from the same events rather than its own copy.
+        setProposals((current) => (
+          current.some((existing) => existing.id === payload.id) ? current : [payload, ...current]
+        ));
+      } else if (type === 'proposal-decided') {
+        setProposals((current) => current.filter((existing) => existing.id !== payload?.row?.id));
+      }
     });
     return () => {
       mounted.current = false;
@@ -102,17 +114,43 @@ export function useBriizyCapture() {
     act('Screen history cleared', () => briizyApi.deleteHistory(scope), scope)
   ), [act]);
 
+  /**
+   * Decide a proposal. Accept creates a pending, non-automated task and starts
+   * nothing (I6) — the label in the UI says so, and this is the call that keeps
+   * that promise true.
+   */
+  const decideProposal = useCallback(async (id, verdict, extra = {}) => {
+    setProposals((current) => current.filter((proposal) => proposal.id !== id));
+    const result = await act(`Suggestion ${verdict}ed`, () => briizyApi.decideProposal({
+      id, verdict, ...extra,
+    }), { id, verdict });
+    if (result && result.ok === false) {
+      logger.warn('briizy', 'Suggestion decision refused', result.reason);
+      await refresh();
+    }
+    return result;
+  }, [act, refresh]);
+
+  const updateAssistant = useCallback((assistantId, patch) => (
+    act(`Assistant "${assistantId}" settings changed`,
+      () => briizyApi.setConfig({ assistants: { [assistantId]: patch } }),
+      { assistantId, ...patch })
+  ), [act]);
+
   return {
     available,
     status,
     config,
     defaults,
+    proposals,
     busy,
     refresh,
     toggleCapture,
     togglePause,
     toggleDisplaySession,
     updateConfig,
+    updateAssistant,
+    decideProposal,
     clearHistory,
   };
 }

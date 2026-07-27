@@ -16,6 +16,7 @@ const SUITES = [
   { name: 'helper', module: './helper.test' },
   { name: 'runtime', module: './runtime.test' },
   { name: 'shell', module: './shell.test' },
+  { name: 'assistants', module: './assistants.test' },
 ];
 
 const { summarize } = require('./harness');

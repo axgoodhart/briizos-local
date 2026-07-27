@@ -52,6 +52,14 @@ export const briizyApi = {
   getFrameImage: (frameId, options) => guard('frame:image', (api) => api.getFrameImage(frameId, options), null),
   explainCurrentWindow: () => guard('explain', (api) => api.explainCurrentWindow(), null),
   deleteHistory: (scope) => guard('history:delete', (api) => api.deleteHistory(scope), null),
+  listProposals: (filters) => guard('proposals:list', (api) => api.listProposals(filters), []),
+  decideProposal: (decision) => guard('proposals:decide', (api) => api.decideProposal(decision), null),
+  getProposalHistory: (id) => guard('proposals:history', (api) => api.getProposalHistory(id), []),
+  listStagedTasks: (filters) => guard('staged-tasks:list', (api) => api.listStagedTasks(filters), []),
+  getLearningLog: (filters) => guard('learning-log', (api) => api.getLearningLog(filters),
+    { facts: [], proposals: [], extractions: [] }),
+  forgetFact: (factId) => guard('forget-fact', (api) => api.forgetFact(factId), null),
+  getDailySummary: (options) => guard('daily-summary', (api) => api.getDailySummary(options), null),
   onEvent: (callback) => {
     const api = bridge();
     if (!api?.onEvent) return () => {};

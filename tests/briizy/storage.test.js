@@ -25,7 +25,8 @@ function run() {
     section('migration 009 applies forward-only with a stable checksum');
 
     const status = service.initialize();
-    assert('schema is at version 9', status.schemaVersion === 9, status);
+    assert('the schema is at least version 9 (009_rewind applied)',
+      status.schemaVersion >= 9, status);
     const applied = service.db.prepare(
       "SELECT name, checksum FROM schema_migrations WHERE version = 9",
     ).get();

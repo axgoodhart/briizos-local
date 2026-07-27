@@ -194,6 +194,9 @@ function formatMemoryForInjection(memoryData, maxTokens = 2000) {
 
   const userData = memoryData.user || {};
   const userSections = [];
+  // "About me" is the user-owned profile briizy proposes additions to; it rides
+  // the same injection path as every other section (I1).
+  if (userData.aboutMe?.summary) userSections.push(`About them: ${userData.aboutMe.summary}`);
   if (userData.workContext?.summary) userSections.push(`Work: ${userData.workContext.summary}`);
   if (userData.personalContext?.summary) userSections.push(`Personal: ${userData.personalContext.summary}`);
   if (userData.topOfMind?.summary) userSections.push(`Current Focus: ${userData.topOfMind.summary}`);

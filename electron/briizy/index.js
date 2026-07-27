@@ -19,8 +19,17 @@ const { RewindIndexer } = require('../rewind/indexer');
 const storage = require('../rewind/storage');
 const briizyConfig = require('../rewind/config');
 const privacy = require('../rewind/privacy');
+const { AssistantCoordinator } = require('./coordinator');
+const { createInsightAssistant } = require('./assistants/insight');
+const { createTaskExtractionAssistant } = require('./assistants/task-extraction');
+const { createMemoryExtractionAssistant } = require('./assistants/memory-extraction');
 
 const CONFIG_STATE_KEY = 'config';
+const LAST_SUMMARY_DAY_KEY = 'lastSummaryDay';
+/** How often to check whether the end-of-day summary is due. */
+const SUMMARY_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+/** Proposals nobody touched in a week retire themselves. */
+const PROPOSAL_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 /** Thumbnail width for filmstrip/session-card requests. */
 const DEFAULT_THUMBNAIL_WIDTH = 320;
 /**
@@ -84,6 +93,30 @@ class Briizy extends EventEmitter {
 
     this.config = briizyConfig.defaults();
     this.started = false;
+    this.summaryTimer = null;
+
+    // One coordinator, one set of assistants, all hanging off the same runtime —
+    // there is no second intelligence anywhere in here (I1).
+    this.coordinator = new AssistantCoordinator({
+      service,
+      logger,
+      indexer: this.indexer,
+      getConfig: () => this.config,
+    });
+    const onProposal = (proposal) => {
+      this._log('info', 'Proposal raised', {
+        id: proposal.id,
+        kind: proposal.kind,
+        assistantId: proposal.assistantId,
+        urgency: proposal.urgency,
+      });
+      this.emit('proposal', proposal);
+    };
+    [
+      createInsightAssistant({ service, logger, onProposal }),
+      createTaskExtractionAssistant({ service, logger, onProposal }),
+      createMemoryExtractionAssistant({ service, logger, onProposal }),
+    ].forEach((assistant) => this.coordinator.register(assistant));
 
     // Re-emit the pipeline events the Phase 3 shell and Phase 4 coordinator
     // subscribe to, so neither reaches into the indexer directly.
@@ -129,9 +162,13 @@ class Briizy extends EventEmitter {
     if (this.config.enabled) {
       this.helper.start();
       this.indexer.start();
+      this.coordinator.start();
     } else {
       this._log('info', 'Capture is off — helper not spawned (nothing is silently enabled)');
     }
+    // The summary is built from the database, not from a model, so it runs
+    // whether or not cloud text analysis is allowed.
+    this._startSummaryTimer();
     return this.getStatus();
   }
 
@@ -139,6 +176,11 @@ class Briizy extends EventEmitter {
     if (!this.started) return;
     this.started = false;
     this._log('info', 'briizy runtime stopping');
+    if (this.summaryTimer) {
+      clearInterval(this.summaryTimer);
+      this.summaryTimer = null;
+    }
+    this.coordinator.stop();
     await this.indexer.stop().catch(() => {});
     this.helper.stop();
   }
@@ -181,7 +223,10 @@ class Briizy extends EventEmitter {
     if (next.enabled && !previous.enabled) {
       this.helper.start();
       this.indexer.start();
+      this.coordinator.start();
     } else if (!next.enabled && previous.enabled) {
+      // One switch stops capture AND analysis together (I10).
+      this.coordinator.stop();
       this.indexer.stop().catch(() => {});
       this.helper.stop();
     }
@@ -412,7 +457,217 @@ class Briizy extends EventEmitter {
       config: briizyConfig.defaults(),
       excludedBundleIds: privacy.DEFAULT_EXCLUDED_BUNDLE_IDS,
       excludedTitlePatterns: privacy.DEFAULT_EXCLUDED_TITLE_PATTERNS,
+      assistantPrompts: {
+        insight: require('./assistants/insight').DEFAULT_PROMPT,
+        taskExtraction: require('./assistants/task-extraction').DEFAULT_PROMPT,
+        memoryExtraction: require('./assistants/memory-extraction').DEFAULT_PROMPT,
+      },
     };
+  }
+
+  // ------------------------------------------------------------------
+  // Proposals (§10) — the only path from a suggestion to anything real
+  // ------------------------------------------------------------------
+
+  listProposals(filters = {}) {
+    return this.service.listBriizyProposals(filters);
+  }
+
+  listStagedTasks(filters = {}) {
+    return this.service.listBriizyStagedTasks(filters);
+  }
+
+  getProposalHistory(proposalId) {
+    return this.service.listBriizyProposalEvents(proposalId);
+  }
+
+  /**
+   * Decide a proposal. Accepting creates exactly one pending, non-automated task
+   * and performs no work (I6) — see the note on decideBriizyProposal for why this
+   * does not go through acceptCommand.
+   */
+  decideProposal(decision = {}) {
+    const verdict = ({ accept: 'accept', dismiss: 'dismiss', snooze: 'snooze' })[decision.verdict];
+    if (!decision.id || !verdict) {
+      return { ok: false, reason: 'a proposal id and a verdict of accept/dismiss/snooze are required' };
+    }
+    try {
+      const result = this.service.decideBriizyProposal(decision.id, {
+        verdict,
+        note: decision.note || null,
+        snoozeMinutes: decision.snoozeMinutes,
+        actor: 'user',
+      });
+      this.emit('status', this.getStatus());
+      this.emit('proposal-decided', result);
+      return {
+        ok: true,
+        state: result.row.state,
+        taskId: result.task?.id || null,
+        // Stated explicitly so the UI can promise it and the log can prove it.
+        automated: result.task ? result.task.automated === true : null,
+      };
+    } catch (error) {
+      this._log('warn', 'Proposal decision rejected', {
+        id: decision.id,
+        verdict,
+        code: error?.code,
+        error: error?.message,
+      });
+      return { ok: false, reason: error?.message, code: error?.code };
+    }
+  }
+
+  /** "What briizy learned" (I7) — every derived write with its provenance. */
+  getLearningLog(filters = {}) {
+    return this.service.getBriizyLearningLog(filters);
+  }
+
+  /** Undo a fact briizy wrote. Reversibility is the invariant, not a courtesy. */
+  forgetFact(factId) {
+    this.service.archiveMemoryFact(factId);
+    this._log('info', 'Fact forgotten at the user’s request', { factId });
+    return { ok: true };
+  }
+
+  // ------------------------------------------------------------------
+  // End-of-day summary (§10)
+  // ------------------------------------------------------------------
+
+  _startSummaryTimer() {
+    if (this.summaryTimer) return;
+    this.summaryTimer = setInterval(() => {
+      this._maybePostDailySummary().catch((error) => {
+        this._log('warn', 'Daily summary failed', { error: error?.message });
+      });
+      try {
+        const expired = this.service.expireBriizyProposals(PROPOSAL_EXPIRY_MS);
+        if (expired.expired) this._log('info', 'Expired stale proposals', expired);
+      } catch (error) {
+        this._log('warn', 'Proposal expiry failed', { error: error?.message });
+      }
+    }, SUMMARY_CHECK_INTERVAL_MS);
+    this.summaryTimer.unref?.();
+  }
+
+  /**
+   * One Notefalls post at the configured time. Because the check is periodic
+   * rather than a timer fired at exactly 18:00, a Mac that was asleep gets its
+   * summary once after the next wake — which is the behaviour §10 asks for,
+   * without a missed-alarm special case.
+   */
+  async _maybePostDailySummary({ force = false } = {}) {
+    if (!force && !this.config.enabled) return null;
+    const now = new Date();
+    const today = storage.dayKey(now.getTime());
+    const state = this.service.getBriizyState();
+    if (!force && state[LAST_SUMMARY_DAY_KEY] === today) return null;
+
+    const [hour, minute] = String(this.config.summaryTimeLocal || '18:00').split(':').map(Number);
+    const dueAt = new Date(now);
+    dueAt.setHours(hour, minute, 0, 0);
+    if (!force && now < dueAt) return null;
+
+    const summary = this.buildDailySummary(dueAt.getTime());
+    if (!summary.hasContent && !force) {
+      // Nothing happened today; record the day so we do not re-check all evening.
+      this.service.setBriizyState(LAST_SUMMARY_DAY_KEY, today);
+      this._log('debug', 'No activity to summarize today');
+      return null;
+    }
+
+    const post = this.service.createNotefallPost({ body: summary.body });
+    this.service.setBriizyState(LAST_SUMMARY_DAY_KEY, today);
+    this._log('info', 'Daily summary posted', {
+      postId: post.row.id,
+      day: today,
+      sessions: summary.counts.sessions,
+      factsLearned: summary.counts.facts,
+      openProposals: summary.counts.openProposals,
+    });
+    this.emit('daily-summary', post.row);
+    return post.row;
+  }
+
+  /**
+   * Build the summary from the database rather than from a model. It is a report
+   * of what happened, and the data is already structured — so it works with
+   * cloud text analysis switched off, and it cannot hallucinate a commitment.
+   */
+  buildDailySummary(referenceTime = Date.now()) {
+    const dayStart = new Date(referenceTime);
+    dayStart.setHours(0, 0, 0, 0);
+    const from = dayStart.getTime();
+    const to = referenceTime;
+
+    const sessions = this.service.listRewindSessions({ from, to, limit: 200 });
+    const learning = this.service.getBriizyLearningLog({ from, to, limit: 100 });
+    const staged = this.service.listBriizyStagedTasks({ status: 'staged', limit: 50 });
+    const proposals = this.service.listBriizyProposals({ state: 'pending', limit: 50 });
+    const insights = learning.extractions.filter((entry) => entry.kind === 'insight');
+
+    const appMinutes = new Map();
+    sessions.forEach((session) => {
+      const total = (session.topApps || []).reduce((sum, entry) => sum + entry.frames, 0) || 1;
+      const durationMinutes = Math.max(0, ((session.endedAt || to) - session.startedAt) / 60000);
+      (session.topApps || []).forEach((entry) => {
+        if (!entry.appName) return;
+        const share = (entry.frames / total) * durationMinutes;
+        appMinutes.set(entry.appName, (appMinutes.get(entry.appName) || 0) + share);
+      });
+    });
+    const themes = [...appMinutes.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([appName, minutes]) => `${appName} (${Math.round(minutes)} min)`);
+
+    const lines = [];
+    const dayLabel = dayStart.toLocaleDateString('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    });
+    lines.push(`Today — ${dayLabel}`);
+
+    if (themes.length) lines.push('', `Where the time went: ${themes.join(', ')}.`);
+
+    if (learning.facts.length) {
+      lines.push('', 'Learned about you:');
+      learning.facts.slice(0, 6).forEach((fact) => lines.push(`• ${fact.factText}`));
+    }
+
+    if (staged.length) {
+      lines.push('', 'Possible commitments, waiting for you:');
+      staged.slice(0, 6).forEach((task) => {
+        lines.push(`• ${task.title}${task.dueHint ? ` (${task.dueHint})` : ''}`);
+      });
+    }
+
+    if (insights.length) {
+      lines.push('', 'Noticed:');
+      insights.slice(0, 4).forEach((entry) => lines.push(`• ${entry.content}`));
+    }
+
+    const unresolved = proposals.filter((proposal) => proposal.state === 'pending');
+    if (unresolved.length) {
+      lines.push('', `${unresolved.length} suggestion${unresolved.length === 1 ? '' : 's'} still unanswered.`);
+    }
+
+    const counts = {
+      sessions: sessions.length,
+      facts: learning.facts.length,
+      staged: staged.length,
+      insights: insights.length,
+      openProposals: unresolved.length,
+    };
+
+    return {
+      body: lines.join('\n'),
+      counts,
+      hasContent: !!(themes.length || learning.facts.length || staged.length || insights.length),
+    };
+  }
+
+  getCoordinatorStatus() {
+    return this.coordinator.getStatus();
   }
 }
 

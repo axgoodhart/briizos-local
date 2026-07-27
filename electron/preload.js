@@ -41,6 +41,22 @@ contextBridge.exposeInMainWorld('briizy', {
   getRecentActivity: (minutes) => invokeBriizy('briizy:recent-activity', minutes),
   explainCurrentWindow: () => invokeBriizy('briizy:explain-current-window'),
   deleteHistory: (scope) => invokeBriizy('briizy:history:delete', scope),
+
+  // Proposals: the only route from a suggestion to a real task, and it always
+  // goes through the user (I6).
+  listProposals: (filters) => invokeBriizy('briizy:proposals:list', filters),
+  decideProposal: (decision) => invokeBriizy('briizy:proposals:decide', decision),
+  getProposalHistory: (proposalId) => invokeBriizy('briizy:proposals:history', proposalId),
+  listStagedTasks: (filters) => invokeBriizy('briizy:staged-tasks:list', filters),
+  // "What briizy learned", and the undo for it (I7).
+  getLearningLog: (filters) => invokeBriizy('briizy:learning-log', filters),
+  forgetFact: (factId) => invokeBriizy('briizy:forget-fact', factId),
+  listGoals: (filters) => invokeBriizy('briizy:goals:list', filters),
+  createGoal: (input) => invokeBriizy('briizy:goals:create', input),
+  updateGoal: (goalId, patch) => invokeBriizy('briizy:goals:update', goalId, patch),
+  archiveGoal: (goalId) => invokeBriizy('briizy:goals:archive', goalId),
+  getDailySummary: (options) => invokeBriizy('briizy:daily-summary', options),
+  getCoordinatorStatus: () => invokeBriizy('briizy:coordinator-status'),
   // Push channel: { type, payload } for status/frame/session/proposal events.
   onEvent: (callback) => {
     const handler = (_event, data) => callback(data);

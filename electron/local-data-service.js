@@ -2989,6 +2989,11 @@ class LocalDataService extends EventEmitter {
 
   _memorySectionDefinitions(agentKey) {
     return [
+      // "About me" is a row in THIS table, not a separate profile store (I1).
+      // briizy proposes additions to it as accept/reject diffs; the user edits it
+      // directly in Settings; it reaches prompts through the existing injection
+      // path, so there is exactly one memory system.
+      ['user.aboutMe', 'About Me'],
       ['user.workContext', 'Work Context'],
       ['user.personalContext', 'Personal Context'],
       ['user.topOfMind', 'Current Focus'],
@@ -3047,6 +3052,7 @@ class LocalDataService extends EventEmitter {
       version: '2.0',
       lastUpdated: updatedAt ? new Date(updatedAt).toISOString() : new Date(0).toISOString(),
       user: {
+        aboutMe: { summary: section('user.aboutMe').body, updatedAt: section('user.aboutMe').updatedAt || '' },
         workContext: { summary: section('user.workContext').body, updatedAt: section('user.workContext').updatedAt || '' },
         personalContext: { summary: section('user.personalContext').body, updatedAt: section('user.personalContext').updatedAt || '' },
         topOfMind: { summary: section('user.topOfMind').body, updatedAt: section('user.topOfMind').updatedAt || '' },
@@ -3066,6 +3072,7 @@ class LocalDataService extends EventEmitter {
     const agentKey = this._memoryAgentKey(agentName);
     const definitions = this._memorySectionDefinitions(agentKey);
     const bodies = {
+      'user.aboutMe': memoryData.user?.aboutMe?.summary || '',
       'user.workContext': memoryData.user?.workContext?.summary || '',
       'user.personalContext': memoryData.user?.personalContext?.summary || '',
       'user.topOfMind': memoryData.user?.topOfMind?.summary || '',
@@ -4527,6 +4534,607 @@ class LocalDataService extends EventEmitter {
         postId,
         row: this._notefallRow(this.db.prepare('SELECT * FROM notefall_posts WHERE id = ?').get(postId)),
       };
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // briizy assistants: extractions, staged tasks, proposals, goals (§10)
+  //
+  // Every row here is a *derived* write, so every row is reversible and carries
+  // provenance back to the frame or session that produced it (I7). Accepting a
+  // proposal creates one pending, non-automated task and performs no work (I6).
+  // ------------------------------------------------------------------
+
+  recordBriizyExtraction(input = {}) {
+    v.object(input, 'extraction', [
+      'assistantId', 'kind', 'content', 'reasoning', 'contextSummary', 'model',
+      'sourceFrameId', 'sourceSessionId',
+    ]);
+    const assistantId = v.string(input.assistantId, 'assistantId', { required: true, max: 100 });
+    const kind = v.oneOf(input.kind, 'kind', ['insight', 'task', 'memory', 'goal', 'focus', 'summary']);
+    const content = v.string(input.content, 'content', { required: true, max: 200000 });
+    const reasoning = v.string(input.reasoning, 'reasoning', { nullable: true, max: 100000 }) ?? null;
+    const contextSummary = v.string(input.contextSummary, 'contextSummary', { nullable: true, max: 100000 }) ?? null;
+    const model = v.string(input.model, 'model', { nullable: true, max: 200 }) ?? null;
+    const sourceFrameId = v.identifier(input.sourceFrameId, 'sourceFrameId', { nullable: true });
+    const sourceSessionId = v.identifier(input.sourceSessionId, 'sourceSessionId', { nullable: true });
+    const extractionId = id();
+
+    return this._write('briizy', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO briizy_extractions (
+          id, assistant_id, kind, content, reasoning, context_summary, model,
+          source_frame_id, source_session_id, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)
+      `).run(extractionId, assistantId, kind, content, reasoning, contextSummary, model,
+        sourceFrameId, sourceSessionId, timestamp);
+      return { row: this._briizyExtractionRow(this._getBriizyExtraction(extractionId)) };
+    });
+  }
+
+  _getBriizyExtraction(extractionId) {
+    return this.db.prepare('SELECT * FROM briizy_extractions WHERE id = ?').get(extractionId);
+  }
+
+  _briizyExtractionRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      assistantId: row.assistant_id,
+      kind: row.kind,
+      content: row.content,
+      reasoning: row.reasoning,
+      contextSummary: row.context_summary,
+      model: row.model,
+      sourceFrameId: row.source_frame_id,
+      sourceSessionId: row.source_session_id,
+      status: row.status,
+      createdAt: row.created_at,
+    };
+  }
+
+  listBriizyExtractions(input = {}) {
+    this._assertReady();
+    v.object(input, 'extraction filters', ['kind', 'assistantId', 'status', 'sessionId', 'from', 'to', 'limit']);
+    const clauses = [];
+    const params = [];
+    if (input.kind !== undefined) {
+      clauses.push('kind = ?');
+      params.push(v.oneOf(input.kind, 'kind', ['insight', 'task', 'memory', 'goal', 'focus', 'summary']));
+    }
+    if (input.assistantId !== undefined) {
+      clauses.push('assistant_id = ?');
+      params.push(v.string(input.assistantId, 'assistantId', { required: true, max: 100 }));
+    }
+    if (input.status !== undefined) {
+      clauses.push('status = ?');
+      params.push(v.oneOf(input.status, 'status', ['new', 'used', 'superseded', 'discarded']));
+    }
+    if (input.sessionId !== undefined) {
+      clauses.push('source_session_id = ?');
+      params.push(v.identifier(input.sessionId, 'sessionId'));
+    }
+    if (input.from !== undefined) {
+      clauses.push('created_at >= ?');
+      params.push(v.integer(input.from, 'from', { min: 0 }));
+    }
+    if (input.to !== undefined) {
+      clauses.push('created_at <= ?');
+      params.push(v.integer(input.to, 'to', { min: 0 }));
+    }
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 1000 });
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    return this.db.prepare(`
+      SELECT * FROM briizy_extractions ${where} ORDER BY created_at DESC LIMIT ?
+    `).all(...params, limit).map((row) => this._briizyExtractionRow(row));
+  }
+
+  setBriizyExtractionStatus(extractionId, status) {
+    extractionId = v.identifier(extractionId, 'extractionId');
+    status = v.oneOf(status, 'status', ['new', 'used', 'superseded', 'discarded']);
+    return this._write('briizy', () => {
+      const changed = this.db.prepare('UPDATE briizy_extractions SET status = ? WHERE id = ?')
+        .run(status, extractionId).changes;
+      if (!changed) v.fail('NOT_FOUND', 'Extraction not found');
+      return { extractionId, status };
+    });
+  }
+
+  createBriizyStagedTask(input = {}) {
+    v.object(input, 'staged task', [
+      'extractionId', 'title', 'detail', 'dueHint', 'confidence', 'sourceFrameId', 'sourceSessionId',
+    ]);
+    const extractionId = v.identifier(input.extractionId, 'extractionId', { nullable: true });
+    const title = v.string(input.title, 'title', { required: true, max: 500 });
+    const detail = v.string(input.detail, 'detail', { nullable: true, max: 20000 }) ?? null;
+    const dueHint = v.string(input.dueHint, 'dueHint', { nullable: true, max: 200 }) ?? null;
+    const confidence = input.confidence === undefined
+      ? 0
+      : v.number(Number(input.confidence), 'confidence', { min: 0, max: 1 });
+    const sourceFrameId = v.identifier(input.sourceFrameId, 'sourceFrameId', { nullable: true });
+    const sourceSessionId = v.identifier(input.sourceSessionId, 'sourceSessionId', { nullable: true });
+    const stagedId = id();
+
+    return this._write('briizy', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO briizy_staged_tasks (
+          id, extraction_id, title, detail, due_hint, confidence, status,
+          source_frame_id, source_session_id, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, 'staged', ?, ?, ?, ?, 1)
+      `).run(stagedId, extractionId, title, detail, dueHint, confidence,
+        sourceFrameId, sourceSessionId, timestamp, timestamp);
+      return { row: this._briizyStagedTaskRow(this._getBriizyStagedTask(stagedId)) };
+    });
+  }
+
+  _getBriizyStagedTask(stagedId) {
+    return this.db.prepare('SELECT * FROM briizy_staged_tasks WHERE id = ?').get(stagedId);
+  }
+
+  _briizyStagedTaskRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      extractionId: row.extraction_id,
+      title: row.title,
+      detail: row.detail,
+      dueHint: row.due_hint,
+      confidence: row.confidence,
+      status: row.status,
+      createdTaskId: row.created_task_id,
+      sourceFrameId: row.source_frame_id,
+      sourceSessionId: row.source_session_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  listBriizyStagedTasks(input = {}) {
+    this._assertReady();
+    v.object(input, 'staged task filters', ['status', 'sessionId', 'limit']);
+    const clauses = ['deleted_at IS NULL'];
+    const params = [];
+    if (input.status !== undefined) {
+      clauses.push('status = ?');
+      params.push(v.oneOf(input.status, 'status', ['staged', 'accepted', 'rejected', 'expired']));
+    }
+    if (input.sessionId !== undefined) {
+      clauses.push('source_session_id = ?');
+      params.push(v.identifier(input.sessionId, 'sessionId'));
+    }
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 1000 });
+    return this.db.prepare(`
+      SELECT * FROM briizy_staged_tasks WHERE ${clauses.join(' AND ')}
+      ORDER BY created_at DESC LIMIT ?
+    `).all(...params, limit).map((row) => this._briizyStagedTaskRow(row));
+  }
+
+  /**
+   * Create a proposal, or return the live one that already says this.
+   * `dedupeKey` is the normalized identity of the thing being proposed, so the
+   * same suggestion cannot reappear while an identical one is still pending.
+   */
+  createBriizyProposal(input = {}) {
+    v.object(input, 'proposal', [
+      'assistantId', 'kind', 'urgency', 'title', 'summary', 'rationale', 'evidence',
+      'dedupeKey', 'extractionId', 'stagedTaskId', 'sourceFrameId', 'sourceSessionId',
+    ]);
+    const assistantId = v.string(input.assistantId, 'assistantId', { required: true, max: 100 });
+    const kind = v.string(input.kind, 'kind', { required: true, max: 100 });
+    const urgency = v.oneOf(input.urgency || 'normal', 'urgency', ['low', 'normal', 'high']);
+    const title = v.string(input.title, 'title', { nullable: true, max: 300 }) ?? null;
+    const summary = v.string(input.summary, 'summary', { required: true, max: 5000 });
+    const rationale = v.string(input.rationale, 'rationale', { nullable: true, max: 10000 }) ?? null;
+    const evidence = input.evidence === undefined ? [] : input.evidence;
+    if (!Array.isArray(evidence) || evidence.length > 50) {
+      v.fail('INVALID_INPUT', 'evidence must be a list of at most 50 items');
+    }
+    const evidenceJson = this._jsonValue(evidence, 'evidence', 200000);
+    const dedupeKey = v.string(input.dedupeKey, 'dedupeKey', { nullable: true, max: 300 }) ?? null;
+    const extractionId = v.identifier(input.extractionId, 'extractionId', { nullable: true });
+    const stagedTaskId = v.identifier(input.stagedTaskId, 'stagedTaskId', { nullable: true });
+    const sourceFrameId = v.identifier(input.sourceFrameId, 'sourceFrameId', { nullable: true });
+    const sourceSessionId = v.identifier(input.sourceSessionId, 'sourceSessionId', { nullable: true });
+
+    this._assertReady();
+    if (dedupeKey) {
+      const existing = this.db.prepare(`
+        SELECT * FROM briizy_proposals
+        WHERE dedupe_key = ? AND state = 'pending' AND deleted_at IS NULL LIMIT 1
+      `).get(dedupeKey);
+      if (existing) {
+        return { duplicate: true, row: this._briizyProposalRow(existing) };
+      }
+    }
+
+    const proposalId = id();
+    return this._write('briizy', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO briizy_proposals (
+          id, assistant_id, kind, urgency, title, summary, rationale, evidence_json,
+          state, dedupe_key, extraction_id, staged_task_id, source_frame_id, source_session_id,
+          created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(proposalId, assistantId, kind, urgency, title, summary, rationale, evidenceJson,
+        dedupeKey, extractionId, stagedTaskId, sourceFrameId, sourceSessionId, timestamp, timestamp);
+      this._appendBriizyProposalEvent(proposalId, null, 'pending', 'briizy', 'proposed', timestamp);
+      return { duplicate: false, row: this._briizyProposalRow(this._getBriizyProposal(proposalId)) };
+    });
+  }
+
+  _getBriizyProposal(proposalId) {
+    return this.db.prepare('SELECT * FROM briizy_proposals WHERE id = ?').get(proposalId);
+  }
+
+  _briizyProposalRow(row) {
+    if (!row) return null;
+    let evidence = [];
+    try {
+      evidence = JSON.parse(row.evidence_json || '[]');
+    } catch { /* keep empty */ }
+    return {
+      id: row.id,
+      assistantId: row.assistant_id,
+      kind: row.kind,
+      urgency: row.urgency,
+      title: row.title,
+      summary: row.summary,
+      rationale: row.rationale,
+      evidence,
+      state: row.state,
+      snoozeUntil: row.snooze_until,
+      createdTaskId: row.created_task_id,
+      extractionId: row.extraction_id,
+      stagedTaskId: row.staged_task_id,
+      sourceFrameId: row.source_frame_id,
+      sourceSessionId: row.source_session_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  _appendBriizyProposalEvent(proposalId, fromState, toState, actor, note, timestamp) {
+    this.db.prepare(`
+      INSERT INTO briizy_proposal_events (proposal_id, from_state, to_state, actor, note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(proposalId, fromState, toState, actor, note || null, timestamp);
+  }
+
+  listBriizyProposals(input = {}) {
+    this._assertReady();
+    v.object(input, 'proposal filters', ['state', 'states', 'assistantId', 'limit', 'includeSnoozed']);
+    const clauses = ['deleted_at IS NULL'];
+    const params = [];
+    const states = input.states !== undefined
+      ? input.states
+      : (input.state !== undefined ? [input.state] : null);
+    if (states) {
+      if (!Array.isArray(states) || !states.length) v.fail('INVALID_INPUT', 'states must be a non-empty list');
+      states.forEach((state) => v.oneOf(state, 'state', ['pending', 'accepted', 'dismissed', 'snoozed', 'expired']));
+      clauses.push(`state IN (${states.map(() => '?').join(', ')})`);
+      params.push(...states);
+    }
+    if (input.assistantId !== undefined) {
+      clauses.push('assistant_id = ?');
+      params.push(v.string(input.assistantId, 'assistantId', { required: true, max: 100 }));
+    }
+    // A snoozed proposal is hidden until its time comes round again.
+    if (input.includeSnoozed !== true) {
+      clauses.push('(state <> \'snoozed\' OR snooze_until IS NULL OR snooze_until <= ?)');
+      params.push(now());
+    }
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 1000 });
+    return this.db.prepare(`
+      SELECT * FROM briizy_proposals WHERE ${clauses.join(' AND ')}
+      ORDER BY CASE urgency WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END, created_at DESC
+      LIMIT ?
+    `).all(...params, limit).map((row) => this._briizyProposalRow(row));
+  }
+
+  listBriizyProposalEvents(proposalId) {
+    this._assertReady();
+    proposalId = v.identifier(proposalId, 'proposalId');
+    return this.db.prepare(`
+      SELECT from_state AS fromState, to_state AS toState, actor, note, created_at AS createdAt
+      FROM briizy_proposal_events WHERE proposal_id = ? ORDER BY created_at, id
+    `).all(proposalId);
+  }
+
+  /**
+   * The proposal state machine (I6).
+   *
+   * Accepting creates exactly ONE task with `status: 'pending'` and
+   * `automated: false`, source-linked to the proposal, and performs no work.
+   *
+   * Note on §10's wording: it points at `acceptCommand`, but that path creates a
+   * command + run — an automation *request*. I6 and §4 assertion 2 require that
+   * accepting cannot trigger an action, so accept goes through createTask here.
+   * `acceptCommand` is Phase 6's business, where automation is explicitly turned
+   * on for a specific plan.
+   */
+  decideBriizyProposal(proposalId, input = {}) {
+    proposalId = v.identifier(proposalId, 'proposalId');
+    v.object(input, 'decision', ['verdict', 'note', 'snoozeMinutes', 'actor']);
+    const verdict = v.oneOf(input.verdict, 'verdict', ['accept', 'dismiss', 'snooze', 'expire']);
+    const note = v.string(input.note, 'note', { nullable: true, max: 2000 }) ?? null;
+    const actor = v.oneOf(input.actor || 'user', 'actor', ['user', 'briizy', 'system']);
+    const snoozeMinutes = input.snoozeMinutes === undefined
+      ? 60
+      : v.integer(input.snoozeMinutes, 'snoozeMinutes', { min: 1, max: 60 * 24 * 30 });
+
+    // 'tasks' is a continuity domain, so an accepted task syncs like any other.
+    // The proposal's evidence — frame and session ids — stays in the local-only
+    // briizy tables and is deliberately not copied onto the task (I9).
+    const domains = verdict === 'accept' ? ['briizy', 'tasks'] : ['briizy'];
+
+    return this._writeDomains(domains, (timestamp) => {
+      const current = this._getBriizyProposal(proposalId);
+      if (!current) v.fail('NOT_FOUND', 'Proposal not found');
+      if (current.deleted_at != null) v.fail('DELETED', 'Proposal is archived');
+
+      const terminal = ['accepted', 'dismissed', 'expired'];
+      if (terminal.includes(current.state)) {
+        v.fail('INVALID_STATE', `Proposal is already ${current.state}`);
+      }
+
+      const nextState = {
+        accept: 'accepted', dismiss: 'dismissed', snooze: 'snoozed', expire: 'expired',
+      }[verdict];
+
+      let createdTaskId = current.created_task_id;
+      if (verdict === 'accept') {
+        if (createdTaskId) v.fail('INVALID_STATE', 'This proposal already created a task');
+        const taskId = id();
+        // source_key has a unique index over active rows, so a double-accept
+        // cannot produce two tasks even if two callers race.
+        const sourceKey = `briizy:proposal:${proposalId}`;
+        const description = [current.summary, current.rationale]
+          .filter(Boolean).join('\n\n').slice(0, 50000);
+        this.db.prepare(`
+          INSERT INTO tasks (
+            id, title, description, status, priority, automated, source_key,
+            created_at, updated_at, revision
+          ) VALUES (?, ?, ?, 'pending', ?, 0, ?, ?, ?, 1)
+        `).run(
+          taskId,
+          (current.title || current.summary).slice(0, 500),
+          description,
+          current.urgency === 'high' ? 'high' : 'normal',
+          sourceKey,
+          timestamp,
+          timestamp,
+        );
+        createdTaskId = taskId;
+
+        if (current.staged_task_id) {
+          this.db.prepare(`
+            UPDATE briizy_staged_tasks
+            SET status = 'accepted', created_task_id = ?, updated_at = ?, revision = revision + 1
+            WHERE id = ?
+          `).run(taskId, timestamp, current.staged_task_id);
+        }
+      }
+
+      if (verdict === 'dismiss' && current.staged_task_id) {
+        this.db.prepare(`
+          UPDATE briizy_staged_tasks SET status = 'rejected', updated_at = ?, revision = revision + 1
+          WHERE id = ?
+        `).run(timestamp, current.staged_task_id);
+      }
+
+      this.db.prepare(`
+        UPDATE briizy_proposals
+        SET state = ?, snooze_until = ?, created_task_id = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(
+        nextState,
+        verdict === 'snooze' ? timestamp + snoozeMinutes * 60 * 1000 : null,
+        createdTaskId,
+        timestamp,
+        proposalId,
+      );
+      this._appendBriizyProposalEvent(proposalId, current.state, nextState, actor, note, timestamp);
+
+      this.logger?.info?.('briizy', `Proposal ${nextState}`, {
+        proposalId,
+        kind: current.kind,
+        assistantId: current.assistant_id,
+        createdTaskId,
+        actor,
+      });
+
+      return {
+        row: this._briizyProposalRow(this._getBriizyProposal(proposalId)),
+        task: createdTaskId
+          ? toBooleanRow(this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(createdTaskId), ['automated'])
+          : null,
+      };
+    });
+  }
+
+  /** Retire proposals nobody acted on, so the inbox does not grow forever. */
+  expireBriizyProposals(olderThanMs = 7 * 24 * 60 * 60 * 1000) {
+    const cutoffAge = v.integer(olderThanMs, 'olderThanMs', { min: 60 * 1000 });
+    return this._write('briizy', (timestamp) => {
+      const stale = this.db.prepare(`
+        SELECT id, state FROM briizy_proposals
+        WHERE deleted_at IS NULL AND state IN ('pending', 'snoozed') AND created_at < ?
+      `).all(timestamp - cutoffAge);
+      stale.forEach((row) => {
+        this.db.prepare(`
+          UPDATE briizy_proposals SET state = 'expired', updated_at = ?, revision = revision + 1 WHERE id = ?
+        `).run(timestamp, row.id);
+        this._appendBriizyProposalEvent(row.id, row.state, 'expired', 'system', 'aged out', timestamp);
+      });
+      return { expired: stale.length };
+    });
+  }
+
+  /**
+   * A durable fact learned from the screen. Goes into the EXISTING memory_facts
+   * table with provenance (I1, I7) — there is no second memory. Near-duplicates
+   * are folded into the existing fact rather than piling up.
+   */
+  addBriizyMemoryFact(input = {}) {
+    v.object(input, 'memory fact', [
+      'factText', 'sectionKey', 'confidence', 'sourceFrameId', 'sourceSessionId', 'extractionId', 'agentName',
+    ]);
+    const factText = v.string(input.factText, 'factText', { required: true, max: 5000 });
+    const confidence = input.confidence === undefined
+      ? null
+      : v.number(Number(input.confidence), 'confidence', { min: 0, max: 1 });
+    const sourceFrameId = v.identifier(input.sourceFrameId, 'sourceFrameId', { nullable: true });
+    const sourceSessionId = v.identifier(input.sourceSessionId, 'sourceSessionId', { nullable: true });
+    const extractionId = v.identifier(input.extractionId, 'extractionId', { nullable: true });
+    const agentKey = this._memoryAgentKey(input.agentName || null);
+    const sectionKey = input.sectionKey === undefined ? 'user.workContext' : input.sectionKey;
+    const definition = this._memorySectionDefinitions(agentKey)
+      .find((item) => item.profileKey === sectionKey);
+    if (!definition) v.fail('INVALID_INPUT', 'Unsupported memory section');
+
+    this._assertReady();
+    const normalized = factText.trim().toLowerCase().replace(/\s+/g, ' ');
+    const existing = this.db.prepare(`
+      SELECT id, fact_text FROM memory_facts WHERE agent_key = ? AND deleted_at IS NULL
+    `).all(agentKey).find((row) => row.fact_text.trim().toLowerCase().replace(/\s+/g, ' ') === normalized);
+    if (existing) {
+      return { duplicate: true, factId: existing.id };
+    }
+
+    const factId = id();
+    return this._write('memory', (timestamp) => {
+      const sectionId = this.db.prepare('SELECT id FROM memory_sections WHERE key = ?')
+        .get(definition.key)?.id || null;
+      this.db.prepare(`
+        INSERT INTO memory_facts (
+          id, section_id, fact_text, created_at, updated_at, revision,
+          agent_key, category, confidence,
+          origin, source_frame_id, source_session_id, extraction_id
+        ) VALUES (?, ?, ?, ?, ?, 1, ?, 'context', ?, 'screen', ?, ?, ?)
+      `).run(factId, sectionId, factText, timestamp, timestamp,
+        agentKey, confidence == null ? 1 : confidence,
+        sourceFrameId, sourceSessionId, extractionId);
+      this.logger?.info?.('briizy', 'Memory fact learned from the screen', {
+        factId, sectionKey, confidence, sourceSessionId,
+      });
+      return { duplicate: false, factId };
+    });
+  }
+
+  /**
+   * "What briizy learned" (I7): every derived write with its provenance, so the
+   * user can see, edit, or undo any of it.
+   */
+  getBriizyLearningLog(input = {}) {
+    this._assertReady();
+    v.object(input, 'learning log filters', ['from', 'to', 'limit']);
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 1000 });
+    const from = input.from === undefined ? 0 : v.integer(input.from, 'from', { min: 0 });
+    const to = input.to === undefined ? now() : v.integer(input.to, 'to', { min: 0 });
+
+    const facts = this.db.prepare(`
+      SELECT id, fact_text AS factText, origin, confidence, source_frame_id AS sourceFrameId,
+        source_session_id AS sourceSessionId, extraction_id AS extractionId, created_at AS createdAt
+      FROM memory_facts
+      WHERE deleted_at IS NULL AND origin = 'screen' AND created_at BETWEEN ? AND ?
+      ORDER BY created_at DESC LIMIT ?
+    `).all(from, to, limit);
+
+    const proposals = this.listBriizyProposals({ limit }).filter(
+      (proposal) => proposal.createdAt >= from && proposal.createdAt <= to,
+    );
+    const extractions = this.listBriizyExtractions({ from, to, limit });
+
+    return { facts, proposals, extractions };
+  }
+
+  createBriizyGoal(input = {}) {
+    v.object(input, 'goal', ['title', 'detail', 'targetAt', 'status']);
+    const title = v.string(input.title, 'title', { required: true, max: 300 });
+    const detail = v.string(input.detail, 'detail', { nullable: true, max: 20000 }) ?? null;
+    const targetAt = v.integer(input.targetAt ?? null, 'targetAt', { nullable: true, min: 0 });
+    const status = v.oneOf(input.status || 'active', 'status', ['active', 'paused', 'achieved', 'abandoned']);
+    const goalId = id();
+    return this._write('briizy', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO briizy_goals (id, title, detail, status, target_at, created_at, updated_at, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(goalId, title, detail, status, targetAt, timestamp, timestamp);
+      return { row: this._briizyGoalRow(this.db.prepare('SELECT * FROM briizy_goals WHERE id = ?').get(goalId)) };
+    });
+  }
+
+  _briizyGoalRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      title: row.title,
+      detail: row.detail,
+      status: row.status,
+      targetAt: row.target_at,
+      lastEvaluatedAt: row.last_evaluated_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      revision: row.revision,
+    };
+  }
+
+  listBriizyGoals(input = {}) {
+    this._assertReady();
+    v.object(input, 'goal filters', ['status', 'limit']);
+    const clauses = ['deleted_at IS NULL'];
+    const params = [];
+    if (input.status !== undefined) {
+      clauses.push('status = ?');
+      params.push(v.oneOf(input.status, 'status', ['active', 'paused', 'achieved', 'abandoned']));
+    }
+    const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 500 });
+    return this.db.prepare(`
+      SELECT * FROM briizy_goals WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC LIMIT ?
+    `).all(...params, limit).map((row) => this._briizyGoalRow(row));
+  }
+
+  updateBriizyGoal(goalId, patch = {}) {
+    goalId = v.identifier(goalId, 'goalId');
+    v.object(patch, 'goal changes', ['title', 'detail', 'status', 'targetAt', 'lastEvaluatedAt']);
+    return this._write('briizy', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM briizy_goals WHERE id = ? AND deleted_at IS NULL').get(goalId);
+      if (!current) v.fail('NOT_FOUND', 'Goal not found');
+      const title = patch.title === undefined
+        ? current.title
+        : v.string(patch.title, 'title', { required: true, max: 300 });
+      const detail = patch.detail === undefined
+        ? current.detail
+        : (v.string(patch.detail, 'detail', { nullable: true, max: 20000 }) ?? null);
+      const status = patch.status === undefined
+        ? current.status
+        : v.oneOf(patch.status, 'status', ['active', 'paused', 'achieved', 'abandoned']);
+      const targetAt = patch.targetAt === undefined
+        ? current.target_at
+        : v.integer(patch.targetAt ?? null, 'targetAt', { nullable: true, min: 0 });
+      const lastEvaluatedAt = patch.lastEvaluatedAt === undefined
+        ? current.last_evaluated_at
+        : v.integer(patch.lastEvaluatedAt ?? null, 'lastEvaluatedAt', { nullable: true, min: 0 });
+      this.db.prepare(`
+        UPDATE briizy_goals SET title = ?, detail = ?, status = ?, target_at = ?, last_evaluated_at = ?,
+          updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(title, detail, status, targetAt, lastEvaluatedAt, timestamp, goalId);
+      return { row: this._briizyGoalRow(this.db.prepare('SELECT * FROM briizy_goals WHERE id = ?').get(goalId)) };
+    });
+  }
+
+  archiveBriizyGoal(goalId) {
+    goalId = v.identifier(goalId, 'goalId');
+    return this._write('briizy', (timestamp) => {
+      const changed = this.db.prepare(`
+        UPDATE briizy_goals SET deleted_at = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ? AND deleted_at IS NULL
+      `).run(timestamp, timestamp, goalId).changes;
+      if (!changed) v.fail('NOT_FOUND', 'Goal not found');
+      return { ok: true };
     });
   }
 

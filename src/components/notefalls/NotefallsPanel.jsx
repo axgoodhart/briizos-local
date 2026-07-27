@@ -288,6 +288,263 @@ function renderSnippet(snippet) {
   ));
 }
 
+/* ── Proposal inbox ───────────────────────────────────────────────────
+   A quiet inbox at the top of the feed (§10). Deliberately understated: this is
+   the surface that decides whether briizy feels helpful or naggy. Accepting says
+   plainly what it does — a pending task and nothing else (I6). */
+
+function ProposalInbox({ proposals, busy, onDecide }) {
+  const [expandedId, setExpandedId] = useState(null);
+  if (!proposals.length) return null;
+
+  return (
+    <div className="nf-inbox">
+      <div className="nf-inbox__head">
+        <span className="nf-matches__label">briizy noticed</span>
+        <span className="nf-inbox__count">
+          {proposals.length} suggestion{proposals.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      {proposals.slice(0, 6).map((proposal) => (
+        <div
+          className={'nf-inbox__item is-' + proposal.urgency + (expandedId === proposal.id ? ' is-open' : '')}
+          key={proposal.id}
+        >
+          <div className="nf-inbox__text">
+            {proposal.title && <span className="nf-inbox__title">{proposal.title}</span>}
+            <span className="nf-inbox__summary">{proposal.summary}</span>
+            {expandedId === proposal.id && proposal.rationale && (
+              <span className="nf-inbox__why">{proposal.rationale}</span>
+            )}
+          </div>
+          <div className="nf-inbox__actions">
+            {proposal.rationale && (
+              <button
+                type="button"
+                className="nf-capture__btn"
+                onClick={() => setExpandedId((id) => (id === proposal.id ? null : proposal.id))}
+              >
+                {expandedId === proposal.id ? 'less' : 'why'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="nf-capture__btn is-accept"
+              disabled={busy}
+              onClick={() => onDecide(proposal.id, 'accept')}
+              title="Adds a pending task. Nothing runs on its own."
+            >
+              {proposal.kind === 'memory' ? 'remember' : 'add as task'}
+            </button>
+            <button
+              type="button"
+              className="nf-capture__btn"
+              disabled={busy}
+              onClick={() => onDecide(proposal.id, 'snooze', { snoozeMinutes: 120 })}
+            >
+              later
+            </button>
+            <button
+              type="button"
+              className="nf-capture__btn"
+              disabled={busy}
+              onClick={() => onDecide(proposal.id, 'dismiss')}
+            >
+              no
+            </button>
+          </div>
+        </div>
+      ))}
+      {proposals.length > 6 && (
+        <span className="nf-matches__more">+{proposals.length - 6} more waiting</span>
+      )}
+    </div>
+  );
+}
+
+/* ── Assistant settings + "what briizy learned" ─────────────────────── */
+
+const ASSISTANT_LABELS = {
+  insight: 'Insights',
+  taskExtraction: 'Commitments',
+  memoryExtraction: 'Memory',
+  goals: 'Goals',
+  focus: 'Focus',
+  taskAgent: 'Task agent',
+};
+
+const ASSISTANT_BLURBS = {
+  insight: 'Occasionally points out a blocker or contradiction it can see on screen.',
+  taskExtraction: 'Spots things you have committed to and stages them for review.',
+  memoryExtraction: 'Remembers durable facts about you, so chat knows what the desktop saw.',
+  goals: 'Checks recent work against your active goals.',
+  focus: 'Notices when you have drifted off the goal you set.',
+  taskAgent: 'Turns an accepted suggestion into a plan with steps.',
+};
+
+function AssistantSettings({ capture }) {
+  const { config, defaults, busy, updateAssistant, updateConfig } = capture;
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState('');
+  if (!config) return null;
+
+  const defaultPrompt = (id) => defaults?.assistantPrompts?.[id] || '';
+  const shipped = new Set(['insight', 'taskExtraction', 'memoryExtraction']);
+
+  return (
+    <div className="nf-capture__assistants">
+      <span className="nf-drawer__label">what briizy does with what it sees</span>
+
+      <label className="nf-capture__consent">
+        <input
+          type="checkbox"
+          checked={config.cloudTextAnalysisAllowed}
+          disabled={busy}
+          onChange={(e) => updateConfig({ cloudTextAnalysisAllowed: e.currentTarget.checked })}
+        />
+        <span>
+          Let briizy send recognized <strong>text</strong> to your configured model to analyse.
+          Images never leave your Mac. With this off, capture and search still work and the
+          assistants below stay idle.
+        </span>
+      </label>
+
+      {Object.entries(config.assistants).map(([id, assistant]) => (
+        <div className={'nf-capture__assistant' + (shipped.has(id) ? '' : ' is-soon')} key={id}>
+          <div className="nf-capture__assistant-head">
+            <label className="nf-capture__assistant-toggle">
+              <input
+                type="checkbox"
+                checked={assistant.enabled}
+                disabled={busy || !shipped.has(id) || !config.cloudTextAnalysisAllowed}
+                onChange={(e) => updateAssistant(id, { enabled: e.currentTarget.checked })}
+              />
+              <span className="nf-capture__assistant-name">{ASSISTANT_LABELS[id] || id}</span>
+            </label>
+            {!shipped.has(id) && <span className="nf-capture__soon">not built yet</span>}
+            {shipped.has(id) && (
+              <>
+                <select
+                  value={assistant.intervalMs}
+                  disabled={busy || !assistant.enabled}
+                  onChange={(e) => updateAssistant(id, { intervalMs: Number(e.currentTarget.value) })}
+                >
+                  <option value={5 * 60000}>at most every 5 min</option>
+                  <option value={10 * 60000}>at most every 10 min</option>
+                  <option value={15 * 60000}>at most every 15 min</option>
+                  <option value={30 * 60000}>at most every 30 min</option>
+                  <option value={60 * 60000}>at most hourly</option>
+                </select>
+                <button
+                  type="button"
+                  className="nf-capture__btn"
+                  onClick={() => {
+                    setEditing((current) => (current === id ? null : id));
+                    setDraft(assistant.prompt || defaultPrompt(id));
+                  }}
+                >
+                  {editing === id ? 'close' : 'prompt'}
+                </button>
+              </>
+            )}
+          </div>
+          <p className="nf-capture__hint">{ASSISTANT_BLURBS[id]}</p>
+
+          {editing === id && (
+            <div className="nf-capture__prompt">
+              <textarea
+                value={draft}
+                rows={10}
+                onInput={(e) => setDraft(e.currentTarget.value)}
+                spellCheck={false}
+              />
+              <div className="nf-capture__actions">
+                <button
+                  type="button"
+                  className="nf-capture__btn is-accept"
+                  disabled={busy}
+                  onClick={async () => {
+                    await updateAssistant(id, { prompt: draft });
+                    setEditing(null);
+                  }}
+                >
+                  save prompt
+                </button>
+                <button
+                  type="button"
+                  className="nf-capture__btn"
+                  disabled={busy}
+                  onClick={() => setDraft(defaultPrompt(id))}
+                >
+                  reset to default
+                </button>
+                {assistant.prompt && (
+                  <button
+                    type="button"
+                    className="nf-capture__btn"
+                    disabled={busy}
+                    onClick={async () => {
+                      await updateAssistant(id, { prompt: null });
+                      setEditing(null);
+                    }}
+                  >
+                    use the default
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** I7 made visible: what briizy wrote, where it came from, and how to undo it. */
+function LearningLog() {
+  const [log, setLog] = useState(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    briizyApi.getLearningLog({ limit: 50 }).then(setLog);
+  }, [open]);
+
+  const forget = async (factId) => {
+    await briizyApi.forgetFact(factId);
+    logger.info('briizy', 'Fact forgotten', { factId });
+    setLog(await briizyApi.getLearningLog({ limit: 50 }));
+  };
+
+  return (
+    <div className="nf-capture__learning">
+      <button type="button" className="nf-capture__btn" onClick={() => setOpen((v) => !v)}>
+        {open ? 'hide what briizy learned' : 'what briizy learned'}
+      </button>
+      {open && (
+        <div className="nf-capture__learning-body">
+          {!log && <p className="nf-capture__hint">loading…</p>}
+          {log && !log.facts.length && (
+            <p className="nf-capture__hint">Nothing learned from your screen yet.</p>
+          )}
+          {log?.facts.map((fact) => (
+            <div className="nf-capture__fact" key={fact.id}>
+              <span className="nf-capture__fact-text">{fact.factText}</span>
+              <span className="nf-capture__fact-meta">
+                {new Date(fact.createdAt).toLocaleString('en-GB')}
+                {fact.confidence != null ? ` · confidence ${Math.round(fact.confidence * 100)}%` : ''}
+              </span>
+              <button type="button" className="nf-capture__btn is-danger" onClick={() => forget(fact.id)}>
+                forget
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Capture settings sheet (the drawer tab at the top of the drawer) ── */
 
 function CaptureSettings({ capture, onClose }) {
@@ -434,6 +691,9 @@ function CaptureSettings({ capture, onClose }) {
           )}
         </div>
       )}
+
+      <AssistantSettings capture={capture} />
+      <LearningLog />
 
       <div className="nf-capture__danger">
         {confirmingClear ? (
@@ -976,6 +1236,12 @@ export function NotefallsPanel() {
           <div className="nf-main">
             <div className="nf-feed" ref={feedRef} onScroll={onFeedScroll}>
               <Composer onPost={handlePost} capture={capture} />
+
+              <ProposalInbox
+                proposals={capture.proposals}
+                busy={capture.busy}
+                onDecide={capture.decideProposal}
+              />
 
               <SearchBar
                 value={query}

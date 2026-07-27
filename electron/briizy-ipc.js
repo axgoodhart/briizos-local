@@ -25,6 +25,18 @@ const CHANNELS = Object.freeze({
   recentActivity: 'briizy:recent-activity',
   explain: 'briizy:explain-current-window',
   historyDelete: 'briizy:history:delete',
+  proposalsList: 'briizy:proposals:list',
+  proposalDecide: 'briizy:proposals:decide',
+  proposalHistory: 'briizy:proposals:history',
+  stagedTasksList: 'briizy:staged-tasks:list',
+  learningLog: 'briizy:learning-log',
+  forgetFact: 'briizy:forget-fact',
+  goalsList: 'briizy:goals:list',
+  goalCreate: 'briizy:goals:create',
+  goalUpdate: 'briizy:goals:update',
+  goalArchive: 'briizy:goals:archive',
+  dailySummary: 'briizy:daily-summary',
+  coordinatorStatus: 'briizy:coordinator-status',
   event: 'briizy:event',
 });
 
@@ -41,6 +53,8 @@ const FORWARDED_EVENTS = Object.freeze([
   'resumed',
   'suggestion',
   'proposal',
+  'proposal-decided',
+  'daily-summary',
 ]);
 
 function serializeError(error) {
@@ -74,6 +88,23 @@ function registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger }) {
     [CHANNELS.recentActivity, (minutes) => briizy.getRecentActivity(Number(minutes) || 30)],
     [CHANNELS.explain, () => briizy.explainCurrentWindow()],
     [CHANNELS.historyDelete, (scope) => briizy.deleteHistory(scope || {})],
+    [CHANNELS.proposalsList, (filters) => briizy.listProposals(filters || {})],
+    [CHANNELS.proposalDecide, (decision) => briizy.decideProposal(decision || {})],
+    [CHANNELS.proposalHistory, (proposalId) => briizy.getProposalHistory(proposalId)],
+    [CHANNELS.stagedTasksList, (filters) => briizy.listStagedTasks(filters || {})],
+    [CHANNELS.learningLog, (filters) => briizy.getLearningLog(filters || {})],
+    [CHANNELS.forgetFact, (factId) => briizy.forgetFact(factId)],
+    [CHANNELS.goalsList, (filters) => briizy.service.listBriizyGoals(filters || {})],
+    [CHANNELS.goalCreate, (input) => briizy.service.createBriizyGoal(input || {})],
+    [CHANNELS.goalUpdate, (goalId, patch) => briizy.service.updateBriizyGoal(goalId, patch || {})],
+    [CHANNELS.goalArchive, (goalId) => briizy.service.archiveBriizyGoal(goalId)],
+    // Preview or force today's summary from Settings, without waiting for 18:00.
+    [CHANNELS.dailySummary, (options) => (
+      options?.post === true
+        ? briizy._maybePostDailySummary({ force: true })
+        : briizy.buildDailySummary()
+    )],
+    [CHANNELS.coordinatorStatus, () => briizy.getCoordinatorStatus()],
   ];
 
   for (const [channel, operation] of registrations) {
