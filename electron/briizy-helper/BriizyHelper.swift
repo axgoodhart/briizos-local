@@ -163,58 +163,75 @@ func accessibilityWindow(pid: pid_t) -> (title: String?, windowId: CGWindowID?, 
   return (title, idResult == .success && windowId != 0 ? windowId : nil, bounds)
 }
 
-/// Resolve the frontmost app plus its focused window. Accessibility first (most
-/// accurate), then the frontmost-largest-window heuristic from the window list
-/// (omi ScreenCaptureService.swift:483–550).
+/// Resolve the window the user is visually working in: the frontmost NORMAL
+/// window (layer 0) in stacking order.
+///
+/// `frontmostApplication` (app activation) is deliberately NOT the primary
+/// signal, because activation lies in two ways that matter here:
+///   - Reading and wheel-scrolling never re-activate an app on macOS, so the
+///     last-clicked app stays "active" through minutes of work elsewhere.
+///   - briizy's own invisible always-on-top overlay activates briizOS when the
+///     avatar is clicked, poisoning activation entirely (observed 2026-07-27:
+///     capture reported "briizOS own window" all day while the user read
+///     Chrome, and the Dock — briefly "active" per click — was the only thing
+///     ever photographed).
+/// The Dock, the menu bar, and briizy's overlay all live on layers above 0, so
+/// under this resolution they structurally cannot be the answer.
 func resolveActiveWindow() -> ActiveWindow {
-  guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-    return ActiveWindow(appName: nil, bundleId: nil, windowTitle: nil, windowId: nil, bounds: nil,
-                        titleFromAccessibility: false)
-  }
-
-  let appName = frontApp.localizedName
-  let bundleId = frontApp.bundleIdentifier
-  let pid = frontApp.processIdentifier
-
-  if let ax = accessibilityWindow(pid: pid), ax.windowId != nil || ax.title != nil {
-    return ActiveWindow(appName: appName, bundleId: bundleId, windowTitle: ax.title,
-                        windowId: ax.windowId, bounds: ax.bounds, titleFromAccessibility: true)
-  }
+  let frontApp = NSWorkspace.shared.frontmostApplication
 
   guard
     let windowList = CGWindowListCopyWindowInfo(
       [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
   else {
-    return ActiveWindow(appName: appName, bundleId: bundleId, windowTitle: nil, windowId: nil,
-                        bounds: nil, titleFromAccessibility: false)
+    // No window list at all — activation identity is the only signal left.
+    return ActiveWindow(appName: frontApp?.localizedName, bundleId: frontApp?.bundleIdentifier,
+                        windowTitle: nil, windowId: nil, bounds: nil,
+                        titleFromAccessibility: false)
   }
 
-  var candidates: [(title: String?, windowId: CGWindowID, area: CGFloat, bounds: CGRect)] = []
+  // The list is front-to-back; the first layer-0 window of real size that is
+  // not invisible is what the user sees on top.
+  var top: (pid: Int32, windowId: CGWindowID, title: String?, bounds: CGRect)?
   for window in windowList {
-    guard let ownerPid = window[kCGWindowOwnerPID as String] as? Int32, ownerPid == pid,
+    guard let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
+      let ownerPid = window[kCGWindowOwnerPID as String] as? Int32,
+      let windowNumber = window[kCGWindowNumber as String] as? CGWindowID,
       let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
       let x = boundsDict["X"], let y = boundsDict["Y"],
       let width = boundsDict["Width"], let height = boundsDict["Height"],
-      width > 100, height > 100,
-      let windowNumber = window[kCGWindowNumber as String] as? CGWindowID
+      width > 100, height > 100
     else { continue }
-    candidates.append((
-      title: window[kCGWindowName as String] as? String,
-      windowId: windowNumber,
-      area: width * height,
-      bounds: CGRect(x: x, y: y, width: width, height: height)
-    ))
+    if let alpha = window[kCGWindowAlpha as String] as? CGFloat, alpha < 0.05 { continue }
+    top = (ownerPid, windowNumber,
+           window[kCGWindowName as String] as? String,
+           CGRect(x: x, y: y, width: width, height: height))
+    break
   }
 
-  guard let maxArea = candidates.map(\.area).max(),
-    let frontmost = candidates.first(where: { $0.area == maxArea })
-  else {
-    return ActiveWindow(appName: appName, bundleId: bundleId, windowTitle: nil, windowId: nil,
-                        bounds: nil, titleFromAccessibility: false)
+  guard let topWindow = top else {
+    // Bare desktop — nothing capturable. Name the active app for the log, but
+    // return no window id so no capture is attempted.
+    return ActiveWindow(appName: frontApp?.localizedName, bundleId: frontApp?.bundleIdentifier,
+                        windowTitle: nil, windowId: nil, bounds: nil,
+                        titleFromAccessibility: false)
   }
 
-  return ActiveWindow(appName: appName, bundleId: bundleId, windowTitle: frontmost.title,
-                      windowId: frontmost.windowId, bounds: frontmost.bounds,
+  let owner = NSRunningApplication(processIdentifier: topWindow.pid)
+  let appName = owner?.localizedName
+  let bundleId = owner?.bundleIdentifier
+
+  // When the top normal window belongs to the app that is also active,
+  // Accessibility gives richer titles and tracks the focused window within it.
+  if let frontApp, frontApp.processIdentifier == topWindow.pid,
+     let ax = accessibilityWindow(pid: topWindow.pid), ax.windowId != nil || ax.title != nil {
+    return ActiveWindow(appName: appName, bundleId: bundleId, windowTitle: ax.title ?? topWindow.title,
+                        windowId: ax.windowId ?? topWindow.windowId,
+                        bounds: ax.bounds ?? topWindow.bounds, titleFromAccessibility: true)
+  }
+
+  return ActiveWindow(appName: appName, bundleId: bundleId, windowTitle: topWindow.title,
+                      windowId: topWindow.windowId, bounds: topWindow.bounds,
                       titleFromAccessibility: false)
 }
 
