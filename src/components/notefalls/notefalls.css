@@ -164,7 +164,7 @@
 .nf-composer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ui-chat-input-bg);
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -293,7 +293,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(180deg, #5b9dff, #3b6fe0);
+  background: var(--ui-chat-header-bg, linear-gradient(180deg, #5b9dff, #3b6fe0));
   cursor: pointer;
   transition: opacity 0.12s ease, transform 0.08s ease;
 }
@@ -317,7 +317,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
-  padding: 14px 22px;
+  padding: 5px 12px;
   color: rgba(255, 255, 255, 0.9);
   text-align: left;
   cursor: pointer;
@@ -429,7 +429,7 @@
   flex-direction: column;
   align-items: center;
   pointer-events: none;
-  backdrop-filter:blur(10px);
+  backdrop-filter:blur(20px);
 }
 
 .nf-drawer__tab {
@@ -450,9 +450,9 @@
 .nf-drawer__body {
   pointer-events: auto;
   width: 100%;
-  max-height: 46vh;
+  max-height: 76vh;
   overflow-y: auto;
-  background: linear-gradient(180deg, rgba(75, 139, 255, 0.12), rgba(10, 14, 26, 0.96));
+  background:var(--ui-modal-bg);
   border: 1px solid rgba(75, 139, 255, 0.35);
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
@@ -592,7 +592,6 @@
   margin-bottom: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
 }
 
 .nf-search__icon {
@@ -802,10 +801,15 @@
 /* Filmstrip ---------------------------------------------------------- */
 
 .nf-filmstrip {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
+      display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        border: 1.5px solid var(--layout-accent-cyan-glow);
+        border-radius: 4px;
+        background: black;
+        align-items: center;
+        padding: 8px 2px;
+        gap: 12px;
 }
 
 .nf-filmstrip__cell {

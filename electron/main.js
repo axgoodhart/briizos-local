@@ -147,14 +147,23 @@ function createWindow() {
   }
   const { Menu } = require('electron');
 
-  mainWindow.webContents.on('context-menu', (event, params) => {
+
+  mainWindow.webContents.on('context-menu', (_event, params) => {
     const menu = Menu.buildFromTemplate([
       { role: 'copy' },
       { role: 'paste' },
-      { role: 'selectAll' }
+      { role: 'selectAll' },
+      { type: 'separator' },
+      {
+        label: 'Inspect Element',
+        click: () => {
+          mainWindow.webContents.inspectElement(params.x, params.y);
+        }
+      }
     ]);
     menu.popup();
   });
+  
   // In development, skip CSP header injection to avoid blocking local auth/network debugging.
   if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {

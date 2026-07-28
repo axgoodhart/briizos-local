@@ -2106,6 +2106,7 @@ border-right:none;
     background: var(--ui-modal-tab-hover-bg);}
 .modal-tab.active {
     color: var(--ui-modal-tab-active-text);
+    -webkit-text-stroke:.5px var(--ui-modal-tab-active-text);
     border-bottom-color: var(--ui-modal-tab-active-text);
     background: var(--ui-modal-tab-active-bg);}
 .modal-content {
@@ -7511,9 +7512,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(0, 30, 50, 0.3);
   --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(0, 200, 200, 0.1);
   --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(0, 200, 200, 0.2);
-  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0,0,0,0.2);
-
-}
+  --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0,0,0,0.2);}
 
   :root[data-theme='sherbert-sakura'] {
     --ui-app-border-radius:10px;
@@ -8697,8 +8696,8 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --chat-input-text-color: #ffab86;
         --palette-accent-briizlogo: rgb(221, 197, 183);
         --palette-accent-primary: #bbbf92;
-        --palette-accent-primary-soft: #b59596;
-        --palette-neon-accent: #f8b78f;
+        --palette-accent-primary-soft: #ef8dbd;
+        --palette-neon-accent: white;;
         --palette-success: #ce7e6e;
         --palette-warning: #fdb2b5;
         --palette-danger: #b670a4;
@@ -8707,7 +8706,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --palette-text-soft: #ac99a1;
         --palette-text-subtle: #88818f;
         --palette-text-muted: #636271;
-        --palette-text-dim: #4a555e;
+        --palette-text-dim: rgba(255,255,255,.8);
         --palette-white: #eadbdc;
         --ui-body-bg: #081012;
         --ui-app-bg: #081012;
@@ -9001,7 +9000,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --ui-corner-shape: scoop;
         --ui-border-radius: 4px;
         --chat-input-border-color: lightgreen;;
-        --ui-font-main: Quiverleaf CF;
+        --ui-font-main: Quiverleaf CF Bold;
         --glass-bg-light: linear-gradient(to bottom, rgba(255, 233, 173, 0.05), rgba(255, 233, 173, 0.01) 50%, rgba(177, 110, 191, 0.1) 100%);
         --holo-blue: #e3f1ae;
         --text-primary: #ffe4d5;
@@ -9027,7 +9026,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --ui-app-shadow: 0 0 50px rgba(53, 53, 51, 0.9), inset 0 0 20px rgba(161, 48, 101, 0.15);
         --ui-text-primary: #d9f6bd;
         --ui-header-text: lightgray;
-        --ui-header-bg: linear-gradient(90deg, #353735 0%, #393633 50%, #353735 100%);
+        --ui-header-bg: linear-gradient(90deg, rgba(80, 70, 100), rgb(50, 10, 40)50%, rgba(10, 0, 30) 100%);
         --ui-title-icon: #e3f1ae;
         --ui-title-icon-glow: 0 0 12px #e3f1ae;
         --ui-title-gradient: linear-gradient(135deg, #e3f1ae 0%, yellow, #a13065 50%, #bc6cb9 100%);
@@ -9047,18 +9046,18 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --ui-chat-placeholder: rgba(178, 111, 190, 0.4);
         --ui-modal-bg: linear-gradient(180deg, #353735 0%, #363634 100%);
         --ui-modal-border: rgba(161, 48, 101, 0.6);
-        --ui-modal-header-bg: rgba(161, 48, 101, 0.05);
+        --ui-modal-header-bg: rgba(31, 8, 21, 0.8);
         --ui-modal-header-border: rgba(161, 48, 101, 0.2);
         --ui-modal-title: #e3f1ae;
         --ui-modal-close: #593f2a;
         --ui-modal-tabs-bg: rgba(53, 53, 51, 0.4);
         --ui-modal-tabs-border: rgba(161, 48, 101, 0.1);
-        --ui-modal-tab-text: #a03563;
-        --ui-modal-tab-hover-text: #b26fbe;
-        --ui-modal-tab-hover-bg: rgba(161, 48, 101, 0.05);
-        --ui-modal-tab-active-text: #e3f1ae;
-        --ui-modal-tab-active-bg: rgba(227, 241, 174, 0.08);
-        --ui-settings-section-desc: #b272bb;
+        --ui-modal-tab-text: white;
+        --ui-modal-tab-hover-text: white;;
+        --ui-modal-tab-hover-bg:var(--ui-modal-header-bg);
+        --ui-modal-tab-active-text: white;
+        --ui-modal-tab-active-bg: rgba(110,110,0);;
+        --ui-settings-section-desc: rgb(250,220,100);;
         --ui-settings-label: #d1a675;
         --ui-settings-hint: #593f2a;
         --ui-settings-input-bg: rgba(53, 53, 51, 0.5);
@@ -9069,18 +9068,18 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --ui-settings-input-focus-shadow: 0 0 15px rgba(227, 241, 174, 0.15);
         --ui-settings-toggle-bg: rgba(161, 48, 101, 0.1);
         --ui-settings-toggle-border: rgba(161, 48, 101, 0.3);
-        --ui-settings-toggle-text: #b26fbe;
+        --ui-settings-toggle-text: white;
         --ui-settings-toggle-bg-hover: rgba(161, 48, 101, 0.2);
         --ui-settings-toggle-border-hover: rgba(178, 111, 190, 0.5);
-        --ui-settings-radio-bg: rgba(53, 53, 51, 0.3);
+        --ui-settings-radio-bg: rgba(40, 13, 31, 0.4);
         --ui-settings-radio-border: rgba(161, 48, 101, 0.2);
         --ui-settings-radio-bg-hover: rgba(161, 48, 101, 0.1);
         --ui-settings-radio-border-hover: rgba(161, 48, 101, 0.4);
-        --ui-settings-radio-bg-active: rgba(227, 241, 174, 0.1);
+        --ui-settings-radio-bg-active: rgba(20, 1, 4, 0.6);
         --ui-settings-radio-border-active: #e3f1ae;
         --ui-settings-radio-shadow-active: 0 0 20px rgba(227, 241, 174, 0.2);
-        --ui-settings-radio-label: #b272bb;
-        --ui-settings-radio-label-active: #e3f1ae;
+        --ui-settings-radio-label: rgba(210,210,30);;
+        --ui-settings-radio-label-active: white;
         --ui-modal-footer-bg: rgba(53, 53, 51, 0.4);
         --ui-modal-footer-border: rgba(161, 48, 101, 0.1);
         --ui-modal-save-bg: linear-gradient(45deg, #a13065, #b26fbe);
@@ -9106,7 +9105,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
         --ui-controlbar-filter: contrast(1.1) saturate(1.2);
         --ui-controlbar-filter-hover: contrast(1.2) saturate(1.5) brightness(1.1);
         --layout-bg-primary: #343635;
-        --layout-bg-panel: linear-gradient(to bottom right, rgba(120, 119, 103, .5), rgb(30,0,30)); 
+        --layout-bg-panel: linear-gradient(to bottom right, rgba(60, 19, 13, .5), rgb(30,20,10)); 
         --layout-bg-panel-header: rgba(93, 56, 114, 0.4);
         --layout-accent-cyan: #e3f1ae;
         --layout-accent-cyan-dim: rgba(227, 241, 174, 0.15);
@@ -9754,7 +9753,6 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
     --layout-resize-handle-size: 24px;
     --layout-transition-fast: 0.15s ease;
     --layout-transition-normal: 0.2s ease;}
-
 .tile-layout {
     position: relative;
     height: 100%;
