@@ -49,8 +49,13 @@ function run() {
   assert('an ordinary window is allowed',
     privacy.evaluate({ bundleId: 'com.apple.Safari', appName: 'Safari', windowTitle: 'briizOS docs' }, enabled).allowed,
     undefined, 'I3');
-  assert('briizOS never captures itself',
+  assert('briizOS records itself by default — its user is its developer',
     privacy.evaluate({ bundleId: 'com.briizos.app', appName: 'briizOS' }, enabled,
+      { ownBundleIds: ['com.briizos.app'] }).allowed,
+    undefined, 'I3');
+  assert('switching "record briizOS itself" off denies own windows',
+    privacy.evaluate({ bundleId: 'com.briizos.app', appName: 'briizOS' },
+      { ...enabled, captureOwnWindow: false },
       { ownBundleIds: ['com.briizos.app'] }).reason === privacy.DENY_REASONS.ownWindow,
     undefined, 'I3');
   assert('disabled config denies everything',

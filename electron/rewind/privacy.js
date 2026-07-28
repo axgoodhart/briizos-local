@@ -125,10 +125,14 @@ function evaluate(meta, config = {}, runtime = {}) {
     return { allowed: false, reason: DENY_REASONS.noWindow };
   }
 
-  // Never capture briizOS itself — a screenshot of the log panel showing OCR
-  // text of the previous screenshot is noise at best and a feedback loop at worst.
+  // briizOS's own windows are recorded like any other app unless the user
+  // turns "record briizOS itself" off in the exclusions UI. (Until 2026-07-27
+  // this was hardcoded to deny, invisibly — which made the app look dead to
+  // the one person whose main window is briizOS: its developer.) When off, the
+  // rationale stands: a screenshot of the log panel showing OCR of the
+  // previous screenshot is noise at best and a feedback loop at worst.
   const ownBundleIds = runtime.ownBundleIds || [];
-  if (bundleId && ownBundleIds.includes(bundleId)) {
+  if (config.captureOwnWindow === false && bundleId && ownBundleIds.includes(bundleId)) {
     return { allowed: false, reason: DENY_REASONS.ownWindow, detail: bundleId };
   }
 

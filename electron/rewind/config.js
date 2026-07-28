@@ -82,6 +82,10 @@ function defaults() {
     batteryBehavior: 'deferOcr',
     excludedBundleIds: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
     excludedTitlePatterns: [...DEFAULT_EXCLUDED_TITLE_PATTERNS],
+    // briizOS's own windows ARE recorded by default — the person using this
+    // app is building it. The visible switch to turn that off lives in the
+    // exclusions section of the settings.
+    captureOwnWindow: true,
     inactivityThresholdMs: 5 * 60 * 1000,
     // I2 — OCR text may reach a provider only with this on; still user-gated.
     cloudTextAnalysisAllowed: false,
@@ -165,6 +169,7 @@ function normalize(input) {
       : base.batteryBehavior,
     excludedBundleIds: stringList(input.excludedBundleIds, base.excludedBundleIds),
     excludedTitlePatterns: stringList(input.excludedTitlePatterns, base.excludedTitlePatterns),
+    captureOwnWindow: input.captureOwnWindow !== false,
     inactivityThresholdMs: clampInt(input.inactivityThresholdMs, base.inactivityThresholdMs, {
       min: 30 * 1000,
       max: 6 * 60 * 60 * 1000,

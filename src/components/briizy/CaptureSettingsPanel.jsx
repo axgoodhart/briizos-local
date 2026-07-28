@@ -399,6 +399,19 @@ export default function CaptureSettingsPanel({ capture, onClose }) {
       {config && (
         <div className="nf-capture__exclusions">
           <span className="nf-drawer__label">never captured</span>
+          <label className="nf-capture__consent">
+            <input
+              type="checkbox"
+              checked={config.captureOwnWindow !== false}
+              disabled={busy}
+              onChange={(e) => updateConfig({ captureOwnWindow: e.currentTarget.checked })}
+            />
+            <span>
+              Record briizOS itself. On, briizOS&apos;s own windows — chat, notes, this settings
+              page — enter screen history like any other app. Off, briizy never photographs its
+              own app, which makes it look idle whenever briizOS is in front.
+            </span>
+          </label>
           <p className="nf-capture__hint">
             {config.excludedBundleIds.length} app{config.excludedBundleIds.length === 1 ? '' : 's'} and{' '}
             {config.excludedTitlePatterns.length} window-title pattern
