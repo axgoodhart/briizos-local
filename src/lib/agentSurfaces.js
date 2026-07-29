@@ -40,36 +40,61 @@ export function restrictivePolicy(surface = 'unknown') {
   return { surface, mode: 'ask-always', blacklist: { paths: [], filetypes: [] } };
 }
 
+function normalizedPolicy(policy) {
+  return {
+    surface: policy?.surface || 'unknown',
+    mode: LEVELS.includes(policy?.mode) ? policy.mode : 'ask-always',
+    blacklist: {
+      paths: [...(Array.isArray(policy?.blacklist?.paths) ? policy.blacklist.paths : [])].sort(),
+      filetypes: [...(Array.isArray(policy?.blacklist?.filetypes) ? policy.blacklist.filetypes : [])].sort(),
+    },
+  };
+}
+
+export function permissionPoliciesEqual(left, right) {
+  return JSON.stringify(normalizedPolicy(left)) === JSON.stringify(normalizedPolicy(right));
+}
+
 // threadId -> { surface, mode, blacklist }
 const _registry = new Map();
+const _unknownWarningThreads = new Set();
 
 /**
  * Register (or replace) the policy governing an agent thread.
  * `policy` = { surface: 'chat'|'task', mode, blacklist }.
  */
-export function registerThreadSurface(threadId, policy) {
-  if (!threadId) return;
-  const safe = {
-    surface: policy?.surface || 'unknown',
-    mode: LEVELS.includes(policy?.mode) ? policy.mode : 'ask-always',
-    blacklist: {
-      paths: Array.isArray(policy?.blacklist?.paths) ? policy.blacklist.paths : [],
-      filetypes: Array.isArray(policy?.blacklist?.filetypes) ? policy.blacklist.filetypes : [],
-    },
-  };
+export function registerThreadSurface(threadId, policy, options = {}) {
+  if (!threadId) return { changed: false, policy: restrictivePolicy() };
+  const safe = normalizedPolicy(policy);
+  const previous = _registry.get(threadId) || null;
+  const changed = !previous || !permissionPoliciesEqual(previous, safe);
+  if (!changed) return { changed: false, policy: previous, previous };
   _registry.set(threadId, safe);
-  logger.info('permissions.surface', 'Permission rules applied to this conversation; no tool was run by this step', {
-    threadId,
-    surface: safe.surface,
-    mode: safe.mode,
-    effect: 'Future tool requests in this conversation will use these rules.',
-  });
+  _unknownWarningThreads.delete(threadId);
+  if (options.logChange !== false) {
+    logger.info(
+      'permissions.surface',
+      previous
+        ? 'Permission rules changed for this conversation; no tool was run by this update.'
+        : 'Permission rules were loaded for this conversation; no tool was run by this setup step.',
+      {
+        threadId,
+        surface: safe.surface,
+        previousMode: previous?.mode || null,
+        effectiveMode: safe.mode,
+        effect: 'Future tool requests in this conversation will use these rules.',
+      },
+      { activityId: options.activityId || null },
+    );
+  }
+  return { changed: true, policy: safe, previous };
 }
 
 export function unregisterThread(threadId) {
   if (threadId) {
     _registry.delete(threadId);
     _gated.delete(threadId);
+    _unknownWarningThreads.delete(threadId);
   }
 }
 
@@ -107,15 +132,19 @@ export function resolvePolicyForThread(threadId) {
   if (threadId && _registry.has(threadId)) {
     return _registry.get(threadId);
   }
-  logger.warn(
-    'permissions.surface',
-    'This conversation has no registered permission rules, so every tool request will require confirmation',
-    {
-      threadId,
-      mode: 'ask-always',
-      effect: 'Nothing is approved automatically.',
-    },
-  );
+  const warningKey = threadId || 'missing-thread';
+  if (!_unknownWarningThreads.has(warningKey)) {
+    _unknownWarningThreads.add(warningKey);
+    logger.warn(
+      'permissions.surface',
+      'This conversation has no registered permission rules, so every tool request will require confirmation',
+      {
+        threadId,
+        mode: 'ask-always',
+        effect: 'Nothing is approved automatically. This unchanged fallback will not be logged again for the same conversation.',
+      },
+    );
+  }
   return restrictivePolicy('unknown');
 }
 
@@ -126,7 +155,7 @@ export function resolvePolicyForThread(threadId) {
  *
  * Returns the effective policy that was registered.
  */
-export async function registerSurfaceForThread(threadId, surface, requestedMode = null) {
+export async function registerSurfaceForThread(threadId, surface, requestedMode = null, options = {}) {
   let policy = restrictivePolicy(surface);
   try {
     const api = typeof window !== 'undefined' ? window.api : null;
@@ -154,9 +183,9 @@ export async function registerSurfaceForThread(threadId, surface, requestedMode 
       error: err?.message,
       mode: 'ask-always',
       effect: 'Nothing is approved automatically.',
-    });
+    }, { activityId: options.activityId || null, outcome: 'failed' });
   }
-  registerThreadSurface(threadId, policy);
+  registerThreadSurface(threadId, policy, options);
   return policy;
 }
 
@@ -165,6 +194,7 @@ export default {
   levelRank,
   clampLevel,
   restrictivePolicy,
+  permissionPoliciesEqual,
   registerThreadSurface,
   unregisterThread,
   resolvePolicyForThread,

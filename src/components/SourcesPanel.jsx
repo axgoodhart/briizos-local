@@ -1,7 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDrag } from 'react-dnd';
 import FileTree, { SOURCE_FILE_TYPE } from './FileTree';
 import logger, { subscribeLogs } from '../lib/logger';
+import {
+  LOG_FACETS,
+  activityMatchesQuery,
+  buildLogActivities,
+} from '../lib/logActivities';
+import './SourcesPanel.logs.css';
 
 /**
  * DraggableGithubFile - A draggable GitHub file item for the source panel
@@ -118,6 +124,19 @@ function logInterpretation(log) {
   return 'briizOS recorded this step or observed state. It does not, by itself, prove that a later network or AI request succeeded.';
 }
 
+function activityInterpretation(activity) {
+  if (activity.level === 'error') {
+    return `${activity.problemCount} recorded detail${activity.problemCount === 1 ? '' : 's'} report a failure. Expand the individual steps below to see what failed and what, if anything, continued.`;
+  }
+  if (activity.level === 'warn') {
+    return `${activity.problemCount} recorded detail${activity.problemCount === 1 ? '' : 's'} need attention. The remaining details are retained to show what led to that warning.`;
+  }
+  if (activity.detailCount > 1) {
+    return `${activity.detailCount} related details were combined under one activity identifier. Nothing was discarded; each original record is available below.`;
+  }
+  return logInterpretation(activity.details[0]);
+}
+
 function mergeLogLists(...lists) {
   const byId = new Map();
   lists.flat().forEach((entry) => {
@@ -164,7 +183,7 @@ function SourcesPanel() {
   const [logs, setLogs] = useState([]);
   const [logView, setLogView] = useState('all');
   const [logQuery, setLogQuery] = useState('');
-  const [expandedLogId, setExpandedLogId] = useState(null);
+  const [expandedActivityId, setExpandedActivityId] = useState(null);
   const logContainerRef = useRef(null);
 
   // Fetch home directories on mount
@@ -476,27 +495,22 @@ function SourcesPanel() {
   };
 
   const normalizedLogQuery = logQuery.trim().toLowerCase();
-  const filteredLogs = logs.filter((entry) => {
-    const isChatTranscript = entry.type === 'chat.user_message'
-      || entry.type === 'chat.assistant_message';
-    if (logView === 'chat' && !isChatTranscript) return false;
-    if (logView === 'problems' && entry.level !== 'warn' && entry.level !== 'error') return false;
-    if (!normalizedLogQuery) return true;
-    let evidence = '';
-    try { evidence = JSON.stringify(entry.data || ''); } catch { evidence = String(entry.data || ''); }
-    return [
-      entry.message,
-      entry.type,
-      entry.category,
-      entry.level,
-      evidence,
-    ].some((value) => String(value || '').toLowerCase().includes(normalizedLogQuery));
+  const activities = useMemo(() => buildLogActivities(logs), [logs]);
+  const filteredActivities = activities.filter((activity) => {
+    if (logView === 'problems' && activity.problemCount === 0) return false;
+    if (logView !== 'all' && logView !== 'problems' && !activity.facets.has(logView)) return false;
+    return activityMatchesQuery(activity, normalizedLogQuery);
   });
-
+  const facetCounts = useMemo(() => Object.fromEntries(LOG_FACETS.map(({ id }) => {
+    const count = id === 'all'
+      ? activities.length
+      : id === 'problems'
+        ? activities.filter((activity) => activity.problemCount > 0).length
+        : activities.filter((activity) => activity.facets.has(id)).length;
+    return [id, count];
+  })), [activities]);
   const problemCount = logs.filter((entry) => entry.level === 'warn' || entry.level === 'error').length;
-  const chatCount = logs.filter((entry) => (
-    entry.type === 'chat.user_message' || entry.type === 'chat.assistant_message'
-  )).length;
+  const facetLabel = (facetId) => LOG_FACETS.find(({ id }) => id === facetId)?.label || facetId;
 
   return (
     <div className="panel sources-panel">
@@ -514,24 +528,26 @@ function SourcesPanel() {
         <div className="log-section">
           <div className="log-header">
             <span>Activity &amp; evidence</span>
-            <span className="log-header-summary">{logs.length} shown · {problemCount} need attention</span>
+            <span className="log-header-summary">
+              {activities.length} activit{activities.length === 1 ? 'y' : 'ies'} · {logs.length} details · {problemCount} need attention
+            </span>
           </div>
           <div className="log-filters" role="group" aria-label="Choose which activity logs to show">
-            {[
-              ['all', `Everything (${logs.length})`],
-              ['chat', `Chat (${chatCount})`],
-              ['problems', `Problems (${problemCount})`],
-            ].map(([view, label]) => (
+            <div className="log-facet-list">
+            {LOG_FACETS.map(({ id: view, label, description }) => (
               <button
                 key={view}
                 type="button"
                 className={`log-filter-btn ${logView === view ? 'active' : ''}`}
                 onClick={() => setLogView(view)}
                 aria-pressed={logView === view}
+                aria-label={`${description}: ${facetCounts[view] || 0} activities`}
+                title={`${description} · ${facetCounts[view] || 0} activities`}
               >
                 {label}
               </button>
             ))}
+            </div>
             <input
               className="log-search"
               type="search"
@@ -542,59 +558,93 @@ function SourcesPanel() {
             />
           </div>
           <div className="log-entries" ref={logContainerRef}>
-            {filteredLogs.length === 0 ? (
+            {filteredActivities.length === 0 ? (
               <div className="log-entry log-empty">
                 <span className="log-message">
                   {logs.length === 0 ? 'No activity has been recorded yet.' : 'No saved activity matches this view.'}
                 </span>
               </div>
             ) : (
-              filteredLogs.map((log) => {
-                const level = LOG_LEVEL_META[log.level] || LOG_LEVEL_META.info;
-                const expanded = expandedLogId === log.id;
-                const rows = evidenceRows(log);
+              filteredActivities.map((activity) => {
+                const level = LOG_LEVEL_META[activity.level] || LOG_LEVEL_META.info;
+                const expanded = expandedActivityId === activity.id;
                 return (
                   <article
-                    key={log.id}
-                    className={`log-entry log-level-${log.level || 'info'} ${log.type === 'chat.user_message' || log.type === 'chat.assistant_message' ? 'log-chat-entry' : ''}`}
+                    key={activity.id}
+                    className={`log-entry log-activity-card log-level-${activity.level || 'info'}`}
                   >
                     <button
                       type="button"
                       className="log-row"
-                      onClick={() => setExpandedLogId(expanded ? null : log.id)}
+                      onClick={() => setExpandedActivityId(expanded ? null : activity.id)}
                       aria-expanded={expanded}
                     >
                       <time
                         className="log-time"
-                        dateTime={log.timestamp}
-                        title={`${formatLogDate(log.timestamp)} at ${formatLogTime(log.timestamp)}`}
+                        dateTime={activity.endedAt}
+                        title={`${formatLogDate(activity.endedAt)} at ${formatLogTime(activity.endedAt)}`}
                       >
-                        {formatLogTime(log.timestamp)}
+                        {formatLogTime(activity.endedAt)}
                       </time>
                       <span className="log-level-label" title={level.label} aria-label={level.label}>
                         {level.glyph}
                       </span>
-                      <span className="log-type">{logCategoryLabel(log)}</span>
-                      <span className="log-message">{log.message || 'No explanation was recorded.'}</span>
+                      <span className={`log-type log-facet-${activity.facet}`}>{facetLabel(activity.facet)}</span>
+                      <span className="log-message">{activity.title}</span>
+                      {activity.detailCount > 1 && (
+                        <span className="log-detail-count">{activity.detailCount} details</span>
+                      )}
                       <span className="log-expand" aria-hidden="true">{expanded ? '−' : '+'}</span>
                     </button>
                     {expanded && (
                       <div className="log-data">
-                        <p className="log-interpretation">{logInterpretation(log)}</p>
-                        <p className="log-full-message">{log.message || 'No explanation was recorded.'}</p>
-                        {rows.length > 0 && (
-                          <dl className="log-evidence-list">
-                            {rows.map(([label, value], index) => (
-                              <div className="log-evidence-row" key={`${label}-${index}`}>
-                                <dt>{label}</dt>
-                                <dd>{value}</dd>
-                              </div>
+                        <p className="log-interpretation">{activityInterpretation(activity)}</p>
+                        {activity.repeated.length > 0 && (
+                          <div className="log-repeat-summary">
+                            <strong>Repeated details folded into this card</strong>
+                            {activity.repeated.map((repeat) => (
+                              <span key={`${repeat.type}-${repeat.message}`}>
+                                {repeat.count}× {repeat.message || humanizeLogToken(repeat.type)}
+                              </span>
                             ))}
-                          </dl>
+                          </div>
                         )}
-                        <div className="log-developer-id">
-                          Developer event: <code>{log.type || 'system.event'}</code>
-                          {' · '}Source: <code>{log.source || 'system'}</code>
+                        <div className="log-activity-meta">
+                          {activity.activityId
+                            ? <>Activity ID: <code>{activity.activityId}</code></>
+                            : <>Legacy grouping: related records within a 10-minute window</>}
+                        </div>
+                        <div className="log-activity-details">
+                          {activity.details.map((log) => {
+                            const detailLevel = LOG_LEVEL_META[log.level] || LOG_LEVEL_META.info;
+                            const rows = evidenceRows(log);
+                            return (
+                              <section className="log-detail" key={log.id}>
+                                <div className="log-detail-header">
+                                  <time dateTime={log.timestamp}>{formatLogTime(log.timestamp)}</time>
+                                  <span aria-label={detailLevel.label}>{detailLevel.glyph}</span>
+                                  <strong>{logCategoryLabel(log)}</strong>
+                                  <code>{log.type || 'system.event'}</code>
+                                </div>
+                                <p className="log-full-message">{log.message || 'No explanation was recorded.'}</p>
+                                {rows.length > 0 && (
+                                  <dl className="log-evidence-list">
+                                    {rows.map(([label, value], index) => (
+                                      <div className="log-evidence-row" key={`${label}-${index}`}>
+                                        <dt>{label}</dt>
+                                        <dd>{value}</dd>
+                                      </div>
+                                    ))}
+                                  </dl>
+                                )}
+                                <div className="log-developer-id">
+                                  Source: <code>{log.source || 'system'}</code>
+                                  {log.phase ? <>{' · '}Phase: <code>{log.phase}</code></> : null}
+                                  {log.outcome ? <>{' · '}Outcome: <code>{log.outcome}</code></> : null}
+                                </div>
+                              </section>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

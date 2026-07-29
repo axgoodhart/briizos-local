@@ -12,6 +12,18 @@ function safeBlacklist(value) {
   };
 }
 
+function policiesEqual(left, right) {
+  const normalize = (policy) => ({
+    surface: policy?.surface || 'task',
+    mode: PERMISSION_LEVELS.includes(policy?.mode) ? policy.mode : 'ask-always',
+    blacklist: {
+      paths: [...(Array.isArray(policy?.blacklist?.paths) ? policy.blacklist.paths : [])].sort(),
+      filetypes: [...(Array.isArray(policy?.blacklist?.filetypes) ? policy.blacklist.filetypes : [])].sort(),
+    },
+  });
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
+
 class AutomationRunner {
   constructor({
     service,
@@ -27,8 +39,11 @@ class AutomationRunner {
     this.onThreadPolicyChanged = onThreadPolicyChanged || (() => {});
     this.active = new Set();
     this.activePolicies = new Map();
-    this.settingsChanged = ({ domains = [] } = {}) => {
-      if (domains.includes('settings')) this.refreshActivePolicies();
+    this.settingsChanged = (change = {}) => {
+      const { domains = [], settingKeys } = change;
+      if (!domains.includes('settings')) return;
+      if (Array.isArray(settingKeys) && !settingKeys.includes('agent_config')) return;
+      this.refreshActivePolicies(change);
     };
     this.service.on('changed', this.settingsChanged);
   }
@@ -67,12 +82,15 @@ class AutomationRunner {
     }
   }
 
-  refreshActivePolicies() {
+  refreshActivePolicies(change = {}) {
     for (const context of this.activePolicies.values()) {
       const resolved = this.resolveTaskPolicy({ mode: context.requestedMode });
+      const nextPolicy = { surface: 'task', ...resolved.policy };
+      if (context.ceiling === resolved.ceiling && policiesEqual(context.permissionPolicy, nextPolicy)) {
+        continue;
+      }
       Object.assign(context.permissionPolicy, {
-        surface: 'task',
-        ...resolved.policy,
+        ...nextPolicy,
       });
       context.ceiling = resolved.ceiling;
       this.announceThreadPolicy({
@@ -94,6 +112,10 @@ class AutomationRunner {
           requestedMode: context.requestedMode,
           taskColumnLimit: resolved.ceiling,
           effectiveMode: context.permissionPolicy.mode,
+        },
+        {
+          activityId: `settings:${change?.revision || 'unknown'}:agent_config`,
+          outcome: 'applied',
         },
       );
     }
@@ -165,6 +187,8 @@ class AutomationRunner {
         thinking: true,
         tool_confirmation_mode: permissionPolicy.mode,
         permission_policy: permissionPolicy,
+        activity_id: `task-run:${run.id}`,
+        task_id: task.id,
       });
       const messages = Array.isArray(response?.messages) ? response.messages : [];
       const last = [...messages].reverse().find((message) => typeof message?.content === 'string');

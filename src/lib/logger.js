@@ -105,8 +105,8 @@ function flushIPC() {
   ipcQueue = [];
 }
 
-function sendToTerminal(level, category, message, data, type = null) {
-  const payload = { level, category, message, data, type };
+function sendToTerminal(level, category, message, data, type = null, context = {}) {
+  const payload = { level, category, message, data, type, ...context };
   if (ipcReady) {
     window.api.logToTerminal(payload);
   } else {
@@ -134,7 +134,7 @@ function reportLogPersistenceFailure(entry, error) {
       databaseError: error?.message || String(error || 'Local log storage is unavailable'),
       effect: 'This log entry will disappear after restart unless a later retry succeeds.',
     },
-    'system',
+    { source: 'system' },
   );
   addToBuffer(failure);
   sendToTerminal(failure.level, failure.category, failure.message, failure.data, failure.type);
@@ -285,18 +285,25 @@ export function setActiveThread(threadId) {
 // ---------------------------------------------------------------------------
 let idCounter = 0;
 
-function createEntry(level, type, message, data, source) {
+function createEntry(level, type, message, data, opts = {}) {
   return {
     id: `evt_${Date.now()}_${(idCounter++).toString(36)}`,
     type,
-    source: resolveSource(type, source),
+    source: resolveSource(type, opts.source),
     category: resolveCategory(type),
     message,
     data: data ?? null,
     level,
     timestamp: new Date().toISOString(),
-    threadId: activeThreadId,
+    threadId: opts.threadId || activeThreadId,
     sessionId: SESSION_ID,
+    taskId: opts.taskId || data?.taskId || null,
+    activityId: opts.activityId || data?.activityId || null,
+    spanId: opts.spanId || data?.spanId || null,
+    parentSpanId: opts.parentSpanId || data?.parentSpanId || null,
+    activitySequence: Number.isInteger(opts.activitySequence) ? opts.activitySequence : null,
+    phase: opts.phase || null,
+    outcome: opts.outcome || null,
   };
 }
 
@@ -310,14 +317,23 @@ function createEntry(level, type, message, data, source) {
  */
 function log(type, message, data, opts = {}) {
   const level = opts.level || 'info';
-  const entry = createEntry(level, type, message, data, opts.source);
-  if (opts.threadId) entry.threadId = opts.threadId;
+  const entry = createEntry(level, type, message, data, opts);
 
   // 1. Terminal (immediate, via IPC)
   const terminalEvidence = data && typeof data === 'object' && !Array.isArray(data)
     ? { eventType: type, ...data }
     : { eventType: type, detail: data ?? null };
-  sendToTerminal(level, entry.category, message, terminalEvidence, type);
+  sendToTerminal(level, entry.category, message, terminalEvidence, type, {
+    threadId: entry.threadId,
+    sessionId: entry.sessionId,
+    taskId: entry.taskId,
+    activityId: entry.activityId,
+    spanId: entry.spanId,
+    parentSpanId: entry.parentSpanId,
+    activitySequence: entry.activitySequence,
+    phase: entry.phase,
+    outcome: entry.outcome,
+  });
 
   // 2. In-memory buffer (immediate, for Log Overlay)
   addToBuffer(entry);

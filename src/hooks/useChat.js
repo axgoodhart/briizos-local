@@ -31,6 +31,7 @@ import {
   registerThreadSurface,
   unregisterThread,
   restrictivePolicy,
+  permissionPoliciesEqual,
 } from '../lib/agentSurfaces';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
@@ -185,6 +186,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   // The streamId currently being consumed — used to filter the shared
   // 'langgraph-stream-event' subscription so stale streams are ignored.
   const activeStreamIdRef = useRef(null);
+  const activeActivityIdRef = useRef(null);
   // Confirmation bookkeeping so approve/reject can resume the right run.
   const pendingConfirmRef = useRef(null);
   const pendingClarificationRef = useRef(null);
@@ -268,50 +270,58 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         }).catch(() => {});
       }
 
-      if (change?.domains?.includes('settings')) {
+      const settingKeys = change?.settingKeys;
+      const permissionsMayHaveChanged = change?.domains?.includes('settings')
+        && (!Array.isArray(settingKeys) || settingKeys.includes('agent_config'));
+      if (permissionsMayHaveChanged) {
         const generation = ++policyRefreshGeneration;
-        const previousMode = chatPolicyRef.current?.mode || 'ask-always';
+        const previousPolicy = chatPolicyRef.current || restrictivePolicy('chat');
         const failClosedPolicy = restrictivePolicy('chat');
+        const activityId = `settings:${change?.revision || 'unknown'}:agent_config`;
 
         // Close the brief async settings-read gap as well as the failure
         // path: neither the run config nor renderer gate keeps stale rules.
         chatPolicyRef.current = failClosedPolicy;
-        registerThreadSurface(threadId, failClosedPolicy);
+        registerThreadSurface(threadId, failClosedPolicy, { logChange: false });
 
-        registerSurfaceForThread(threadId, 'chat')
+        registerSurfaceForThread(threadId, 'chat', null, { logChange: false, activityId })
           .then((policy) => {
             if (!active || threadIdRef.current !== threadId) {
-              registerThreadSurface(threadId, failClosedPolicy);
+              registerThreadSurface(threadId, failClosedPolicy, { logChange: false });
               return;
             }
             if (generation !== policyRefreshGeneration) {
-              registerThreadSurface(threadId, chatPolicyRef.current || failClosedPolicy);
+              registerThreadSurface(threadId, chatPolicyRef.current || failClosedPolicy, { logChange: false });
               return;
             }
 
             chatPolicyRef.current = policy || failClosedPolicy;
-            logger.info(
-              'permissions.chat',
-              `Chat permission settings changed. This open conversation will now ${describePermissionMode(chatPolicyRef.current.mode)}.`,
-              {
-                threadId,
-                previousMode,
-                effectiveMode: chatPolicyRef.current.mode,
-              },
-            );
+            if (!permissionPoliciesEqual(previousPolicy, chatPolicyRef.current)) {
+              logger.info(
+                'permissions.chat',
+                `Chat permission settings changed. This open conversation will now ${describePermissionMode(chatPolicyRef.current.mode)}.`,
+                {
+                  threadId,
+                  previousMode: previousPolicy.mode,
+                  effectiveMode: chatPolicyRef.current.mode,
+                },
+                { activityId, outcome: 'applied' },
+              );
+            }
           })
           .catch((error) => {
             if (!active || generation !== policyRefreshGeneration) return;
             if (threadIdRef.current !== threadId) {
-              registerThreadSurface(threadId, failClosedPolicy);
+              registerThreadSurface(threadId, failClosedPolicy, { logChange: false });
               return;
             }
             chatPolicyRef.current = failClosedPolicy;
-            registerThreadSurface(threadId, failClosedPolicy);
+            registerThreadSurface(threadId, failClosedPolicy, { logChange: false });
             logger.error(
               'permissions.chat',
               'Chat permission settings changed, but briizOS could not load the new rule. This open conversation will ask before every tool action for safety.',
               { threadId, error: error?.message },
+              { activityId, outcome: 'failed' },
             );
           });
       }
@@ -399,6 +409,14 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     return null;
   }, []);
 
+  const logTurn = useCallback((level, type, message, data, options = {}) => {
+    const method = typeof logger[level] === 'function' ? logger[level] : logger.info;
+    return method(type, message, data, {
+      ...options,
+      activityId: activeActivityIdRef.current,
+    });
+  }, []);
+
   // ---------------------------------------------------------------------
   // Single SSE event handler. Mutates refs then mirrors into state so the
   // UI contract (streamingContent / toolCalls / subAgentTasks / etc.)
@@ -422,7 +440,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         };
         toolCallsRef.current = [...toolCallsRef.current, tc];
         setToolCalls([...toolCallsRef.current]);
-        logger.info(
+        logTurn(
+          'info',
           'tool.call',
           `The AI workflow reached the “${payload.name}” tool step. This records the start only; a later entry will report the returned result or failure.`,
           { toolCallId: tc.id, tool: payload.name, requestedArguments: tc.args, completedByThisEntry: false },
@@ -436,7 +455,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
           return match ? { ...t, status: 'done', result: payload.content } : t;
         });
         setToolCalls([...toolCallsRef.current]);
-        logger.info(
+        logTurn(
+          'info',
           'tool.result',
           `The “${payload.name || 'requested'}” tool returned a result to the AI workflow.`,
           {
@@ -457,7 +477,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         };
         pendingConfirmRef.current = conf;
         setPendingToolConfirmation(conf);
-        logger.info(
+        logTurn(
+          'info',
           'agent.confirm',
           `The AI asked to use ${conf.tool_name}. No tool action will run until you approve or reject the request shown in the interaction panel.`,
           { tool: conf.tool_name, summary: conf.summary, args: conf.args },
@@ -480,7 +501,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
             : clarification.message;
           setStreamingContent(streamContentRef.current);
         }
-        logger.info(
+        logTurn(
+          'info',
           'agent.clarify',
           `The AI needs more information before it can continue. Its question was added to the conversation: ${clarification.question || 'No question text was provided.'}`,
           { question: clarification.question, options: clarification.options },
@@ -508,7 +530,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       case 'error': {
         streamContentRef.current += `\n\n[Agent error] ${payload?.message || 'Unknown error'}`;
         setStreamingContent(streamContentRef.current);
-        logger.error(
+        logTurn(
+          'error',
           'agent.stream',
           `The AI service reported an error while sending its response. The error text was added to the visible response: ${payload?.message || 'Unknown error'}`,
           { error: payload?.message },
@@ -547,7 +570,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         break;
       }
     }
-  }, []);
+  }, [logTurn]);
 
   // Persistent subscription to the agent stream push channel. Set up once;
   // filters by the active streamId so only the live turn is consumed.
@@ -564,7 +587,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       try {
         handleStreamEvent(type, payload);
       } catch (err) {
-        logger.error(
+        logTurn(
+          'error',
           'agent.stream',
           'briizOS received an AI response update but could not display it. The current response may be incomplete.',
           { updateType: type, error: err?.message },
@@ -572,7 +596,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       }
     });
     return cleanup;
-  }, [handleStreamEvent]);
+  }, [handleStreamEvent, logTurn]);
 
   // ---------------------------------------------------------------------
   // Thread lifecycle
@@ -596,7 +620,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     } catch {
       chatPolicyRef.current = restrictivePolicy('chat');
     }
-    logger.info(
+    logTurn(
+      'info',
       'agent.thread',
       `Started conversation ${threadId}. New messages and tool permission checks will use this conversation until you switch or clear it.`,
       {
@@ -606,7 +631,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       },
     );
     return threadId;
-  }, []);
+  }, [logTurn]);
 
   const buildConfig = useCallback(() => {
     const model = getSelectedModel();
@@ -626,6 +651,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       // carries the blacklist and confirmation level for bridge tools.
       tool_confirmation_mode: policy.mode || 'ask-always',
       permission_policy: policy,
+      activity_id: activeActivityIdRef.current,
     };
   }, [getSelectedModel]);
 
@@ -647,7 +673,12 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     const content = streamContentRef.current;
     if (content) {
       const threadId = threadIdRef.current;
-      await api.localData.threads.messages.append(threadId, { role: 'assistant', content });
+      await api.localData.threads.messages.append(threadId, {
+        role: 'assistant',
+        content,
+        activityId: activeActivityIdRef.current,
+        outcome: 'completed',
+      });
     }
 
     // Follow-up suggestions are a local-user affordance only.
@@ -660,18 +691,21 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         const items = await api.langgraphFetchSuggestions(
           recent,
           3,
-          { model: getSelectedModel() || undefined },
+          {
+            model: getSelectedModel() || undefined,
+            activity_id: activeActivityIdRef.current,
+          },
           threadIdRef.current,
         );
         if (suggestionsEnabledRef.current && Array.isArray(items) && items.length > 0) {
           setSuggestions(items);
         }
       } catch (err) {
-        logger.debug('agent.suggestions', 'Suggestion fetch failed', { error: err?.message });
+        logTurn('debug', 'agent.suggestions', 'Suggestion fetch failed', { error: err?.message });
       }
     }
     return content;
-  }, [messages, getSelectedModel]);
+  }, [messages, getSelectedModel, logTurn]);
 
   const sendMessage = useCallback(async (message, { isRemote = false, prioritizeCandidates = [] } = {}) => {
     if (!message?.trim() || isLoading || isSwitchingThread) return null;
@@ -680,13 +714,19 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     }
 
     setSuggestions([]);
+    activeActivityIdRef.current = newId('activity');
     const isPrioritizeTurn = modalityRef.current === 'prioritize';
     const isPlannerTurn = modalityRef.current === 'planner';
     const selectedCandidates = Array.isArray(prioritizeCandidates) ? prioritizeCandidates : [];
     const pendingClarificationAnswer = pendingClarificationRef.current;
     const activeThreadId = pendingClarificationAnswer ? threadIdRef.current : await ensureThread();
     if (!activeThreadId) throw new Error('Cannot save a message without an agent thread');
-    await api.localData.threads.messages.append(activeThreadId, { role: 'user', content: message });
+    await api.localData.threads.messages.append(activeThreadId, {
+      role: 'user',
+      content: message,
+      activityId: activeActivityIdRef.current,
+      outcome: 'submitted',
+    });
     setIsLoading(true);
 
     try {
@@ -704,7 +744,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         setSubAgentTasks([]);
         pendingConfirmRef.current = null;
 
-        logger.info(
+        logTurn(
+          'info',
           'agent.clarify',
           `Your clarification answer was saved. The paused AI request is continuing in conversation ${threadId}.`,
           { threadId },
@@ -716,7 +757,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         });
 
         if (pendingConfirmRef.current) {
-          logger.info(
+          logTurn(
+            'info',
             'chat',
             'The AI request paused before running a tool. It will continue after you approve or reject the request shown in the interaction panel.',
           );
@@ -725,7 +767,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         if (pendingClarificationRef.current) {
           const content = await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
           if (isPrioritizeTurn) {
-            logger.info('agent.prioritize', 'The prioritization request paused because the AI asked a clarification question. Its partial text was saved; no final prioritization is claimed.', {
+            logTurn('info', 'agent.prioritize', 'The prioritization request paused because the AI asked a clarification question. Its partial text was saved; no final prioritization is claimed.', {
               threadId,
               responseChars: content?.length || 0,
             });
@@ -735,7 +777,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
 
         const content = await finalizeAssistantTurn({ isRemote });
         if (isPrioritizeTurn) {
-          logger.info('agent.prioritize', 'The prioritization AI response finished and its visible text was saved to this conversation.', {
+          logTurn('info', 'agent.prioritize', 'The prioritization AI response finished and its visible text was saved to this conversation.', {
             threadId,
             responseChars: content?.length || 0,
           });
@@ -766,25 +808,26 @@ export function useChat({ selectedModel, requestSettings } = {}) {
 
       const agentConfig = buildConfig();
       if (isPrioritizeTurn) {
-        logger.info('agent.prioritize', selectedCandidates.length
+        logTurn('info', 'agent.prioritize', selectedCandidates.length
           ? `${selectedCandidates.length} item${selectedCandidates.length === 1 ? ' was' : 's were'} selected as input for prioritization. No AI result has been produced yet.`
           : 'No items were selected manually, so the AI request may use its read-only task lookup. No AI result has been produced yet.', {
           threadId,
           candidates: selectedCandidates.map((candidate) => ({ kind: candidate.kind, id: candidate.id })),
         });
-        logger.info('agent.prioritize', 'The prioritization request is being sent to the selected model. A later provider entry will prove success or report the exact failure.', {
+        logTurn('info', 'agent.prioritize', 'The prioritization request is being sent to the selected model. A later provider entry will prove success or report the exact failure.', {
           threadId,
           candidateCount: selectedCandidates.length,
           model: agentConfig.model,
         });
       }
       if (isPlannerTurn) {
-        logger.info('agent.planner', 'The planning request is being sent to the selected model. A later provider entry will prove success or report the exact failure.', {
+        logTurn('info', 'agent.planner', 'The planning request is being sent to the selected model. A later provider entry will prove success or report the exact failure.', {
           threadId,
           model: agentConfig.model,
         });
       }
-      logger.info(
+      logTurn(
+        'info',
         'chat',
         'The saved user message is being sent to the AI service. Response text and tool requests will be added to this conversation as they arrive.',
         {
@@ -798,19 +841,20 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       // assistant message is persisted only once the run truly completes
       // (after approve/reject → resume). Otherwise finalize now.
       if (pendingConfirmRef.current) {
-        logger.info(
+        logTurn(
+          'info',
           'chat',
           'The AI request paused before running a tool. It will continue after you approve or reject the request shown in the interaction panel.',
         );
         if (isPrioritizeTurn) {
-          logger.info('agent.prioritize', 'The prioritization request is paused before a tool action; the interaction panel is waiting for your Approve or Decline choice.', { threadId });
+          logTurn('info', 'agent.prioritize', 'The prioritization request is paused before a tool action; the interaction panel is waiting for your Approve or Decline choice.', { threadId });
         }
         return null;
       }
       if (pendingClarificationRef.current) {
         const content = await finalizeAssistantTurn({ isRemote, skipSuggestions: true });
         if (isPrioritizeTurn) {
-          logger.info('agent.prioritize', 'The prioritization request paused because the AI asked a clarification question. Its partial text was saved; no final prioritization is claimed.', {
+          logTurn('info', 'agent.prioritize', 'The prioritization request paused because the AI asked a clarification question. Its partial text was saved; no final prioritization is claimed.', {
             threadId,
             responseChars: content?.length || 0,
           });
@@ -820,26 +864,26 @@ export function useChat({ selectedModel, requestSettings } = {}) {
 
       const content = await finalizeAssistantTurn({ isRemote });
       if (isPrioritizeTurn) {
-        logger.info('agent.prioritize', 'The prioritization AI response finished and its visible text was saved to this conversation.', {
+        logTurn('info', 'agent.prioritize', 'The prioritization AI response finished and its visible text was saved to this conversation.', {
           threadId,
           candidateCount: selectedCandidates.length,
           responseChars: content?.length || 0,
         });
       }
       if (isPlannerTurn) {
-        logger.info('agent.planner', 'The planning AI response finished and its visible text was saved to this conversation.', {
+        logTurn('info', 'agent.planner', 'The planning AI response finished and its visible text was saved to this conversation.', {
           threadId,
           responseChars: content?.length || 0,
         });
       }
     } catch (error) {
       if (isPrioritizeTurn) {
-        logger.error('agent.prioritize', 'The prioritization AI request ended without a normal response. The exact error is recorded below and will also be saved as a visible conversation message.', {
+        logTurn('error', 'agent.prioritize', 'The prioritization AI request ended without a normal response. The exact error is recorded below and will also be saved as a visible conversation message.', {
           error: error?.message,
         });
       }
       if (isPlannerTurn) {
-        logger.error('agent.planner', 'The planning AI request ended without a normal response. The exact error is recorded below and will also be saved as a visible conversation message.', {
+        logTurn('error', 'agent.planner', 'The planning AI request ended without a normal response. The exact error is recorded below and will also be saved as a visible conversation message.', {
           error: error?.message,
         });
       }
@@ -852,9 +896,12 @@ export function useChat({ selectedModel, requestSettings } = {}) {
           role: 'assistant',
           content: errorContent,
           isError: true,
+          activityId: activeActivityIdRef.current,
+          outcome: 'failed',
         });
       }
-      logger.error(
+      logTurn(
+        'error',
         'chat',
         'The AI request ended without a normal response. Any partial response and the reported error were saved together as an AI message in this conversation.',
         {
@@ -870,11 +917,12 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         setStreamingContent('');
         streamContentRef.current = '';
         activeStreamIdRef.current = null;
+        activeActivityIdRef.current = null;
       }
     }
 
     return null;
-  }, [isLoading, isSwitchingThread, loadSelectedFiles, ensureThread, runAgentTurn, buildConfig, finalizeAssistantTurn]);
+  }, [isLoading, isSwitchingThread, loadSelectedFiles, ensureThread, runAgentTurn, buildConfig, finalizeAssistantTurn, logTurn]);
 
   // ---------------------------------------------------------------------
   // Tool confirmation resolution → resume the same thread.
@@ -891,7 +939,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       return;
     }
 
-    logger.info(
+    logTurn(
+      'info',
       'agent.confirm',
       approved
         ? `You approved ${conf.tool_name}. The paused AI request is continuing with that approval.`
@@ -913,7 +962,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       if (pendingClarificationRef.current) {
         const content = await finalizeAssistantTurn({ isRemote: false, skipSuggestions: true });
         if (modalityRef.current === 'prioritize') {
-          logger.info('agent.prioritize', 'The prioritization request paused because the AI asked a clarification question. Its partial text was saved; no final prioritization is claimed.', {
+          logTurn('info', 'agent.prioritize', 'The prioritization request paused because the AI asked a clarification question. Its partial text was saved; no final prioritization is claimed.', {
             threadId,
             responseChars: content?.length || 0,
           });
@@ -922,7 +971,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       }
       const content = await finalizeAssistantTurn({ isRemote: false });
       if (modalityRef.current === 'prioritize') {
-        logger.info('agent.prioritize', 'After your confirmation choice, the prioritization AI response finished and its visible text was saved to this conversation.', {
+        logTurn('info', 'agent.prioritize', 'After your confirmation choice, the prioritization AI response finished and its visible text was saved to this conversation.', {
           threadId,
           responseChars: content?.length || 0,
         });
@@ -936,8 +985,11 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         role: 'assistant',
         content: errorContent,
         isError: true,
+        activityId: activeActivityIdRef.current,
+        outcome: 'failed',
       });
-      logger.error(
+      logTurn(
+        'error',
         'agent.confirm',
         'The AI request could not continue after your confirmation choice. Any partial response and the reported error were saved together as an AI message in this conversation.',
         {
@@ -955,9 +1007,10 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         setStreamingContent('');
         streamContentRef.current = '';
         activeStreamIdRef.current = null;
+        activeActivityIdRef.current = null;
       }
     }
-  }, [runAgentTurn, buildConfig, finalizeAssistantTurn]);
+  }, [runAgentTurn, buildConfig, finalizeAssistantTurn, logTurn]);
 
   const approveToolConfirmation = useCallback(() => resolveConfirmation(true), [resolveConfirmation]);
   const rejectToolConfirmation = useCallback(() => resolveConfirmation(false), [resolveConfirmation]);
@@ -982,6 +1035,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       pendingConfirmRef.current = null;
       setPendingClarification(null);
       pendingClarificationRef.current = null;
+      activeActivityIdRef.current = null;
       // New conversation → new agent thread.
       if (threadIdRef.current) unregisterThread(threadIdRef.current);
       chatPolicyRef.current = restrictivePolicy('chat');

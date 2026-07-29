@@ -53,6 +53,7 @@ import {
   levelRank,
   clampLevel,
   restrictivePolicy,
+  permissionPoliciesEqual,
   registerThreadSurface,
   unregisterThread,
   consumeGatedToolCalls,
@@ -245,13 +246,16 @@ export function useTaskAutomation() {
     let active = true;
     let refreshGeneration = 0;
     const unsubscribe = api.localData.onChanged((change) => {
+      const settingKeys = change?.settingKeys;
       if (!change?.domains?.includes('settings')) return;
+      if (Array.isArray(settingKeys) && !settingKeys.includes('agent_config')) return;
 
       const cachedTasks = Array.from(taskPolicyRef.current.entries());
       if (cachedTasks.length === 0) return;
 
       const generation = ++refreshGeneration;
       const failClosedPolicy = restrictivePolicy('task');
+      const activityId = `settings:${change?.revision || 'unknown'}:agent_config`;
 
       for (const [taskId, cachedPolicy] of cachedTasks) {
         const requestedMode = taskRequestedModeRef.current.get(taskId)
@@ -261,7 +265,7 @@ export function useTaskAutomation() {
         taskPolicyRef.current.set(taskId, failClosedPolicy);
 
         const threadId = threadMapRef.current.get(taskId);
-        if (threadId) registerThreadSurface(threadId, failClosedPolicy);
+        if (threadId) registerThreadSurface(threadId, failClosedPolicy, { logChange: false });
       }
 
       const refreshPolicies = async () => {
@@ -286,7 +290,7 @@ export function useTaskAutomation() {
           };
           const refreshed = [];
 
-          for (const [taskId] of cachedTasks) {
+          for (const [taskId, previousPolicy] of cachedTasks) {
             // Completion removes the fallback cache entry; do not resurrect
             // a task that finished while the settings read was in flight.
             if (!taskPolicyRef.current.has(taskId)) continue;
@@ -300,8 +304,15 @@ export function useTaskAutomation() {
             taskPolicyRef.current.set(taskId, policy);
 
             const threadId = threadMapRef.current.get(taskId);
-            if (threadId) registerThreadSurface(threadId, policy);
-            refreshed.push({ taskId, threadId: threadId || null, mode: policy.mode });
+            if (threadId) registerThreadSurface(threadId, policy, { logChange: false });
+            if (!permissionPoliciesEqual(previousPolicy, policy)) {
+              refreshed.push({
+                taskId,
+                threadId: threadId || null,
+                previousMode: previousPolicy?.mode || 'ask-always',
+                mode: policy.mode,
+              });
+            }
           }
 
           if (refreshed.length > 0) {
@@ -312,6 +323,7 @@ export function useTaskAutomation() {
               'task-automation.permissions',
               `Task permission settings changed. ${refreshed.length} approved automated task${refreshed.length === 1 ? '' : 's'} now use${refreshed.length === 1 ? 's' : ''} the updated rules${soleMode ? ` and will ${describePermissionMode(soleMode)}` : ''}. Any existing task tool checks were updated immediately.`,
               { ceiling, tasks: refreshed },
+              { activityId, outcome: 'applied' },
             );
           }
         } catch (error) {
@@ -320,6 +332,7 @@ export function useTaskAutomation() {
             'task-automation.permissions',
             `Task permission settings changed, but briizOS could not read the new Task rule. ${cachedTasks.length} approved automated task${cachedTasks.length === 1 ? '' : 's'} will ask before every tool action for safety until settings change again.`,
             { error: error?.message, taskIds: cachedTasks.map(([taskId]) => taskId) },
+            { activityId, outcome: 'failed' },
           );
         }
       };

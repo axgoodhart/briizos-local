@@ -239,20 +239,27 @@ model journals {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model logs {
-  id         String   @id
-  type       String
-  source     String   @default("system")
-  category   String   @default("system")
-  message    String   @default("")
-  data_json  String?
-  level      String   @default("info")
-  thread_id  String?
-  session_id String?
-  created_at BigInt
-  task_id    String?
-  tasks      tasks?   @relation(fields: [task_id], references: [id], onUpdate: NoAction)
-  threads    threads? @relation(fields: [thread_id], references: [id], onUpdate: NoAction)
+  id                String   @id
+  type              String
+  source            String   @default("system")
+  category          String   @default("system")
+  message           String   @default("")
+  data_json         String?
+  level             String   @default("info")
+  thread_id         String?
+  session_id        String?
+  created_at        BigInt
+  task_id           String?
+  activity_id       String?
+  span_id           String?
+  parent_span_id    String?
+  activity_sequence Int?
+  phase             String?
+  outcome           String?
+  tasks             tasks?   @relation(fields: [task_id], references: [id], onUpdate: NoAction)
+  threads           threads? @relation(fields: [thread_id], references: [id], onUpdate: NoAction)
 
+  @@index([activity_id, created_at], map: "idx_logs_activity")
   @@index([task_id, created_at], map: "idx_logs_task")
   @@index([category, created_at(sort: Desc)], map: "idx_logs_category")
   @@index([created_at(sort: Desc)], map: "idx_logs_created")

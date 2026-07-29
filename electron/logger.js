@@ -10,6 +10,7 @@
 // logs (i.e. all of them) impossible to require in those contexts, which is why
 // this is optional-chained rather than assumed present.
 const { app, BrowserWindow } = require('electron');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 const isDev = process.env.NODE_ENV !== 'production' && !app?.isPackaged;
 
@@ -26,6 +27,7 @@ let idCounter = 0;
 let persistenceSink = null;
 let pendingPersistence = [];
 let lastPersistenceFailureAt = 0;
+const activityStorage = new AsyncLocalStorage();
 
 // ANSI color codes
 const COLORS = {
@@ -124,6 +126,7 @@ function timestamp() {
  * Format and write a single log line to the terminal.
  */
 function createEntry(level, category, message, data, opts = {}) {
+  const inherited = activityStorage.getStore() || {};
   const entryType = opts.type || category;
   const entryCategory = opts.entryCategory || category;
   return {
@@ -135,8 +138,17 @@ function createEntry(level, category, message, data, opts = {}) {
     data: data ?? null,
     level,
     timestamp: new Date().toISOString(),
-    threadId: opts.threadId || null,
-    sessionId: opts.sessionId || null,
+    threadId: opts.threadId || inherited.threadId || null,
+    sessionId: opts.sessionId || inherited.sessionId || null,
+    taskId: opts.taskId || inherited.taskId || data?.taskId || null,
+    activityId: opts.activityId || inherited.activityId || data?.activityId || null,
+    spanId: opts.spanId || inherited.spanId || data?.spanId || null,
+    parentSpanId: opts.parentSpanId || inherited.parentSpanId || data?.parentSpanId || null,
+    activitySequence: Number.isInteger(opts.activitySequence)
+      ? opts.activitySequence
+      : Number.isInteger(inherited.activitySequence) ? inherited.activitySequence : null,
+    phase: opts.phase || inherited.phase || null,
+    outcome: opts.outcome || inherited.outcome || null,
   };
 }
 
@@ -254,6 +266,7 @@ const logger = {
   info:  (category, message, data, opts) => write('info',  category, message, data, opts),
   warn:  (category, message, data, opts) => write('warn',  category, message, data, opts),
   error: (category, message, data, opts) => write('error', category, message, data, opts),
+  withActivity: (context, work) => activityStorage.run(context || {}, work),
 };
 
 /**
@@ -271,6 +284,15 @@ function registerLoggerIPC(ipcMain) {
       message,
       data,
       type,
+      threadId,
+      sessionId,
+      taskId,
+      activityId,
+      spanId,
+      parentSpanId,
+      activitySequence,
+      phase,
+      outcome,
     } = payload || {};
     if (!level || !category || !message) return;
     if (typeof logger[level] === 'function') {
@@ -279,6 +301,15 @@ function registerLoggerIPC(ipcMain) {
         remember: false,
         type: type || data?.eventType || category,
         entryCategory: category,
+        threadId,
+        sessionId,
+        taskId,
+        activityId,
+        spanId,
+        parentSpanId,
+        activitySequence,
+        phase,
+        outcome,
       });
     }
   });

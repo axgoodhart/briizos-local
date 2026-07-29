@@ -78,27 +78,49 @@ async function createThread(kind = 'chat') {
   return threadId;
 }
 
+function withConfiguredActivity(threadId, config, work) {
+  const activityId = config?.activity_id || config?.activityId || null;
+  if (!activityId) return work();
+  return logger.withActivity({
+    activityId,
+    threadId,
+    taskId: config?.task_id || config?.taskId || null,
+  }, work);
+}
+
 async function streamMessage(threadId, message, config, onEvent) {
   if (typeof onEvent !== 'function') onEvent = () => {};
-  return leadAgent.streamTurn({ threadId, message, config: config || {}, onEvent });
+  const safeConfig = config || {};
+  return withConfiguredActivity(threadId, safeConfig, () => (
+    leadAgent.streamTurn({ threadId, message, config: safeConfig, onEvent })
+  ));
 }
 
 async function resumeRun(threadId, response, config, onEvent) {
   if (typeof onEvent !== 'function') onEvent = () => {};
-  return leadAgent.resumeTurn({ threadId, response: response || {}, config: config || {}, onEvent });
+  const safeConfig = config || {};
+  return withConfiguredActivity(threadId, safeConfig, () => (
+    leadAgent.resumeTurn({ threadId, response: response || {}, config: safeConfig, onEvent })
+  ));
 }
 
 async function sendMessage(threadId, message, config) {
-  return leadAgent.sendTurn({ threadId, message, config: config || {} });
+  const safeConfig = config || {};
+  return withConfiguredActivity(threadId, safeConfig, () => (
+    leadAgent.sendTurn({ threadId, message, config: safeConfig })
+  ));
 }
 
 async function fetchSuggestions(recentMessages, n = 3, config = {}, threadId = null) {
-  return leadAgent.generateSuggestions({
-    threadId,
-    recentMessages: recentMessages || [],
-    n,
-    config: config || {},
-  });
+  const safeConfig = config || {};
+  return withConfiguredActivity(threadId, safeConfig, () => (
+    leadAgent.generateSuggestions({
+      threadId,
+      recentMessages: recentMessages || [],
+      n,
+      config: safeConfig,
+    })
+  ));
 }
 
 module.exports = {

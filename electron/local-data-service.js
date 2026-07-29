@@ -271,6 +271,22 @@ class LocalDataService extends EventEmitter {
     key = v.string(key, 'setting key', { required: true, max: 100 });
     const normalized = this._validateSetting(key, value);
     const valueJson = this._jsonValue(normalized, key, 2000000);
+    this._assertReady();
+    const existing = this.db.prepare(`
+      SELECT key, value_json, revision, updated_at
+      FROM settings WHERE key = ?
+    `).get(key);
+    if (existing?.value_json === valueJson) {
+      return {
+        row: {
+          key: existing.key,
+          value: JSON.parse(existing.value_json),
+          revision: existing.revision,
+          updated_at: existing.updated_at,
+        },
+        unchanged: true,
+      };
+    }
     return this._write('settings', (timestamp) => {
       this.db.prepare(`
         INSERT INTO settings (key, value_json, created_at, updated_at, revision)
@@ -282,7 +298,7 @@ class LocalDataService extends EventEmitter {
       `).run(key, valueJson, timestamp, timestamp);
       const row = this.db.prepare('SELECT key, value_json, revision, updated_at FROM settings WHERE key = ?').get(key);
       return { row: { key: row.key, value: JSON.parse(row.value_json), revision: row.revision, updated_at: row.updated_at } };
-    });
+    }, { settingKeys: [key] });
   }
 
   ensureDefaultModelProfiles() {
@@ -864,11 +880,11 @@ class LocalDataService extends EventEmitter {
     });
   }
 
-  _write(domain, work) {
-    return this._writeDomains([domain], work);
+  _write(domain, work, change = null) {
+    return this._writeDomains([domain], work, change);
   }
 
-  _writeDomains(domains, work) {
+  _writeDomains(domains, work, change = null) {
     this._assertReady();
     const timestamp = now();
     const committed = this.db.transaction(() => {
@@ -898,7 +914,11 @@ class LocalDataService extends EventEmitter {
       return { value, revisions };
     })();
 
-    this.emit('changed', { domains, revision: committed.revisions[domains[0]] });
+    this.emit('changed', {
+      domains,
+      revision: committed.revisions[domains[0]],
+      ...(change && typeof change === 'object' ? change : {}),
+    });
     return {
       ...committed.value,
       domainRevision: committed.revisions[domains[0]],
@@ -2406,7 +2426,7 @@ class LocalDataService extends EventEmitter {
 
   appendMessage(threadId, input = {}) {
     threadId = v.identifier(threadId, 'threadId');
-    v.object(input, 'message', ['role', 'content', 'isError']);
+    v.object(input, 'message', ['role', 'content', 'isError', 'activityId', 'outcome']);
     // `messages` is deliberately the clean, user-visible transcript. System
     // prompts and tool traffic belong in ai_turn_audit_events instead.
     const role = v.oneOf(input.role, 'role', ['user', 'assistant']);
@@ -2441,6 +2461,9 @@ class LocalDataService extends EventEmitter {
         threadId,
         entryCategory: 'chat',
         source: role === 'user' ? 'user' : 'agent',
+        activityId: input.activityId || null,
+        phase: 'transcript',
+        outcome: input.outcome || (isError ? 'failed' : 'saved'),
       },
     );
     return saved;
@@ -3546,22 +3569,35 @@ class LocalDataService extends EventEmitter {
       // never clip a long user or assistant message at the logging boundary.
       message: v.string(input.message || '', 'log message', { max: 2100000 }),
       level: v.oneOf(input.level || 'info', 'log level', ['debug', 'info', 'warn', 'error']),
+      activityId: input.activityId == null ? null : v.string(input.activityId, 'activity id', { max: 200 }),
+      spanId: input.spanId == null ? null : v.string(input.spanId, 'span id', { max: 200 }),
+      parentSpanId: input.parentSpanId == null ? null : v.string(input.parentSpanId, 'parent span id', { max: 200 }),
+      activitySequence: input.activitySequence == null
+        ? null
+        : v.integer(input.activitySequence, 'activity sequence', { min: 0 }),
+      phase: input.phase == null ? null : v.string(input.phase, 'activity phase', { max: 100 }),
+      outcome: input.outcome == null ? null : v.string(input.outcome, 'activity outcome', { max: 100 }),
     };
     this.db.prepare(`
-      INSERT OR IGNORE INTO logs (id, type, source, category, message, data_json, level, thread_id, session_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO logs (
+        id, type, source, category, message, data_json, level, thread_id, session_id,
+        task_id, activity_id, span_id, parent_span_id, activity_sequence, phase, outcome, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(row.id, row.type, row.source, row.category, row.message,
       // JSON escaping and UTF-8 can require several bytes per message
       // character, so leave enough room for a full 2,000,000-character
       // transcript plus its structured metadata.
       input.data == null ? null : this._jsonValue(input.data, 'log data', 16000000), row.level,
-      input.threadId || null, input.sessionId || null, Number.isFinite(timestamp) ? timestamp : now());
+      input.threadId || null, input.sessionId || null, input.taskId || null,
+      row.activityId, row.spanId, row.parentSpanId, row.activitySequence, row.phase, row.outcome,
+      Number.isFinite(timestamp) ? timestamp : now());
     return row;
   }
 
   listLogs(input = {}) {
     this._assertReady();
-    v.object(input, 'log filters', ['id', 'category', 'level', 'source', 'threadId', 'query', 'since', 'until', 'limit']);
+    v.object(input, 'log filters', ['id', 'category', 'level', 'source', 'threadId', 'activityId', 'query', 'since', 'until', 'limit']);
     const clauses = [];
     const params = [];
     if (input.id !== undefined) {
@@ -3584,6 +3620,10 @@ class LocalDataService extends EventEmitter {
       clauses.push('thread_id = ?');
       params.push(v.identifier(input.threadId, 'threadId'));
     }
+    if (input.activityId !== undefined) {
+      clauses.push('activity_id = ?');
+      params.push(v.string(input.activityId, 'activityId', { required: true, max: 200 }));
+    }
     if (input.query !== undefined) {
       const query = v.string(input.query, 'query', { required: true, max: 500 }).toLowerCase();
       clauses.push('(LOWER(message) LIKE ? OR LOWER(type) LIKE ? OR LOWER(category) LIKE ? OR LOWER(COALESCE(data_json, \'\')) LIKE ?)');
@@ -3600,7 +3640,8 @@ class LocalDataService extends EventEmitter {
     const limit = input.limit === undefined ? 100 : v.integer(input.limit, 'limit', { min: 1, max: 1000 });
     return this.db.prepare(`
       SELECT id, type, source, category, message, data_json, level, thread_id, session_id,
-             task_id, created_at
+             task_id, activity_id, span_id, parent_span_id, activity_sequence, phase, outcome,
+             created_at
       FROM logs ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
       ORDER BY created_at DESC LIMIT ?
     `).all(...params, limit).map((entry) => ({
@@ -3614,6 +3655,12 @@ class LocalDataService extends EventEmitter {
       threadId: entry.thread_id,
       sessionId: entry.session_id,
       taskId: entry.task_id,
+      activityId: entry.activity_id,
+      spanId: entry.span_id,
+      parentSpanId: entry.parent_span_id,
+      activitySequence: entry.activity_sequence,
+      phase: entry.phase,
+      outcome: entry.outcome,
       timestamp: new Date(entry.created_at).toISOString(),
     }));
   }
