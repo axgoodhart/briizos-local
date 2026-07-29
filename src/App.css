@@ -6514,7 +6514,7 @@ inset 0 0 20px rgba(123, 44, 191, 0.15);
   --ui-text-primary: rgb(243, 243, 243);
   --ui-header-text: rgb(40,20,80);
   --ui-header-titlecolor: yellow;
-  --ui-header-bg: radial-gradient(circle at bottom middle, gold 0%, rgba(0, 120, 200, 0.9) 30%);
+  --ui-header-bg: radial-gradient(circle at bottom right, gold 0%, rgba(0, 120, 200, 0.9) 30%);
   --ui-title-icon: rgb(236, 237, 232);
   --ui-title-icon-glow: 0 0 8px var(--palletet-accent-primary);
   --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, rgba(90, 6, 6), purple, black, teal);
