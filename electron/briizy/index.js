@@ -178,14 +178,23 @@ class Briizy extends EventEmitter {
     this.config = this._loadConfig();
     this.indexer.setConfig(this.config);
 
-    this._log('info', 'briizy runtime starting', {
-      enabled: this.config.enabled,
-      onboarded: !!this.config.onboardedAt,
-      captureIntervalMs: this.config.captureIntervalMs,
-      retentionDays: this.config.retentionDays,
-      retentionGiB: +(this.config.retentionBytes / 1024 ** 3).toFixed(2),
-      cloudTextAnalysisAllowed: this.config.cloudTextAnalysisAllowed,
-    });
+    const cadenceSeconds = +(this.config.captureIntervalMs / 1000).toFixed(1);
+    this._log(
+      'info',
+      this.config.enabled
+        ? `Screen memory is enabled. briizOS will attempt one screenshot every ${cadenceSeconds} seconds and run local OCR on every ${this.config.ocrEveryNthFrame} captured screenshots. The next capture-status entry reports whether macOS granted Screen Recording.`
+        : 'Screen memory is off. No screenshots or OCR will be taken until the user enables it.',
+      {
+        captureEnabled: this.config.enabled,
+        onboardingCompleted: !!this.config.onboardedAt,
+        screenshotIntervalSeconds: cadenceSeconds,
+        localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
+        retentionDays: this.config.retentionDays,
+        retentionGiB: +(this.config.retentionBytes / 1024 ** 3).toFixed(2),
+        cloudTextAnalysisAllowed: this.config.cloudTextAnalysisAllowed,
+        providerRequestAttempted: false,
+      },
+    );
 
     // I10: the helper is only spawned once the user has turned capture on.
     // Before onboarding, briizy exists but does nothing.
@@ -195,7 +204,7 @@ class Briizy extends EventEmitter {
       this.coordinator.start();
       this._startCompactionTimer();
     } else {
-      this._log('info', 'Capture is off — helper not spawned (nothing is silently enabled)');
+      this._log('debug', 'The screen-capture helper was not started because screen memory is off.');
     }
     // The summary is built from the database, not from a model, so it runs
     // whether or not cloud text analysis is allowed.
@@ -206,7 +215,7 @@ class Briizy extends EventEmitter {
   async stop() {
     if (!this.started) return;
     this.started = false;
-    this._log('info', 'briizy runtime stopping');
+    this._log('info', 'Screen memory is stopping; no further screenshots or OCR will be scheduled.');
     if (this.summaryTimer) {
       clearInterval(this.summaryTimer);
       this.summaryTimer = null;
@@ -253,7 +262,12 @@ class Briizy extends EventEmitter {
     const changedKeys = Object.keys(next).filter((key) => (
       JSON.stringify(next[key]) !== JSON.stringify(previous[key])
     ));
-    this._log('info', 'Config updated', { changed: changedKeys });
+    this._log('info', 'Screen-memory settings were saved.', {
+      changedSettings: changedKeys,
+      captureEnabledNow: next.enabled,
+      screenshotIntervalSeconds: +(next.captureIntervalMs / 1000).toFixed(1),
+      localOcrEveryNthScreenshot: next.ocrEveryNthFrame,
+    });
 
     if (next.enabled && !previous.enabled) {
       this.helper.start();
@@ -286,9 +300,12 @@ class Briizy extends EventEmitter {
       onboardedAt: Date.now(),
       cloudTextAnalysisAllowed: input.cloudTextAnalysisAllowed === true,
     });
-    this._log('info', 'Onboarding completed', {
+    this._log('info', 'Screen-memory onboarding choices were saved.', {
       captureEnabled: next.enabled,
       cloudTextAnalysisAllowed: next.cloudTextAnalysisAllowed,
+      effect: next.enabled
+        ? 'The local capture pipeline will now check macOS Screen Recording permission.'
+        : 'No screenshots or OCR will run.',
     });
     return next;
   }
@@ -480,7 +497,7 @@ class Briizy extends EventEmitter {
     if (this.helper.getStatus().state === 'ready') return true;
     if (!this.helper.isAvailable()) return false;
     if (this.helper.state === 'stopped' || this.helper.state === 'error') {
-      this._log('info', 'Starting the helper to read compacted history');
+      this._log('debug', 'The local helper is starting for a read-only request to display saved screen history. This does not enable new screenshot capture.');
       this.helper.start();
     }
     const deadline = Date.now() + timeoutMs;

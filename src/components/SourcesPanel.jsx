@@ -35,6 +35,99 @@ function DraggableGithubFile({ item, githubPath, isSelected, onNavigateFolder })
 const api = window.api || {};
 const hasApi = typeof window !== 'undefined' && window.api;
 
+const LOG_LEVEL_META = {
+  debug: { label: 'Technical detail', glyph: '·' },
+  info: { label: 'Recorded', glyph: 'i' },
+  warn: { label: 'Needs attention', glyph: '!' },
+  error: { label: 'Failed', glyph: '×' },
+};
+
+const LOG_CATEGORY_LABELS = {
+  agent: 'AI',
+  automation: 'Task automation',
+  briizy: 'Screen memory',
+  'screen-memory': 'Screen memory',
+  canvas: 'Canvas',
+  chat: 'Chat',
+  database: 'Local database',
+  fs: 'Files',
+  network: 'Network',
+  permissions: 'Permissions',
+  settings: 'Settings',
+  sync: 'Cloud sync',
+  system: 'App',
+  task: 'Tasks',
+  ui: 'Interface',
+  weather: 'Header weather',
+};
+
+function humanizeLogToken(value) {
+  return String(value || 'system')
+    .replace(/[._-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function logCategoryLabel(log) {
+  const category = log.category || log.action || 'system';
+  return LOG_CATEGORY_LABELS[category] || humanizeLogToken(category);
+}
+
+function printableEvidence(value) {
+  if (value == null) return String(value);
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function evidenceRows(log) {
+  const rows = [];
+  if (log.threadId) rows.push(['Chat thread', log.threadId]);
+  if (log.sessionId) rows.push(['App session', log.sessionId]);
+  if (log.taskId) rows.push(['Task', log.taskId]);
+  if (log.data && typeof log.data === 'object' && !Array.isArray(log.data)) {
+    Object.entries(log.data).forEach(([key, value]) => {
+      rows.push([humanizeLogToken(key), printableEvidence(value)]);
+    });
+  } else if (log.data !== undefined && log.data !== null) {
+    rows.push(['Recorded detail', printableEvidence(log.data)]);
+  }
+  return rows;
+}
+
+function logInterpretation(log) {
+  if (log.type === 'chat.user_message') {
+    return 'This is the user-visible message saved locally before briizOS asked a model provider for a response.';
+  }
+  if (log.type === 'chat.assistant_message') {
+    return 'This is the user-visible assistant response saved to the same local chat thread.';
+  }
+  if (log.level === 'error') {
+    return 'This operation did not finish. The exact recorded error and affected identifiers are shown below.';
+  }
+  if (log.level === 'warn') {
+    return 'One operation failed, paused, or used a fallback. briizOS continued only where the message says it did.';
+  }
+  if (log.level === 'debug') {
+    return 'This is an internal trace step. It is evidence about implementation activity, not proof of a user-visible result.';
+  }
+  return 'briizOS recorded this step or observed state. It does not, by itself, prove that a later network or AI request succeeded.';
+}
+
+function mergeLogLists(...lists) {
+  const byId = new Map();
+  lists.flat().forEach((entry) => {
+    if (entry?.id) byId.set(entry.id, entry);
+  });
+  return [...byId.values()]
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 500);
+}
+
 function SourcesPanel() {
   const [expandedSections, setExpandedSections] = useState({
     local: true,
@@ -69,6 +162,9 @@ function SourcesPanel() {
   const [isLoadingGdrive, setIsLoadingGdrive] = useState(true);
 
   const [logs, setLogs] = useState([]);
+  const [logView, setLogView] = useState('all');
+  const [logQuery, setLogQuery] = useState('');
+  const [expandedLogId, setExpandedLogId] = useState(null);
   const logContainerRef = useRef(null);
 
   // Fetch home directories on mount
@@ -312,13 +408,40 @@ function SourcesPanel() {
     return () => clearInterval(interval);
   }, []);
 
-  // Subscribe to the unified local log stream (renderer + Electron main).
+  // Merge the current live stream with SQLite history. Before this, the panel
+  // discarded its own persisted logs on every restart even though they were
+  // still present in briizos.db.
   useEffect(() => {
+    let mounted = true;
+    let liveLogs = [];
+    let persistedLogs = [];
+    const publish = () => {
+      if (mounted) setLogs(mergeLogLists(liveLogs, persistedLogs));
+    };
+
     const unsubscribe = subscribeLogs((logData) => {
-      setLogs(logData.slice(0, 80));
+      liveLogs = logData;
+      publish();
     });
 
-    return () => unsubscribe();
+    if (typeof api.localData?.logs?.list === 'function') {
+      api.localData.logs.list({ limit: 500 })
+        .then((entries) => {
+          persistedLogs = Array.isArray(entries) ? entries : [];
+          publish();
+        })
+        .catch((error) => {
+          logger.warn('ui.logs', 'The activity panel could not load earlier SQLite logs; current-session logs are still visible.', {
+            error: error?.message,
+            effect: 'Only prior app-session history is missing from this panel.',
+          });
+        });
+    }
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   // Keep newest logs visible.
@@ -352,6 +475,29 @@ function SourcesPanel() {
     });
   };
 
+  const normalizedLogQuery = logQuery.trim().toLowerCase();
+  const filteredLogs = logs.filter((entry) => {
+    const isChatTranscript = entry.type === 'chat.user_message'
+      || entry.type === 'chat.assistant_message';
+    if (logView === 'chat' && !isChatTranscript) return false;
+    if (logView === 'problems' && entry.level !== 'warn' && entry.level !== 'error') return false;
+    if (!normalizedLogQuery) return true;
+    let evidence = '';
+    try { evidence = JSON.stringify(entry.data || ''); } catch { evidence = String(entry.data || ''); }
+    return [
+      entry.message,
+      entry.type,
+      entry.category,
+      entry.level,
+      evidence,
+    ].some((value) => String(value || '').toLowerCase().includes(normalizedLogQuery));
+  });
+
+  const problemCount = logs.filter((entry) => entry.level === 'warn' || entry.level === 'error').length;
+  const chatCount = logs.filter((entry) => (
+    entry.type === 'chat.user_message' || entry.type === 'chat.assistant_message'
+  )).length;
+
   return (
     <div className="panel sources-panel">
       <div className="panel-header">
@@ -365,25 +511,96 @@ function SourcesPanel() {
       </div>
       <div className="panel-content">
 
-        {/*Logs Section */}
-
-        {/* Log Section */}
         <div className="log-section">
-          <div className="log-header">Log</div>
+          <div className="log-header">
+            <span>Activity &amp; evidence</span>
+            <span className="log-header-summary">{logs.length} shown · {problemCount} need attention</span>
+          </div>
+          <div className="log-filters" role="group" aria-label="Choose which activity logs to show">
+            {[
+              ['all', `Everything (${logs.length})`],
+              ['chat', `Chat (${chatCount})`],
+              ['problems', `Problems (${problemCount})`],
+            ].map(([view, label]) => (
+              <button
+                key={view}
+                type="button"
+                className={`log-filter-btn ${logView === view ? 'active' : ''}`}
+                onClick={() => setLogView(view)}
+                aria-pressed={logView === view}
+              >
+                {label}
+              </button>
+            ))}
+            <input
+              className="log-search"
+              type="search"
+              value={logQuery}
+              onChange={(event) => setLogQuery(event.currentTarget.value)}
+              placeholder="Search messages or evidence"
+              aria-label="Search activity messages and evidence"
+            />
+          </div>
           <div className="log-entries" ref={logContainerRef}>
-            {logs.length === 0 ? (
-              <div className="log-entry">
-                <span className="log-message">No activity yet...</span>
+            {filteredLogs.length === 0 ? (
+              <div className="log-entry log-empty">
+                <span className="log-message">
+                  {logs.length === 0 ? 'No activity has been recorded yet.' : 'No saved activity matches this view.'}
+                </span>
               </div>
             ) : (
-              logs.map(log => (
-                <div key={log.id} className="log-entry">
-                  <span className="log-date">{formatLogDate(log.timestamp)}</span>
-                  <span className="log-time">{formatLogTime(log.timestamp)}</span>
-                  <span className="log-action">[{log.level || 'info'}:{log.category || log.action || 'system'}]</span>
-                  {log.message && <span className="log-message">{log.message}</span>}
-                </div>
-              ))
+              filteredLogs.map((log) => {
+                const level = LOG_LEVEL_META[log.level] || LOG_LEVEL_META.info;
+                const expanded = expandedLogId === log.id;
+                const rows = evidenceRows(log);
+                return (
+                  <article
+                    key={log.id}
+                    className={`log-entry log-level-${log.level || 'info'} ${log.type === 'chat.user_message' || log.type === 'chat.assistant_message' ? 'log-chat-entry' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="log-row"
+                      onClick={() => setExpandedLogId(expanded ? null : log.id)}
+                      aria-expanded={expanded}
+                    >
+                      <time
+                        className="log-time"
+                        dateTime={log.timestamp}
+                        title={`${formatLogDate(log.timestamp)} at ${formatLogTime(log.timestamp)}`}
+                      >
+                        {formatLogTime(log.timestamp)}
+                      </time>
+                      <span className="log-level-label" title={level.label} aria-label={level.label}>
+                        {level.glyph}
+                      </span>
+                      <span className="log-type">{logCategoryLabel(log)}</span>
+                      <span className="log-message">{log.message || 'No explanation was recorded.'}</span>
+                      <span className="log-expand" aria-hidden="true">{expanded ? '−' : '+'}</span>
+                    </button>
+                    {expanded && (
+                      <div className="log-data">
+                        <p className="log-interpretation">{logInterpretation(log)}</p>
+                        <p className="log-full-message">{log.message || 'No explanation was recorded.'}</p>
+                        {rows.length > 0 && (
+                          <dl className="log-evidence-list">
+                            {rows.map(([label, value], index) => (
+                              <div className="log-evidence-row" key={`${label}-${index}`}>
+                                <dt>{label}</dt>
+                                <dd>{value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                        <div className="log-developer-id">
+                          Developer event: <code>{log.type || 'system.event'}</code>
+                          {' · '}Source: <code>{log.source || 'system'}</code>
+                        </div>
+                      </div>
+                    )}
+                  </article>
+                );
+              })
             )}
           </div>
         </div>

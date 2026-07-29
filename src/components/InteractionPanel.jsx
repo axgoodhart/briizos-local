@@ -342,7 +342,14 @@ function InteractionPanel() {
   const [priorityActionState, setPriorityActionState] = useState({ busy: null, message: '', tone: 'info' });
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const confirmationPanelRef = useRef(null);
   const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (!pendingToolConfirmation) return undefined;
+    const frame = requestAnimationFrame(() => confirmationPanelRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [pendingToolConfirmation]);
 
   useEffect(() => {
     const openPlanner = (event) => {
@@ -732,7 +739,7 @@ function InteractionPanel() {
                   key={m.id}
                   className={`modality-chip ${modality === m.id ? 'active' : ''}`}
                   onClick={() => setModality(m.id)}
-                  disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation}
+                  disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
                   title={`${m.label} mode`}
                   style={{
                     padding: '2px 8px',
@@ -1242,62 +1249,6 @@ function InteractionPanel() {
         </div>
       )}
 
-      {/* Tool Confirmation Bar */}
-      {modality !== 'stylofact' && pendingToolConfirmation && (
-        <div className="lg-status-bar" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
-          fontSize: '12px',
-          color: '#fbbf24',
-          background: 'rgba(251, 191, 36, 0.08)',
-          borderTop: '1px solid rgba(251, 191, 36, 0.2)',
-        }}>
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            flexShrink: 0,
-            background: '#fbbf24',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }} />
-          <span style={{ flex: 1, lineHeight: '1.3' }}>
-            <strong>Confirm:</strong> {pendingToolConfirmation.summary}
-          </span>
-          <button
-            onClick={approveToolConfirmation}
-            style={{
-              padding: '3px 12px',
-              fontSize: '11px',
-              fontWeight: 600,
-              border: '1px solid rgba(74, 222, 128, 0.4)',
-              borderRadius: '4px',
-              background: 'rgba(74, 222, 128, 0.15)',
-              color: '#4ade80',
-              cursor: 'pointer',
-            }}
-          >
-            Approve
-          </button>
-          <button
-            onClick={rejectToolConfirmation}
-            style={{
-              padding: '3px 12px',
-              fontSize: '11px',
-              fontWeight: 600,
-              border: '1px solid rgba(248, 113, 113, 0.4)',
-              borderRadius: '4px',
-              background: 'rgba(248, 113, 113, 0.15)',
-              color: '#f87171',
-              cursor: 'pointer',
-            }}
-          >
-            Reject
-          </button>
-        </div>
-      )}
-
       {/* Backend status indicator */}
       {modality !== 'stylofact' && lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
         <div className="lg-status-bar" style={{
@@ -1334,45 +1285,85 @@ function InteractionPanel() {
       )}
 
       {/* Input Area */}
-      {modality !== 'stylofact' && <div className="chat-input-area">
-        <div className="chat-input-wrapper">
-          <textarea
-            ref={textareaRef}
-            className="chat-textarea"
-            placeholder={!lgReady
-              ? 'Waiting for AI backend...'
-              : pendingClarification
-                ? 'Answer the clarification...'
-                : modality === 'prioritize'
-                  ? 'Describe your goals, timing, and available effort… (⌘+Enter)'
-                : modality === 'planner'
-                  ? 'Ask about your schedule or shape a day… (⌘+Enter)'
-                : filesInContext.length > 0
-                  ? `Ask about ${filesInContext.length} file(s)...`
-                  : "Ask anything (\u2318+Enter)"}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading || isSwitchingThread || !lgReady || modelsLoading || !selectedModel}
-            rows={1}
+      {(modality !== 'stylofact' || pendingToolConfirmation || pendingConfirmation) && (
+        <div className={`chat-input-area ${pendingToolConfirmation || pendingConfirmation ? 'has-confirmation' : ''}`}>
+          <ConfirmationToast
+            pendingConfirmation={pendingToolConfirmation ? null : pendingConfirmation}
+            onConfirm={confirmAction}
+            onCancel={cancelAction}
           />
-          <button
-            className="chat-send-btn"
-            onClick={handleSubmit}
-            disabled={!inputValue.trim() || isLoading || isSwitchingThread || !lgReady || modelsLoading || !selectedModel}
-          >
-            {isLoading ? '...' : '\u2192'}
-          </button>
+
+          {pendingToolConfirmation ? (
+            <section
+              ref={confirmationPanelRef}
+              className="chat-confirmation-request"
+              role="alertdialog"
+              aria-labelledby="agent-confirmation-title"
+              aria-describedby="agent-confirmation-action agent-confirmation-note"
+              tabIndex={-1}
+            >
+              <div className="confirmation-request-copy">
+                <div className="confirmation-request-kicker">Approval needed</div>
+                <h3 id="agent-confirmation-title" className="confirmation-request-title">
+                  Briizy is asking to perform an action
+                </h3>
+                <p id="agent-confirmation-action" className="confirmation-request-action">
+                  {pendingToolConfirmation.summary}
+                </p>
+                <p id="agent-confirmation-note" className="confirmation-request-note">
+                  Nothing will run until you choose.
+                </p>
+              </div>
+              <div className="confirmation-request-actions" aria-label="Respond to requested action">
+                <button
+                  type="button"
+                  className="confirmation-response-btn approve"
+                  onClick={approveToolConfirmation}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="confirmation-response-btn decline"
+                  onClick={rejectToolConfirmation}
+                >
+                  Decline
+                </button>
+              </div>
+            </section>
+          ) : !pendingConfirmation && modality !== 'stylofact' ? (
+            <div className="chat-input-wrapper">
+              <textarea
+                ref={textareaRef}
+                className="chat-textarea"
+                placeholder={!lgReady
+                  ? 'Waiting for AI backend...'
+                  : pendingClarification
+                    ? 'Answer the clarification...'
+                    : modality === 'prioritize'
+                      ? 'Describe your goals, timing, and available effort… (⌘+Enter)'
+                    : modality === 'planner'
+                      ? 'Ask about your schedule or shape a day… (⌘+Enter)'
+                    : filesInContext.length > 0
+                      ? `Ask about ${filesInContext.length} file(s)...`
+                      : "Ask anything (\u2318+Enter)"}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading || isSwitchingThread || !lgReady || modelsLoading || !selectedModel}
+                rows={1}
+              />
+              <button
+                className="chat-send-btn"
+                onClick={handleSubmit}
+                disabled={!inputValue.trim() || isLoading || isSwitchingThread || !lgReady || modelsLoading || !selectedModel}
+              >
+                {isLoading ? '...' : '\u2192'}
+              </button>
+            </div>
+          ) : null}
         </div>
-      </div>}
-
-
-      {/* Confirmation Toast */}
-      <ConfirmationToast
-        pendingConfirmation={pendingConfirmation}
-        onConfirm={confirmAction}
-        onCancel={cancelAction}
-      />
+      )}
     </div>
   );
 }

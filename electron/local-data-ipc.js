@@ -83,6 +83,7 @@ const CHANNELS = Object.freeze({
   runsTransition: 'local-data:runs:transition',
   sharedTextList: 'local-data:shared-text:list',
   sharedTextImport: 'local-data:shared-text:import',
+  logsList: 'local-data:logs:list',
   logsAppend: 'local-data:logs:append',
   continuityStatus: 'local-data:continuity:status',
   continuityRestore: 'local-data:continuity:restore',
@@ -188,6 +189,7 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
     [CHANNELS.runsTransition, (runId, status, input) => service.transitionRun(runId, status, input)],
     [CHANNELS.sharedTextList, (ownerAppId) => service.listSharedTextMirrors(ownerAppId)],
     [CHANNELS.sharedTextImport, (ownerAppId, remoteId) => service.importSharedTextMirror(ownerAppId, remoteId)],
+    [CHANNELS.logsList, (filters) => service.listLogs(filters)],
     [CHANNELS.logsAppend, (input) => service.appendLog(input)],
   ];
 

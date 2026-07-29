@@ -284,6 +284,7 @@ contextBridge.exposeInMainWorld('api', {
       importCopy: (ownerAppId, remoteId) => invokeLocalData('local-data:shared-text:import', ownerAppId, remoteId),
     },
     logs: {
+      list: (filters) => invokeLocalData('local-data:logs:list', filters),
       append: (input) => invokeLocalData('local-data:logs:append', input),
     },
     onChanged: (callback) => {
@@ -301,7 +302,14 @@ contextBridge.exposeInMainWorld('api', {
     restoreContinuity: (domains) => ipcRenderer.invoke('cloud:restore-continuity', domains),
     promoteThisDevice: () => ipcRenderer.invoke('cloud:promote-device'),
   },
-  automationExecuteRun: (runId, policy) => ipcRenderer.invoke('automation:execute-run', runId, policy),
+  automationExecuteRun: (runId, permissionRequest) => (
+    ipcRenderer.invoke('automation:execute-run', runId, permissionRequest)
+  ),
+  onAutomationThreadPolicy: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('automation-thread-policy', handler);
+    return () => ipcRenderer.removeListener('automation-thread-policy', handler);
+  },
 
   // File System API
   listDirectory: (dirPath) => ipcRenderer.invoke('fs-list-directory', dirPath),

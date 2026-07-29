@@ -43,7 +43,11 @@ export function useToolBridge(executeTool, appContext) {
     }
 
     const cleanup = window.api.onToolBridgeExecute(async ({ requestId, toolName, params, threadId }) => {
-      logger.info('tool.bridge', `Agent tool request: ${toolName}`, { requestId, threadId });
+      logger.info('tool.bridge', `The AI requested the “${toolName}” tool; permission checks will run before any action`, {
+        requestId,
+        threadId,
+        effect: 'This log records a request, not a completed action.',
+      });
 
       try {
         // __agentAuto marks this as an agent-originated call (so the hard
@@ -54,10 +58,18 @@ export function useToolBridge(executeTool, appContext) {
           { ...params, __agentAuto: true, __briizosThreadId: threadId || null },
           appContextRef.current,
         );
-        logger.info('tool.bridge', `Tool executed: ${toolName}`, { requestId, success: result?.success });
+        logger.info('tool.bridge', `The “${toolName}” tool finished`, {
+          requestId,
+          success: result?.success === true,
+          result,
+        });
         window.api.toolBridgeResult(requestId, result, null);
       } catch (err) {
-        logger.error('tool.bridge', `Tool execution failed: ${toolName}`, { requestId, error: err?.message });
+        logger.error('tool.bridge', `The “${toolName}” tool did not finish`, {
+          requestId,
+          error: err?.message,
+          effect: 'The AI received the failure instead of a successful tool result.',
+        });
         window.api.toolBridgeResult(requestId, null, err?.message || 'Tool execution failed');
       }
     });

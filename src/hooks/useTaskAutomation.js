@@ -63,6 +63,12 @@ import logger from '../lib/logger';
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 const hasApi = typeof window !== 'undefined' && !!window.api;
 
+function describePermissionMode(mode) {
+  if (mode === 'no-asking') return 'run allowed tool actions without asking first';
+  if (mode === 'ask-destructive') return 'ask before tool actions that could cause damage';
+  return 'ask before every tool action';
+}
+
 /** Sentinel: a headless turn was blocked by policy → pause, don't error. */
 class TaskGatedError extends Error {
   constructor(reason) {
@@ -81,9 +87,59 @@ export function useTaskAutomation() {
   // taskId -> effective per-task policy { surface:'task', mode, blacklist }.
   // Set once the user resolves the pre-send Margerin permission hold.
   const taskPolicyRef = useRef(new Map());
+  // Keep the user's selected level separately from the effective policy so
+  // a later Task-column ceiling can be tightened or relaxed without losing
+  // the task's original choice.
+  const taskRequestedModeRef = useRef(new Map());
   // taskIds with an in-flight permission Margerin (don't double-prompt
   // on local change echoes).
   const pendingPermissionRef = useRef(new Set());
+
+  // The production automation runner creates its LangGraph thread in Electron
+  // main. Mirror that real thread into the renderer registry so the hard tool
+  // gate can enforce—and immediately refresh—the same per-task policy.
+  useEffect(() => {
+    if (typeof api.onAutomationThreadPolicy !== 'function') return undefined;
+    return api.onAutomationThreadPolicy((event = {}) => {
+      const {
+        action,
+        taskId,
+        threadId,
+        policy,
+        requestedMode,
+      } = event;
+      if (!taskId || !threadId) return;
+
+      if (action === 'unregister') {
+        if (threadMapRef.current.get(taskId) === threadId) {
+          unregisterThread(threadId);
+          threadMapRef.current.delete(taskId);
+          taskPolicyRef.current.delete(taskId);
+          taskRequestedModeRef.current.delete(taskId);
+        }
+        processingRef.current.delete(taskId);
+        return;
+      }
+
+      const safePolicy = {
+        surface: 'task',
+        mode: LEVELS.includes(policy?.mode) ? policy.mode : 'ask-always',
+        blacklist: {
+          paths: Array.isArray(policy?.blacklist?.paths) ? policy.blacklist.paths : [],
+          filetypes: Array.isArray(policy?.blacklist?.filetypes) ? policy.blacklist.filetypes : [],
+        },
+      };
+      const previousThread = threadMapRef.current.get(taskId);
+      if (previousThread && previousThread !== threadId) unregisterThread(previousThread);
+      threadMapRef.current.set(taskId, threadId);
+      taskPolicyRef.current.set(taskId, safePolicy);
+      taskRequestedModeRef.current.set(
+        taskId,
+        LEVELS.includes(requestedMode) ? requestedMode : safePolicy.mode,
+      );
+      registerThreadSurface(threadId, safePolicy);
+    });
+  }, []);
 
   // -------------------------------------------------------------------
   // Pre-send permission hold (Margerin). Requesting automation on a task
@@ -95,22 +151,21 @@ export function useTaskAutomation() {
     const cached = taskPolicyRef.current.get(task.id);
     if (cached) return cached;
 
-    // Resolve the Task-column ceiling + blacklist from settings.
+    // Resolve the Task-column ceiling used to shape the choices shown.
     let ceiling = 'ask-always';
-    let blacklist = { paths: [], filetypes: [] };
     try {
       if (typeof api.agentGetSurfacePolicy === 'function') {
         const cfg = await api.agentGetSurfacePolicy('task');
         if (cfg && typeof cfg === 'object') {
           ceiling = LEVELS.includes(cfg.mode) ? cfg.mode : 'ask-always';
-          blacklist = {
-            paths: Array.isArray(cfg.blacklist?.paths) ? cfg.blacklist.paths : [],
-            filetypes: Array.isArray(cfg.blacklist?.filetypes) ? cfg.blacklist.filetypes : [],
-          };
         }
       }
     } catch (err) {
-      logger.error('task-automation', 'Failed to read Task permission ceiling — staying fail-closed', { error: err?.message });
+      logger.error(
+        'task-automation',
+        'briizOS could not read the Task-column permission limit. This task will ask before every tool action instead of using a possibly stale or broader rule.',
+        { taskId: task.id, error: err?.message, effectiveMode: 'ask-always' },
+      );
     }
 
     // Allowed levels: most-restrictive .. ceiling (never beyond it).
@@ -129,16 +184,153 @@ export function useTaskAutomation() {
       // ✕ cancel or 💬 return-to-chat → automation declined.
       await appendTaskLog(task.id, 'status', 'Automation cancelled before start (permission not granted)').catch(() => {});
       await updateTask(task.id, { automated: false, status: 'pending' }).catch(() => {});
-      logger.info('task-automation', 'Per-task permission declined', { taskId: task.id });
+      logger.info('task-automation', 'You declined automation for this task. The task remains pending and no AI request or tool action was started.', {
+        taskId: task.id,
+      });
       return null;
     }
 
-    const chosen = clampLevel(decision?.level || ceiling, ceiling);
-    const policy = { surface: 'task', mode: chosen, blacklist };
+    // Settings may have changed while the Margerin was waiting for the user.
+    // Resolve again immediately before caching or dispatching the task.
+    const requestedMode = LEVELS.includes(decision?.level) ? decision.level : 'ask-always';
+    let currentCeiling = 'ask-always';
+    let currentBlacklist = { paths: [], filetypes: [] };
+    try {
+      if (typeof api.agentGetSurfacePolicy !== 'function') {
+        throw new Error('Task permission settings API is unavailable');
+      }
+      const current = await api.agentGetSurfacePolicy('task');
+      if (!current || !LEVELS.includes(current.mode)) {
+        throw new Error('Task permission settings returned no recognized level');
+      }
+      currentCeiling = current.mode;
+      currentBlacklist = {
+        paths: Array.isArray(current.blacklist?.paths) ? current.blacklist.paths : [],
+        filetypes: Array.isArray(current.blacklist?.filetypes) ? current.blacklist.filetypes : [],
+      };
+    } catch (error) {
+      logger.error(
+        'task-automation.permissions',
+        'The Task permission setting could not be rechecked after your choice, so this task will ask before every tool action.',
+        { taskId: task.id, error: error?.message, effectiveMode: 'ask-always' },
+      );
+    }
+
+    const chosen = clampLevel(requestedMode, currentCeiling);
+    const policy = { surface: 'task', mode: chosen, blacklist: currentBlacklist };
+    taskRequestedModeRef.current.set(task.id, requestedMode);
     taskPolicyRef.current.set(task.id, policy);
     await appendTaskLog(task.id, 'status', `Automation permission granted at level: ${chosen}`).catch(() => {});
-    logger.info('task-automation', 'Per-task permission granted', { taskId: task.id, mode: chosen, ceiling });
+    logger.info(
+      'task-automation',
+      `You allowed this task to use AI automation and ${describePermissionMode(chosen)}. This records permission only; processing is reported separately when it starts.`,
+      {
+        taskId: task.id,
+        requestedMode,
+        effectiveMode: chosen,
+        taskColumnLimit: currentCeiling,
+        settingsChangedWhileAwaitingChoice: currentCeiling !== ceiling,
+      },
+    );
     return policy;
+  }, []);
+
+  // Settings saves arrive through the same local-data change feed as task
+  // updates. Replace every cached policy immediately with the restrictive
+  // fallback, then resolve the new Task ceiling/blacklist once and apply it
+  // to both future turns and any thread already executing this session.
+  useEffect(() => {
+    if (!api.localData || typeof api.localData.onChanged !== 'function') return undefined;
+
+    let active = true;
+    let refreshGeneration = 0;
+    const unsubscribe = api.localData.onChanged((change) => {
+      if (!change?.domains?.includes('settings')) return;
+
+      const cachedTasks = Array.from(taskPolicyRef.current.entries());
+      if (cachedTasks.length === 0) return;
+
+      const generation = ++refreshGeneration;
+      const failClosedPolicy = restrictivePolicy('task');
+
+      for (const [taskId, cachedPolicy] of cachedTasks) {
+        const requestedMode = taskRequestedModeRef.current.get(taskId)
+          || cachedPolicy?.mode
+          || 'ask-always';
+        taskRequestedModeRef.current.set(taskId, requestedMode);
+        taskPolicyRef.current.set(taskId, failClosedPolicy);
+
+        const threadId = threadMapRef.current.get(taskId);
+        if (threadId) registerThreadSurface(threadId, failClosedPolicy);
+      }
+
+      const refreshPolicies = async () => {
+        try {
+          if (typeof api.agentGetSurfacePolicy !== 'function') {
+            throw new Error('Task permission settings API is unavailable');
+          }
+
+          const cfg = await api.agentGetSurfacePolicy('task');
+          if (!cfg || typeof cfg !== 'object') {
+            throw new Error('Task permission settings returned no policy');
+          }
+          if (!LEVELS.includes(cfg.mode)) {
+            throw new Error(`Task permission settings returned an unrecognized level: ${cfg.mode || 'missing'}`);
+          }
+          if (!active || generation !== refreshGeneration) return;
+
+          const ceiling = cfg.mode;
+          const blacklist = {
+            paths: Array.isArray(cfg.blacklist?.paths) ? cfg.blacklist.paths : [],
+            filetypes: Array.isArray(cfg.blacklist?.filetypes) ? cfg.blacklist.filetypes : [],
+          };
+          const refreshed = [];
+
+          for (const [taskId] of cachedTasks) {
+            // Completion removes the fallback cache entry; do not resurrect
+            // a task that finished while the settings read was in flight.
+            if (!taskPolicyRef.current.has(taskId)) continue;
+
+            const requestedMode = taskRequestedModeRef.current.get(taskId) || 'ask-always';
+            const policy = {
+              surface: 'task',
+              mode: clampLevel(requestedMode, ceiling),
+              blacklist,
+            };
+            taskPolicyRef.current.set(taskId, policy);
+
+            const threadId = threadMapRef.current.get(taskId);
+            if (threadId) registerThreadSurface(threadId, policy);
+            refreshed.push({ taskId, threadId: threadId || null, mode: policy.mode });
+          }
+
+          if (refreshed.length > 0) {
+            const soleMode = refreshed.every(({ mode }) => mode === refreshed[0].mode)
+              ? refreshed[0].mode
+              : null;
+            logger.info(
+              'task-automation.permissions',
+              `Task permission settings changed. ${refreshed.length} approved automated task${refreshed.length === 1 ? '' : 's'} now use${refreshed.length === 1 ? 's' : ''} the updated rules${soleMode ? ` and will ${describePermissionMode(soleMode)}` : ''}. Any existing task tool checks were updated immediately.`,
+              { ceiling, tasks: refreshed },
+            );
+          }
+        } catch (error) {
+          if (!active || generation !== refreshGeneration) return;
+          logger.error(
+            'task-automation.permissions',
+            `Task permission settings changed, but briizOS could not read the new Task rule. ${cachedTasks.length} approved automated task${cachedTasks.length === 1 ? '' : 's'} will ask before every tool action for safety until settings change again.`,
+            { error: error?.message, taskIds: cachedTasks.map(([taskId]) => taskId) },
+          );
+        }
+      };
+
+      refreshPolicies();
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   // Get or create a LangGraph thread for a given task.
@@ -160,7 +352,11 @@ export function useTaskAutomation() {
     // if (somehow) no policy was resolved.
     const policy = taskPolicyRef.current.get(taskId) || restrictivePolicy('task');
     registerThreadSurface(threadId, policy);
-    logger.debug('task-automation', 'Created agent thread for task', { taskId, threadId, mode: policy.mode });
+    logger.debug('task-automation', 'A private AI conversation was created for this automated task. No model result or tool action is implied by this step.', {
+      taskId,
+      threadId,
+      permissionMode: policy.mode,
+    });
     return threadId;
   }, []);
 
@@ -194,7 +390,11 @@ export function useTaskAutomation() {
     await appendTaskLog(taskId, 'error', `Paused — ${reason}`).catch(() => {});
     await appendTaskLog(taskId, 'question', 'A tool needed permission this automated run could not grant. Resume to continue, or adjust permissions.').catch(() => {});
     await updateTask(taskId, { status: 'waiting' }).catch(() => {});
-    logger.warn('task-automation', 'Task paused awaiting permission', { taskId, reason });
+    logger.warn('task-automation', 'This automated task paused because a tool needs permission that a background run cannot answer. No blocked tool action was executed.', {
+      taskId,
+      reason,
+      nextStep: 'Open the task to resume it or change the Task-column permission setting.',
+    });
   }, []);
 
   // Detect a graph-level confirmation interrupt in a synchronous
@@ -241,7 +441,10 @@ export function useTaskAutomation() {
     if (processingRef.current.has(task.id)) return;
     processingRef.current.add(task.id);
 
-    logger.info('task-automation', 'Processing automated task', { taskId: task.id, title: task.title });
+    logger.info('task-automation', `AI automation started work on the task “${task.title || 'Untitled task'}”. Later entries will say whether it completed, paused, or failed.`, {
+      taskId: task.id,
+      title: task.title,
+    });
 
     try {
       let decision = await evaluateTask(task);
@@ -295,6 +498,7 @@ export function useTaskAutomation() {
               if (doneThread) unregisterThread(doneThread);
               threadMapRef.current.delete(task.id);
               taskPolicyRef.current.delete(task.id);
+              taskRequestedModeRef.current.delete(task.id);
               await finalizeTask(task.id);
             } else {
               await flagVerificationIssue(task.id, result.reason);
@@ -319,8 +523,10 @@ export function useTaskAutomation() {
         // could not grant. Pause to 'waiting' so the user can resume.
         await pauseTaskWaiting(task.id, error.message);
       } else {
-        logger.error('task-automation', 'Failed to process automated task', {
-          taskId: task.id, error: error?.message,
+        logger.error('task-automation', 'AI automation stopped before this task finished. The task remains available, and the exact failure is recorded below.', {
+          taskId: task.id,
+          title: task.title,
+          error: error?.message,
         });
         await logAutomationError(task.id, error).catch(() => {});
       }
@@ -332,13 +538,25 @@ export function useTaskAutomation() {
   // Subscribe to automated tasks (mirrors useChat's remote-chat listener).
   useEffect(() => {
     if (!hasApi || typeof api.langgraphSendMessage !== 'function') {
-      logger.warn('task-automation', 'Task automation idle (no LangGraph IPC bindings)');
+      logger.warn(
+        'task-automation',
+        'Task automation is unavailable because the app window has no AI request connection. No automated task will start in this session.',
+      );
       return undefined;
     }
 
-    logger.info('task-automation', 'Task automation active (agent-driven)');
+    logger.info(
+      'task-automation',
+      'Task automation is available but idle. A listener is waiting for a task the user has marked for automation; no automated task is running now.',
+      { listenerInstalled: true, tasksRunning: 0 },
+    );
     const unsubscribe = subscribeAutomatedTasks(async (task) => {
-      logger.info('task-automation', 'Automated task detected', { taskId: task.id });
+      if (processingRef.current.has(task.id)) return;
+      logger.info('task-automation', `The task “${task.title || 'Untitled task'}” is marked for automation and is eligible for its permission check.`, {
+        taskId: task.id,
+        title: task.title,
+        status: task.status,
+      });
 
       // Already approved this session, or already processing → proceed.
       if (taskPolicyRef.current.has(task.id)) {
@@ -350,7 +568,17 @@ export function useTaskAutomation() {
           requestedAt: Date.now(),
           taskId: task.id,
         });
-        if (!accepted.duplicate) api.automationExecuteRun(accepted.run.id, taskPolicyRef.current.get(task.id));
+        if (!accepted.duplicate) {
+          processingRef.current.add(task.id);
+          try {
+            await api.automationExecuteRun(accepted.run.id, {
+              policy: taskPolicyRef.current.get(task.id),
+              requestedMode: taskRequestedModeRef.current.get(task.id) || 'ask-always',
+            });
+          } finally {
+            processingRef.current.delete(task.id);
+          }
+        }
         return;
       }
       // Suppress duplicate permission prompts from snapshot echoes.
@@ -367,7 +595,17 @@ export function useTaskAutomation() {
             requestedAt: Date.now(),
             taskId: task.id,
           });
-          if (!accepted.duplicate) api.automationExecuteRun(accepted.run.id, policy);
+          if (!accepted.duplicate) {
+            processingRef.current.add(task.id);
+            try {
+              await api.automationExecuteRun(accepted.run.id, {
+                policy,
+                requestedMode: taskRequestedModeRef.current.get(task.id) || 'ask-always',
+              });
+            } finally {
+              processingRef.current.delete(task.id);
+            }
+          }
         }
       } finally {
         pendingPermissionRef.current.delete(task.id);

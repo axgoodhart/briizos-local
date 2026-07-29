@@ -85,8 +85,29 @@ class LocalDataService extends EventEmitter {
     try {
       this._runMigrations();
       this._ensureDeviceIdentity();
-      this.logger?.info?.('local-data', 'Generation-2 local database ready', this.getStatus());
-      return this.getStatus();
+      const status = this.getStatus();
+      const availableRecordTables = this.db.prepare(`
+        SELECT name FROM sqlite_master
+        WHERE type = 'table' AND name IN ('messages', 'ai_turn_audit_events')
+        ORDER BY name
+      `).all().map((row) => row.name);
+      this.logger?.info?.(
+        'local-data',
+        'Local database opened and all migrations completed. User-visible chat messages and full developer AI request/response records can now be written.',
+        {
+          databasePath: this.databasePath,
+          schemaVersion: status.schemaVersion,
+          storageGeneration: status.storageGeneration,
+          writableRecordTables: availableRecordTables,
+          evidence: {
+            databaseOpen: !!this.db?.open,
+            migrationsCompletedThrough: status.schemaVersion,
+            userVisibleChatTable: availableRecordTables.includes('messages'),
+            developerAiAuditTable: availableRecordTables.includes('ai_turn_audit_events'),
+          },
+        },
+      );
+      return status;
     } catch (error) {
       this.close();
       throw error;
@@ -2386,11 +2407,13 @@ class LocalDataService extends EventEmitter {
   appendMessage(threadId, input = {}) {
     threadId = v.identifier(threadId, 'threadId');
     v.object(input, 'message', ['role', 'content', 'isError']);
-    const role = v.oneOf(input.role, 'role', ['system', 'user', 'assistant', 'tool']);
+    // `messages` is deliberately the clean, user-visible transcript. System
+    // prompts and tool traffic belong in ai_turn_audit_events instead.
+    const role = v.oneOf(input.role, 'role', ['user', 'assistant']);
     const content = v.string(input.content, 'content', { max: 2000000 });
     const isError = input.isError === undefined ? false : v.boolean(input.isError, 'isError');
     const messageId = id();
-    return this._write('threads', (timestamp) => {
+    const saved = this._write('threads', (timestamp) => {
       if (!this.db.prepare('SELECT id FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId)) {
         v.fail('NOT_FOUND', 'Thread not found');
       }
@@ -2402,6 +2425,204 @@ class LocalDataService extends EventEmitter {
       this.db.prepare('UPDATE threads SET updated_at = ?, revision = revision + 1 WHERE id = ?').run(timestamp, threadId);
       return { row: this.listMessages(threadId).find((message) => message.id === messageId) };
     });
+    const label = role === 'user' ? 'User message' : 'AI response';
+    this.logger?.info?.(
+      `chat.${role}_message`,
+      `${label} saved to conversation ${threadId}:\n${content}`,
+      {
+        threadId,
+        messageId,
+        role,
+        content,
+        isError,
+        effect: 'This exact user-visible text is stored in the Messages table.',
+      },
+      {
+        threadId,
+        entryCategory: 'chat',
+        source: role === 'user' ? 'user' : 'agent',
+      },
+    );
+    return saved;
+  }
+
+  /**
+   * Append one immutable piece of developer-facing AI evidence.
+   *
+   * A provider request and its later response/error are separate rows with the
+   * same turn/invocation IDs. Nothing here updates or deletes earlier evidence.
+   * Prompts and message history are intentionally retained; callers must redact
+   * credentials before passing an envelope to this storage boundary.
+   */
+  appendAiTurnAuditEvent(input = {}) {
+    v.object(input, 'AI turn audit event', [
+      'threadId',
+      'turnId',
+      'invocationId',
+      'eventType',
+      'turnKind',
+      'provider',
+      'model',
+      'modality',
+      'outcome',
+      'effectiveConfig',
+      'permissionPolicy',
+      'request',
+      'response',
+      'error',
+      'tokenUsage',
+    ]);
+    const threadId = v.identifier(input.threadId, 'threadId');
+    const turnId = v.identifier(input.turnId, 'turnId');
+    const invocationId = input.invocationId == null
+      ? null
+      : v.identifier(input.invocationId, 'invocationId');
+    const eventType = v.string(input.eventType, 'eventType', { required: true, max: 100 });
+    const turnKind = v.string(input.turnKind, 'turnKind', { required: true, max: 100 });
+    const provider = v.optional(
+      input.provider,
+      (value) => v.string(value, 'provider', { nullable: true, max: 100 }),
+    ) ?? null;
+    const model = v.optional(
+      input.model,
+      (value) => v.string(value, 'model', { nullable: true, max: 500 }),
+    ) ?? null;
+    const modality = v.optional(
+      input.modality,
+      (value) => v.string(value, 'modality', { nullable: true, max: 100 }),
+    ) ?? null;
+    const outcome = v.string(input.outcome, 'outcome', { required: true, max: 100 });
+    const maxEnvelopeBytes = 128 * 1024 * 1024;
+    const optionalJson = (value, label) => (
+      value === undefined || value === null
+        ? null
+        : this._jsonValue(value, label, maxEnvelopeBytes)
+    );
+    const effectiveConfigJson = this._jsonValue(
+      input.effectiveConfig || {},
+      'effectiveConfig',
+      maxEnvelopeBytes,
+    );
+    const permissionPolicyJson = optionalJson(input.permissionPolicy, 'permissionPolicy');
+    const requestJson = optionalJson(input.request, 'request');
+    const responseJson = optionalJson(input.response, 'response');
+    const errorJson = optionalJson(input.error, 'error');
+    const tokenUsageJson = optionalJson(input.tokenUsage, 'tokenUsage');
+    const eventId = id();
+
+    return this._write('aiAudit', (timestamp) => {
+      const sequence = this.db.prepare(`
+        SELECT COALESCE(MAX(sequence), -1) + 1 AS sequence
+        FROM ai_turn_audit_events WHERE turn_id = ?
+      `).get(turnId).sequence;
+      this.db.prepare(`
+        INSERT INTO ai_turn_audit_events (
+          id, thread_id, turn_id, invocation_id, sequence, event_type,
+          turn_kind, provider, model, modality, outcome,
+          effective_config_json, permission_policy_json, request_json,
+          response_json, error_json, token_usage_json, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        eventId,
+        threadId,
+        turnId,
+        invocationId,
+        sequence,
+        eventType,
+        turnKind,
+        provider,
+        model,
+        modality,
+        outcome,
+        effectiveConfigJson,
+        permissionPolicyJson,
+        requestJson,
+        responseJson,
+        errorJson,
+        tokenUsageJson,
+        timestamp,
+      );
+      return {
+        row: {
+          id: eventId,
+          threadId,
+          turnId,
+          invocationId,
+          sequence,
+          eventType,
+          turnKind,
+          provider,
+          model,
+          modality,
+          outcome,
+          timestamp: new Date(timestamp).toISOString(),
+        },
+      };
+    });
+  }
+
+  listAiTurnAuditEvents(filters = {}) {
+    this._assertReady();
+    v.object(filters, 'AI turn audit filters', [
+      'threadId',
+      'turnId',
+      'invocationId',
+      'eventType',
+      'outcome',
+      'limit',
+    ]);
+    const clauses = [];
+    const params = [];
+    if (filters.threadId !== undefined) {
+      clauses.push('thread_id = ?');
+      params.push(v.identifier(filters.threadId, 'threadId'));
+    }
+    if (filters.turnId !== undefined) {
+      clauses.push('turn_id = ?');
+      params.push(v.identifier(filters.turnId, 'turnId'));
+    }
+    if (filters.invocationId !== undefined) {
+      clauses.push('invocation_id = ?');
+      params.push(v.identifier(filters.invocationId, 'invocationId'));
+    }
+    if (filters.eventType !== undefined) {
+      clauses.push('event_type = ?');
+      params.push(v.string(filters.eventType, 'eventType', { required: true, max: 100 }));
+    }
+    if (filters.outcome !== undefined) {
+      clauses.push('outcome = ?');
+      params.push(v.string(filters.outcome, 'outcome', { required: true, max: 100 }));
+    }
+    const limit = filters.limit === undefined
+      ? 200
+      : v.integer(filters.limit, 'limit', { min: 1, max: 2000 });
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    return this.db.prepare(`
+      SELECT * FROM ai_turn_audit_events
+      ${where}
+      ORDER BY created_at DESC, sequence DESC
+      LIMIT ?
+    `).all(...params, limit).map((row) => ({
+      id: row.id,
+      threadId: row.thread_id,
+      turnId: row.turn_id,
+      invocationId: row.invocation_id,
+      sequence: row.sequence,
+      eventType: row.event_type,
+      turnKind: row.turn_kind,
+      provider: row.provider,
+      model: row.model,
+      modality: row.modality,
+      outcome: row.outcome,
+      effectiveConfig: JSON.parse(row.effective_config_json),
+      permissionPolicy: row.permission_policy_json ? JSON.parse(row.permission_policy_json) : null,
+      request: row.request_json ? JSON.parse(row.request_json) : null,
+      response: row.response_json ? JSON.parse(row.response_json) : null,
+      error: row.error_json ? JSON.parse(row.error_json) : null,
+      tokenUsage: row.token_usage_json ? JSON.parse(row.token_usage_json) : null,
+      timestamp: new Date(row.created_at).toISOString(),
+    }));
   }
 
   archiveThread(threadId) {
@@ -3321,14 +3542,19 @@ class LocalDataService extends EventEmitter {
       type: v.string(input.type || 'system.event', 'log type', { required: true, max: 200 }),
       source: v.string(input.source || 'system', 'log source', { required: true, max: 100 }),
       category: v.string(input.category || 'system', 'log category', { required: true, max: 100 }),
-      message: v.string(input.message || '', 'log message', { max: 20000 }),
+      // Chat transcript logs intentionally mirror the complete Messages text;
+      // never clip a long user or assistant message at the logging boundary.
+      message: v.string(input.message || '', 'log message', { max: 2100000 }),
       level: v.oneOf(input.level || 'info', 'log level', ['debug', 'info', 'warn', 'error']),
     };
     this.db.prepare(`
       INSERT OR IGNORE INTO logs (id, type, source, category, message, data_json, level, thread_id, session_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(row.id, row.type, row.source, row.category, row.message,
-      input.data == null ? null : this._jsonValue(input.data, 'log data', 500000), row.level,
+      // JSON escaping and UTF-8 can require several bytes per message
+      // character, so leave enough room for a full 2,000,000-character
+      // transcript plus its structured metadata.
+      input.data == null ? null : this._jsonValue(input.data, 'log data', 16000000), row.level,
       input.threadId || null, input.sessionId || null, Number.isFinite(timestamp) ? timestamp : now());
     return row;
   }
@@ -5185,9 +5411,9 @@ class LocalDataService extends EventEmitter {
 
   close() {
     if (!this.db) return;
+    this.logger?.info?.('local-data', 'The local database is closing after pending synchronous writes completed.');
     this.db.close();
     this.db = null;
-    this.logger?.info?.('local-data', 'Generation-2 local database closed');
   }
 }
 

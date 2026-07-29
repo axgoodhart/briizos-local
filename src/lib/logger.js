@@ -26,19 +26,34 @@ const SESSION_ID = `ses_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 // ---------------------------------------------------------------------------
 const CATEGORY_MAP = {
   task: 'task',
+  tasks: 'task',
+  'task-automation': 'automation',
   note: 'note',
+  notefalls: 'note',
   journal: 'journal',
   canvas: 'canvas',
+  canvases: 'canvas',
   calendar: 'calendar',
   event: 'calendar',
   organizer: 'organizer',
   chat: 'chat',
   agent: 'agent',
+  'agent-jobs': 'agent',
+  langgraph: 'agent',
+  'tool-bridge': 'agent',
   tool: 'agent',
   ui: 'ui',
   sync: 'sync',
+  'cloud-gateway': 'sync',
   firestore: 'sync',
   auth: 'system',
+  app: 'system',
+  config: 'settings',
+  permissions: 'permissions',
+  briizy: 'screen-memory',
+  rewind: 'screen-memory',
+  weather: 'weather',
+  'local-data': 'database',
   system: 'system',
   settings: 'system',
   localStorage: 'system',
@@ -53,6 +68,7 @@ const CATEGORY_MAP = {
 };
 
 function resolveCategory(type) {
+  if (CATEGORY_MAP[type]) return CATEGORY_MAP[type];
   const prefix = type.split('.')[0];
   return CATEGORY_MAP[prefix] || 'system';
 }
@@ -60,14 +76,18 @@ function resolveCategory(type) {
 // ---------------------------------------------------------------------------
 // Source detection — who triggered this log
 // ---------------------------------------------------------------------------
-const AGENT_PREFIXES = ['agent.', 'tool.'];
+const AGENT_PREFIXES = ['agent.', 'tool.', 'chat.assistant'];
 const SYSTEM_PREFIXES = ['system.', 'sync.', 'firestore.', 'auth.', 'error.'];
 
 function resolveSource(type, explicitSource) {
   if (explicitSource) return explicitSource;
+  if (type === 'chat.user_message') return 'user';
   if (AGENT_PREFIXES.some(p => type.startsWith(p))) return 'agent';
   if (SYSTEM_PREFIXES.some(p => type.startsWith(p))) return 'system';
-  return 'user';
+  // A log records what the application observed. Do not label an automatic
+  // weather, permission, database, or screen-memory event as user-originated
+  // merely because its type is not on a short allowlist.
+  return 'system';
 }
 
 // ---------------------------------------------------------------------------
@@ -85,8 +105,8 @@ function flushIPC() {
   ipcQueue = [];
 }
 
-function sendToTerminal(level, category, message, data) {
-  const payload = { level, category, message, data };
+function sendToTerminal(level, category, message, data, type = null) {
+  const payload = { level, category, message, data, type };
   if (ipcReady) {
     window.api.logToTerminal(payload);
   } else {
@@ -98,11 +118,41 @@ function sendToTerminal(level, category, message, data) {
 // ---------------------------------------------------------------------------
 // Local SQLite persistence — logs survive app restart
 // ---------------------------------------------------------------------------
+let lastPersistenceFailureAt = 0;
+
+function reportLogPersistenceFailure(entry, error) {
+  const current = Date.now();
+  if (current - lastPersistenceFailureAt < 5000) return;
+  lastPersistenceFailureAt = current;
+  const failure = createEntry(
+    'error',
+    'logging.persistence_failed',
+    'This activity entry could not be saved to SQLite. It remains visible only for this app session; the exact database error is shown below.',
+    {
+      unsavedEventId: entry?.id || null,
+      unsavedEventType: entry?.type || null,
+      databaseError: error?.message || String(error || 'Local log storage is unavailable'),
+      effect: 'This log entry will disappear after restart unless a later retry succeeds.',
+    },
+    'system',
+  );
+  addToBuffer(failure);
+  sendToTerminal(failure.level, failure.category, failure.message, failure.data, failure.type);
+}
+
 function writeToLocalDb(entry) {
   try {
-    window.api?.localData?.logs?.append(entry).catch(() => {});
+    const append = window.api?.localData?.logs?.append;
+    if (typeof append !== 'function') {
+      reportLogPersistenceFailure(entry, new Error('Local log storage is unavailable'));
+      return;
+    }
+    const pending = append(entry);
+    if (pending && typeof pending.catch === 'function') {
+      pending.catch((error) => reportLogPersistenceFailure(entry, error));
+    }
   } catch (e) {
-    // Never let local DB writes break the app
+    reportLogPersistenceFailure(entry, e);
   }
 }
 
@@ -114,9 +164,7 @@ const LOG_BUFFER_MAX = 500;
 const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 let logBuffer = [];
 let logListeners = new Set();
-let activeBufferLevel = LEVELS[
-  typeof window !== 'undefined' ? window.api?.terminalLogLevel : null
-] ?? LEVELS.info;
+let activeBufferLevel = LEVELS.info;
 
 let notifyScheduled = false;
 
@@ -180,7 +228,10 @@ export function clearLogs() {
 
 function applyBufferLevel(levelName) {
   if (LEVELS[levelName] != null) {
-    const nextLevel = LEVELS[levelName];
+    // The activity panel always retains meaningful info entries, including
+    // chat, even when a packaged build keeps the terminal at warn/error.
+    // LOG_LEVEL=debug still opts into the internal trace stream.
+    const nextLevel = Math.min(LEVELS[levelName], LEVELS.info);
     if (nextLevel !== activeBufferLevel) {
       activeBufferLevel = nextLevel;
       logBuffer = logBuffer.filter(shouldBufferLog);
@@ -241,7 +292,7 @@ function createEntry(level, type, message, data, source) {
     source: resolveSource(type, source),
     category: resolveCategory(type),
     message,
-    data: data || null,
+    data: data ?? null,
     level,
     timestamp: new Date().toISOString(),
     threadId: activeThreadId,
@@ -263,13 +314,16 @@ function log(type, message, data, opts = {}) {
   if (opts.threadId) entry.threadId = opts.threadId;
 
   // 1. Terminal (immediate, via IPC)
-  sendToTerminal(level, entry.category, `[${type}] ${message}`, data);
+  const terminalEvidence = data && typeof data === 'object' && !Array.isArray(data)
+    ? { eventType: type, ...data }
+    : { eventType: type, detail: data ?? null };
+  sendToTerminal(level, entry.category, message, terminalEvidence, type);
 
   // 2. In-memory buffer (immediate, for Log Overlay)
   addToBuffer(entry);
 
   // 3. Local SQLite (persistent, survives app restart)
-  writeToLocalDb(entry);
+  if (shouldBufferLog(entry)) writeToLocalDb(entry);
 
   return entry;
 }

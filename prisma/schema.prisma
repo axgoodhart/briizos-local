@@ -319,6 +319,36 @@ model memory_sections {
   memory_facts memory_facts[] @ignore
 }
 
+/// Append-only developer evidence for every in-process AI turn and provider invocation.
+/// `messages` is the clean chat transcript; this model intentionally preserves system
+/// prompts, tool messages, duplicates, effective settings, raw responses, usage, and errors.
+model ai_turn_audit_events {
+  id                     String @id
+  thread_id              String
+  turn_id                String
+  invocation_id          String?
+  sequence               Int
+  event_type             String
+  turn_kind              String
+  provider               String?
+  model                  String?
+  modality               String?
+  outcome                String
+  effective_config_json  String @default("{}")
+  permission_policy_json String?
+  request_json           String?
+  response_json          String?
+  error_json             String?
+  token_usage_json       String?
+  created_at             BigInt
+
+  @@unique([turn_id, sequence], map: "sqlite_autoindex_ai_turn_audit_events_2")
+  @@index([thread_id, created_at], map: "idx_ai_turn_audit_thread")
+  @@index([turn_id, sequence], map: "idx_ai_turn_audit_turn")
+  @@index([invocation_id, created_at], map: "idx_ai_turn_audit_invocation")
+  @@index([outcome, created_at], map: "idx_ai_turn_audit_outcome")
+}
+
 model messages {
   id           String @id
   thread_id    String

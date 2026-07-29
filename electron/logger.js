@@ -19,9 +19,13 @@ const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 // Resolve active level from env (default: info in dev, warn in production)
 const activeLevel = LEVELS[process.env.LOG_LEVEL] ?? (isDev ? LEVELS.info : LEVELS.warn);
 const activeLevelName = Object.keys(LEVELS).find(level => LEVELS[level] === activeLevel) || 'info';
+const persistenceLevel = Math.min(activeLevel, LEVELS.info);
 const LOG_BUFFER_MAX = 500;
 let logBuffer = [];
 let idCounter = 0;
+let persistenceSink = null;
+let pendingPersistence = [];
+let lastPersistenceFailureAt = 0;
 
 // ANSI color codes
 const COLORS = {
@@ -37,6 +41,75 @@ const COLORS = {
   category: '\x1b[35m', // magenta
 };
 
+const CATEGORY_LABELS = {
+  app: 'App startup',
+  agent: 'AI',
+  'agent.stream': 'AI response',
+  'agent.models': 'AI model',
+  langgraph: 'AI request',
+  'local-data': 'Local database',
+  database: 'Local database',
+  chat: 'Chat',
+  automation: 'Task automation',
+  'task-automation': 'Task automation',
+  permissions: 'Permissions',
+  'permissions.surface': 'Permissions',
+  'permissions.gate': 'Permissions',
+  briizy: 'Screen memory',
+  'briizy.helper': 'Screen capture',
+  'briizy.indexer': 'Screen memory',
+  'briizy.coordinator': 'Screen analysis',
+  'briizy.shell': 'Screen-memory controls',
+  network: 'Network request',
+  ui: 'Interface',
+  fs: 'Files',
+  sync: 'Cloud sync',
+  'cloud-gateway': 'Cloud sync',
+  weather: 'Header weather',
+};
+
+function humanizeIdentifier(value) {
+  return String(value || 'system')
+    .replace(/[._-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function categoryLabel(category) {
+  return CATEGORY_LABELS[category] || humanizeIdentifier(category);
+}
+
+function terminalValue(value) {
+  if (value == null) return String(value);
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatEvidence(data) {
+  if (data === undefined || data === null) return '';
+  const parts = (data && typeof data === 'object' && !Array.isArray(data))
+    ? Object.entries(data).map(([key, value]) => `${humanizeIdentifier(key)}: ${terminalValue(value)}`)
+    : [terminalValue(data)];
+  const flattened = parts.join(' · ').replace(/\r\n|\r|\n/g, ' ⏎ ');
+  const maxLength = 4000;
+  return flattened.length > maxLength
+    ? `${flattened.slice(0, maxLength)}… (terminal evidence shortened; the SQLite write is monitored separately)`
+    : flattened;
+}
+
+function formatTerminalMessage(message) {
+  const flattened = String(message ?? '').replace(/\r\n|\r|\n/g, ' ⏎ ');
+  const maxLength = 8000;
+  return flattened.length > maxLength
+    ? `${flattened.slice(0, maxLength)}… (terminal message shortened; the SQLite write is monitored separately)`
+    : flattened;
+}
+
 /**
  * Format a timestamp as HH:MM:SS
  */
@@ -50,18 +123,20 @@ function timestamp() {
 /**
  * Format and write a single log line to the terminal.
  */
-function createEntry(level, category, message, data) {
+function createEntry(level, category, message, data, opts = {}) {
+  const entryType = opts.type || category;
+  const entryCategory = opts.entryCategory || category;
   return {
     id: `main_${Date.now()}_${(idCounter++).toString(36)}`,
-    type: category,
-    source: category === 'agent' || category.startsWith('agent.') ? 'agent' : 'system',
-    category,
+    type: entryType,
+    source: opts.source || (entryType === 'agent' || entryType.startsWith('agent.') ? 'agent' : 'system'),
+    category: entryCategory,
     message,
-    data: data || null,
+    data: data ?? null,
     level,
     timestamp: new Date().toISOString(),
-    threadId: null,
-    sessionId: null,
+    threadId: opts.threadId || null,
+    sessionId: opts.sessionId || null,
   };
 }
 
@@ -74,6 +149,58 @@ function broadcastEntry(entry) {
   });
 }
 
+function persistEntry(entry) {
+  if (!persistenceSink) {
+    pendingPersistence.push(entry);
+    if (pendingPersistence.length > LOG_BUFFER_MAX) {
+      pendingPersistence = pendingPersistence.slice(-LOG_BUFFER_MAX);
+    }
+    return;
+  }
+  try {
+    const pending = persistenceSink(entry);
+    if (pending && typeof pending.catch === 'function') {
+      pending.catch((error) => surfacePersistenceFailure(entry, error));
+    }
+  } catch (error) {
+    surfacePersistenceFailure(entry, error);
+  }
+}
+
+function surfacePersistenceFailure(originalEntry, error) {
+  const current = Date.now();
+  if (current - lastPersistenceFailureAt < 5000) return;
+  lastPersistenceFailureAt = current;
+  const failure = createEntry(
+    'error',
+    'logging.persistence_failed',
+    'An activity entry could not be saved to SQLite. It remains available only in this running app session; the exact database error is shown in the evidence.',
+    {
+      unsavedEventId: originalEntry?.id || null,
+      unsavedEventType: originalEntry?.type || null,
+      databaseError: error?.message || String(error || 'Local log storage is unavailable'),
+      effect: 'This entry will disappear after restart unless a later write succeeds.',
+    },
+    { entryCategory: 'database', source: 'system' },
+  );
+  logBuffer.unshift(failure);
+  if (logBuffer.length > LOG_BUFFER_MAX) logBuffer = logBuffer.slice(0, LOG_BUFFER_MAX);
+  broadcastEntry(failure);
+  const line = `${COLORS.dim}[${timestamp()}]${COLORS.reset} `
+    + `${COLORS.error}${COLORS.bold}ERROR${COLORS.reset} `
+    + `${COLORS.category}${categoryLabel(failure.category)}${COLORS.reset} — `
+    + `${formatTerminalMessage(failure.message)}  ${COLORS.dim}Evidence — ${formatEvidence(failure.data)}${COLORS.reset}`;
+  process.stderr.write(line + '\n');
+}
+
+function setLogPersistence(sink) {
+  persistenceSink = typeof sink === 'function' ? sink : null;
+  if (!persistenceSink || pendingPersistence.length === 0) return;
+  const queued = pendingPersistence;
+  pendingPersistence = [];
+  queued.forEach(persistEntry);
+}
+
 function rememberEntry(entry, shouldBroadcast) {
   logBuffer.unshift(entry);
   if (logBuffer.length > LOG_BUFFER_MAX) {
@@ -82,32 +209,41 @@ function rememberEntry(entry, shouldBroadcast) {
   if (shouldBroadcast) {
     broadcastEntry(entry);
   }
+  persistEntry(entry);
 }
 
 function write(level, category, message, data, opts = {}) {
-  if (LEVELS[level] == null || LEVELS[level] < activeLevel) return;
-  const entry = createEntry(level, category, message, data);
+  if (LEVELS[level] == null) return;
+  const entry = createEntry(level, category, message, data, opts);
+  const meetsActiveLevel = LEVELS[level] >= activeLevel;
+  if (meetsActiveLevel) {
+    const ts = `${COLORS.dim}[${timestamp()}]${COLORS.reset}`;
+    const cat = `${COLORS.category}${categoryLabel(entry.category)}${COLORS.reset}`;
+    const lvl = `${COLORS[level]}${COLORS.bold}${level.toUpperCase().padEnd(5)}${COLORS.reset}`;
+    const msg = formatTerminalMessage(message);
+    const terminalData = entry.type.startsWith('chat.')
+      && data
+      && typeof data === 'object'
+      && !Array.isArray(data)
+      ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'content'))
+      : data;
 
-  const ts = `${COLORS.dim}[${timestamp()}]${COLORS.reset}`;
-  const cat = `${COLORS.category}[${category}]${COLORS.reset}`;
-  const lvl = `${COLORS[level]}${COLORS.bold} ${level.toUpperCase().padEnd(5)} ${COLORS.reset}`;
-  const msg = message;
+    let line = `${ts} ${lvl} ${cat} — ${msg}`;
 
-  let line = `${ts} ${cat} ${lvl} ${msg}`;
+    if (terminalData !== undefined && terminalData !== null) {
+      // Keep one physical terminal line per event, but label the evidence in
+      // ordinary language instead of appending an unexplained JSON object.
+      line += `  ${COLORS.dim}Evidence — ${formatEvidence(terminalData)}${COLORS.reset}`;
+    }
 
-  if (data !== undefined && data !== null) {
-    // One entry must be one line. A raw multi-line string (OCR output, a stack
-    // trace, a shell result) previously split a single entry across several
-    // terminal lines with no prefix on the continuations, which reads as
-    // corrupted output and once caused a correct result to look like a failure.
-    const serialized = typeof data === 'string' ? data : JSON.stringify(data, null, 0);
-    const flattened = String(serialized).replace(/\r\n|\r|\n/g, ' ⏎ ');
-    line += `  ${COLORS.dim}${flattened}${COLORS.reset}`;
+    const stream = level === 'error' || level === 'warn' ? process.stderr : process.stdout;
+    stream.write(line + '\n');
   }
-
-  const stream = level === 'error' || level === 'warn' ? process.stderr : process.stdout;
-  stream.write(line + '\n');
-  if (opts.remember !== false) {
+  // Debug clockwork (for example, one entry per 3-second screenshot) is
+  // available when LOG_LEVEL=debug, while meaningful info entries still reach
+  // SQLite/the activity panel in packaged builds whose terminal starts at warn.
+  const meetsPersistenceLevel = LEVELS[level] >= persistenceLevel;
+  if (opts.remember !== false && (meetsPersistenceLevel || opts.persistBelowThreshold === true)) {
     rememberEntry(entry, opts.broadcast !== false);
   }
 }
@@ -129,12 +265,23 @@ function registerLoggerIPC(ipcMain) {
   ipcMain.handle('get-terminal-log-level', () => activeLevelName);
 
   ipcMain.on('log-to-terminal', (_event, payload) => {
-    const { level, category, message, data } = payload || {};
+    const {
+      level,
+      category,
+      message,
+      data,
+      type,
+    } = payload || {};
     if (!level || !category || !message) return;
     if (typeof logger[level] === 'function') {
-      logger[level](category, message, data, { broadcast: false, remember: false });
+      logger[level](category, message, data, {
+        broadcast: false,
+        remember: false,
+        type: type || data?.eventType || category,
+        entryCategory: category,
+      });
     }
   });
 }
 
-module.exports = { logger, registerLoggerIPC };
+module.exports = { logger, registerLoggerIPC, setLogPersistence };

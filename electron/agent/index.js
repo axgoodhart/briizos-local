@@ -45,14 +45,17 @@ function setLocalDataService(service) {
 async function start() {
   state.status = 'running';
   state.startedAt = Date.now();
-  logger.info('agent', 'In-process lead_agent runtime ready (no Python subprocess)');
+  logger.debug('agent', 'Local AI graph code initialized inside the Electron process', {
+    providerRequestAttempted: false,
+    explanation: 'This is an internal initialization step, not proof that a model provider is reachable or has quota.',
+  });
   return true;
 }
 
 function stop() {
   state.status = 'stopped';
   leadAgent.resetCache();
-  logger.info('agent', 'In-process agent runtime stopped');
+  logger.info('agent', 'The local AI request engine stopped; no new model requests can start until briizOS reopens.');
 }
 
 function getStatus() {

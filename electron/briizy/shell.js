@@ -132,7 +132,11 @@ class BriizyShell {
       screen.off('display-removed', resize);
     });
 
-    this._log('info', 'Overlay window created', { width, height });
+    this._log('debug', 'The screen-memory avatar window was created. This does not start screenshot capture.', {
+      width,
+      height,
+      captureStartedByThisStep: false,
+    });
     return this.window;
   }
 
@@ -242,7 +246,7 @@ class BriizyShell {
     this.tray = new Tray(icon);
     this.tray.setToolTip('briizy');
     this._refreshTray();
-    this._log('info', 'Menu bar item created');
+    this._log('debug', 'The screen-memory menu-bar controls were created. This does not start screenshot capture.');
     return this.tray;
   }
 
@@ -399,7 +403,7 @@ class BriizyShell {
       [SHELL_CHANNELS.setInteractive, (_event, interactive) => this.setInteractive(interactive)],
       [SHELL_CHANNELS.hide, () => this.hide()],
       [SHELL_CHANNELS.ready, () => {
-        this._log('info', 'Overlay renderer ready');
+        this._log('debug', 'The screen-memory avatar interface finished loading. This reports the controls only, not capture permission or screenshot success.');
         this.pushState();
       }],
       [SHELL_CHANNELS.openInApp, (_event, options) => this.focusMainWindow(options || {})],
@@ -452,7 +456,7 @@ class BriizyShell {
     });
 
     this.createTray();
-    this._log('info', 'Shell started');
+    this._log('debug', 'The screen-memory avatar and menu-bar control wiring started. Capture status is reported separately.');
   }
 
   stop() {

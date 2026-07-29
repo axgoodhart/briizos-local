@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
 const { pathToFileURL, fileURLToPath } = require('url');
-const { logger, registerLoggerIPC } = require('./logger');
+const { logger, registerLoggerIPC, setLogPersistence } = require('./logger');
 const filesystem = require('./filesystem');
 const studio = require('./studio');
 const github = require('./github');
@@ -495,11 +495,10 @@ ipcMain.handle('cloud:promote-device', async () => {
   });
   return choice.response === 1 ? cloudGateway.promoteThisDevice() : cloudGateway.status;
 });
-ipcMain.handle('automation:execute-run', async (_event, runId, policy) => {
+ipcMain.handle('automation:execute-run', async (_event, runId, permissionRequest) => {
   const run = localDataService.getRun(runId);
   if (!run) throw new Error('Run not found');
-  automationRunner.execute(run, policy || null);
-  return run;
+  return automationRunner.execute(run, permissionRequest || null);
 });
 
 // === Memory IPC Handlers ===
@@ -828,13 +827,20 @@ ipcMain.handle('langgraph-create-thread', async (_event, kind) => {
 });
 
 ipcMain.handle('langgraph-stream-message', async (event, streamId, threadId, message, config) => {
-  logger.info('langgraph', 'IPC stream-message', { streamId, threadId });
+  logger.debug('langgraph', 'The app window handed a saved chat message to the local AI workflow. Provider request and outcome evidence are recorded separately.', {
+    streamId,
+    threadId,
+  });
   await langgraph.streamMessage(threadId, message, config || {}, makeStreamForwarder(event, streamId));
   return { ok: true, streamId };
 });
 
 ipcMain.handle('langgraph-resume-run', async (event, streamId, threadId, response, config) => {
-  logger.info('langgraph', 'IPC resume-run', { streamId, threadId, approved: response?.approved });
+  logger.debug('langgraph', 'The app window handed a confirmation or clarification answer back to the paused AI workflow. This step does not claim the resumed provider request succeeded.', {
+    streamId,
+    threadId,
+    approved: response?.approved,
+  });
   await langgraph.resumeRun(threadId, response || {}, config || {}, makeStreamForwarder(event, streamId));
   return { ok: true, streamId };
 });
@@ -977,7 +983,7 @@ ipcMain.handle('forest-consolidate-project', async (_event, projectName, filePat
 app.whenReady().then(() => {
   // Register logger IPC (must be first — other modules may log during init)
   registerLoggerIPC(ipcMain);
-  logger.info('app', 'briizOS starting (Agent Mode — in-process LangGraph runtime)', {
+  logger.info('app', 'briizOS opened. This confirms only that the desktop process started; database, screen capture, task automation, location, and AI-provider results are reported separately.', {
     isDev,
     pid: process.pid,
     electron: process.versions.electron,
@@ -993,6 +999,10 @@ app.whenReady().then(() => {
     logger,
   });
   localDataService.initialize();
+  // Main-process logs exist before the database opens. Attach the sink now and
+  // flush those startup entries so Prisma Studio and the in-app log retain the
+  // same evidence that appeared in the terminal.
+  setLogPersistence((entry) => localDataService?.appendLog(entry));
   localDataService.ensureDefaultModelProfiles();
   bootstrapBundledModelCredentials();
   if (!localDataService.getSetting('agent_config')) {
@@ -1022,6 +1032,11 @@ app.whenReady().then(() => {
     agent: langgraph,
     logger,
     onRunChanged: (run) => cloudGateway.publishRun(run),
+    onThreadPolicyChanged: (payload) => {
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (!window.isDestroyed()) window.webContents.send('automation-thread-policy', payload);
+      });
+    },
   });
 
   // briizy runtime. Nothing captures until the user completes onboarding (I10);
@@ -1089,7 +1104,23 @@ app.whenReady().then(() => {
   }
 
   langgraph.start().then((ok) => {
-    logger.info('app', 'In-process agent runtime ready', { ok, status: langgraph.getStatus()?.status });
+    const status = langgraph.getStatus();
+    logger.info(
+      'agent',
+      'The local AI request engine initialized. No model provider has been contacted yet, so this does not prove that OpenAI, Claude, or Gemini will accept a request.',
+      {
+        initialized: ok === true,
+        runtimeState: status?.status,
+        inProcess: status?.inProcess,
+        checkpointer: status?.checkpointer,
+      },
+    );
+  }).catch((error) => {
+    logger.error(
+      'agent',
+      'The local AI request engine did not initialize, so chat and automated AI turns cannot start.',
+      { error: error?.message, effect: 'Messages can still be saved locally, but no model response can be requested.' },
+    );
   });
 
   app.on('activate', () => {
@@ -1150,6 +1181,7 @@ app.on('before-quit', (event) => {
   briizy = null;
   cloudGateway?.close();
   cloudGateway = null;
+  automationRunner?.close();
   automationRunner = null;
   unregisterLocalDataIPC?.();
   unregisterLocalDataIPC = null;

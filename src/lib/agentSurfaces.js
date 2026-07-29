@@ -31,7 +31,7 @@ export function levelRank(mode) {
 
 /** Clamp `requested` so it is never MORE permissive than `ceiling`. */
 export function clampLevel(requested, ceiling) {
-  if (!LEVELS.includes(requested)) return ceiling;
+  if (!LEVELS.includes(requested) || !LEVELS.includes(ceiling)) return 'ask-always';
   return levelRank(requested) > levelRank(ceiling) ? ceiling : requested;
 }
 
@@ -58,8 +58,11 @@ export function registerThreadSurface(threadId, policy) {
     },
   };
   _registry.set(threadId, safe);
-  logger.info('permissions.surface', 'Registered agent thread policy', {
-    threadId, surface: safe.surface, mode: safe.mode,
+  logger.info('permissions.surface', 'Permission rules applied to this conversation; no tool was run by this step', {
+    threadId,
+    surface: safe.surface,
+    mode: safe.mode,
+    effect: 'Future tool requests in this conversation will use these rules.',
   });
 }
 
@@ -80,8 +83,11 @@ export function recordGatedToolCall(threadId, info) {
   const list = _gated.get(threadId) || [];
   list.push({ tool: info?.tool || 'unknown', reason: info?.reason || 'blocked by permission policy', at: Date.now() });
   _gated.set(threadId, list);
-  logger.warn('permissions.gate', 'Headless tool call blocked by policy', {
-    threadId, tool: info?.tool, reason: info?.reason,
+  logger.warn('permissions.gate', 'A background tool request was blocked before it could take action', {
+    threadId,
+    tool: info?.tool,
+    reason: info?.reason,
+    effect: 'No tool was executed.',
   });
 }
 
@@ -101,7 +107,15 @@ export function resolvePolicyForThread(threadId) {
   if (threadId && _registry.has(threadId)) {
     return _registry.get(threadId);
   }
-  logger.warn('permissions.surface', 'Unknown agent thread — applying most restrictive policy', { threadId });
+  logger.warn(
+    'permissions.surface',
+    'This conversation has no registered permission rules, so every tool request will require confirmation',
+    {
+      threadId,
+      mode: 'ask-always',
+      effect: 'Nothing is approved automatically.',
+    },
+  );
   return restrictivePolicy('unknown');
 }
 
@@ -134,8 +148,12 @@ export async function registerSurfaceForThread(threadId, surface, requestedMode 
       }
     }
   } catch (err) {
-    logger.error('permissions.surface', 'Failed to resolve surface policy — staying fail-closed', {
-      surface, threadId, error: err?.message,
+    logger.error('permissions.surface', 'Permission settings could not be read, so this conversation will ask before every tool action', {
+      surface,
+      threadId,
+      error: err?.message,
+      mode: 'ask-always',
+      effect: 'Nothing is approved automatically.',
     });
   }
   registerThreadSurface(threadId, policy);

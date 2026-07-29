@@ -120,9 +120,12 @@ class RewindIndexer extends EventEmitter {
     const previous = this.config;
     this.config = briizyConfig.normalize(config);
     if (previous.enabled !== this.config.enabled) {
-      this._log('info', `Capture ${this.config.enabled ? 'enabled' : 'disabled'}`, {
-        captureIntervalMs: this.config.captureIntervalMs,
-        ocrEveryNthFrame: this.config.ocrEveryNthFrame,
+      this._log('info', this.config.enabled
+        ? `Screen memory was enabled: one screenshot will be attempted every ${+(this.config.captureIntervalMs / 1000).toFixed(1)} seconds, with local OCR on every ${this.config.ocrEveryNthFrame} screenshots.`
+        : 'Screen memory was disabled. No further screenshots or OCR will be scheduled.', {
+        captureEnabled: this.config.enabled,
+        screenshotIntervalSeconds: +(this.config.captureIntervalMs / 1000).toFixed(1),
+        localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
         retentionDays: this.config.retentionDays,
         retentionGiB: +(this.config.retentionBytes / 1024 ** 3).toFixed(2),
       });
@@ -133,9 +136,9 @@ class RewindIndexer extends EventEmitter {
   start() {
     if (this.running) return;
     this.running = true;
-    this._log('info', 'Indexer started', {
-      enabled: this.config.enabled,
-      helper: this.helper.getStatus().state,
+    this._log('debug', 'The screen-memory scheduler started. This internal step does not prove that macOS permission or an individual capture succeeded.', {
+      captureEnabled: this.config.enabled,
+      captureHelperState: this.helper.getStatus().state,
     });
     this._bindPower();
     this._refreshState();
@@ -222,9 +225,22 @@ class RewindIndexer extends EventEmitter {
 
     if (next !== this.captureState) {
       this.captureState = next;
-      this._log('info', `Capture state → ${next}`, {
-        helper: helperStatus.state,
-        permission: helperStatus.permission,
+      const explanation = {
+        unavailable: 'Screen memory cannot capture because the local helper is unavailable.',
+        paused: this.screenLocked
+          ? 'Screen memory is paused while the Mac is locked; no screenshots or OCR are taken.'
+          : 'Screen memory is paused or disabled; no screenshots or OCR are taken.',
+        permissionRequired: 'macOS Screen Recording permission is missing. No screenshots or OCR can be produced until it is granted.',
+        error: 'Screen memory stopped this capture attempt because the local helper reported an error.',
+        capturingDisplay: 'Screen memory may now capture the explicitly selected display at the configured cadence.',
+        capturingWindow: 'Screen memory may now capture the visible front window at the configured cadence.',
+      }[next] || `Screen memory entered the internal “${next}” state.`;
+      this._log(next === 'unavailable' || next === 'permissionRequired' || next === 'error' ? 'warn' : 'info', explanation, {
+        captureState: next,
+        captureHelperState: helperStatus.state,
+        screenRecordingPermission: helperStatus.permission,
+        screenshotIntervalSeconds: +(this.config.captureIntervalMs / 1000).toFixed(1),
+        localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
       });
       this.emit('state', this.getStatus());
     }
@@ -282,7 +298,14 @@ class RewindIndexer extends EventEmitter {
     this.sessionStartedAt = timestamp;
     this.sessionDayKey = storage.dayKey(timestamp);
     this.lastActivityAt = timestamp;
-    this._log('info', 'Session opened', { sessionId: this.sessionId, kind });
+    this._log('info', kind === 'auto'
+      ? 'Screen history opened a storage group after capturable activity was detected. “Automatic” describes this grouping only; no task automation or AI request is running.'
+      : 'Screen history opened a user-requested display-capture storage group.', {
+      screenHistorySessionId: this.sessionId,
+      groupingKind: kind,
+      screenshotIntervalSeconds: +(this.config.captureIntervalMs / 1000).toFixed(1),
+      localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
+    });
     this.emit('session-open', created.row);
     this._refreshState();
     return this.sessionId;
@@ -302,13 +325,13 @@ class RewindIndexer extends EventEmitter {
     let row = null;
     try {
       row = this.service.endRewindSession(sessionId, { endedAt }).row;
-      this._log('info', 'Session closed', {
-        sessionId,
-        kind,
-        reason,
-        frames: row?.frameCount,
+      this._log('info', 'Screen history closed a storage group and recorded exactly what it contained.', {
+        screenHistorySessionId: sessionId,
+        groupingKind: kind,
+        closeReason: reason,
+        screenshotsStored: row?.frameCount,
         durationMs: (row?.endedAt || endedAt) - (row?.startedAt || endedAt),
-        megabytes: row ? +(row.bytes / 1024 ** 2).toFixed(2) : 0,
+        storageMegabytes: row ? +(row.bytes / 1024 ** 2).toFixed(2) : 0,
       });
       // Sessions with no frames are noise — a permission-denied stretch or a
       // pause right after opening. Drop them rather than posting empty cards.
@@ -320,7 +343,10 @@ class RewindIndexer extends EventEmitter {
       }
       this.emit('session-close', { session: row, reason });
     } catch (error) {
-      this._log('warn', 'Failed to close session', { sessionId, error: error?.message });
+      this._log('warn', 'Screen history could not finalize its current storage group. Existing screenshots remain in the database, but the group summary may be incomplete.', {
+        screenHistorySessionId: sessionId,
+        error: error?.message,
+      });
     }
     this._refreshState();
     this._runPrune('session-close').catch(() => {});
@@ -356,7 +382,12 @@ class RewindIndexer extends EventEmitter {
         this.stats.errors += 1;
         this.totals.errors += 1;
         this.lastError = error?.message || String(error);
-        this._log('error', 'Indexer tick failed', { error: this.lastError });
+        this._log('error', 'A scheduled screen-memory cycle failed before it could finish. briizOS will retry after the normal metadata interval; other app features continue.', {
+          error: this.lastError,
+          effect: 'This cycle may have produced no screenshot or OCR.',
+          willRetry: true,
+          retryDelayMs: META_POLL_MS,
+        });
         this._scheduleTick(META_POLL_MS);
       });
     }, Math.max(0, delayMs));

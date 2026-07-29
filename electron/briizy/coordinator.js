@@ -63,7 +63,11 @@ class AssistantCoordinator extends EventEmitter {
   register(assistant) {
     if (!assistant?.id) throw new Error('An assistant needs an id');
     this.assistants.set(assistant.id, assistant);
-    this._log('info', 'Assistant registered', { id: assistant.id, kind: assistant.kind });
+    this._log('debug', 'A screen-analysis module was loaded. Loading it does not run a model request.', {
+      analysisModule: assistant.id,
+      moduleKind: assistant.kind,
+      providerRequestAttempted: false,
+    });
     return this;
   }
 
@@ -87,8 +91,8 @@ class AssistantCoordinator extends EventEmitter {
       () => this.indexer.off('paused', onPaused),
     ];
 
-    this._log('info', 'Coordinator started', {
-      assistants: [...this.assistants.keys()],
+    this._log('debug', 'The screen-analysis event listener started. It will do nothing unless capture, cloud-text permission, module settings, timing, and quiet-hours gates all allow a review.', {
+      loadedAnalysisModules: [...this.assistants.keys()],
     });
   }
 
@@ -100,7 +104,7 @@ class AssistantCoordinator extends EventEmitter {
     this.bound.forEach((unbind) => unbind());
     this.bound = [];
     this.segment = null;
-    this._log('info', 'Coordinator stopped', { stats: this.stats });
+    this._log('debug', 'The screen-analysis event listener stopped.', { recordedStatistics: this.stats });
   }
 
   /** Pausing drops whatever was being accumulated — it is no longer current. */
@@ -228,13 +232,13 @@ class AssistantCoordinator extends EventEmitter {
       return;
     }
 
-    this._log('info', 'Segment closed', {
+    this._log('debug', 'A stable screen context ended and is eligible for configured analysis modules.', {
       app: segment.appName,
       title: segment.windowTitle,
-      reason,
+      closeReason: reason,
       durationMs: duration,
-      frames: segment.frames.length,
-      contextChars: batch.text.length,
+      screenshotsConsidered: segment.frames.length,
+      ocrCharactersAvailable: batch.text.length,
     });
 
     this._dispatch('onSegmentClose', {
@@ -322,9 +326,12 @@ class AssistantCoordinator extends EventEmitter {
           assistantConfig: verdict.assistantConfig,
         }))
         .then((result) => {
-          this._log('info', `${assistantId} finished ${hook}`, {
-            ms: Date.now() - startedAt,
-            produced: summarizeResult(result),
+          this._log(result ? 'info' : 'debug', result
+            ? `The “${assistantId}” screen-analysis module finished reviewing captured OCR text. It staged or recorded the result described below; it did not execute a task unless the result explicitly says so.`
+            : `The “${assistantId}” screen-analysis module reviewed captured OCR text and produced no user-visible result.`, {
+            analysisTrigger: hook,
+            elapsedMs: Date.now() - startedAt,
+            recordedResult: summarizeResult(result),
           });
           if (result) this.emit('result', { assistantId, hook, payload, result });
         })
@@ -333,9 +340,11 @@ class AssistantCoordinator extends EventEmitter {
           // An assistant that cannot run is a degraded feature, not an outage:
           // the capture pipeline keeps going regardless.
           const level = error?.code === 'ANALYSIS_NOT_ALLOWED' ? 'debug' : 'warn';
-          this._log(level, `${assistantId} ${hook} failed`, {
+          this._log(level, `The “${assistantId}” screen-analysis module could not review this captured context. Screenshot capture continues; only this module's result is missing.`, {
+            analysisTrigger: hook,
             code: error?.code,
             error: error?.message,
+            captureContinues: true,
           });
           this.emit('error', { assistantId, hook, error });
         })

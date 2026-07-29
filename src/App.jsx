@@ -67,8 +67,9 @@ const WEATHER_FALLBACK_COORDS_BY_TZ = {
 };
 
 function getFallbackWeatherCoords() {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return WEATHER_FALLBACK_COORDS_BY_TZ[tz] || WEATHER_FALLBACK_COORDS_BY_TZ.default;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const coordinates = WEATHER_FALLBACK_COORDS_BY_TZ[timezone] || WEATHER_FALLBACK_COORDS_BY_TZ.default;
+  return { ...coordinates, source: 'timezone fallback', timezone };
 }
 
 async function getWeatherCoords() {
@@ -81,12 +82,53 @@ async function getWeatherCoords() {
           maximumAge: 10 * 60 * 1000
         })
       );
-      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      return {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        source: 'macOS location',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
     } catch (error) {
-      logger.warn('ui', 'Geolocation unavailable for weather, using timezone fallback', error?.message);
+      const fallback = getFallbackWeatherCoords();
+      const locationReason = error?.code === 1
+        ? 'Location permission was denied'
+        : error?.code === 2
+          ? 'Location Services could not determine a position'
+          : error?.code === 3
+            ? 'Location Services did not answer within 8 seconds'
+            : 'Location Services returned an unknown error';
+      logger.warn(
+        'weather.location',
+        `${locationReason}, so only the header weather will use approximate coordinates for ${fallback.timezone}. Chat, files, screen memory, and task automation are unaffected.`,
+        {
+          locationError: error?.message || 'No location response',
+          locationErrorCode: error?.code ?? null,
+          locationFailureKind: error?.code === 1
+            ? 'permission_denied'
+            : error?.code === 2
+              ? 'position_unavailable'
+              : error?.code === 3
+                ? 'timeout'
+                : 'unknown',
+          fallbackLatitude: fallback.latitude,
+          fallbackLongitude: fallback.longitude,
+          nextStep: 'No action is required unless exact local weather matters; macOS Location Services can be reviewed in System Settings.',
+        },
+      );
+      return fallback;
     }
   }
-  return getFallbackWeatherCoords();
+  const fallback = getFallbackWeatherCoords();
+  logger.warn(
+    'weather.location',
+    `This app window has no location-service interface, so only the header weather will use approximate coordinates for ${fallback.timezone}.`,
+    {
+      fallbackLatitude: fallback.latitude,
+      fallbackLongitude: fallback.longitude,
+      effect: 'No feature other than the header weather is affected.',
+    },
+  );
+  return fallback;
 }
 
 function normalizeWeatherPayload(data) {
@@ -120,7 +162,15 @@ async function fetchWeatherForCoords(lat, lon) {
       }
       return { temp: Math.round(result.temperature), code: result.weatherCode };
     } catch (error) {
-      logger.warn('ui', 'Weather IPC path failed, trying renderer fetch fallback', error?.message);
+      logger.warn(
+        'weather.request',
+        'The main-process weather request failed. briizOS is now trying the same public weather service from the app window; the header keeps its previous value meanwhile.',
+        {
+          error: error?.message,
+          fallbackAttempt: 'renderer fetch to Open-Meteo',
+          effect: 'Only the header weather is affected.',
+        },
+      );
     }
   }
   return fetchWeatherDirect(lat, lon);
@@ -149,6 +199,7 @@ function HeaderDateTimeWeather() {
   useEffect(() => {
     let cancelled = false;
     let coordsPromise = null;
+    let firstSuccessfulWeatherLogged = false;
 
     const resolveCoords = () => {
       if (!coordsPromise) coordsPromise = getWeatherCoords();
@@ -157,13 +208,39 @@ function HeaderDateTimeWeather() {
 
     const fetchWeather = async () => {
       try {
-        const { latitude: lat, longitude: lon } = await resolveCoords();
+        const {
+          latitude: lat,
+          longitude: lon,
+          source,
+          timezone,
+        } = await resolveCoords();
         const { temp, code } = await fetchWeatherForCoords(lat, lon);
         if (!cancelled) {
           setWeather(`${wmoGlyph(code)} ${temp}°`);
+          if (!firstSuccessfulWeatherLogged) {
+            firstSuccessfulWeatherLogged = true;
+            logger.info(
+              'weather.updated',
+              `Header weather updated using ${source || 'resolved coordinates'}.`,
+              {
+                temperatureFahrenheit: temp,
+                weatherCode: code,
+                coordinateSource: source || 'unknown',
+                timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+            );
+          }
         }
       } catch (error) {
-        logger.warn('ui', 'Failed to refresh header weather', error?.message);
+        logger.warn(
+          'weather.failed',
+          'Neither weather request path returned usable data. The header will show “--°” until the next automatic refresh in 10 minutes.',
+          {
+            error: error?.message,
+            retryInMinutes: 10,
+            effect: 'Only the header weather is unavailable.',
+          },
+        );
         if (!cancelled) setWeather('--°');
       }
     };

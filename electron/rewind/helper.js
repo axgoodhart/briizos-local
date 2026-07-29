@@ -50,8 +50,38 @@ class BriizyHelper extends EventEmitter {
   _setState(state, detail) {
     if (this.state === state) return;
     this.state = state;
-    this._log(state === 'error' || state === 'unavailable' ? 'warn' : 'info',
-      `Helper state → ${state}`, detail);
+    const descriptions = {
+      starting: {
+        level: 'debug',
+        message: 'The local screen-capture helper process is starting; no screenshot has been taken yet.',
+      },
+      ready: {
+        level: detail?.screenRecording === true ? 'info' : 'warn',
+        message: detail?.screenRecording === true
+          ? 'macOS granted Screen Recording and the local capture helper can accept screenshot and OCR requests. This confirms permission only; individual captures are logged separately.'
+          : 'The local capture helper started, but macOS has not granted Screen Recording. No screenshots or OCR can be produced until that permission is enabled.',
+      },
+      unavailable: {
+        level: 'warn',
+        message: 'The local capture helper is unavailable, so screen-memory screenshots and OCR are stopped.',
+      },
+      error: {
+        level: 'warn',
+        message: 'The local capture helper hit an error. briizOS will retry with backoff unless the evidence says retries were exhausted.',
+      },
+      stopped: {
+        level: 'debug',
+        message: 'The local capture helper stopped; it is no longer able to take screenshots or run OCR.',
+      },
+    };
+    const description = descriptions[state] || {
+      level: 'debug',
+      message: `The local capture helper entered the internal “${state}” state.`,
+    };
+    this._log(description.level, description.message, {
+      helperState: state,
+      ...((detail && typeof detail === 'object') ? detail : { detail: detail ?? null }),
+    });
     this.emit('state', { state, detail });
   }
 
@@ -181,7 +211,10 @@ class BriizyHelper extends EventEmitter {
     if (message.ok) {
       // It answered a real request, so it works: forgive the history.
       if (this.consecutiveFailures) {
-        this._log('info', 'Helper recovered', { after: this.consecutiveFailures });
+        this._log('info', 'The local screen-capture helper answered a real request after earlier failures, so its retry counter was cleared.', {
+          earlierConsecutiveFailures: this.consecutiveFailures,
+          effect: 'Screen-memory capture requests may continue.',
+        });
         this.consecutiveFailures = 0;
       }
       pending.resolve(message.result || {});
@@ -208,10 +241,10 @@ class BriizyHelper extends EventEmitter {
     // A helper that ran happily for a while and then died is one incident, not a
     // crash loop; one that dies seconds after every start is a crash loop.
     this.consecutiveFailures = uptimeMs >= STABLE_UPTIME_MS ? 1 : this.consecutiveFailures + 1;
-    this._log('warn', 'Helper exited unexpectedly', {
-      code,
-      signal,
-      uptimeMs,
+    this._log('warn', 'The local screen-capture helper process exited unexpectedly. Pending screenshot or OCR requests failed; briizOS will either retry or report that capture is unavailable.', {
+      exitCode: code,
+      exitSignal: signal,
+      helperUptimeMs: uptimeMs,
       consecutiveFailures: this.consecutiveFailures,
     });
     if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
@@ -231,7 +264,10 @@ class BriizyHelper extends EventEmitter {
     const delay = RESTART_BACKOFF_MS[
       Math.min(this.consecutiveFailures, RESTART_BACKOFF_MS.length - 1)
     ];
-    this._log('info', 'Scheduling helper restart', { delayMs: delay });
+    this._log('info', `The local screen-capture helper will retry in ${Math.round(delay / 1000)} seconds. No screenshots or OCR can finish through it during this wait.`, {
+      retryDelayMs: delay,
+      consecutiveFailures: this.consecutiveFailures,
+    });
     this.restartTimer = setTimeout(() => {
       this.restartTimer = null;
       this.start();
