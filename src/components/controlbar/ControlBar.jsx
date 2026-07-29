@@ -2,12 +2,14 @@ import './ControlBar.css';
 
 function ControlBar({
   variant = 'dock',
+  chatOpen,
   briiztormOpen,
   organizerOpen,
   calendarOpen,
   mediaOpen,
   notesOpen,
   canvasesOpen,
+  onToggleChat,
   onToggleBriiztorm,
   onOpenOrganizer,
   onOpenCalendar,
@@ -24,10 +26,10 @@ function ControlBar({
     <nav className="control-bar-dock" aria-label="Control dock">
       <button
         type="button"
-        className={`cb-toggle ${briiztormOpen ? 'active' : ''}`}
-        onClick={onToggleBriiztorm}
+        className={`cb-toggle ${chatOpen ? 'active' : ''}`}
+        onClick={onToggleChat}
         title="AI Chat Panel"
-        aria-pressed={briiztormOpen}
+        aria-pressed={chatOpen}
       >
         <span className="cb-icon" id="chatpanel-icon">􀌮</span>
         <span className="cb-label">Chats</span>

@@ -383,6 +383,7 @@ function AppContent({ layout }) {
   // Get the panels from the layout hook
   const panels = getVisiblePanels();
   logger.debug('ui', 'App panels', panels.map(p => p.id));
+  const interactionPanel = getPanelByType('interaction');
   const journalPanel = getPanelByType('journal');
   const notefallsPanel = getPanelByType('notefalls');
   const forestPanel = getPanelByType('forest');
@@ -395,6 +396,14 @@ function AppContent({ layout }) {
   const closeThemeStudio = useCallback(() => {
     theme.requestClose(() => setThemeStudioOpen(false));
   }, [theme]);
+
+  const toggleInteractionPanel = useCallback(() => {
+    if (interactionPanel) {
+      togglePanelVisibility(interactionPanel.id);
+      return;
+    }
+    addPanel({ id: 'interaction', type: 'interaction', size: 20, visible: true });
+  }, [interactionPanel, togglePanelVisibility, addPanel]);
 
   const resizeThemeStudio = useCallback((width) => {
     const next = Math.round(Math.min(480, Math.max(300, width)));
@@ -1055,12 +1064,14 @@ function AppContent({ layout }) {
         <div className="header-dock-slot" data-theme-role="control-dock" data-theme-component="Application">
           <ControlBar
             variant="dock"
+            chatOpen={interactionPanel?.visible === true}
             briiztormOpen={briiztormOpen}
             organizerOpen={organizerOpen}
             calendarOpen={calendarOpen}
             mediaOpen={mediaOpen}
             notesOpen={notesOpen}
             canvasesOpen={canvasesPopoverOpen}
+            onToggleChat={toggleInteractionPanel}
             onToggleBriiztorm={() => setBriiztormOpen(!briiztormOpen)}
             onOpenOrganizer={() => setOrganizerOpen((prev) => !prev)}
             onOpenCalendar={() => setCalendarOpen((prev) => !prev)}
