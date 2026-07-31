@@ -210,6 +210,78 @@ top:0;
   --cb-accent: #24d9e6;
 }
 
+/* Ambient vertical rail ------------------------------------------------- */
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical {
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(16px, 3vh, 34px);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 10px 0;
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle {
+  flex: 0 0 44px;
+  width: 52px;
+  min-width: 52px;
+  height: 44px;
+  min-height: 44px;
+  gap: 0;
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical:hover .cb-toggle,
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical:focus-within .cb-toggle {
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:hover {
+  transform: scale(1.08);
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:active {
+  transform: scale(0.94);
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle::before {
+  inset: -4px;
+  border-radius: 13px;
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle::after {
+  top: 50%;
+  right: -12px;
+  bottom: auto;
+  left: auto;
+  width: 5px;
+  height: 30px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  transform: translateY(-50%) scaleY(0.72);
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle.active::after,
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:focus-visible::after {
+  transform: translateY(-50%) scaleY(1);
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle.active .cb-icon,
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:focus-visible .cb-icon,
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:hover .cb-icon {
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-label {
+  display: none;
+}
+
+@media (max-height: 700px) {
+  .control-bar-dock.control-bar-dock--current.control-bar-dock--vertical {
+    gap: 10px;
+    padding-block: 4px;
+  }
+}
+
 /* macOS-inspired shelf --------------------------------------------------- */
 .control-bar-dock.control-bar-dock--macos {
   position: relative;
