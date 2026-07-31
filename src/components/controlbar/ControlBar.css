@@ -391,6 +391,8 @@ top:0;
   min-width: var(--cb-tab-width);
   height: 48px;
   margin: 0 -5px;
+  margin-left: -10px;
+  margin-right: -10px;
   flex-direction: row;
   gap: 5px;
   border-radius: 0;
@@ -414,7 +416,12 @@ top:0;
   pointer-events: none;
 }
 
-.control-bar-dock.control-bar-dock--tabs .cb-tab-shape path {
+.control-bar-dock.control-bar-dock--tabs .cb-tab-occluder {
+  fill: oklch(10% 0.015 275);
+  stroke: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-tab-face {
   fill: color-mix(in oklab, var(--ui-header-bg, #071015) 72%, #8a9297);
   stroke: rgba(208, 217, 221, 0.2);
   stroke-width: 1;
@@ -441,7 +448,7 @@ top:0;
   z-index: 3;
 }
 
-.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-tab-shape path {
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-tab-face {
   fill: color-mix(in oklab, var(--ui-header-bg, #071015) 62%, #b2bbc0);
   stroke: rgba(244, 248, 249, 0.84);
 }
@@ -456,8 +463,8 @@ top:0;
   min-width: var(--cb-tab-active-width);
 }
 
-.control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-tab-shape path,
-.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-tab-shape path {
+.control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-tab-face,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-tab-face {
   fill: color-mix(in oklab, var(--ui-header-bg, #071015) 92%, #020404);
   stroke: color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 98%, white);
   stroke-width: 1.2;

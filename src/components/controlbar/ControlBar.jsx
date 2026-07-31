@@ -14,7 +14,8 @@ const FOLDER_TAB_PATH = [
 function FolderTabShape() {
   return (
     <svg className="cb-tab-shape" viewBox="0 0 84 48" preserveAspectRatio="none" aria-hidden="true">
-      <path d={FOLDER_TAB_PATH} />
+      <path className="cb-tab-occluder" d={FOLDER_TAB_PATH} />
+      <path className="cb-tab-face" d={FOLDER_TAB_PATH} />
     </svg>
   );
 }
