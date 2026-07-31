@@ -245,6 +245,7 @@
 
 .dock-style-preview--tabs .dock-style-preview-item.is-active {
   z-index: 3;
+  width: 65px;
   opacity: 1;
   transform: translateY(-2px);
 }

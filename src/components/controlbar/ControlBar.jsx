@@ -50,6 +50,7 @@ function ControlBar({
         data-dock-item="chat"
         onClick={onToggleChat}
         title="AI Chat Panel"
+        aria-label="Chats"
         aria-pressed={chatOpen}
       >
         <FolderTabShape />
@@ -63,6 +64,7 @@ function ControlBar({
         data-dock-item="briiztorm"
         onClick={onToggleBriiztorm}
         title="briiZtorm - 3D Project View"
+        aria-label="briiZtorm"
         aria-pressed={briiztormOpen}
       >
         <FolderTabShape />
@@ -76,6 +78,7 @@ function ControlBar({
         data-dock-item="organizer"
         onClick={onOpenOrganizer}
         title="Organizer - Project Management"
+        aria-label="Organizer"
         aria-pressed={organizerOpen}
       >
         <FolderTabShape />
@@ -89,6 +92,7 @@ function ControlBar({
         data-dock-item="calendar"
         onClick={onOpenCalendar}
         title="Calendar - Daily Schedule"
+        aria-label="Calendar"
         aria-pressed={calendarOpen}
       >
         <FolderTabShape />
@@ -102,6 +106,7 @@ function ControlBar({
         data-dock-item="media"
         onClick={onToggleMedia}
         title="Media"
+        aria-label="Media"
         aria-pressed={mediaOpen}
       >
         <FolderTabShape />
@@ -115,6 +120,7 @@ function ControlBar({
         data-dock-item="notes"
         onClick={onToggleNotes}
         title="Notes - Quick Notes"
+        aria-label="Notes"
         aria-pressed={notesOpen}
       >
         <FolderTabShape />
@@ -130,6 +136,7 @@ function ControlBar({
           onClick={onToggleCanvases}
           title="Canvases - Saved Mini-Apps (Cmd/Ctrl+Shift+K)"
           data-canvases-toggle="true"
+          aria-label="Canvases"
           aria-pressed={canvasesOpen}
         >
           <FolderTabShape />

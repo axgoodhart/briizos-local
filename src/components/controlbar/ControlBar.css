@@ -361,6 +361,8 @@ top:0;
 
 /* Keeper-inspired folder tabs ------------------------------------------ */
 .control-bar-dock.control-bar-dock--tabs {
+  --cb-tab-width: 88px;
+  --cb-tab-active-width: 114.4px;
   position: relative;
   box-sizing: border-box;
   align-items: flex-end;
@@ -385,8 +387,8 @@ top:0;
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle {
   z-index: 1;
-  width: 88px;
-  min-width: 88px;
+  width: var(--cb-tab-width);
+  min-width: var(--cb-tab-width);
   height: 48px;
   margin: 0 -5px;
   padding: 5px 11px 2px;
@@ -433,16 +435,7 @@ top:0;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-label {
-  width: auto;
-  max-width: 46px;
-  max-height: none;
-  overflow: hidden;
-  color: rgba(226, 232, 234, 0.62);
-  font-size: 7.5px;
-  letter-spacing: 0.025em;
-  text-overflow: ellipsis;
-  opacity: 0.72;
-  transform: none;
+  display: none;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover {
@@ -461,6 +454,11 @@ top:0;
   transform: translateY(-3px);
 }
 
+.control-bar-dock.control-bar-dock--tabs .cb-toggle.active {
+  width: var(--cb-tab-active-width);
+  min-width: var(--cb-tab-active-width);
+}
+
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-tab-shape path,
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-tab-shape path {
   fill: color-mix(in oklab, var(--ui-header-bg, #071015) 92%, #020404);
@@ -477,29 +475,19 @@ top:0;
   transform: none;
 }
 
-.control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-label,
-.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-label,
-.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-label {
-  max-height: none;
-  color: rgba(248, 251, 252, 0.95);
-  opacity: 1;
-  transform: none;
-}
-
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 72%, white);
   outline-offset: -5px;
 }
 
 @media (max-width: 680px) {
-  .control-bar-dock.control-bar-dock--tabs .cb-toggle {
-    width: 64px;
-    min-width: 64px;
-    margin-inline: -4px;
+  .control-bar-dock.control-bar-dock--tabs {
+    --cb-tab-width: 64px;
+    --cb-tab-active-width: 83.2px;
   }
 
-  .control-bar-dock.control-bar-dock--tabs .cb-label {
-    display: none;
+  .control-bar-dock.control-bar-dock--tabs .cb-toggle {
+    margin-inline: -4px;
   }
 }
 
