@@ -22,6 +22,10 @@ top:0;
   overflow: visible;
 }
 
+.cb-tab-shape {
+  display: none;
+}
+
 .cb-toggle {
   position: relative;
   display: flex;
@@ -174,4 +178,346 @@ top:0;
   opacity: 1;
   max-height: 14px;
   transform: translateY(0);
+}
+
+/* Each dock view consumes the same semantic accent. The renderer changes;
+   the identity and active state of every control stay consistent. */
+.cb-toggle[data-dock-item="chat"] {
+  --cb-accent: #16df69;
+}
+
+.cb-toggle[data-dock-item="briiztorm"] {
+  --cb-accent: #f54ba3;
+}
+
+.cb-toggle[data-dock-item="organizer"] {
+  --cb-accent: #2bff36;
+}
+
+.cb-toggle[data-dock-item="calendar"] {
+  --cb-accent: #ff7149;
+}
+
+.cb-toggle[data-dock-item="media"] {
+  --cb-accent: #43e8dd;
+}
+
+.cb-toggle[data-dock-item="notes"] {
+  --cb-accent: #e7dc91;
+}
+
+.cb-toggle[data-dock-item="canvases"] {
+  --cb-accent: #24d9e6;
+}
+
+/* macOS-inspired shelf --------------------------------------------------- */
+.control-bar-dock.control-bar-dock--macos {
+  position: relative;
+  box-sizing: border-box;
+  justify-content: center;
+  gap: 5px;
+  width: max-content;
+  max-width: 100%;
+  height: 58px;
+  min-height: 58px;
+  margin: 0 auto;
+  padding: 6px 10px 7px;
+  border: 1px solid rgba(224, 236, 246, 0.34);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.32), rgba(113, 125, 136, 0.38)),
+    rgba(43, 51, 60, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(13, 17, 22, 0.45),
+    0 9px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  gap: 0;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--cb-accent) 58%, rgba(255, 255, 255, 0.58));
+  border-radius: 11px;
+  color: var(--cb-accent);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.36), transparent 42%),
+    linear-gradient(145deg, color-mix(in oklab, var(--cb-accent) 76%, #28384b), color-mix(in oklab, var(--cb-accent) 44%, #10151d));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    0 3px 7px rgba(0, 0, 0, 0.26);
+  transform: none;
+  transform-origin: center bottom;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), filter 120ms ease-out;
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle::before {
+  inset: -1px;
+  display: block;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle::after {
+  left: 50%;
+  bottom: -7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(242, 248, 252, 0.82);
+  transform: translateX(-50%) scale(0.45);
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle.active::before,
+.control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible::before {
+  border-color: color-mix(in oklab, var(--cb-accent) 62%, white);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle.active::after,
+.control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-icon,
+.control-bar-dock.control-bar-dock--macos:hover .cb-icon,
+.control-bar-dock.control-bar-dock--macos:focus-within .cb-icon {
+  font-size: 23px;
+  color: rgba(247, 252, 255, 0.95);
+  opacity: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.42));
+  -webkit-text-stroke: 0;
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--macos #chatpanel-icon,
+.control-bar-dock.control-bar-dock--macos #briiztorm-icon,
+.control-bar-dock.control-bar-dock--macos #organizer-icon,
+.control-bar-dock.control-bar-dock--macos #calendar-icon,
+.control-bar-dock.control-bar-dock--macos #media-icon,
+.control-bar-dock.control-bar-dock--macos #notes-icon,
+.control-bar-dock.control-bar-dock--macos #canvases-icon {
+  color: rgba(247, 252, 255, 0.95);
+  -webkit-text-stroke: 0;
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-label {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  width: max-content;
+  max-height: none;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  background: rgba(12, 17, 23, 0.94);
+  color: rgba(246, 250, 252, 0.94);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -5px);
+  transition: opacity 100ms ease-out, transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle:hover {
+  z-index: 4;
+  filter: saturate(1.15) brightness(1.04);
+  transform: translateY(-9px) scale(1.28);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle:hover .cb-label,
+.control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible .cb-label {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-toggle:hover),
+.control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-toggle,
+.control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-canvases-wrap:hover),
+.control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle {
+  transform: translateY(-4px) scale(1.1);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle:active {
+  transform: translateY(-5px) scale(1.16);
+}
+
+.control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--cb-accent) 72%, white);
+  outline-offset: 3px;
+}
+
+/* Keeper-inspired folder tabs ------------------------------------------ */
+.control-bar-dock.control-bar-dock--tabs {
+  position: relative;
+  box-sizing: border-box;
+  align-items: flex-end;
+  justify-content: center;
+  height: 58px;
+  min-height: 58px;
+  width: 100%;
+  padding: 8px 8px 1px;
+}
+
+.control-bar-dock.control-bar-dock--tabs::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  height: 1px;
+  background: color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 70%, transparent);
+  box-shadow: 0 -1px 8px color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 34%, transparent);
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle {
+  z-index: 1;
+  width: 88px;
+  min-width: 88px;
+  height: 48px;
+  margin: 0 -5px;
+  padding: 5px 11px 2px;
+  flex-direction: row;
+  gap: 5px;
+  border-radius: 0;
+  color: var(--cb-accent);
+  transform: none;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 120ms ease-out;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle::before,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle::after {
+  display: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-tab-shape {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-tab-shape path {
+  fill: color-mix(in oklab, var(--ui-header-bg, #071015) 72%, #8a9297);
+  stroke: rgba(208, 217, 221, 0.58);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition: fill 120ms ease-out, stroke 120ms ease-out;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-icon,
+.control-bar-dock.control-bar-dock--tabs:hover .cb-icon,
+.control-bar-dock.control-bar-dock--tabs:focus-within .cb-icon {
+  font-size: 21px;
+  color: color-mix(in oklab, var(--cb-accent) 68%, #596064);
+  opacity: 0.76;
+  filter: saturate(0.7);
+  -webkit-text-stroke: 0.35px rgba(4, 8, 10, 0.72);
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-label {
+  width: auto;
+  max-width: 46px;
+  max-height: none;
+  overflow: hidden;
+  color: rgba(226, 232, 234, 0.62);
+  font-size: 7.5px;
+  letter-spacing: 0.025em;
+  text-overflow: ellipsis;
+  opacity: 0.72;
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover {
+  z-index: 3;
+  transform: translateY(-2px);
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-tab-shape path {
+  fill: color-mix(in oklab, var(--ui-header-bg, #071015) 62%, #b2bbc0);
+  stroke: rgba(244, 248, 249, 0.84);
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle.active,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
+  z-index: 5;
+  transform: translateY(-3px);
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-tab-shape path,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-tab-shape path {
+  fill: color-mix(in oklab, var(--ui-header-bg, #071015) 92%, #020404);
+  stroke: color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 88%, white);
+  stroke-width: 1.35;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-icon,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-icon,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-icon {
+  color: var(--cb-accent);
+  opacity: 1;
+  filter: saturate(1.35) drop-shadow(0 0 4px color-mix(in oklab, var(--cb-accent) 46%, transparent));
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-label,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-label,
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-label {
+  max-height: none;
+  color: rgba(248, 251, 252, 0.95);
+  opacity: 1;
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 72%, white);
+  outline-offset: -5px;
+}
+
+@media (max-width: 680px) {
+  .control-bar-dock.control-bar-dock--tabs .cb-toggle {
+    width: 64px;
+    min-width: 64px;
+    margin-inline: -4px;
+  }
+
+  .control-bar-dock.control-bar-dock--tabs .cb-label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-bar-dock .cb-toggle,
+  .control-bar-dock .cb-icon,
+  .control-bar-dock .cb-label,
+  .control-bar-dock .cb-tab-shape path {
+    transition-duration: 0.01ms !important;
+  }
+
+  .control-bar-dock.control-bar-dock--macos .cb-toggle:hover,
+  .control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-toggle:hover),
+  .control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-toggle,
+  .control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-canvases-wrap:hover),
+  .control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle,
+  .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover,
+  .control-bar-dock.control-bar-dock--tabs .cb-toggle.active {
+    transform: none;
+  }
 }

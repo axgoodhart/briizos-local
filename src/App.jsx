@@ -24,6 +24,11 @@ import { useTaskAutomation } from './hooks/useTaskAutomation';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
+import {
+  getStoredHeaderDockStyle,
+  normalizeHeaderDockStyle,
+  persistHeaderDockStyle,
+} from './components/controlbar/dockPreferences';
 import { BriiztormOverlay, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
 import { NotesWidget } from './components/notes';
 import { CanvasesPopover, CanvasTile } from './components/canvases';
@@ -278,6 +283,7 @@ function AppContent({ layout }) {
   const [showSettings, setShowSettings] = useState(false);
   /** Which Dashboard tab to land on when it opens (menu-bar "Settings…" → briizy). */
   const [dashboardTab, setDashboardTab] = useState(null);
+  const [headerDockStyle, setHeaderDockStyle] = useState(getStoredHeaderDockStyle);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
@@ -323,6 +329,12 @@ function AppContent({ layout }) {
   const [activePanelId, setActivePanelId] = useState(null);
   const [fullscreenPanelId, setFullscreenPanelId] = useState(null);
   const canvasesHook = useCanvases();
+
+  const handleHeaderDockStyleChange = useCallback((nextStyle) => {
+    const normalized = normalizeHeaderDockStyle(nextStyle);
+    setHeaderDockStyle(normalized);
+    persistHeaderDockStyle(normalized);
+  }, []);
 
   useEffect(() => {
     if (!calendarOpen) setCalendarPlanningFocus(null);
@@ -1064,6 +1076,7 @@ function AppContent({ layout }) {
         <div className="header-dock-slot" data-theme-role="control-dock" data-theme-component="Application">
           <ControlBar
             variant="dock"
+            dockStyle={headerDockStyle}
             chatOpen={interactionPanel?.visible === true}
             briiztormOpen={briiztormOpen}
             organizerOpen={organizerOpen}
@@ -1217,6 +1230,8 @@ function AppContent({ layout }) {
         onClose={() => { setShowSettings(false); setDashboardTab(null); }}
         onOpenThemeStudio={openThemeStudio}
         initialTab={dashboardTab}
+        headerDockStyle={headerDockStyle}
+        onHeaderDockStyleChange={handleHeaderDockStyleChange}
       />
 
       <ThemeStudio

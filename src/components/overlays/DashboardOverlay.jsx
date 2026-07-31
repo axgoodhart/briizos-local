@@ -5,6 +5,7 @@ import logger from '../../lib/logger';
 import { useTheme } from '../../theme/ThemeProvider.jsx';
 import { useBriizyCapture } from '../../hooks/useBriizyCapture.js';
 import CaptureSettingsPanel from '../briizy/CaptureSettingsPanel.jsx';
+import { HEADER_DOCK_STYLE_OPTIONS } from '../controlbar/dockPreferences.js';
 import './DashboardOverlay.css';
 
 // Chat background lists (mirrors InteractionPanel)
@@ -37,6 +38,15 @@ const CHAT_BACKGROUNDS = [
   { value: 'assets/backgrounds/visualizer6.html', label: 'visualizer6' },
   { value: 'assets/backgrounds/wavepool.html', label: 'wavepool' }
 ];
+
+const DOCK_PREVIEW_ITEMS = [
+  { id: 'chat', glyph: '􀌮', accent: '#16df69' },
+  { id: 'organizer', glyph: '􀱢', accent: '#2bff36' },
+  { id: 'calendar', glyph: '􀉉', accent: '#ff7149' },
+  { id: 'media', glyph: '􀢺', accent: '#43e8dd' },
+];
+
+const DOCK_PREVIEW_TAB_PATH = 'M 0 32 C 4 32 7 29 7 24 L 7 14 Q 7 1 20 1 L 36 1 Q 49 1 49 14 L 49 24 C 49 29 52 32 56 32';
 
 /* ───────────────────────────
    Sub-components (kept small)
@@ -1049,7 +1059,38 @@ function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatV
   );
 }
 
-function AppearanceTab({ getThemeChatBackground, onOpenChatViewPicker, openPickerForTheme, onPickerSave, onOpenThemeStudio }) {
+function DockStylePreview({ style }) {
+  return (
+    <span className={`dock-style-preview dock-style-preview--${style}`} aria-hidden="true">
+      <span className="dock-style-preview-track">
+        {DOCK_PREVIEW_ITEMS.map((item, index) => (
+          <span
+            key={item.id}
+            className={`dock-style-preview-item ${index === 1 ? 'is-active' : ''}`}
+            style={{ '--dock-preview-accent': item.accent }}
+          >
+            {style === 'tabs' && (
+              <svg className="dock-style-preview-tab" viewBox="0 0 56 32" preserveAspectRatio="none">
+                <path d={DOCK_PREVIEW_TAB_PATH} />
+              </svg>
+            )}
+            <span className="dock-style-preview-glyph">{item.glyph}</span>
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
+function AppearanceTab({
+  getThemeChatBackground,
+  onOpenChatViewPicker,
+  openPickerForTheme,
+  onPickerSave,
+  onOpenThemeStudio,
+  headerDockStyle,
+  onHeaderDockStyleChange,
+}) {
   const theme = useTheme();
   const currentTheme = theme.activeThemeId || 'default';
 
@@ -1067,6 +1108,36 @@ function AppearanceTab({ getThemeChatBackground, onOpenChatViewPicker, openPicke
 
   return (
     <div className="settings-section">
+      <div className="appearance-interface-block">
+        <h3 className="settings-section-title">Interface</h3>
+        <p className="settings-section-desc">
+          Choose how the app controls sit in the header.
+        </p>
+
+        <fieldset className="dock-style-options">
+          <legend className="appearance-visually-hidden">Header dock style</legend>
+          {HEADER_DOCK_STYLE_OPTIONS.map((option) => (
+            <label className="dock-style-option" key={option.id}>
+              <input
+                type="radio"
+                name="header-dock-style"
+                value={option.id}
+                checked={headerDockStyle === option.id}
+                onChange={() => onHeaderDockStyleChange(option.id)}
+              />
+              <DockStylePreview style={option.id} />
+              <span className="dock-style-option-copy">
+                <span className="dock-style-option-label">{option.label}</span>
+                <span className="dock-style-option-description">{option.description}</span>
+              </span>
+              <span className="dock-style-option-check" aria-hidden="true">✓</span>
+            </label>
+          ))}
+        </fieldset>
+      </div>
+
+      <div className="appearance-section-rule" />
+
       <h3 className="settings-section-title">Theme</h3>
       <p className="settings-section-desc">
         Pick the visual style for the desktop UI.
@@ -1129,7 +1200,14 @@ function BriizyTab() {
    Main DashboardOverlay
    ───────────────────── */
 
-function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio, initialTab }) {
+function DashboardOverlay({
+  isOpen,
+  onClose,
+  onOpenThemeStudio,
+  initialTab,
+  headerDockStyle,
+  onHeaderDockStyleChange,
+}) {
   const { user, logout, isAuthenticated } = useAuth();
   const { setThemeChatBackground, getThemeChatBackground } = useChatSettings();
 
@@ -1345,6 +1423,8 @@ function DashboardOverlay({ isOpen, onClose, onOpenThemeStudio, initialTab }) {
                   openPickerForTheme={openPickerForTheme}
                   onPickerSave={handlePickerSave}
                   onOpenThemeStudio={onOpenThemeStudio}
+                  headerDockStyle={headerDockStyle}
+                  onHeaderDockStyleChange={onHeaderDockStyleChange}
                 />
               )}
 
