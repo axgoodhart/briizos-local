@@ -2,6 +2,7 @@ export const BUILT_IN_THEMES = Object.freeze([
   { id: 'default', label: 'Dark Neon', description: 'The original dark neon briizOS interface.', mode: 'dark', immutable: true },
   { id: 'antarctic-teafog', label: 'Antarctic Teafog', description: 'Muted warmth with cool earth tones.', mode: 'dark', immutable: true },
   { id: 'postlinear-glassos', label: 'Postlinear Glassos', description: 'Splashing gold with rosy dry warmth.', mode: 'dark', immutable: true },
+  { id: 'pearlescence', label: 'Pearlescence', description: 'A cool, icy palette.', mode: 'dark', immutable: true },
   { id: 'neon-orbi', label: 'Neon Orb', description: 'A bolder, vibrant multicolor interface.', mode: 'light', immutable: true },
   { id: 'vineyard-gloom', label: 'Vineyard Gloom', description: 'Plush and nightly theme with warm fruit tones.', mode: 'dark', immutable: true},
   { id: 'winterbloom', label: 'Winterbloom', description: 'A wintry night palette with blossom-pink highlights.', mode: 'dark', immutable: true },

@@ -25,7 +25,6 @@
 
       body {
         min-height: 100svh;
-        overflow: hidden;
       }
 
       main {
@@ -35,6 +34,7 @@
       }
 
       .orbit-stage {
+        transition:all .5s;
         position: relative;
         display: grid;
         width: min(72vmin, 44rem);
@@ -48,6 +48,11 @@
         -webkit-tap-highlight-color: transparent;
       }
 
+      .orbit-stage:hover{
+        transform:scale(.5)
+
+
+      }
       .orbit-stage:focus-visible {
         outline: 2px solid rgb(255 255 255 / 0.75);
         outline-offset: clamp(0.75rem, 2vmin, 1.5rem);
@@ -73,7 +78,7 @@
         z-index: 2;
         opacity: 1;
         transform: rotate(0deg) scale(1);
-        filter: blur(0);
+        filter: brightness(1)blur(0);
       }
 
       .orbit-image--color {
@@ -83,14 +88,21 @@
         transform: scale(0.92);
       }
 
+
+      .orbit-stage.is-transforming{
+        pointer-events:none
+      }
+
       .orbit-stage.is-transforming .orbit-image--outline {
-        animation: outline-transition 3.8s linear forwards;
+        animation: outline-transition 1.425s linear forwards;
         will-change: transform, filter, opacity;
       }
 
       .orbit-stage.is-transforming .orbit-image--color {
-        animation: color-arrival 3.8s linear forwards;
+        animation: color-arrival .9s linear forwards;
         will-change: transform, opacity;
+        animation-delay:.75s;
+        animation-direction: reverse;
       }
 
       /*
@@ -101,99 +113,142 @@
         0% {
           opacity: 1;
           transform: rotate(0deg) scale(1);
-          filter: blur(0);
+          filter: brightness(1)blur(0px);
         }
 
         6% {
           opacity: 1;
-          transform: rotate(10deg) scale(0.72);
-          filter: blur(1px);
+          transform: rotate(5deg) scale(0.5);
+          filter: brightness(0)blur(0px);
         }
 
-        12% {
+        15% {
           opacity: 1;
-          transform: rotate(45deg) scale(1);
-          filter: blur(2px);
+          transform: rotate(22.5deg) scale(.31);
+          filter: brightness(.1)blur(0px);
         }
 
         20% {
           opacity: 1;
-          transform: rotate(135deg) scale(1);
-          filter: blur(4px);
+          transform: rotate(67.5deg) scale(.41);
+          filter: brightness(.3)blur(0px);
         }
 
         32% {
           opacity: 1;
-          transform: rotate(405deg) scale(1);
-          filter: blur(7px);
+          transform: rotate(140deg) scale(1);
+          filter: brightness(1)blur(2px);
         }
 
         46% {
           opacity: 1;
-          transform: rotate(900deg) scale(1);
-          filter: blur(12px);
+          transform: rotate(500deg) scale(1);
+          filter: brightness(1)blur(2px);
         }
 
         60% {
           opacity: 1;
-          transform: rotate(1620deg) scale(1);
-          filter: blur(18px);
+          transform: rotate(900deg) scale(1);
+          filter: brightness(1)blur(2px);
         }
 
         72% {
           opacity: 0.96;
-          transform: rotate(2520deg) scale(1);
-          filter: blur(16px);
+          transform: rotate(1200deg) scale(1);
+          filter: brightness(1)blur(2px);
         }
 
         82% {
           opacity: 0.72;
-          transform: rotate(3180deg) scale(0.995);
-          filter: blur(10px);
+          transform: rotate(1550deg) scale(0.995);
         }
 
         90% {
           opacity: 0.38;
-          transform: rotate(3540deg) scale(0.985);
-          filter: blur(5px);
+          transform: rotate(1650deg) scale(0.985);
+          filter: brightness(2)blur(100px);
         }
 
         96% {
           opacity: 0.1;
-          transform: rotate(3690deg) scale(0.975);
-          filter: blur(2px);
+          transform: rotate(1700deg) scale(0.975);
+          filter: brightness(1)blur(50px);
         }
 
         100% {
           opacity: 0;
-          transform: rotate(3720deg) scale(0.97);
-          filter: blur(0);
+          transform: rotate(1800deg) scale(0.97);
+          filter: brightness(1)blur(0);
         }
       }
 
       @keyframes color-arrival {
-        0%,
-        68% {
-          opacity: 0;
-          transform: scale(0.92);
+        0% {
+          opacity: 1;
+          transform: rotate(-0deg) scale(1);
+          filter: brightness(1)blur(0);
+        }
+
+        12% {
+          opacity: 1;
+          transform: rotate(-45deg) scale(1);
+          filter: brightness(2)blur(2px);
+        }
+
+        20% {
+          opacity: 1;
+          transform: rotate(-135deg) scale(1);
+          filter: brightness(1.5)blur(4px);
+        }
+
+        32% {
+          opacity: 1;
+          transform: rotate(-405deg) scale(1);
+          filter: brightness(1.2)blur(7px);
+        }
+
+        46% {
+          opacity: 1;
+          transform: rotate(-900deg) scale(1);
+          filter: brightness(1)blur(12px);
+        }
+
+        60% {
+          opacity: 1;
+          transform: rotate(-1620deg) scale(1);
+          filter: brightness(1)blur(18px);
+        }
+
+        72% {
+          opacity: 0.96;
+          transform: rotate(-2520deg) scale(1);
+          filter: brightness(1)blur(16px);
         }
 
         82% {
-          opacity: 0.24;
-          transform: scale(0.955);
+          opacity: 0.72;
+          transform: rotate(-3180deg) scale(0.995);
+          filter: brightness(1)blur(10px);
         }
 
-        94% {
-          opacity: 0.88;
-          transform: scale(0.992);
+        90% {
+          opacity: 0.38;
+          transform: rotate(-3540deg) scale(0.985);
+          filter: brightness(1)blur(5px);
+        }
+
+        96% {
+          opacity: 0.1;
+          transform: rotate(-3690deg) scale(0.975);
+          filter: brightness(1)blur(2px);
         }
 
         100% {
-          opacity: 1;
-          transform: scale(1);
+          opacity: 0;
+          transform: rotate(-3720deg) scale(0.97);
+          filter: brightness(1)blur(0);
         }
       }
-
       .visually-hidden {
         position: absolute;
         width: 1px;
@@ -208,11 +263,11 @@
 
       @media (prefers-reduced-motion: reduce) {
         .orbit-stage.is-transforming .orbit-image--outline {
-          animation: outline-fade 600ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+          animation: outline-fade 250 ease forwards;
         }
 
         .orbit-stage.is-transforming .orbit-image--color {
-          animation: color-fade 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: color-fade 250 ease forwards;
         }
 
         @keyframes outline-fade {
