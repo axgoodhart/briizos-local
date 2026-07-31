@@ -1,7 +1,7 @@
 .control-bar-dock {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
 top:0;
  z-index:27;
   min-height: 58px;
