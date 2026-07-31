@@ -22,6 +22,7 @@ function FolderTabShape() {
 function ControlBar({
   variant = 'dock',
   dockStyle = 'current',
+  orientation = 'horizontal',
   chatOpen,
   briiztormOpen,
   organizerOpen,
@@ -43,7 +44,7 @@ function ControlBar({
   }
 
   return (
-    <nav className={`control-bar-dock control-bar-dock--${dockStyle}`} aria-label="Control dock">
+    <nav className={`control-bar-dock control-bar-dock--${dockStyle} control-bar-dock--${orientation}`} aria-label="Control dock">
       <button
         type="button"
         className={`cb-toggle ${chatOpen ? 'active' : ''}`}

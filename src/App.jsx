@@ -25,8 +25,13 @@ import { useTaskAutomation } from './hooks/useTaskAutomation';
 // New overlay imports
 import { ControlBar } from './components/controlbar';
 import {
+  HEADER_DOCK_ORIENTATIONS,
+  HEADER_DOCK_STYLES,
+  getStoredHeaderDockOrientation,
   getStoredHeaderDockStyle,
+  normalizeHeaderDockOrientation,
   normalizeHeaderDockStyle,
+  persistHeaderDockOrientation,
   persistHeaderDockStyle,
 } from './components/controlbar/dockPreferences';
 import { BriiztormOverlay, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
@@ -284,6 +289,7 @@ function AppContent({ layout }) {
   /** Which Dashboard tab to land on when it opens (menu-bar "Settings…" → briizy). */
   const [dashboardTab, setDashboardTab] = useState(null);
   const [headerDockStyle, setHeaderDockStyle] = useState(getStoredHeaderDockStyle);
+  const [headerDockOrientation, setHeaderDockOrientation] = useState(getStoredHeaderDockOrientation);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
@@ -334,7 +340,21 @@ function AppContent({ layout }) {
     const normalized = normalizeHeaderDockStyle(nextStyle);
     setHeaderDockStyle(normalized);
     persistHeaderDockStyle(normalized);
-  }, []);
+    if (normalized !== HEADER_DOCK_STYLES.CURRENT && headerDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL) {
+      setHeaderDockOrientation(HEADER_DOCK_ORIENTATIONS.HORIZONTAL);
+      persistHeaderDockOrientation(HEADER_DOCK_ORIENTATIONS.HORIZONTAL);
+    }
+  }, [headerDockOrientation]);
+
+  const handleHeaderDockOrientationChange = useCallback((nextOrientation) => {
+    const normalized = normalizeHeaderDockOrientation(nextOrientation);
+    if (normalized === HEADER_DOCK_ORIENTATIONS.VERTICAL && headerDockStyle !== HEADER_DOCK_STYLES.CURRENT) return;
+    setHeaderDockOrientation(normalized);
+    persistHeaderDockOrientation(normalized);
+  }, [headerDockStyle]);
+
+  const verticalHeaderActive = headerDockStyle === HEADER_DOCK_STYLES.CURRENT
+    && headerDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL;
 
   useEffect(() => {
     if (!calendarOpen) setCalendarPlanningFocus(null);
@@ -1061,7 +1081,7 @@ function AppContent({ layout }) {
 
   return (
     <div
-      className={`app ${themeStudioOpen ? 'theme-studio-docked' : ''}`}
+      className={`app ${themeStudioOpen ? 'theme-studio-docked' : ''} ${verticalHeaderActive ? 'app--vertical-header' : ''}`}
       style={themeStudioOpen ? { '--theme-studio-width': `${themeStudioWidth}px` } : undefined}
       data-theme-role="canvas"
       data-theme-component="Application"
@@ -1077,6 +1097,7 @@ function AppContent({ layout }) {
           <ControlBar
             variant="dock"
             dockStyle={headerDockStyle}
+            orientation={headerDockOrientation}
             chatOpen={interactionPanel?.visible === true}
             briiztormOpen={briiztormOpen}
             organizerOpen={organizerOpen}
@@ -1232,6 +1253,8 @@ function AppContent({ layout }) {
         initialTab={dashboardTab}
         headerDockStyle={headerDockStyle}
         onHeaderDockStyleChange={handleHeaderDockStyleChange}
+        headerDockOrientation={headerDockOrientation}
+        onHeaderDockOrientationChange={handleHeaderDockOrientationChange}
       />
 
       <ThemeStudio

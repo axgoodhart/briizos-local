@@ -5,7 +5,11 @@ import logger from '../../lib/logger';
 import { useTheme } from '../../theme/ThemeProvider.jsx';
 import { useBriizyCapture } from '../../hooks/useBriizyCapture.js';
 import CaptureSettingsPanel from '../briizy/CaptureSettingsPanel.jsx';
-import { HEADER_DOCK_STYLE_OPTIONS } from '../controlbar/dockPreferences.js';
+import {
+  HEADER_DOCK_ORIENTATIONS,
+  HEADER_DOCK_STYLES,
+  HEADER_DOCK_STYLE_OPTIONS,
+} from '../controlbar/dockPreferences.js';
 import './DashboardOverlay.css';
 
 // Chat background lists (mirrors InteractionPanel)
@@ -1090,9 +1094,12 @@ function AppearanceTab({
   onOpenThemeStudio,
   headerDockStyle,
   onHeaderDockStyleChange,
+  headerDockOrientation,
+  onHeaderDockOrientationChange,
 }) {
   const theme = useTheme();
   const currentTheme = theme.activeThemeId || 'default';
+  const verticalDockAvailable = headerDockStyle === HEADER_DOCK_STYLES.CURRENT;
 
   const handleThemeChange = async (themeId) => {
     await theme.selectTheme(themeId);
@@ -1134,6 +1141,39 @@ function AppearanceTab({
             </label>
           ))}
         </fieldset>
+
+        <div className="dock-orientation-setting">
+          <span className="dock-orientation-copy">
+            <span className="dock-orientation-label">Header position</span>
+            <span className="dock-orientation-hint" id="dock-orientation-hint">
+              {verticalDockAvailable ? 'Move Ambient controls to the left edge.' : 'Vertical is available with Ambient.'}
+            </span>
+          </span>
+          <fieldset className="dock-orientation-options" aria-describedby="dock-orientation-hint">
+            <legend className="appearance-visually-hidden">Header position</legend>
+            {[HEADER_DOCK_ORIENTATIONS.HORIZONTAL, HEADER_DOCK_ORIENTATIONS.VERTICAL].map((orientation) => {
+              const disabled = orientation === HEADER_DOCK_ORIENTATIONS.VERTICAL && !verticalDockAvailable;
+              return (
+                <label
+                  className={`dock-orientation-option ${disabled ? 'is-disabled' : ''}`}
+                  key={orientation}
+                  title={disabled ? 'Choose Ambient to use the vertical header' : undefined}
+                >
+                  <input
+                    type="radio"
+                    name="header-dock-orientation"
+                    value={orientation}
+                    checked={headerDockOrientation === orientation}
+                    disabled={disabled}
+                    onChange={() => onHeaderDockOrientationChange(orientation)}
+                  />
+                  <span className={`dock-orientation-mark dock-orientation-mark--${orientation}`} aria-hidden="true" />
+                  <span>{orientation === HEADER_DOCK_ORIENTATIONS.HORIZONTAL ? 'Horizontal' : 'Vertical'}</span>
+                </label>
+              );
+            })}
+          </fieldset>
+        </div>
       </div>
 
       <div className="appearance-section-rule" />
@@ -1207,6 +1247,8 @@ function DashboardOverlay({
   initialTab,
   headerDockStyle,
   onHeaderDockStyleChange,
+  headerDockOrientation,
+  onHeaderDockOrientationChange,
 }) {
   const { user, logout, isAuthenticated } = useAuth();
   const { setThemeChatBackground, getThemeChatBackground } = useChatSettings();
@@ -1425,6 +1467,8 @@ function DashboardOverlay({
                   onOpenThemeStudio={onOpenThemeStudio}
                   headerDockStyle={headerDockStyle}
                   onHeaderDockStyleChange={onHeaderDockStyleChange}
+                  headerDockOrientation={headerDockOrientation}
+                  onHeaderDockOrientationChange={onHeaderDockOrientationChange}
                 />
               )}
 

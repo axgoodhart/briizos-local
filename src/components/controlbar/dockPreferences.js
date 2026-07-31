@@ -4,6 +4,11 @@ export const HEADER_DOCK_STYLES = Object.freeze({
   TABS: 'tabs',
 });
 
+export const HEADER_DOCK_ORIENTATIONS = Object.freeze({
+  HORIZONTAL: 'horizontal',
+  VERTICAL: 'vertical',
+});
+
 export const HEADER_DOCK_STYLE_OPTIONS = Object.freeze([
   {
     id: HEADER_DOCK_STYLES.CURRENT,
@@ -23,10 +28,18 @@ export const HEADER_DOCK_STYLE_OPTIONS = Object.freeze([
 ]);
 
 const HEADER_DOCK_STYLE_STORAGE_KEY = 'briizos.headerDockStyle';
+const HEADER_DOCK_ORIENTATION_STORAGE_KEY = 'briizos.headerDockOrientation';
 const VALID_HEADER_DOCK_STYLES = new Set(Object.values(HEADER_DOCK_STYLES));
+const VALID_HEADER_DOCK_ORIENTATIONS = new Set(Object.values(HEADER_DOCK_ORIENTATIONS));
 
 export function normalizeHeaderDockStyle(value) {
   return VALID_HEADER_DOCK_STYLES.has(value) ? value : HEADER_DOCK_STYLES.CURRENT;
+}
+
+export function normalizeHeaderDockOrientation(value) {
+  return VALID_HEADER_DOCK_ORIENTATIONS.has(value)
+    ? value
+    : HEADER_DOCK_ORIENTATIONS.HORIZONTAL;
 }
 
 export function getStoredHeaderDockStyle() {
@@ -45,6 +58,29 @@ export function persistHeaderDockStyle(value) {
 
   try {
     window.localStorage.setItem(HEADER_DOCK_STYLE_STORAGE_KEY, normalized);
+  } catch {
+    // The live preference still works when storage is unavailable.
+  }
+
+  return normalized;
+}
+
+export function getStoredHeaderDockOrientation() {
+  if (typeof window === 'undefined') return HEADER_DOCK_ORIENTATIONS.HORIZONTAL;
+
+  try {
+    return normalizeHeaderDockOrientation(window.localStorage.getItem(HEADER_DOCK_ORIENTATION_STORAGE_KEY));
+  } catch {
+    return HEADER_DOCK_ORIENTATIONS.HORIZONTAL;
+  }
+}
+
+export function persistHeaderDockOrientation(value) {
+  const normalized = normalizeHeaderDockOrientation(value);
+  if (typeof window === 'undefined') return normalized;
+
+  try {
+    window.localStorage.setItem(HEADER_DOCK_ORIENTATION_STORAGE_KEY, normalized);
   } catch {
     // The live preference still works when storage is unavailable.
   }

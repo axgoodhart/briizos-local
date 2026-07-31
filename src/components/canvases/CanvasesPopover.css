@@ -24,6 +24,21 @@
   font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+.control-bar-dock--vertical .canvases-popover {
+  top: 50%;
+  right: auto;
+  left: calc(100% + 18px);
+  max-height: min(70vh, 640px);
+  transform: translateY(-50%);
+}
+
+.control-bar-dock--vertical .canvases-popover-tail {
+  top: 50%;
+  right: auto;
+  left: -7px;
+  transform: translateY(-50%) rotate(45deg);
+}
+
 .canvases-popover.is-creating .canvases-popover-header,
 .canvases-popover.is-creating .canvases-popover-body,
 .canvases-popover.is-creating .canvases-popover-plus {
