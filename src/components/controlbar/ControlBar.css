@@ -210,84 +210,12 @@ top:0;
   --cb-accent: #24d9e6;
 }
 
-/* Ambient vertical rail ------------------------------------------------- */
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical {
-  flex-direction: column;
-  justify-content: center;
-  gap: clamp(16px, 3vh, 34px);
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  padding: 10px 0;
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle {
-  flex: 0 0 44px;
-  width: 52px;
-  min-width: 52px;
-  height: 44px;
-  min-height: 44px;
-  gap: 0;
-  transform: none;
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical:hover .cb-toggle,
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical:focus-within .cb-toggle {
-  transform: none;
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:hover {
-  transform: scale(1.08);
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:active {
-  transform: scale(0.94);
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle::before {
-  inset: -4px;
-  border-radius: 13px;
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle::after {
-  top: 50%;
-  right: -12px;
-  bottom: auto;
-  left: auto;
-  width: 5px;
-  height: 30px;
-  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.72), transparent);
-  transform: translateY(-50%) scaleY(0.72);
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle.active::after,
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:focus-visible::after {
-  transform: translateY(-50%) scaleY(1);
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle.active .cb-icon,
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:focus-visible .cb-icon,
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle:hover .cb-icon {
-  transform: none;
-}
-
-.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-label {
-  display: none;
-}
-
-@media (max-height: 700px) {
-  .control-bar-dock.control-bar-dock--current.control-bar-dock--vertical {
-    gap: 10px;
-    padding-block: 4px;
-  }
-}
-
 /* macOS-inspired shelf --------------------------------------------------- */
 .control-bar-dock.control-bar-dock--macos {
   position: relative;
   box-sizing: border-box;
   justify-content: center;
-  gap: 5px;
+  gap: 16px;
   width: max-content;
   max-width: 100%;
   height: 58px;
@@ -309,7 +237,7 @@ top:0;
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle {
   width: 42px;
-  min-width: 42px;
+  min-width: 62px;
   height: 42px;
   gap: 0;
   padding: 0;
@@ -324,7 +252,7 @@ top:0;
     inset 0 -1px 0 rgba(0, 0, 0, 0.28),
     0 3px 7px rgba(0, 0, 0, 0.26);
   transform: none;
-  transform-origin: center bottom;
+  transform-origin: center top;
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), filter 120ms ease-out;
 }
 
@@ -351,7 +279,7 @@ top:0;
 .control-bar-dock.control-bar-dock--macos .cb-toggle.active::before,
 .control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible::before {
   border-color: color-mix(in oklab, var(--cb-accent) 62%, white);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 0 2px rgba(255, 255, 255, 1);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle.active::after,
@@ -384,14 +312,14 @@ top:0;
 
 .control-bar-dock.control-bar-dock--macos .cb-label {
   position: absolute;
-  top: calc(100% + 10px);
+  bottom: calc(50% -5px);
   left: 50%;
   width: max-content;
   max-height: none;
   padding: 4px 7px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 5px;
-  background: rgba(12, 17, 23, 0.94);
+  background: var(--layout-bg-panel, rgba(0, 0, 0));
   color: rgba(246, 250, 252, 0.94);
   font-size: 9px;
   letter-spacing: 0.03em;
@@ -400,13 +328,13 @@ top:0;
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, -5px);
-  transition: opacity 100ms ease-out, transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 100ms ease-out, transform 540ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:hover {
   z-index: 4;
   filter: saturate(1.15) brightness(1.04);
-  transform: translateY(-9px) scale(1.28);
+  transform: translateY(3px) scale(1.28);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:hover .cb-label,
@@ -419,7 +347,8 @@ top:0;
 .control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-toggle,
 .control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-canvases-wrap:hover),
 .control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle {
-  transform: translateY(-4px) scale(1.1);
+  transform: translateY(-1px) scale(1.1);
+  transition: 600ms;
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:active {
@@ -427,8 +356,8 @@ top:0;
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--cb-accent) 72%, white);
-  outline-offset: 3px;
+  border: 2px solid var(--cb-accent);
+  outline:none;
 }
 
 /* Keeper-inspired folder tabs ------------------------------------------ */
