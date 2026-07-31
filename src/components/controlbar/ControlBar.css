@@ -364,14 +364,13 @@ top:0;
 .control-bar-dock.control-bar-dock--tabs {
   --cb-tab-width: 88px;
   --cb-tab-active-width: 114.4px;
-  position: relative;
   box-sizing: border-box;
   align-items: flex-end;
   justify-content: center;
   height: 58px;
   min-height: 58px;
   width: 100%;
-  padding: 8px 8px 1px;
+  margin-bottom:-.85%;
 }
 
 .control-bar-dock.control-bar-dock--tabs::after {
@@ -392,13 +391,14 @@ top:0;
   min-width: var(--cb-tab-width);
   height: 48px;
   margin: 0 -5px;
-  padding: 5px 11px 2px;
   flex-direction: row;
   gap: 5px;
   border-radius: 0;
   color: var(--cb-accent);
   transform: none;
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 120ms ease-out;
+  margin-left:-10px;
+  margin-right:-10px;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle::before,
@@ -418,7 +418,7 @@ top:0;
 
 .control-bar-dock.control-bar-dock--tabs .cb-tab-shape path {
   fill: color-mix(in oklab, var(--ui-header-bg, #071015) 72%, #8a9297);
-  stroke: rgba(208, 217, 221, 0.58);
+  stroke: rgba(208, 217, 221, 0.2);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   transition: fill 120ms ease-out, stroke 120ms ease-out;
@@ -441,7 +441,6 @@ top:0;
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover {
   z-index: 3;
-  transform: translateY(-2px);
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-tab-shape path {
@@ -452,7 +451,6 @@ top:0;
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active,
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
   z-index: 5;
-  transform: translateY(-3px);
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active {
@@ -463,8 +461,8 @@ top:0;
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-tab-shape path,
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible .cb-tab-shape path {
   fill: color-mix(in oklab, var(--ui-header-bg, #071015) 92%, #020404);
-  stroke: color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 88%, white);
-  stroke-width: 1.35;
+  stroke: color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 98%, white);
+  stroke-width: 1.2;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-icon,
