@@ -7,12 +7,18 @@ import { useStylofact } from './useStylofact';
 import './StylofactPanel.css';
 
 const PIPELINE_STEPS = [
-  ['voice', '01', 'Voice'],
-  ['theme', '02', 'Material'],
-  ['review', '03', 'Select'],
-  ['blueprint', '04', 'Shape'],
-  ['generate', '05', 'Publish'],
+  { id: 'voice', number: '1', label: 'Voice' },
+  { id: 'theme', number: '2', label: 'Material' },
+  { id: 'review', number: '3', label: 'Review' },
+  { id: 'blueprint', number: '4', label: 'Blueprint' },
+  { id: 'generate', number: '5', label: 'Generate' },
 ];
+
+function visibleStage(projectStage) {
+  if (projectStage === 'extract') return 'review';
+  if (projectStage === 'complete') return 'generate';
+  return PIPELINE_STEPS.some((step) => step.id === projectStage) ? projectStage : 'voice';
+}
 
 const OUTPUT_FORMATS = [
   { id: 'slide_deck_script', label: 'Slide deck script', note: 'Narration and visual beats for video or slides.' },
@@ -55,57 +61,60 @@ function CorpusWorkbench({ role, sources, onAdd, onDrop, onRemove, disabled, onE
     }
   };
 
+  const sourceWordCount = sources.reduce((total, source) => total + wordCount(source.bodyText), 0);
+
   return (
     <div ref={drop} className={`stylofact-corpus ${isOver && canDrop ? 'is-dropping' : ''}`}>
-      <div className="stylofact-corpus-heading">
-        <div>
-          <span className="stylofact-kicker">{isVoice ? 'Your rhetoric' : 'Your raw material'}</span>
-          <h3>{isVoice ? 'Voice corpus' : 'Thematic corpus'}</h3>
+      <div className="stylofact-source-summary" aria-live="polite">
+        <strong>{sources.length} source{sources.length === 1 ? '' : 's'}</strong>
+        <span>{sourceWordCount.toLocaleString()} words</span>
+        <span>Drop a text file anywhere in this area</span>
+      </div>
+      <details className="stylofact-disclosure">
+        <summary>{isVoice ? 'Add writing sample' : 'Add pasted material'}</summary>
+        <div className="stylofact-source-form">
+          <label className="stylofact-field">
+            <span>Name</span>
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              placeholder={isVoice ? 'Essays, spring 2026' : 'Music theory notes'}
+              disabled={disabled}
+            />
+          </label>
+          <label className="stylofact-field stylofact-field-textarea">
+            <span>Text</span>
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={isVoice ? 'Paste writing you authored…' : 'Paste conversations, notes, or excerpts…'}
+              disabled={disabled}
+              rows={5}
+            />
+          </label>
+          <div className="stylofact-source-actions">
+            <span>{wordCount(draft).toLocaleString()} words</span>
+            <button type="button" className="stylofact-button secondary" onClick={addDraft} disabled={disabled || !draft.trim()}>
+              Add source
+            </button>
+          </div>
         </div>
-        <span className="stylofact-drop-hint">Drop a text file here</span>
-      </div>
-      <p className="stylofact-hint">
-        {isVoice
-          ? 'Add only writing you authored in your own voice. Separate genres are better than a mixed pile.'
-          : 'Add chats, notes, excerpts, or documents that contain the ideas you want to recover. Stylofact preserves every chosen extract verbatim.'}
-      </p>
-      <label className="stylofact-field">
-        <span>Source label</span>
-        <input
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          placeholder={isVoice ? 'e.g. Essays, spring 2026' : 'e.g. Music theory notes'}
-          disabled={disabled}
-        />
-      </label>
-      <label className="stylofact-field stylofact-field-textarea">
-        <span>Paste text</span>
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={isVoice ? 'Paste self-authored prose…' : 'Paste noisy conversations, notes, or excerpts…'}
-          disabled={disabled}
-          rows={5}
-        />
-      </label>
-      <div className="stylofact-source-actions">
-        <span>{wordCount(draft).toLocaleString()} words ready</span>
-        <button type="button" className="stylofact-button secondary" onClick={addDraft} disabled={disabled || !draft.trim()}>
-          Add source
-        </button>
-      </div>
+      </details>
       {sources.length > 0 && (
-        <ul className="stylofact-source-list" aria-label={`${isVoice ? 'Voice' : 'Thematic'} sources`}>
-          {sources.map((source) => (
-            <li key={source.id}>
-              <div>
-                <strong>{source.label || 'Untitled source'}</strong>
-                <span>{wordCount(source.bodyText).toLocaleString()} words{source.provenance?.truncated ? ' · excerpted from a larger file' : ''}</span>
-              </div>
-              <button type="button" className="stylofact-icon-button" aria-label={`Remove ${source.label || 'source'}`} onClick={() => onRemove(source)} disabled={disabled}>×</button>
-            </li>
-          ))}
-        </ul>
+        <details className="stylofact-disclosure stylofact-source-review">
+          <summary>Review sources</summary>
+          <ul className="stylofact-source-list" aria-label={`${isVoice ? 'Voice' : 'Thematic'} sources`}>
+            {sources.map((source) => (
+              <li key={source.id}>
+                <div>
+                  <strong>{source.label || 'Untitled source'}</strong>
+                  <span>{wordCount(source.bodyText).toLocaleString()} words{source.provenance?.truncated ? ' · excerpted from a larger file' : ''}</span>
+                </div>
+                <button type="button" className="stylofact-icon-button" aria-label={`Remove ${source.label || 'source'}`} onClick={() => onRemove(source)} disabled={disabled}>×</button>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );
@@ -118,17 +127,18 @@ function MetricStrip({ project, corpus }) {
   const sentenceMean = metrics?.syntax?.sentenceLengthWords?.mean;
   const ttr = metrics?.lexical?.movingAverageTtr100;
   return (
-    <div className="stylofact-metric-strip" aria-label="Measured voice corpus summary">
-      <div><span>Corpus</span><strong>{scope.wordCount.toLocaleString()} words</strong></div>
-      <div><span>Confidence</span><strong className={`confidence-${scope.confidenceBand}`}>{scope.confidenceBand}</strong></div>
-      <div><span>Sentence mean</span><strong>{sentenceMean} words</strong></div>
-      <div><span>Moving TTR</span><strong>{ttr}</strong></div>
-      <details>
-        <summary>Measurements</summary>
+    <details className="stylofact-disclosure stylofact-metric-strip">
+      <summary>{scope.wordCount.toLocaleString()} measured words · {scope.confidenceBand} confidence</summary>
+      <div className="stylofact-measurement-grid" aria-label="Measured voice corpus summary">
+        <div><span>Average sentence</span><strong>{sentenceMean} words</strong></div>
+        <div><span>Vocabulary variation</span><strong>{ttr}</strong></div>
+      </div>
+      <details className="stylofact-raw-measurements">
+        <summary>Raw measurements</summary>
         <pre>{JSON.stringify(metrics, null, 2)}</pre>
       </details>
       {!corpus && <span className="stylofact-warning">Add your writing to generate measurements.</span>}
-    </div>
+    </details>
   );
 }
 
@@ -137,18 +147,15 @@ function CorpusNavigatorCard({ corpora, busy, onConnect, onRefresh, onRebuild, o
   return (
     <div className="stylofact-navigator" aria-label="Chat history corpus">
       <div className="stylofact-navigator-head">
-        <div><span className="stylofact-kicker">Private local navigator</span><h3>Chat history corpus</h3></div>
         <button type="button" className="stylofact-button secondary" onClick={onConnect} disabled={busy}>
-          {visible.length ? 'Connect another' : 'Choose archive folder'}
+          {visible.length ? 'Connect another archive' : 'Connect an archive'}
         </button>
       </div>
-      <p className="stylofact-hint">Choose a Split or ChatGPT export folder once. briizOS keeps keyword and semantic search current automatically; Alex-authored messages are evidence and AI replies are labeled context only.</p>
       {!visible.length ? (
-        <div className="stylofact-navigator-empty">No archive connected. Pasted thematic sources still work as before.</div>
+        <p className="stylofact-empty">No archive connected.</p>
       ) : visible.map((corpus) => {
         const total = Math.max(0, corpus.progressTotal || corpus.chunkCount || 0);
         const current = Math.min(total, Math.max(0, corpus.progressCurrent || 0));
-        const percent = total ? Math.round((current / total) * 100) : 0;
         return (
           <article className="stylofact-corpus-status" key={corpus.id}>
             <div className="stylofact-corpus-status-title">
@@ -160,14 +167,17 @@ function CorpusNavigatorCard({ corpora, busy, onConnect, onRefresh, onRebuild, o
               <span><strong>{corpus.userMessageCount.toLocaleString()}</strong> Alex messages</span>
               <span><strong>{corpus.contextMessageCount.toLocaleString()}</strong> AI context turns</span>
             </div>
-            {['scanning', 'semantic-indexing'].includes(corpus.state) && <div className="stylofact-index-progress" aria-label={corpus.progressMessage || 'Indexing progress'}><span style={{ width: `${percent}%` }} /></div>}
+            {['scanning', 'semantic-indexing'].includes(corpus.state) && <progress className="stylofact-index-progress" aria-label={corpus.progressMessage || 'Indexing progress'} max={total || 1} value={current} />}
             <p>{corpus.progressMessage || 'Waiting to inspect this archive.'}{corpus.error ? ` ${corpus.error}` : ''}</p>
-            <div className="stylofact-corpus-status-actions">
-              <button type="button" className="stylofact-text-button" onClick={() => onRefresh(corpus)} disabled={busy || corpus.state === 'scanning'}>Refresh</button>
-              <button type="button" className="stylofact-text-button" onClick={() => onPause(corpus, !corpus.paused)} disabled={busy || !corpus.chunkCount}>{corpus.paused ? 'Resume semantic' : 'Pause semantic'}</button>
-              <button type="button" className="stylofact-text-button" onClick={() => onRebuild(corpus)} disabled={busy || corpus.state === 'scanning'}>Rebuild</button>
-              <button type="button" className="stylofact-text-button danger" onClick={() => onUnlink(corpus)} disabled={busy}>Disconnect project</button>
-            </div>
+            <details className="stylofact-disclosure stylofact-archive-options">
+              <summary>Archive options</summary>
+              <div className="stylofact-corpus-status-actions">
+                <button type="button" className="stylofact-text-button" onClick={() => onRefresh(corpus)} disabled={busy || corpus.state === 'scanning'}>Refresh</button>
+                <button type="button" className="stylofact-text-button" onClick={() => onPause(corpus, !corpus.paused)} disabled={busy || !corpus.chunkCount}>{corpus.paused ? 'Resume semantic search' : 'Pause semantic search'}</button>
+                <button type="button" className="stylofact-text-button" onClick={() => onRebuild(corpus)} disabled={busy || corpus.state === 'scanning'}>Rebuild index</button>
+                <button type="button" className="stylofact-text-button danger" onClick={() => onUnlink(corpus)} disabled={busy}>Disconnect</button>
+              </div>
+            </details>
           </article>
         );
       })}
@@ -180,7 +190,7 @@ function SourceViewer({ source, onClose }) {
   return (
     <div className="stylofact-receipt-overlay" role="dialog" aria-modal="true" aria-label="Archived source context">
       <section className="stylofact-source-viewer">
-        <header><div><span className="stylofact-kicker">Verified archive source</span><h3>{source.conversationTitle}</h3></div><button type="button" className="stylofact-icon-button" onClick={onClose} aria-label="Close source">×</button></header>
+        <header><h3>{source.conversationTitle}</h3><button type="button" className="stylofact-icon-button" onClick={onClose} aria-label="Close source">×</button></header>
         <div className="stylofact-conversation-context">
           {source.context.map((message) => (
             <article key={message.messageId} className={`role-${message.role} ${message.messageId === source.locator.messageId ? 'is-evidence' : ''}`}>
@@ -207,7 +217,7 @@ function RetrievalReceipt({ receipt, onClose, onOpenSource }) {
   return (
     <div className="stylofact-receipt-overlay" role="dialog" aria-modal="true" aria-label="Stylofact search receipt">
       <section className="stylofact-receipt">
-        <header><div><span className="stylofact-kicker">Transparent retrieval chain</span><h3>Search receipt</h3></div><button type="button" className="stylofact-icon-button" onClick={onClose} aria-label="Close receipt">×</button></header>
+        <header><h3>Search receipt</h3><button type="button" className="stylofact-icon-button" onClick={onClose} aria-label="Close receipt">×</button></header>
         <div className="stylofact-receipt-summary">
           <div><span>Mode</span><strong>{run.searchMode.replace(/-/g, ' ')}</strong></div><div><span>Corpora</span><strong>{run.corpusSnapshot.length}</strong></div><div><span>Searches</span><strong>{searches.length}</strong></div><div><span>Sent to AI</span><strong>{run.packedContext.length} passages</strong></div><div><span>Elapsed</span><strong>{run.durationMs == null ? 'running' : `${(run.durationMs / 1000).toFixed(1)}s`}</strong></div>
         </div>
@@ -220,17 +230,28 @@ function RetrievalReceipt({ receipt, onClose, onOpenSource }) {
   );
 }
 
-function StageMarker({ project }) {
-  const stage = project?.stage || 'voice';
-  const stageIndex = PIPELINE_STEPS.findIndex(([id]) => id === stage);
+function StageNavigation({ activeStage, projectStage, onSelect }) {
+  const completedIndex = projectStage === 'complete'
+    ? PIPELINE_STEPS.length - 1
+    : PIPELINE_STEPS.findIndex((step) => step.id === visibleStage(projectStage));
   return (
-    <ol className="stylofact-stage-marker" aria-label="Stylofact pipeline progress">
-      {PIPELINE_STEPS.map(([id, number, label], index) => (
-        <li key={id} className={index <= stageIndex || stage === 'complete' ? 'complete' : ''}>
-          <span>{number}</span>{label}
-        </li>
-      ))}
-    </ol>
+    <nav className="stylofact-stage-navigation" aria-label="Stylofact pipeline">
+      <ol>
+        {PIPELINE_STEPS.map((step, index) => (
+          <li key={step.id} className={index < completedIndex || projectStage === 'complete' ? 'complete' : ''}>
+            <button
+              type="button"
+              className={activeStage === step.id ? 'active' : ''}
+              aria-current={activeStage === step.id ? 'step' : undefined}
+              onClick={() => onSelect(step.id)}
+            >
+              <span>{step.number}</span>
+              {step.label}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
@@ -241,8 +262,8 @@ function ProfilePreview({ project, onUsePrimary, onUseReview }) {
   return (
     <div className="stylofact-profile-preview">
       <div className="stylofact-result-head">
-        <span className="stylofact-kicker">Versioned directive</span>
-        {review?.verdict && <span className="stylofact-badge">Independent review: {review.verdict}</span>}
+        <strong>Voice profile ready</strong>
+        {review?.verdict && <span>Review: {review.verdict}</span>}
       </div>
       <p>{profile.generation_directive || 'The profile has no generation directive yet.'}</p>
       {review?.reviewer_note && <p className="stylofact-review-note">{review.reviewer_note}</p>}
@@ -253,31 +274,32 @@ function ProfilePreview({ project, onUsePrimary, onUseReview }) {
         </div>
       )}
       {profile.profile_scope?.limitations?.length > 0 && (
-        <ul className="stylofact-limitations">
-          {profile.profile_scope.limitations.map((limitation, index) => <li key={`${limitation}-${index}`}>{limitation}</li>)}
-        </ul>
+        <details className="stylofact-disclosure stylofact-limitations">
+          <summary>Profile limitations</summary>
+          <ul>
+            {profile.profile_scope.limitations.map((limitation, index) => <li key={`${limitation}-${index}`}>{limitation}</li>)}
+          </ul>
+        </details>
       )}
     </div>
   );
 }
 
 function ArtifactCard({ artifact, onChooseVersion, onCopy }) {
-  const [expanded, setExpanded] = useState(false);
   const evaluation = artifact.voiceEvaluation || {};
   return (
-    <article className="stylofact-artifact-card">
-      <div className="stylofact-artifact-head">
-        <div>
-          <span className="stylofact-kicker">{artifact.medium.replace(/_/g, ' ')}</span>
-          <h4>{artifact.title || `Variation ${artifact.variation}`}</h4>
-        </div>
-        <span className={`stylofact-fit ${evaluation.status || 'insufficient_data'}`}>voice fit: {evaluation.status || 'insufficient data'}</span>
-      </div>
-      <div className={`stylofact-artifact-content ${expanded ? 'expanded' : ''}`}>
+    <details className="stylofact-artifact-card">
+      <summary className="stylofact-artifact-head">
+        <span className="stylofact-artifact-identity">
+          <strong>{artifact.title || `Variation ${artifact.variation}`}</strong>
+          <span>{artifact.medium.replace(/_/g, ' ')}</span>
+        </span>
+        <span className={`stylofact-fit ${evaluation.status || 'insufficient_data'}`}>Voice fit: {evaluation.status || 'insufficient data'}</span>
+      </summary>
+      <div className="stylofact-artifact-content">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{artifact.content}</ReactMarkdown>
       </div>
       <div className="stylofact-artifact-actions">
-        <button type="button" className="stylofact-text-button" onClick={() => setExpanded((value) => !value)}>{expanded ? 'Collapse' : 'Read'}</button>
         <button type="button" className="stylofact-text-button" onClick={() => onCopy(artifact.content)}>Copy</button>
         {artifact.criticContent && (
           <div className="stylofact-version-choice" role="group" aria-label={`Choose variation ${artifact.variation} version`}>
@@ -293,7 +315,7 @@ function ArtifactCard({ artifact, onChooseVersion, onCopy }) {
           ))}
         </div>
       )}
-    </article>
+    </details>
   );
 }
 
@@ -342,6 +364,7 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
   const [variations, setVariations] = useState(2);
   const [receipt, setReceipt] = useState(null);
   const [sourceView, setSourceView] = useState(null);
+  const [activeStage, setActiveStage] = useState(() => visibleStage(project?.stage));
 
   useEffect(() => {
     setProjectTitle(project?.title || '');
@@ -350,6 +373,10 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     if (project?.generationOptions?.formats?.length) setFormats(project.generationOptions.formats);
     if (project?.generationOptions?.variations) setVariations(project.generationOptions.variations);
   }, [project?.id, project?.title, project?.targetPrompt, project?.selectedArtifactIds, project?.generationOptions]);
+
+  useEffect(() => {
+    setActiveStage(visibleStage(project?.stage));
+  }, [project?.id, project?.stage]);
 
   const criticOptions = useMemo(() => {
     const primary = availableModels.find((model) => model.name === (project?.primaryModel || defaultPrimaryModel));
@@ -416,26 +443,28 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
   return (
     <section className="stylofact-panel" aria-label="Stylofact content pipeline">
       <header className="stylofact-header">
-        <div className="stylofact-wordmark">
-          <h1>stylofact    <small>stylometrically aligned artifact generator</small> </h1>
-       
-        </div>
+        <h1>Stylofact</h1>
         <div className="stylofact-project-controls">
-          <label className="stylofact-project-title">
-            <span className="sr-only">Project title</span>
-            <input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} onBlur={() => act(saveProjectTitle)} disabled={busy} placeholder="Project title" />
-          </label>
           <label>
             <span className="sr-only">Active Stylofact project</span>
             <select value={project.id} onChange={(event) => act(() => selectProject(event.target.value))} disabled={busy}>
               {projects.map((item) => <option key={item.id} value={item.id}>{item.title || 'Untitled Stylofact'}</option>)}
             </select>
           </label>
-          <button type="button" className="stylofact-button secondary" onClick={() => act(() => createProject())} disabled={busy}>New</button>
+          <details className="stylofact-project-menu">
+            <summary>Project</summary>
+            <div>
+              <label className="stylofact-field stylofact-project-title">
+                <span>Name</span>
+                <input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} onBlur={() => act(saveProjectTitle)} disabled={busy} placeholder="Project title" />
+              </label>
+              <button type="button" className="stylofact-button secondary" onClick={() => act(() => createProject())} disabled={busy}>New project</button>
+            </div>
+          </details>
         </div>
       </header>
 
-      <StageMarker project={project} />
+      <StageNavigation activeStage={activeStage} projectStage={project.stage} onSelect={setActiveStage} />
 
       {runState && (
         <aside className="stylofact-running" aria-live="polite">
@@ -445,105 +474,97 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
       )}
       {error && <div className="stylofact-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError(null)} aria-label="Dismiss error">×</button></div>}
 
-      <div className="stylofact-scroll">
-        <section className="stylofact-section is-voice" aria-labelledby="stylofact-voice-title">
-          <div className="stylofact-section-intro">
-            <span className="stylofact-step-number">01</span>
-            <div>
-              <span className="stylofact-kicker">Voice calibration</span>
-              <p>Stylofact measures the corpus locally and derives a practical, versioned directive from those measurements. Models are used only in the later writing stages.</p>
+      <main key={activeStage} className="stylofact-scroll">
+        {activeStage === 'voice' && <section className="stylofact-section" aria-label="Voice stage">
+          <details className="stylofact-disclosure stylofact-model-settings">
+            <summary>Model settings</summary>
+            <div className="stylofact-model-grid">
+              <label className="stylofact-field">
+                <span>Generation model</span>
+                <select value={project.primaryModel || defaultPrimaryModel || ''} onChange={(event) => act(() => updateProject({ primaryModel: event.target.value }))} disabled={busy || !availableModels.length}>
+                  {availableModels.map((model) => <option key={model.name} value={model.name}>{model.display_name || model.name}</option>)}
+                </select>
+              </label>
+              <label className="stylofact-field">
+                <span>Reviewer</span>
+                <select value={project.criticModel && criticOptions.some((model) => model.name === project.criticModel) ? project.criticModel : criticOptions[0]?.name || ''} onChange={(event) => act(() => updateProject({ criticModel: event.target.value || null }))} disabled={busy || !criticOptions.length}>
+                  {!criticOptions.length && <option value="">Unavailable</option>}
+                  {criticOptions.map((model) => <option key={model.name} value={model.name}>{model.display_name || model.name}</option>)}
+                </select>
+              </label>
             </div>
-          </div>
-          <div className="stylofact-model-grid">
-            <label className="stylofact-field">
-              <span>Generation model</span>
-              <select value={project.primaryModel || defaultPrimaryModel || ''} onChange={(event) => act(() => updateProject({ primaryModel: event.target.value }))} disabled={busy || !availableModels.length}>
-                {availableModels.map((model) => <option key={model.name} value={model.name}>{model.display_name || model.name}</option>)}
-              </select>
-              <small>Used for extraction, planning, and content generation; voice measurement runs locally.</small>
-            </label>
-            <label className="stylofact-field">
-              <span>Generation reviewer</span>
-              <select value={project.criticModel && criticOptions.some((model) => model.name === project.criticModel) ? project.criticModel : criticOptions[0]?.name || ''} onChange={(event) => act(() => updateProject({ criticModel: event.target.value || null }))} disabled={busy || !criticOptions.length}>
-                {!criticOptions.length && <option value="">No second provider available</option>}
-                {criticOptions.map((model) => <option key={model.name} value={model.name}>{model.display_name || model.name}</option>)}
-              </select>
-              <small>{criticOptions.length ? 'A different provider can review generated content; it never changes local measurements.' : 'Add a key for another provider to enable generation review.'}</small>
-            </label>
-          </div>
+          </details>
           <CorpusWorkbench role="style" sources={styleSources} onAdd={addSource} onDrop={dropSource} onRemove={(source) => act(() => removeSource(source))} disabled={busy} onError={setError} />
           <MetricStrip project={project} corpus={styleCorpus} />
           <div className="stylofact-callout-action">
             <button type="button" className="stylofact-button primary" onClick={() => act(runVoiceAnalysis)} disabled={busy || !styleCorpus.trim()}>
-              Measure voice corpus
+              Create voice profile
             </button>
-            <span>Profiles under 2,500 words are marked exploratory; 5,000+ same-medium words form a usable baseline.</span>
+            <span>{wordCount(styleCorpus).toLocaleString()} source words ready</span>
           </div>
           <ProfilePreview
             project={project}
             onUsePrimary={() => act(() => updateProject({ profileChoice: 'primary' }))}
             onUseReview={() => act(() => updateProject({ profileChoice: 'review' }))}
           />
-        </section>
+        </section>}
 
-        <section className="stylofact-section" aria-labelledby="stylofact-material-title">
-          <div className="stylofact-section-intro">
-            <span className="stylofact-step-number">02</span>
-            <div>
-              <span className="stylofact-kicker">Idea recovery</span>
-              <h2 id="stylofact-material-title">Find the thought inside the noise.</h2>
-              <p>The extractor makes literal, semantic, and contextual passes, then keeps only exact source text with provenance.</p>
-            </div>
-          </div>
+        {activeStage === 'theme' && <section className="stylofact-section" aria-label="Material stage">
           <label className="stylofact-field stylofact-field-query">
-            <span>What are you trying to make?</span>
-            <textarea value={targetPrompt} onChange={(event) => setTargetPrompt(event.target.value)} onBlur={() => act(saveTargetPrompt)} disabled={busy} rows={3} placeholder="e.g. Find my literary-fiction fragments for a book about self-help through music theory." />
+            <span>What should Stylofact find?</span>
+            <textarea value={targetPrompt} onChange={(event) => setTargetPrompt(event.target.value)} onBlur={() => act(saveTargetPrompt)} disabled={busy} rows={3} placeholder="Find my notes about…" />
           </label>
-          <label className="stylofact-approval-toggle">
-            <input type="checkbox" checked={project.approvalMode === 'automatic'} onChange={(event) => act(() => updateProject({ approvalMode: event.target.checked ? 'automatic' : 'manual' }))} disabled={busy} />
-            <span><strong>Proceed automatically</strong><small>After an extraction, immediately draft the blueprint from all verified results.</small></span>
-          </label>
-          <CorpusNavigatorCard
-            corpora={corpora}
-            busy={busy}
-            onConnect={() => act(connectArchive)}
-            onRefresh={(corpus) => act(() => refreshCorpus(corpus))}
-            onRebuild={(corpus) => {
-              if (window.confirm('Rebuild this local search index from the connected archive? The original archive will not be changed.')) act(() => rebuildCorpus(corpus));
-            }}
-            onPause={(corpus, paused) => act(() => setCorpusPaused(corpus, paused))}
-            onUnlink={(corpus) => {
-              if (window.confirm('Disconnect this archive from the current Stylofact project? The cached local index will be kept.')) act(() => unlinkCorpus(corpus));
-            }}
-          />
-          <CorpusWorkbench role="thematic" sources={thematicSources} onAdd={addSource} onDrop={dropSource} onRemove={(source) => act(() => removeSource(source))} disabled={busy} onError={setError} />
+          <div className="stylofact-material-sources">
+            <details className="stylofact-disclosure">
+              <summary>Archives{hasSearchableCorpus ? ' · connected' : ''}</summary>
+              <CorpusNavigatorCard
+                corpora={corpora}
+                busy={busy}
+                onConnect={() => act(connectArchive)}
+                onRefresh={(corpus) => act(() => refreshCorpus(corpus))}
+                onRebuild={(corpus) => {
+                  if (window.confirm('Rebuild this local search index from the connected archive? The original archive will not be changed.')) act(() => rebuildCorpus(corpus));
+                }}
+                onPause={(corpus, paused) => act(() => setCorpusPaused(corpus, paused))}
+                onUnlink={(corpus) => {
+                  if (window.confirm('Disconnect this archive from the current Stylofact project? The cached local index will be kept.')) act(() => unlinkCorpus(corpus));
+                }}
+              />
+            </details>
+            <details className="stylofact-disclosure">
+              <summary>Pasted material{thematicSources.length ? ` · ${thematicSources.length}` : ''}</summary>
+              <CorpusWorkbench role="thematic" sources={thematicSources} onAdd={addSource} onDrop={dropSource} onRemove={(source) => act(() => removeSource(source))} disabled={busy} onError={setError} />
+            </details>
+          </div>
+          <details className="stylofact-disclosure stylofact-workflow-options">
+            <summary>Workflow options</summary>
+            <label className="stylofact-approval-toggle">
+              <input type="checkbox" checked={project.approvalMode === 'automatic'} onChange={(event) => act(() => updateProject({ approvalMode: event.target.checked ? 'automatic' : 'manual' }))} disabled={busy} />
+              <span><strong>Build the blueprint automatically</strong><small>Skip manual selection and use every verified result.</small></span>
+            </label>
+          </details>
           <div className="stylofact-callout-action">
             <button type="button" className="stylofact-button primary" onClick={() => act(async () => {
               await saveTargetPrompt();
               const result = await runExtraction();
               if (result.saved.approvalMode === 'automatic' && result.extraction.extracted_artifacts.length) await buildBlueprint();
             })} disabled={busy || (!thematicCorpus.trim() && !hasSearchableCorpus) || !targetPrompt.trim()}>
-              Extract useful material
+              Find material
             </button>
-            <span>{hasSearchableCorpus ? 'The local corpus navigator will choose and record its search path.' : thematicSources.length ? `${thematicSources.length} thematic source${thematicSources.length === 1 ? '' : 's'} ready.` : 'Add material or connect an archive first.'}</span>
+            <span>{hasSearchableCorpus ? 'Archive ready' : thematicSources.length ? `${thematicSources.length} pasted source${thematicSources.length === 1 ? '' : 's'} ready` : 'Connect an archive or add pasted material'}</span>
           </div>
-        </section>
+        </section>}
 
-        <section className="stylofact-section" aria-labelledby="stylofact-review-title">
-          <div className="stylofact-section-intro">
-            <span className="stylofact-step-number">03</span>
-            <div>
-              <span className="stylofact-kicker">Human checkpoint</span>
-              <h2 id="stylofact-review-title">Choose the evidence.</h2>
-              <p>Nothing here has been rewritten. Keep the exact source thoughts that should anchor the content.</p>
-            </div>
-          </div>
+        {activeStage === 'review' && <section className="stylofact-section" aria-label="Review stage">
           {extractions.length === 0 ? (
-            <p className="stylofact-empty">Run an extraction to review source-grounded material here.</p>
+            <div className="stylofact-empty-state">
+              <p>Find material before selecting evidence.</p>
+              <button type="button" className="stylofact-button secondary" onClick={() => setActiveStage('theme')}>Go to material</button>
+            </div>
           ) : (
             <>
               <div className="stylofact-selection-toolbar">
-                <span>{selectedExtracts.length} of {extractions.length} selected</span>
+                <strong>{selectedExtracts.length} of {extractions.length} selected</strong>
                 <button type="button" className="stylofact-text-button" onClick={() => setSelectedExtracts(extractions.map((artifact) => artifact.artifact_id))}>Select all</button>
                 <button type="button" className="stylofact-text-button" onClick={() => setSelectedExtracts([])}>Clear</button>
               </div>
@@ -561,7 +582,7 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
                 <button type="button" className="stylofact-button primary" onClick={() => act(async () => {
                   await approveArtifacts(selectedExtracts);
                   await buildBlueprint();
-                })} disabled={busy || !selectedExtracts.length}>Approve and draft blueprint</button>
+                })} disabled={busy || !selectedExtracts.length}>Build blueprint</button>
                 <button type="button" className="stylofact-button secondary" onClick={() => act(async () => {
                   await saveTargetPrompt();
                   await runExtraction();
@@ -570,17 +591,9 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
               </div>
             </>
           )}
-        </section>
+        </section>}
 
-        <section className="stylofact-section" aria-labelledby="stylofact-shape-title">
-          <div className="stylofact-section-intro">
-            <span className="stylofact-step-number">04</span>
-            <div>
-              <span className="stylofact-kicker">Editorial architecture</span>
-              <h2 id="stylofact-shape-title">Give the idea a form.</h2>
-              <p>The blueprint delineates structure, content tentpoles, rhetorical style, and dissemination goals before it drafts anything.</p>
-            </div>
-          </div>
+        {activeStage === 'blueprint' && <section className="stylofact-section" aria-label="Blueprint stage">
           {project.blueprint?.blueprint || project.blueprint?.working_title ? (
             <div className="stylofact-blueprint">
               <h3>{project.blueprint.blueprint?.working_title || project.blueprint.working_title || 'Untitled blueprint'}</h3>
@@ -590,22 +603,13 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
                 <div><span>Recommended media</span><ul>{(project.blueprint.blueprint?.recommended_media || project.blueprint.recommended_media || []).map((item, index) => <li key={`${item.medium}-${index}`}>{item.medium?.replace(/_/g, ' ')}</li>)}</ul></div>
               </div>
             </div>
-          ) : <p className="stylofact-empty">Approve extracts, then let Stylofact turn only those thoughts into an editorial plan.</p>}
+          ) : <div className="stylofact-empty-state"><p>Select evidence before building a blueprint.</p><button type="button" className="stylofact-button secondary" onClick={() => setActiveStage('review')}>Go to review</button></div>}
           <div className="stylofact-callout-action">
-            <button type="button" className="stylofact-button primary" onClick={() => act(buildBlueprint)} disabled={busy || !project.selectedArtifactIds?.length || !project.styleProfile || !Object.keys(project.styleProfile).length}>Build dissemination blueprint</button>
-            <span>It will not treat unapproved source material as evidence.</span>
+            <button type="button" className="stylofact-button primary" onClick={() => act(buildBlueprint)} disabled={busy || !project.selectedArtifactIds?.length || !project.styleProfile || !Object.keys(project.styleProfile).length}>{project.blueprint?.blueprint || project.blueprint?.working_title ? 'Rebuild blueprint' : 'Build blueprint'}</button>
           </div>
-        </section>
+        </section>}
 
-        <section className="stylofact-section is-output" aria-labelledby="stylofact-publish-title">
-          <div className="stylofact-section-intro">
-            <span className="stylofact-step-number">05</span>
-            <div>
-              <span className="stylofact-kicker">Deployable forms</span>
-              <h2 id="stylofact-publish-title">Choose the artifact, then the variations.</h2>
-              <p>The second provider revises completed drafts when one is configured; both versions remain available.</p>
-            </div>
-          </div>
+        {activeStage === 'generate' && <section className="stylofact-section" aria-label="Generate stage">
           <div className="stylofact-output-controls">
             <div className="stylofact-format-list" role="group" aria-label="Output media">
               {OUTPUT_FORMATS.map((format) => (
@@ -618,12 +622,11 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
             <label className="stylofact-field stylofact-variation-field">
               <span>Variations per medium</span>
               <input type="number" min="1" max="6" value={variations} onChange={(event) => setVariations(event.target.value)} disabled={busy} />
-              <small>Up to four media and six variations each in V1.</small>
             </label>
           </div>
           <div className="stylofact-callout-action">
-            <button type="button" className="stylofact-button primary" onClick={() => act(() => generateArtifacts({ formats, variations }))} disabled={busy || !formats.length || !(project.blueprint?.blueprint || project.blueprint?.working_title)}>Generate selected content</button>
-            <span>Each output gets a transparent local metric comparison—not a claim of identity.</span>
+            <button type="button" className="stylofact-button primary" onClick={() => act(() => generateArtifacts({ formats, variations }))} disabled={busy || !formats.length || !(project.blueprint?.blueprint || project.blueprint?.working_title)}>Generate content</button>
+            {!project.blueprint?.blueprint && !project.blueprint?.working_title && <button type="button" className="stylofact-button secondary" onClick={() => setActiveStage('blueprint')}>Go to blueprint</button>}
           </div>
           {artifacts.length > 0 && (
             <>
@@ -636,8 +639,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
               </div>
             </>
           )}
-        </section>
-      </div>
+        </section>}
+      </main>
       <RetrievalReceipt receipt={receipt} onClose={() => setReceipt(null)} onOpenSource={(locator) => act(() => openSource(locator))} />
       <SourceViewer source={sourceView} onClose={() => setSourceView(null)} />
     </section>
