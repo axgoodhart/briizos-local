@@ -132,6 +132,94 @@ function MetricStrip({ project, corpus }) {
   );
 }
 
+function CorpusNavigatorCard({ corpora, busy, onConnect, onRefresh, onRebuild, onPause, onUnlink }) {
+  const visible = corpora.filter((corpus) => corpus.sourceKind !== 'project-sources');
+  return (
+    <div className="stylofact-navigator" aria-label="Chat history corpus">
+      <div className="stylofact-navigator-head">
+        <div><span className="stylofact-kicker">Private local navigator</span><h3>Chat history corpus</h3></div>
+        <button type="button" className="stylofact-button secondary" onClick={onConnect} disabled={busy}>
+          {visible.length ? 'Connect another' : 'Choose archive folder'}
+        </button>
+      </div>
+      <p className="stylofact-hint">Choose a Split or ChatGPT export folder once. briizOS keeps keyword and semantic search current automatically; Alex-authored messages are evidence and AI replies are labeled context only.</p>
+      {!visible.length ? (
+        <div className="stylofact-navigator-empty">No archive connected. Pasted thematic sources still work as before.</div>
+      ) : visible.map((corpus) => {
+        const total = Math.max(0, corpus.progressTotal || corpus.chunkCount || 0);
+        const current = Math.min(total, Math.max(0, corpus.progressCurrent || 0));
+        const percent = total ? Math.round((current / total) * 100) : 0;
+        return (
+          <article className="stylofact-corpus-status" key={corpus.id}>
+            <div className="stylofact-corpus-status-title">
+              <div><strong>{corpus.name}</strong><span>{corpus.rootPath}</span></div>
+              <span className={`stylofact-index-state state-${corpus.state}`}>{corpus.state.replace(/-/g, ' ')}</span>
+            </div>
+            <div className="stylofact-corpus-counts">
+              <span><strong>{corpus.conversationCount.toLocaleString()}</strong> conversations</span>
+              <span><strong>{corpus.userMessageCount.toLocaleString()}</strong> Alex messages</span>
+              <span><strong>{corpus.contextMessageCount.toLocaleString()}</strong> AI context turns</span>
+            </div>
+            {['scanning', 'semantic-indexing'].includes(corpus.state) && <div className="stylofact-index-progress" aria-label={corpus.progressMessage || 'Indexing progress'}><span style={{ width: `${percent}%` }} /></div>}
+            <p>{corpus.progressMessage || 'Waiting to inspect this archive.'}{corpus.error ? ` ${corpus.error}` : ''}</p>
+            <div className="stylofact-corpus-status-actions">
+              <button type="button" className="stylofact-text-button" onClick={() => onRefresh(corpus)} disabled={busy || corpus.state === 'scanning'}>Refresh</button>
+              <button type="button" className="stylofact-text-button" onClick={() => onPause(corpus, !corpus.paused)} disabled={busy || !corpus.chunkCount}>{corpus.paused ? 'Resume semantic' : 'Pause semantic'}</button>
+              <button type="button" className="stylofact-text-button" onClick={() => onRebuild(corpus)} disabled={busy || corpus.state === 'scanning'}>Rebuild</button>
+              <button type="button" className="stylofact-text-button danger" onClick={() => onUnlink(corpus)} disabled={busy}>Disconnect project</button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function SourceViewer({ source, onClose }) {
+  if (!source) return null;
+  return (
+    <div className="stylofact-receipt-overlay" role="dialog" aria-modal="true" aria-label="Archived source context">
+      <section className="stylofact-source-viewer">
+        <header><div><span className="stylofact-kicker">Verified archive source</span><h3>{source.conversationTitle}</h3></div><button type="button" className="stylofact-icon-button" onClick={onClose} aria-label="Close source">×</button></header>
+        <div className="stylofact-conversation-context">
+          {source.context.map((message) => (
+            <article key={message.messageId} className={`role-${message.role} ${message.messageId === source.locator.messageId ? 'is-evidence' : ''}`}>
+              <span>{message.role === 'user' ? 'Alex · evidence' : 'AI · context only'}</span>
+              {message.messageId === source.locator.messageId ? (
+                <p>{message.text.slice(0, source.locator.startChar)}<mark>{message.text.slice(source.locator.startChar, source.locator.endChar)}</mark>{message.text.slice(source.locator.endChar)}</p>
+              ) : <p>{message.text}</p>}
+            </article>
+          ))}
+        </div>
+        <footer><code>{source.locator.messageId} · chars {source.locator.startChar}–{source.locator.endChar}</code><strong>Exact text verified</strong></footer>
+      </section>
+    </div>
+  );
+}
+
+function RetrievalReceipt({ receipt, onClose, onOpenSource }) {
+  if (!receipt) return null;
+  const { run, candidates } = receipt;
+  const selected = candidates.filter((candidate) => candidate.selected);
+  const omitted = candidates.filter((candidate) => !candidate.selected);
+  const directContexts = run.packedContext.filter((context) => context.directProjectSource);
+  const searches = run.searchPlan?.searches || [];
+  return (
+    <div className="stylofact-receipt-overlay" role="dialog" aria-modal="true" aria-label="Stylofact search receipt">
+      <section className="stylofact-receipt">
+        <header><div><span className="stylofact-kicker">Transparent retrieval chain</span><h3>Search receipt</h3></div><button type="button" className="stylofact-icon-button" onClick={onClose} aria-label="Close receipt">×</button></header>
+        <div className="stylofact-receipt-summary">
+          <div><span>Mode</span><strong>{run.searchMode.replace(/-/g, ' ')}</strong></div><div><span>Corpora</span><strong>{run.corpusSnapshot.length}</strong></div><div><span>Searches</span><strong>{searches.length}</strong></div><div><span>Sent to AI</span><strong>{run.packedContext.length} passages</strong></div><div><span>Elapsed</span><strong>{run.durationMs == null ? 'running' : `${(run.durationMs / 1000).toFixed(1)}s`}</strong></div>
+        </div>
+        <div className="stylofact-receipt-section"><h4>What Stylofact searched</h4><p>{run.queryText}</p>{searches.map((search, index) => <div className="stylofact-query-row" key={`${search.at}-${index}`}>{(search.queries || []).map((query) => <code key={typeof query === 'string' ? query : query.text}>{typeof query === 'string' ? query : query.text}</code>)}</div>)}</div>
+        <div className="stylofact-receipt-section"><h4>Verified passages sent to the extractor</h4>{directContexts.map((context) => <article className="stylofact-receipt-candidate selected" key={context.locator.sourceId}><div><strong>{context.conversationTitle}</strong><span>Direct project source</span></div><p>{context.exactText}</p></article>)}{selected.length ? selected.map((candidate) => <article className="stylofact-receipt-candidate selected" key={candidate.id}><div><strong>{candidate.conversationTitle}</strong><span>{candidate.messageAt ? new Date(candidate.messageAt).toLocaleDateString() : 'Date unavailable'} · fused {candidate.fusionScore.toFixed(4)}</span></div><p>{candidate.exactText}</p><button type="button" className="stylofact-text-button" onClick={() => onOpenSource(candidate.locator)}>Open exact context</button></article>) : !directContexts.length && <p>No fetched archive passage was sent during this run.</p>}</div>
+        {omitted.length > 0 && <details className="stylofact-receipt-omitted"><summary>{omitted.length} ranked candidates not sent</summary>{omitted.slice(0, 80).map((candidate) => <div key={candidate.id}><strong>{candidate.conversationTitle}</strong><span>{candidate.exclusionReason || 'Not fetched by the extraction agent'}</span></div>)}</details>}
+        <details className="stylofact-receipt-raw"><summary>Raw trace and audit identifiers</summary><pre>{JSON.stringify(receipt, null, 2)}</pre></details>
+      </section>
+    </div>
+  );
+}
+
 function StageMarker({ project }) {
   const stage = project?.stage || 'voice';
   const stageIndex = PIPELINE_STEPS.findIndex(([id]) => id === stage);
@@ -218,6 +306,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     styleCorpus,
     thematicCorpus,
     artifacts,
+    runs,
+    corpora,
     availableModels,
     defaultPrimaryModel,
     isLoading,
@@ -231,6 +321,13 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     addSource,
     dropSource,
     removeSource,
+    connectArchive,
+    refreshCorpus,
+    rebuildCorpus,
+    setCorpusPaused,
+    unlinkCorpus,
+    getRetrievalReceipt,
+    getSourceContext,
     runVoiceAnalysis,
     runExtraction,
     approveArtifacts,
@@ -243,6 +340,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
   const [selectedExtracts, setSelectedExtracts] = useState([]);
   const [formats, setFormats] = useState(['short_form_social']);
   const [variations, setVariations] = useState(2);
+  const [receipt, setReceipt] = useState(null);
+  const [sourceView, setSourceView] = useState(null);
 
   useEffect(() => {
     setProjectTitle(project?.title || '');
@@ -258,6 +357,13 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
   }, [availableModels, defaultPrimaryModel, project?.primaryModel]);
   const extractions = project?.extraction?.extracted_artifacts || [];
   const busy = !!runState;
+  const hasSearchableCorpus = corpora.some((corpus) => (
+    ['lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
+    && corpus.chunkCount > 0
+  ));
+  const latestRetrievalRunId = project?.extraction?.corpus_diagnostics?.retrieval_run_id
+    || runs.find((run) => run.retrievalRunId)?.retrievalRunId
+    || null;
 
   const act = async (task) => {
     setError(null);
@@ -292,6 +398,15 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     } catch {
       setError('Copy was unavailable. Select the content and copy it manually.');
     }
+  };
+
+  const openReceipt = async (retrievalRunId = latestRetrievalRunId) => {
+    if (!retrievalRunId) return;
+    setReceipt(await getRetrievalReceipt(retrievalRunId));
+  };
+
+  const openSource = async (locator) => {
+    setSourceView(await getSourceContext(locator));
   };
 
   if (isLoading || !project) {
@@ -388,16 +503,29 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
             <input type="checkbox" checked={project.approvalMode === 'automatic'} onChange={(event) => act(() => updateProject({ approvalMode: event.target.checked ? 'automatic' : 'manual' }))} disabled={busy} />
             <span><strong>Proceed automatically</strong><small>After an extraction, immediately draft the blueprint from all verified results.</small></span>
           </label>
+          <CorpusNavigatorCard
+            corpora={corpora}
+            busy={busy}
+            onConnect={() => act(connectArchive)}
+            onRefresh={(corpus) => act(() => refreshCorpus(corpus))}
+            onRebuild={(corpus) => {
+              if (window.confirm('Rebuild this local search index from the connected archive? The original archive will not be changed.')) act(() => rebuildCorpus(corpus));
+            }}
+            onPause={(corpus, paused) => act(() => setCorpusPaused(corpus, paused))}
+            onUnlink={(corpus) => {
+              if (window.confirm('Disconnect this archive from the current Stylofact project? The cached local index will be kept.')) act(() => unlinkCorpus(corpus));
+            }}
+          />
           <CorpusWorkbench role="thematic" sources={thematicSources} onAdd={addSource} onDrop={dropSource} onRemove={(source) => act(() => removeSource(source))} disabled={busy} onError={setError} />
           <div className="stylofact-callout-action">
             <button type="button" className="stylofact-button primary" onClick={() => act(async () => {
               await saveTargetPrompt();
               const result = await runExtraction();
               if (result.saved.approvalMode === 'automatic' && result.extraction.extracted_artifacts.length) await buildBlueprint();
-            })} disabled={busy || !thematicCorpus.trim() || !targetPrompt.trim()}>
+            })} disabled={busy || (!thematicCorpus.trim() && !hasSearchableCorpus) || !targetPrompt.trim()}>
               Extract useful material
             </button>
-            <span>{thematicSources.length ? `${thematicSources.length} thematic source${thematicSources.length === 1 ? '' : 's'} ready.` : 'Add noisy material first.'}</span>
+            <span>{hasSearchableCorpus ? 'The local corpus navigator will choose and record its search path.' : thematicSources.length ? `${thematicSources.length} thematic source${thematicSources.length === 1 ? '' : 's'} ready.` : 'Add material or connect an archive first.'}</span>
           </div>
         </section>
 
@@ -438,6 +566,7 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
                   await saveTargetPrompt();
                   await runExtraction();
                 })} disabled={busy}>Search again</button>
+                {latestRetrievalRunId && <button type="button" className="stylofact-button secondary" onClick={() => act(openReceipt)} disabled={busy}>View search receipt</button>}
               </div>
             </>
           )}
@@ -509,6 +638,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
           )}
         </section>
       </div>
+      <RetrievalReceipt receipt={receipt} onClose={() => setReceipt(null)} onOpenSource={(locator) => act(() => openSource(locator))} />
+      <SourceViewer source={sourceView} onClose={() => setSourceView(null)} />
     </section>
   );
 }

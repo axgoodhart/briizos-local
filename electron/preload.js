@@ -249,6 +249,22 @@ contextBridge.exposeInMainWorld('api', {
         list: (projectId, limit) => invokeLocalData('local-data:stylofact:runs:list', projectId, limit),
         create: (projectId, input) => invokeLocalData('local-data:stylofact:runs:create', projectId, input),
       },
+      corpora: {
+        chooseAndConnect: (projectId) => invokeLocalData('local-data:stylofact:corpora:choose', projectId),
+        list: () => invokeLocalData('local-data:stylofact:corpora:list'),
+        status: (corpusId) => invokeLocalData('local-data:stylofact:corpora:status', corpusId),
+        link: (projectId, corpusId) => invokeLocalData('local-data:stylofact:corpora:link', projectId, corpusId),
+        unlink: (projectId, corpusId) => invokeLocalData('local-data:stylofact:corpora:unlink', projectId, corpusId),
+        refresh: (corpusId) => invokeLocalData('local-data:stylofact:corpora:refresh', corpusId),
+        rebuild: (corpusId) => invokeLocalData('local-data:stylofact:corpora:rebuild', corpusId),
+        setPaused: (corpusId, paused) => invokeLocalData('local-data:stylofact:corpora:pause', corpusId, paused),
+      },
+      retrieval: {
+        begin: (projectId, queryText) => invokeLocalData('local-data:stylofact:retrieval:begin', projectId, queryText),
+        complete: (retrievalRunId, input) => invokeLocalData('local-data:stylofact:retrieval:complete', retrievalRunId, input),
+        receipt: (retrievalRunId) => invokeLocalData('local-data:stylofact:retrieval:receipt', retrievalRunId),
+        source: (locator) => invokeLocalData('local-data:stylofact:retrieval:source', locator),
+      },
     },
     memory: {
       sections: {

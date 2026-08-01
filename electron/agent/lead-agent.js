@@ -20,7 +20,11 @@ const { Command } = require('@langchain/langgraph');
 const { createReactAgent } = require('@langchain/langgraph/prebuilt');
 const { toJSONSchema } = require('zod');
 const { logger } = require('../logger');
-const { ALL_TOOLS, setLocalDataService: setToolsLocalDataService } = require('./tools');
+const {
+  ALL_TOOLS,
+  setLocalDataService: setToolsLocalDataService,
+  setStylofactCorpusService: setToolsStylofactCorpusService,
+} = require('./tools');
 const { ThreadState } = require('./state');
 const {
   createChatModel,
@@ -69,6 +73,10 @@ function setLocalDataService(service) {
 
 function getLocalDataService() {
   return localDataService;
+}
+
+function setStylofactCorpusService(service) {
+  setToolsStylofactCorpusService(service);
 }
 
 function getRuntimeCheckpointer() {
@@ -760,6 +768,8 @@ async function streamAgentInput({
       permission_policy: config.permission_policy || null,
       disable_memory_update: !!config.disable_memory_update,
       disable_title_generation: !!config.disable_title_generation,
+      stylofact_project_id: config.stylofact_project_id || null,
+      stylofact_retrieval_run_id: config.stylofact_retrieval_run_id || null,
       writer: (payload) => {
         if (payload?.type) onEvent(payload.type, payload);
       },
@@ -1328,5 +1338,6 @@ module.exports = {
   resetCache,
   mapEvent,
   setLocalDataService,
+  setStylofactCorpusService,
   getLocalDataService,
 };

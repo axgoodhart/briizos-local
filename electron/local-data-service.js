@@ -2747,9 +2747,92 @@ class LocalDataService extends EventEmitter {
       input: JSON.parse(row.input_json || '{}'),
       result: JSON.parse(row.result_json || '{}'),
       error: row.error_text,
+      agentThreadId: row.agent_thread_id || null,
+      agentTurnId: row.agent_turn_id || null,
+      retrievalRunId: row.retrieval_run_id || null,
       createdAt: new Date(row.created_at).toISOString(),
       updatedAt: new Date(row.updated_at).toISOString(),
       revision: row.revision,
+    };
+  }
+
+  _stylofactCorpus(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      sourceKind: row.source_kind,
+      rootPath: row.root_path,
+      state: row.state,
+      sourceFingerprint: row.source_fingerprint,
+      indexVersion: row.index_version,
+      embeddingModel: row.embedding_model,
+      embeddingModelChecksum: row.embedding_model_checksum || null,
+      conversationCount: Number(row.conversation_count || 0),
+      userMessageCount: Number(row.user_message_count || 0),
+      contextMessageCount: Number(row.context_message_count || 0),
+      chunkCount: Number(row.chunk_count || 0),
+      embeddedChunkCount: Number(row.embedded_chunk_count || 0),
+      progressCurrent: Number(row.progress_current || 0),
+      progressTotal: Number(row.progress_total || 0),
+      progressMessage: row.progress_message || '',
+      lastIndexedAt: row.last_indexed_at ? new Date(row.last_indexed_at).toISOString() : null,
+      error: row.error_text || null,
+      paused: row.paused === 1,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    };
+  }
+
+  _stylofactRetrievalRun(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      status: row.status,
+      queryText: row.query_text,
+      searchMode: row.search_mode,
+      corpusSnapshot: JSON.parse(row.corpus_snapshot_json || '[]'),
+      searchPlan: JSON.parse(row.search_plan_json || '{}'),
+      trace: JSON.parse(row.trace_json || '{}'),
+      packedContext: JSON.parse(row.packed_context_json || '[]'),
+      agentThreadId: row.agent_thread_id || null,
+      agentTurnId: row.agent_turn_id || null,
+      durationMs: row.duration_ms == null ? null : Number(row.duration_ms),
+      error: row.error_text || null,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      revision: row.revision,
+    };
+  }
+
+  _stylofactRetrievalCandidate(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      retrievalRunId: row.retrieval_run_id,
+      locator: {
+        corpusId: row.corpus_id,
+        retrievalRunId: row.retrieval_run_id,
+        conversationId: row.conversation_id,
+        messageId: row.message_id,
+        chunkId: row.chunk_id,
+        sourceHash: row.source_hash,
+        startChar: Number(row.start_char),
+        endChar: Number(row.end_char),
+      },
+      conversationTitle: row.conversation_title,
+      messageAt: row.message_at ? new Date(row.message_at).toISOString() : null,
+      bm25Rank: row.bm25_rank,
+      bm25Score: row.bm25_score,
+      semanticRank: row.semantic_rank,
+      semanticScore: row.semantic_score,
+      fusionScore: Number(row.fusion_score || 0),
+      finalRank: row.final_rank,
+      selected: row.selected === 1,
+      exclusionReason: row.exclusion_reason || null,
+      exactText: row.exact_text || null,
     };
   }
 
@@ -2790,6 +2873,7 @@ class LocalDataService extends EventEmitter {
       sources: this.listStylofactSources(projectId),
       artifacts: this.listStylofactArtifacts(projectId),
       runs: this.listStylofactRuns(projectId, 40),
+      corpora: this.listStylofactProjectCorpora(projectId),
     };
   }
 
@@ -2809,6 +2893,13 @@ class LocalDataService extends EventEmitter {
           created_at, updated_at, revision
         ) VALUES (?, ?, 'voice', ?, 'primary', ?, ?, ?, ?, 1)
       `).run(project.id, project.title, project.approvalMode, project.primaryModel, project.criticModel, timestamp, timestamp);
+      this.db.prepare(`
+        INSERT OR IGNORE INTO stylofact_project_corpora (
+          project_id, corpus_id, evidence_role, assistant_context_turns, created_at
+        )
+        SELECT ?, id, 'user', 1, ? FROM stylofact_corpora
+        WHERE deleted_at IS NULL AND source_kind != 'project-sources'
+      `).run(project.id, timestamp);
       return { row: this._stylofactProject(this._stylofactProjectRow(project.id)) };
     });
   }
@@ -3018,7 +3109,10 @@ class LocalDataService extends EventEmitter {
 
   createStylofactRun(projectId, input = {}) {
     projectId = v.identifier(projectId, 'projectId');
-    v.object(input, 'Stylofact run', ['stage', 'modelName', 'criticModelName', 'status', 'input', 'result', 'error']);
+    v.object(input, 'Stylofact run', [
+      'stage', 'modelName', 'criticModelName', 'status', 'input', 'result', 'error',
+      'agentThreadId', 'agentTurnId', 'retrievalRunId',
+    ]);
     const run = {
       id: id(),
       stage: v.string(input.stage, 'stage', { required: true, max: 100 }),
@@ -3028,21 +3122,249 @@ class LocalDataService extends EventEmitter {
       input: input.input === undefined ? {} : input.input,
       result: input.result === undefined ? {} : input.result,
       error: v.optional(input.error, (value) => v.string(value, 'error', { nullable: true, max: 200000 })) ?? null,
+      agentThreadId: v.optional(input.agentThreadId, (value) => v.string(value, 'agentThreadId', { nullable: true, max: 200 })) ?? null,
+      agentTurnId: v.optional(input.agentTurnId, (value) => v.string(value, 'agentTurnId', { nullable: true, max: 200 })) ?? null,
+      retrievalRunId: v.optional(input.retrievalRunId, (value) => v.string(value, 'retrievalRunId', { nullable: true, max: 200 })) ?? null,
     };
     return this._write('stylofact', (timestamp) => {
       if (!this._stylofactProjectRow(projectId)) v.fail('NOT_FOUND', 'Stylofact project not found');
       this.db.prepare(`
         INSERT INTO stylofact_runs (
           id, project_id, stage, model_name, critic_model_name, status, input_json, result_json,
-          error_text, created_at, updated_at, revision
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+          error_text, agent_thread_id, agent_turn_id, retrieval_run_id, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
       `).run(
         run.id, projectId, run.stage, run.modelName, run.criticModelName, run.status,
         this._jsonValue(run.input, 'run input', 10000000), this._jsonValue(run.result, 'run result', 20000000),
-        run.error, timestamp, timestamp,
+        run.error, run.agentThreadId, run.agentTurnId, run.retrievalRunId, timestamp, timestamp,
       );
       return { row: this._stylofactRun(this.db.prepare('SELECT * FROM stylofact_runs WHERE id = ?').get(run.id)) };
     });
+  }
+
+  listStylofactCorpora({ includeInternal = false } = {}) {
+    this._assertReady();
+    return this.db.prepare(`
+      SELECT * FROM stylofact_corpora
+      WHERE deleted_at IS NULL ${includeInternal ? '' : "AND source_kind != 'project-sources'"}
+      ORDER BY updated_at DESC
+    `).all().map((row) => this._stylofactCorpus(row));
+  }
+
+  getStylofactCorpus(corpusId) {
+    this._assertReady();
+    corpusId = v.identifier(corpusId, 'corpusId');
+    return this._stylofactCorpus(this.db.prepare('SELECT * FROM stylofact_corpora WHERE id = ? AND deleted_at IS NULL').get(corpusId));
+  }
+
+  createStylofactCorpus(input = {}) {
+    const corpusId = input.id ? v.identifier(input.id, 'corpusId') : id();
+    const name = v.string(input.name || 'Chat history', 'corpus name', { required: true, max: 2000 });
+    const sourceKind = v.oneOf(input.sourceKind, 'sourceKind', ['chatgpt-export', 'split-folder', 'project-sources']);
+    const rootPath = v.string(input.rootPath, 'rootPath', { required: true, max: 10000 });
+    return this._write('stylofact', (timestamp) => {
+      const existing = this.db.prepare('SELECT * FROM stylofact_corpora WHERE root_path = ? AND deleted_at IS NULL').get(rootPath);
+      if (existing) return { row: this._stylofactCorpus(existing), created: false };
+      this.db.prepare(`
+        INSERT INTO stylofact_corpora (
+          id, name, source_kind, root_path, state, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, 'scanning', ?, ?, 1)
+      `).run(corpusId, name, sourceKind, rootPath, timestamp, timestamp);
+      return { row: this.getStylofactCorpus(corpusId), created: true };
+    });
+  }
+
+  updateStylofactCorpusStatus(corpusId, patch = {}) {
+    this._assertReady();
+    corpusId = v.identifier(corpusId, 'corpusId');
+    const current = this.db.prepare('SELECT * FROM stylofact_corpora WHERE id = ? AND deleted_at IS NULL').get(corpusId);
+    if (!current) v.fail('NOT_FOUND', 'Stylofact corpus not found');
+    const allowedStates = ['scanning', 'lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale', 'error'];
+    const state = patch.state === undefined ? current.state : v.oneOf(patch.state, 'corpus state', allowedStates);
+    const value = (key, fallback) => patch[key] === undefined ? fallback : patch[key];
+    return this._write('stylofact', (timestamp) => {
+      this.db.prepare(`
+        UPDATE stylofact_corpora SET
+          state=?, source_fingerprint=?, embedding_model_checksum=?, conversation_count=?, user_message_count=?,
+          context_message_count=?, chunk_count=?, embedded_chunk_count=?, progress_current=?,
+          progress_total=?, progress_message=?, last_indexed_at=?, error_text=?, paused=?,
+          updated_at=?, revision=revision+1
+        WHERE id=?
+      `).run(
+        state,
+        value('sourceFingerprint', current.source_fingerprint),
+        value('embeddingModelChecksum', current.embedding_model_checksum),
+        Math.max(0, Number(value('conversationCount', current.conversation_count)) || 0),
+        Math.max(0, Number(value('userMessageCount', current.user_message_count)) || 0),
+        Math.max(0, Number(value('contextMessageCount', current.context_message_count)) || 0),
+        Math.max(0, Number(value('chunkCount', current.chunk_count)) || 0),
+        Math.max(0, Number(value('embeddedChunkCount', current.embedded_chunk_count)) || 0),
+        Math.max(0, Number(value('progressCurrent', current.progress_current)) || 0),
+        Math.max(0, Number(value('progressTotal', current.progress_total)) || 0),
+        String(value('progressMessage', current.progress_message) || '').slice(0, 10000),
+        value('lastIndexedAt', current.last_indexed_at),
+        value('error', current.error_text),
+        value('paused', current.paused === 1) ? 1 : 0,
+        timestamp,
+        corpusId,
+      );
+      return { row: this.getStylofactCorpus(corpusId) };
+    });
+  }
+
+  listStylofactProjectCorpora(projectId) {
+    this._assertReady();
+    projectId = v.identifier(projectId, 'projectId');
+    return this.db.prepare(`
+      SELECT c.*, pc.evidence_role, pc.assistant_context_turns
+      FROM stylofact_project_corpora pc
+      JOIN stylofact_corpora c ON c.id = pc.corpus_id
+      WHERE pc.project_id = ? AND c.deleted_at IS NULL
+      ORDER BY c.updated_at DESC
+    `).all(projectId).map((row) => ({
+      ...this._stylofactCorpus(row),
+      evidenceRole: row.evidence_role,
+      assistantContextTurns: row.assistant_context_turns,
+    }));
+  }
+
+  linkStylofactProjectCorpus(projectId, corpusId) {
+    projectId = v.identifier(projectId, 'projectId');
+    corpusId = v.identifier(corpusId, 'corpusId');
+    return this._write('stylofact', (timestamp) => {
+      if (!this._stylofactProjectRow(projectId)) v.fail('NOT_FOUND', 'Stylofact project not found');
+      if (!this.getStylofactCorpus(corpusId)) v.fail('NOT_FOUND', 'Stylofact corpus not found');
+      this.db.prepare(`
+        INSERT OR IGNORE INTO stylofact_project_corpora (
+          project_id, corpus_id, evidence_role, assistant_context_turns, created_at
+        ) VALUES (?, ?, 'user', 1, ?)
+      `).run(projectId, corpusId, timestamp);
+      return { rows: this.listStylofactProjectCorpora(projectId) };
+    });
+  }
+
+  unlinkStylofactProjectCorpus(projectId, corpusId) {
+    projectId = v.identifier(projectId, 'projectId');
+    corpusId = v.identifier(corpusId, 'corpusId');
+    return this._write('stylofact', () => {
+      this.db.prepare('DELETE FROM stylofact_project_corpora WHERE project_id = ? AND corpus_id = ?').run(projectId, corpusId);
+      return { rows: this.listStylofactProjectCorpora(projectId) };
+    });
+  }
+
+  beginStylofactRetrieval(projectId, queryText, corpusSnapshot = [], packedContext = []) {
+    projectId = v.identifier(projectId, 'projectId');
+    queryText = v.string(queryText, 'retrieval query', { required: true, max: 300000 });
+    const runId = id();
+    return this._write('stylofact', (timestamp) => {
+      this.db.prepare(`
+        INSERT INTO stylofact_retrieval_runs (
+          id, project_id, status, query_text, corpus_snapshot_json, packed_context_json,
+          created_at, updated_at, revision
+        ) VALUES (?, ?, 'running', ?, ?, ?, ?, ?, 1)
+      `).run(
+        runId,
+        projectId,
+        queryText,
+        this._jsonValue(corpusSnapshot, 'corpus snapshot', 5000000),
+        this._jsonValue(packedContext, 'initial retrieval context', 10000000),
+        timestamp,
+        timestamp,
+      );
+      return { row: this._stylofactRetrievalRun(this.db.prepare('SELECT * FROM stylofact_retrieval_runs WHERE id = ?').get(runId)) };
+    });
+  }
+
+  appendStylofactRetrievalCandidates(retrievalRunId, candidates = [], search = {}) {
+    retrievalRunId = v.identifier(retrievalRunId, 'retrievalRunId');
+    return this._write('stylofact', (timestamp) => {
+      const insert = this.db.prepare(`
+        INSERT INTO stylofact_retrieval_candidates (
+          id, retrieval_run_id, corpus_id, conversation_id, message_id, chunk_id, source_hash,
+          start_char, end_char, conversation_title, message_at, bm25_rank, bm25_score,
+          semantic_rank, semantic_score, fusion_score, final_rank, selected, exclusion_reason,
+          exact_text, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, ?)
+      `);
+      candidates.forEach((candidate) => insert.run(
+        candidate.id, retrievalRunId, candidate.corpusId, candidate.conversationId, candidate.messageId,
+        candidate.chunkId, candidate.sourceHash, candidate.startChar, candidate.endChar,
+        candidate.conversationTitle || '', candidate.messageAt || null, candidate.bm25Rank || null,
+        candidate.bm25Score ?? null, candidate.semanticRank || null, candidate.semanticScore ?? null,
+        candidate.fusionScore || 0, candidate.finalRank || null, candidate.exclusionReason || null, timestamp,
+      ));
+      const current = this.db.prepare('SELECT * FROM stylofact_retrieval_runs WHERE id = ?').get(retrievalRunId);
+      const plan = JSON.parse(current.search_plan_json || '{}');
+      const trace = JSON.parse(current.trace_json || '{}');
+      plan.searches = [...(plan.searches || []), { queries: search.queries || [], at: new Date(timestamp).toISOString() }];
+      trace.searches = [...(trace.searches || []), search];
+      this.db.prepare(`
+        UPDATE stylofact_retrieval_runs SET search_mode=?, search_plan_json=?, trace_json=?, updated_at=?, revision=revision+1
+        WHERE id=?
+      `).run(
+        search.mode === 'hybrid' ? 'hybrid' : current.search_mode,
+        this._jsonValue(plan, 'retrieval plan', 5000000),
+        this._jsonValue(trace, 'retrieval trace', 10000000),
+        timestamp,
+        retrievalRunId,
+      );
+      return { count: candidates.length };
+    });
+  }
+
+  selectStylofactRetrievalContext(retrievalRunId, contexts = []) {
+    retrievalRunId = v.identifier(retrievalRunId, 'retrievalRunId');
+    return this._write('stylofact', (timestamp) => {
+      const current = this.db.prepare('SELECT packed_context_json FROM stylofact_retrieval_runs WHERE id = ?').get(retrievalRunId);
+      if (!current) v.fail('NOT_FOUND', 'Stylofact retrieval run not found');
+      const packed = JSON.parse(current.packed_context_json || '[]');
+      const known = new Set(packed.map((entry) => `${entry.locator?.corpusId}:${entry.locator?.chunkId}`));
+      contexts.forEach((context) => {
+        const key = `${context.locator?.corpusId}:${context.locator?.chunkId}`;
+        if (!known.has(key)) {
+          packed.push(context);
+          known.add(key);
+        }
+        this.db.prepare(`
+          UPDATE stylofact_retrieval_candidates SET selected=1, exact_text=?, exclusion_reason=NULL
+          WHERE retrieval_run_id=? AND corpus_id=? AND chunk_id=?
+        `).run(context.exactText || '', retrievalRunId, context.locator.corpusId, context.locator.chunkId);
+      });
+      const bounded = packed.slice(0, 20);
+      this.db.prepare(`
+        UPDATE stylofact_retrieval_runs SET packed_context_json=?, updated_at=?, revision=revision+1 WHERE id=?
+      `).run(this._jsonValue(bounded, 'packed retrieval context', 10000000), timestamp, retrievalRunId);
+      return { rows: bounded };
+    });
+  }
+
+  completeStylofactRetrieval(retrievalRunId, input = {}) {
+    retrievalRunId = v.identifier(retrievalRunId, 'retrievalRunId');
+    const status = v.oneOf(input.status || 'completed', 'retrieval status', ['completed', 'failed']);
+    return this._write('stylofact', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM stylofact_retrieval_runs WHERE id = ?').get(retrievalRunId);
+      if (!current) v.fail('NOT_FOUND', 'Stylofact retrieval run not found');
+      this.db.prepare(`
+        UPDATE stylofact_retrieval_runs SET status=?, agent_thread_id=?, agent_turn_id=?, duration_ms=?,
+          error_text=?, updated_at=?, revision=revision+1 WHERE id=?
+      `).run(
+        status, input.agentThreadId || current.agent_thread_id, input.agentTurnId || current.agent_turn_id,
+        Math.max(0, timestamp - current.created_at), input.error || null, timestamp, retrievalRunId,
+      );
+      return { row: this._stylofactRetrievalRun(this.db.prepare('SELECT * FROM stylofact_retrieval_runs WHERE id = ?').get(retrievalRunId)) };
+    });
+  }
+
+  getStylofactRetrievalReceipt(retrievalRunId) {
+    this._assertReady();
+    retrievalRunId = v.identifier(retrievalRunId, 'retrievalRunId');
+    const run = this.db.prepare('SELECT * FROM stylofact_retrieval_runs WHERE id = ?').get(retrievalRunId);
+    if (!run) v.fail('NOT_FOUND', 'Stylofact retrieval receipt not found');
+    const candidates = this.db.prepare(`
+      SELECT * FROM stylofact_retrieval_candidates WHERE retrieval_run_id = ?
+      ORDER BY selected DESC, final_rank IS NULL, final_rank, fusion_score DESC
+    `).all(retrievalRunId).map((row) => this._stylofactRetrievalCandidate(row));
+    return { run: this._stylofactRetrievalRun(run), candidates };
   }
 
   _serializedJson(value, label, maxBytes = 20000000) {

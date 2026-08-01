@@ -18,6 +18,7 @@ const agentTerminal = require('./agent-terminal');
 const langgraph = require('./agent');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
+const { StylofactCorpusService } = require('./stylofact-corpus');
 const { CloudGateway } = require('./cloud-gateway');
 const { AutomationRunner } = require('./automation-runner');
 const operationReceipts = require('./agent-op-receipts');
@@ -33,6 +34,7 @@ const { BriizyShell } = require('./briizy/shell');
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
 let unregisterLocalDataIPC = null;
+let stylofactCorpusService = null;
 let cloudGateway = null;
 let automationRunner = null;
 let briizy = null;
@@ -831,8 +833,8 @@ ipcMain.handle('langgraph-stream-message', async (event, streamId, threadId, mes
     streamId,
     threadId,
   });
-  await langgraph.streamMessage(threadId, message, config || {}, makeStreamForwarder(event, streamId));
-  return { ok: true, streamId };
+  const result = await langgraph.streamMessage(threadId, message, config || {}, makeStreamForwarder(event, streamId));
+  return { ok: true, streamId, turnId: result?.turnId || null, outcome: result?.outcome || null };
 });
 
 ipcMain.handle('langgraph-resume-run', async (event, streamId, threadId, response, config) => {
@@ -1013,13 +1015,24 @@ app.whenReady().then(() => {
   }
   const storedGithubToken = localDataService.getSecret('github_token');
   if (storedGithubToken) github.setToken(storedGithubToken);
+  stylofactCorpusService = new StylofactCorpusService({
+    service: localDataService,
+    userDataPath: app.getPath('userData'),
+    logger,
+  });
+  stylofactCorpusService.initialize().catch((error) => {
+    logger.error('stylofact.corpus', 'The local corpus navigator could not initialize.', { error: error?.message });
+  });
   unregisterLocalDataIPC = registerLocalDataIPC({
     ipcMain,
     BrowserWindow,
+    dialog,
     service: localDataService,
+    corpusService: stylofactCorpusService,
     logger,
   });
   langgraph.setLocalDataService(localDataService);
+  langgraph.setStylofactCorpusService(stylofactCorpusService);
   operationReceipts.setLocalDataService(localDataService);
   cloudGateway = new CloudGateway({
     service: localDataService,
@@ -1167,6 +1180,7 @@ app.on('before-quit', (event) => {
       Promise.all([
         cloudGateway?.flushContinuity() || Promise.resolve(),
         briizy?.stop() || Promise.resolve(),
+        stylofactCorpusService?.close() || Promise.resolve(),
       ]),
       new Promise((resolve) => setTimeout(resolve, 1500)),
     ]).finally(() => app.quit());
@@ -1185,6 +1199,7 @@ app.on('before-quit', (event) => {
   automationRunner = null;
   unregisterLocalDataIPC?.();
   unregisterLocalDataIPC = null;
+  stylofactCorpusService = null;
   localDataService?.close();
   localDataService = null;
 });

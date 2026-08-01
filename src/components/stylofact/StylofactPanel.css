@@ -183,6 +183,59 @@
 .stylofact-metric-strip pre { background: var(--stylofact-code-bg); color: var(--stylofact-code-text); font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 230px; max-width: min(620px, 85cqw); overflow: auto; padding: 12px; position: absolute; right: 25px; white-space: pre-wrap; z-index: 4; }
 .stylofact-warning { color: var(--stylofact-red); font: 11px/1.35 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; padding: 9px 0; }
 
+.stylofact-navigator { background: var(--stylofact-surface); border: 1px solid var(--stylofact-rule); box-shadow: 5px 5px 0 var(--stylofact-shadow); margin: 0 0 18px 44px; max-width: 790px; padding: 16px; }
+.stylofact-navigator-head, .stylofact-corpus-status-title, .stylofact-receipt > header, .stylofact-source-viewer > header { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.stylofact-navigator-head h3, .stylofact-receipt h3, .stylofact-source-viewer h3 { font-size: 21px; font-weight: 500; letter-spacing: -.035em; margin: 3px 0 0; }
+.stylofact-navigator > .stylofact-hint { margin: 10px 0 13px; }
+.stylofact-navigator-empty { border: 1px dashed var(--stylofact-rule); color: var(--stylofact-muted); font: 12px/1.4 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; padding: 13px; }
+.stylofact-corpus-status { border-top: 1px solid var(--stylofact-rule); padding: 13px 0 2px; }
+.stylofact-corpus-status-title > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.stylofact-corpus-status-title strong { font: 600 13px/1.2 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; }
+.stylofact-corpus-status-title div span { color: var(--stylofact-muted); font: 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stylofact-index-state { border: 1px solid currentColor; color: var(--stylofact-warning); font: 700 8px/1 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; letter-spacing: .06em; padding: 5px 6px; text-transform: uppercase; white-space: nowrap; }
+.stylofact-index-state.state-ready, .stylofact-index-state.state-lexical-ready { color: var(--stylofact-green); }
+.stylofact-index-state.state-error, .stylofact-index-state.state-stale { color: var(--stylofact-red); }
+.stylofact-corpus-counts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
+.stylofact-corpus-counts span { color: var(--stylofact-muted); font: 10px/1.2 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; }
+.stylofact-corpus-counts strong { color: var(--stylofact-ink); }
+.stylofact-index-progress { background: var(--stylofact-ink-wash); height: 5px; margin-top: 10px; overflow: hidden; }
+.stylofact-index-progress span { background: var(--stylofact-orange); display: block; height: 100%; transition: width .3s ease; }
+.stylofact-corpus-status > p { color: var(--stylofact-muted); font: 10px/1.35 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; margin: 8px 0 0; }
+.stylofact-corpus-status-actions { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 7px; }
+.stylofact-text-button.danger { color: var(--stylofact-red); }
+
+.stylofact-receipt-overlay { align-items: center; background: rgb(14 15 18 / 72%); display: flex; inset: 0; justify-content: center; padding: 28px; position: fixed; z-index: 1000; }
+.stylofact-receipt, .stylofact-source-viewer { background: var(--stylofact-paper); border: 1px solid var(--stylofact-rule); box-shadow: 10px 10px 0 rgb(0 0 0 / 24%); color: var(--stylofact-ink); max-height: min(820px, calc(100vh - 56px)); max-width: 900px; overflow: auto; padding: 20px; width: min(900px, calc(100vw - 56px)); }
+.stylofact-receipt-summary { border-bottom: 1px solid var(--stylofact-rule); border-top: 1px solid var(--stylofact-rule); display: grid; gap: 1px; grid-template-columns: repeat(5, 1fr); margin-top: 15px; }
+.stylofact-receipt-summary div { display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; }
+.stylofact-receipt-summary span, .stylofact-conversation-context article > span { color: var(--stylofact-muted); font: 700 8px/1 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; letter-spacing: .07em; text-transform: uppercase; }
+.stylofact-receipt-summary strong { font: 600 12px/1.2 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; text-transform: capitalize; }
+.stylofact-receipt-section { border-bottom: 1px solid var(--stylofact-rule); padding: 15px 0; }
+.stylofact-receipt-section h4 { font: 600 13px/1.2 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; margin: 0 0 9px; }
+.stylofact-receipt-section > p { font: 13px/1.45 Georgia, serif; margin: 0 0 9px; }
+.stylofact-query-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0; }
+.stylofact-query-row code { background: var(--stylofact-ink-wash); color: var(--stylofact-muted); font-size: 10px; padding: 5px 7px; }
+.stylofact-receipt-candidate { background: var(--stylofact-surface); border-left: 2px solid var(--stylofact-green); margin-top: 8px; padding: 10px 12px; }
+.stylofact-receipt-candidate > div { display: flex; gap: 10px; justify-content: space-between; }
+.stylofact-receipt-candidate > div strong { font: 600 11px/1.2 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; }
+.stylofact-receipt-candidate > div span { color: var(--stylofact-muted); font: 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.stylofact-receipt-candidate p { font: 13px/1.45 Georgia, serif; margin: 8px 0 3px; white-space: pre-wrap; }
+.stylofact-receipt-omitted, .stylofact-receipt-raw { border-bottom: 1px solid var(--stylofact-rule); padding: 13px 0; }
+.stylofact-receipt-omitted summary, .stylofact-receipt-raw summary { color: var(--stylofact-orange-deep); cursor: pointer; font: 700 10px/1.2 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; text-transform: uppercase; }
+.stylofact-receipt-omitted div { display: flex; gap: 10px; justify-content: space-between; padding: 6px 0; }
+.stylofact-receipt-omitted strong, .stylofact-receipt-omitted span { font: 10px/1.3 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; }
+.stylofact-receipt-omitted span { color: var(--stylofact-muted); text-align: right; }
+.stylofact-receipt-raw pre { background: var(--stylofact-code-bg); color: var(--stylofact-code-text); font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 380px; overflow: auto; padding: 12px; white-space: pre-wrap; }
+.stylofact-conversation-context { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
+.stylofact-conversation-context article { border: 1px solid var(--stylofact-rule); margin-left: 8%; padding: 11px 13px; }
+.stylofact-conversation-context article.role-user { background: var(--stylofact-surface); margin-left: 0; margin-right: 8%; }
+.stylofact-conversation-context article.is-evidence { border-color: var(--stylofact-green); box-shadow: 3px 3px 0 var(--stylofact-success-wash); }
+.stylofact-conversation-context p { font: 13px/1.45 Georgia, serif; margin: 7px 0 0; white-space: pre-wrap; }
+.stylofact-conversation-context mark { background: var(--stylofact-success-wash); color: inherit; outline: 1px solid var(--stylofact-green); }
+.stylofact-source-viewer > footer { align-items: center; border-top: 1px solid var(--stylofact-rule); display: flex; gap: 12px; justify-content: space-between; margin-top: 14px; padding-top: 10px; }
+.stylofact-source-viewer footer code { color: var(--stylofact-muted); font-size: 9px; }
+.stylofact-source-viewer footer strong { color: var(--stylofact-green); font: 700 9px/1 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; text-transform: uppercase; }
+
 .stylofact-callout-action { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 20px 0 0 44px; }
 .stylofact-callout-action > span { color: var(--stylofact-muted); font: 11px/1.35 'var(--ui-font-main) Next', var(--ui-font-main), sans-serif; max-width: 470px; }
 .stylofact-profile-preview { background: var(--stylofact-surface); border: 1px solid var(--stylofact-rule); box-shadow: 5px 5px 0 var(--stylofact-shadow); margin: 22px 0 0 44px; max-width: 790px; padding: 15px 17px; }
@@ -260,9 +313,10 @@
 @container (max-width: 680px) {
   .stylofact-header { align-items: flex-start; flex-direction: column; padding-left: 22px; }
   .stylofact-stage-marker { padding-left: 22px; }.stylofact-stage-marker li { font-size: 0; gap: 0; }.stylofact-stage-marker li span { font-size: 10px; }
-  .stylofact-section { padding-left: 22px; padding-right: 22px; }.stylofact-model-grid, .stylofact-corpus, .stylofact-metric-strip, .stylofact-callout-action, .stylofact-profile-preview, .stylofact-approval-toggle, .stylofact-selection-toolbar, .stylofact-extract-grid, .stylofact-blueprint, .stylofact-output-controls, .stylofact-artifact-grid, .stylofact-output-bundle, .stylofact-empty { margin-left: 0; }
+  .stylofact-section { padding-left: 22px; padding-right: 22px; }.stylofact-model-grid, .stylofact-corpus, .stylofact-navigator, .stylofact-metric-strip, .stylofact-callout-action, .stylofact-profile-preview, .stylofact-approval-toggle, .stylofact-selection-toolbar, .stylofact-extract-grid, .stylofact-blueprint, .stylofact-output-controls, .stylofact-artifact-grid, .stylofact-output-bundle, .stylofact-empty { margin-left: 0; }
   .stylofact-model-grid, .stylofact-extract-grid, .stylofact-output-controls, .stylofact-artifact-grid { grid-template-columns: 1fr; }
   .stylofact-format-list { grid-template-columns: 1fr; }.stylofact-blueprint-columns { grid-template-columns: 1fr; }
   .stylofact-output-bundle { align-items: flex-start; flex-direction: column; }
   .stylofact-running, .stylofact-error { padding-left: 22px; }.stylofact-metric-strip > div { min-width: 92px; }
+  .stylofact-receipt-overlay { padding: 10px; }.stylofact-receipt, .stylofact-source-viewer { max-height: calc(100vh - 20px); padding: 15px; width: calc(100vw - 20px); }.stylofact-receipt-summary { grid-template-columns: repeat(2, 1fr); }
 }

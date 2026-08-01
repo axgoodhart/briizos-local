@@ -42,6 +42,10 @@ function setLocalDataService(service) {
   leadAgent.setLocalDataService(service);
 }
 
+function setStylofactCorpusService(service) {
+  leadAgent.setStylofactCorpusService(service);
+}
+
 async function start() {
   state.status = 'running';
   state.startedAt = Date.now();
@@ -126,6 +130,7 @@ async function fetchSuggestions(recentMessages, n = 3, config = {}, threadId = n
 module.exports = {
   setMainWindow,
   setLocalDataService,
+  setStylofactCorpusService,
   start,
   stop,
   getStatus,
