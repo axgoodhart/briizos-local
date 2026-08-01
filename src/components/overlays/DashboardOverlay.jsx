@@ -5,43 +5,13 @@ import logger from '../../lib/logger';
 import { useTheme } from '../../theme/ThemeProvider.jsx';
 import { useBriizyCapture } from '../../hooks/useBriizyCapture.js';
 import CaptureSettingsPanel from '../briizy/CaptureSettingsPanel.jsx';
+import { CHAT_BACKGROUNDS } from '../../lib/chatBackgrounds.js';
 import {
   HEADER_DOCK_ORIENTATIONS,
   HEADER_DOCK_STYLES,
   HEADER_DOCK_STYLE_OPTIONS,
 } from '../controlbar/dockPreferences.js';
 import './DashboardOverlay.css';
-
-// Chat background lists (mirrors InteractionPanel)
-const CHAT_BACKGROUNDS = [
-  { value: '', label: 'Default' },
-  { value: 'assets/backgrounds/24h.html', label: '24h' },
-  { value: 'assets/backgrounds/Butterflies.html', label: 'Butterflies' },
-  { value: 'assets/backgrounds/Darkstars.html', label: 'Darkstars' },
-  { value: 'assets/backgrounds/GlassClock.html', label: 'GlassClock' },
-  { value: 'assets/backgrounds/Insectiana.html', label: 'Insectiana' },
-  { value: 'assets/backgrounds/RotoPulse.html', label: 'RotoPulse' },
-  { value: 'assets/backgrounds/Spheres.html', label: 'Spheres' },
-  { value: 'assets/backgrounds/Stars.html', label: 'Stars' },
-  { value: 'assets/backgrounds/Wallpaper.html', label: 'Wallpaper' },
-  { value: 'assets/backgrounds/Widget.html', label: 'Widget' },
-  { value: 'assets/backgrounds/colorink.html', label: 'colorink' },
-  { value: 'assets/backgrounds/darkwater.html', label: 'darkwater' },
-  { value: 'assets/backgrounds/default-gradient.html', label: 'default-gradient' },
-  { value: 'assets/backgrounds/linetrance.html', label: 'linetrance' },
-  { value: 'assets/backgrounds/liquid.html', label: 'liquid' },
-  { value: 'assets/backgrounds/neuralnetworkbackground.html', label: 'neuralnetworkbackground' },
-  { value: 'assets/backgrounds/portals.html', label: 'portals' },
-  { value: 'assets/backgrounds/rainbo.html', label: 'rainbo' },
-  { value: 'assets/backgrounds/rainpool.html', label: 'rainpool' },
-  { value: 'assets/backgrounds/thing.html', label: 'thing' },
-  { value: 'assets/backgrounds/transformer.html', label: 'transformer' },
-  { value: 'assets/backgrounds/univer.html', label: 'univer' },
-  { value: 'assets/backgrounds/vialinebg.html', label: 'vialinebg' },
-  { value: 'assets/backgrounds/visualizer5.html', label: 'visualizer5' },
-  { value: 'assets/backgrounds/visualizer6.html', label: 'visualizer6' },
-  { value: 'assets/backgrounds/wavepool.html', label: 'wavepool' }
-];
 
 const DOCK_PREVIEW_ITEMS = [
   { id: 'chat', glyph: '􀌮', accent: '#16df69' },
@@ -997,7 +967,7 @@ function ThemeChatBgPicker({ theme, onClose, getThemeChatBackground, onSave }) {
         <button className="theme-chat-bg-picker-close" onClick={onClose} type="button">&times;</button>
       </div>
       <div className="theme-chat-bg-picker-body">
-        <div className="chat-bg-section-label">HTML Backgrounds</div>
+        <div className="chat-bg-section-label">Backgrounds</div>
         {CHAT_BACKGROUNDS.map((bg) => (
           <button
             key={bg.value}

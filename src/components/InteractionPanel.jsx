@@ -10,84 +10,10 @@ import { onChatReturn } from '../lib/bfast-queue';
 import { formatMargerinLabel } from '../lib/bfast-format';
 import { SOURCE_FILE_TYPE } from './FileTree';
 import logger from '../lib/logger';
+import { CHAT_BACKGROUNDS } from '../lib/chatBackgrounds';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
 import StylofactPanel from './stylofact/StylofactPanel';
-
-const CHAT_BACKGROUNDS = [
-  { value: '', label: 'Default' },
-  { value: 'assets/backgrounds/24h.html', label: '24h' },
-  { value: 'assets/backgrounds/Aurora.html', label: 'Aurora' },
-  { value: 'assets/backgrounds/Balatro.html', label: 'Balatro' },
-  { value: 'assets/backgrounds/Ballpit.html', label: 'Ballpit' },
-  { value: 'assets/backgrounds/Beams.html', label: 'Beams' },
-  { value: 'assets/backgrounds/Butterflies.html', label: 'Butterflies' },
-  { value: 'assets/backgrounds/ColorBends.html', label: 'ColorBends' },
-  { value: 'assets/backgrounds/colorink.html', label: 'colorink' },
-  { value: 'assets/backgrounds/Darkstars.html', label: 'Darkstars' },
-  { value: 'assets/backgrounds/DarkVeil.html', label: 'DarkVeil' },
-  { value: 'assets/backgrounds/darkwater.html', label: 'darkwater' },
-  { value: 'assets/backgrounds/default-gradient.html', label: 'default-gradient' },
-  { value: 'assets/backgrounds/Dither.html', label: 'Dither' },
-  { value: 'assets/backgrounds/DotGrid.html', label: 'DotGrid' },
-  { value: 'assets/backgrounds/EvilEye.html', label: 'EvilEye' },
-  { value: 'assets/backgrounds/FaultyTerminal.html', label: 'FaultyTerminal' },
-  { value: 'assets/backgrounds/FloatingLines.html', label: 'FloatingLines' },
-  { value: 'assets/backgrounds/Galaxy.html', label: 'Galaxy' },
-  { value: 'assets/backgrounds/gems.html', label: 'gems' },
-  { value: 'assets/backgrounds/GlassClock.html', label: 'GlassClock' },
-  { value: 'assets/backgrounds/GradientBlinds.html', label: 'GradientBlinds' },
-  { value: 'assets/backgrounds/Grainient.html', label: 'Grainient' },
-  { value: 'assets/backgrounds/GridMotion.html', label: 'GridMotion' },
-  { value: 'assets/backgrounds/Insectiana.html', label: 'Insectiana' },
-  { value: 'assets/backgrounds/Iridescence.html', label: 'Iridescence' },
-  { value: 'assets/backgrounds/LetterGlitch.html', label: 'LetterGlitch' },
-  { value: 'assets/backgrounds/Lightning.html', label: 'Lightning' },
-  { value: 'assets/backgrounds/LightPillar.html', label: 'LightPillar' },
-  { value: 'assets/backgrounds/LightRays.html', label: 'LightRays' },
-  { value: 'assets/backgrounds/linetrance.html', label: 'linetrance' },
-  { value: 'assets/backgrounds/LineWaves.html', label: 'LineWaves' },
-  { value: 'assets/backgrounds/liquid.html', label: 'liquid' },
-  { value: 'assets/backgrounds/LiquidChrome.html', label: 'LiquidChrome' },
-  { value: 'assets/backgrounds/LiquidEther.html', label: 'LiquidEther' },
-  { value: 'assets/backgrounds/Mycelium.html', label: 'Mycelium' },
-  { value: 'assets/backgrounds/neuralnetworkbackground.html', label: 'neuralnetworkbackground' },
-  { value: 'assets/backgrounds/Orb.html', label: 'Orb' },
-  { value: 'assets/backgrounds/panning1.html', label: 'panning1' },
-  { value: 'assets/backgrounds/panning2.html', label: 'panning2' },
-  { value: 'assets/backgrounds/panning3.html', label: 'panning3' },
-  { value: 'assets/backgrounds/Particles.html', label: 'Particles' },
-  { value: 'assets/backgrounds/PixelBlast.html', label: 'PixelBlast' },
-  { value: 'assets/backgrounds/PixelSnow.html', label: 'PixelSnow' },
-  { value: 'assets/backgrounds/Plasma.html', label: 'Plasma' },
-  { value: 'assets/backgrounds/portals.html', label: 'portals' },
-  { value: 'assets/backgrounds/Prism.html', label: 'Prism' },
-  { value: 'assets/backgrounds/PrismaticBurst.html', label: 'PrismaticBurst' },
-  { value: 'assets/backgrounds/purdots.png', label: 'purdots' },
-  { value: 'assets/backgrounds/Radar.html', label: 'Radar' },
-  { value: 'assets/backgrounds/rainbo.html', label: 'rainbo' },
-  { value: 'assets/backgrounds/rainpool.html', label: 'rainpool' },
-  { value: 'assets/backgrounds/RippleGrid.html', label: 'RippleGrid' },
-  { value: 'assets/backgrounds/RotoPulse.html', label: 'RotoPulse' },
-  { value: 'assets/backgrounds/ShapeGrid.html', label: 'ShapeGrid' },
-  { value: 'assets/backgrounds/Silk.html', label: 'Silk' },
-  { value: 'assets/backgrounds/SoftAurora.html', label: 'SoftAurora' },
-  { value: 'assets/backgrounds/Spheres.html', label: 'Spheres' },
-  { value: 'assets/backgrounds/Spores.html', label: 'Spores' },
-  { value: 'assets/backgrounds/Stars.html', label: 'Stars' },
-  { value: 'assets/backgrounds/thing.html', label: 'thing' },
-  { value: 'assets/backgrounds/Threads.html', label: 'Threads' },
-  { value: 'assets/backgrounds/Tide.html', label: 'Tide' },
-  { value: 'assets/backgrounds/torando.png', label: 'torando' },
-  { value: 'assets/backgrounds/transformer.html', label: 'transformer' },
-  { value: 'assets/backgrounds/vialinebg.html', label: 'vialinebg' },
-  { value: 'assets/backgrounds/Wallpaper.html', label: 'Wallpaper' },
-  { value: 'assets/backgrounds/wavepool.html', label: 'wavepool' },
-  { value: 'assets/backgrounds/Waves.html', label: 'Waves' },
-  { value: 'assets/backgrounds/Widget.html', label: 'Widget' }
-];
-
-
 
 const MODALITIES = [
 
@@ -922,7 +848,7 @@ function InteractionPanel() {
           <>
         {showBgPicker && (
           <div className="chat-bg-picker">
-            <div className="chat-bg-section-label">HTML Backgrounds</div>
+            <div className="chat-bg-section-label">Backgrounds</div>
             {CHAT_BACKGROUNDS.map((bg) => (
               <button
                 key={bg.value}
