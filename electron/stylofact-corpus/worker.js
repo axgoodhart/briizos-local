@@ -163,6 +163,23 @@ async function modelCacheChecksum(rootPath) {
   return sha256(JSON.stringify(manifest));
 }
 
+function modelCacheStats(rootPath) {
+  let fileCount = 0;
+  let totalBytes = 0;
+  const walk = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) walk(absolute);
+      else if (entry.isFile() && !entry.name.endsWith('.lock')) {
+        fileCount += 1;
+        totalBytes += fs.statSync(absolute).size;
+      }
+    }
+  };
+  walk(rootPath);
+  return { fileCount, totalBytes };
+}
+
 function postEvent(event, payload = {}) {
   parentPort.postMessage({ type: 'event', event, payload });
 }
@@ -407,13 +424,23 @@ async function getExtractor() {
       fs.mkdirSync(workerData.modelCachePath, { recursive: true });
       transformers.env.cacheDir = workerData.modelCachePath;
       transformers.env.allowRemoteModels = true;
+      const cacheBefore = modelCacheStats(workerData.modelCachePath);
+      postEvent('model-load-start', {
+        embeddingModel: EMBEDDING_MODEL_REF,
+        cacheFileCount: cacheBefore.fileCount,
+        cacheBytes: cacheBefore.totalBytes,
+        cachePresent: cacheBefore.fileCount > 0,
+      });
       const progressCallback = (progress) => {
         const now = Date.now();
-        if (now - lastModelProgressAt < 400 && progress?.status !== 'done') return;
-        lastModelProgressAt = now;
+        const isContinuousProgress = progress?.status === 'progress' || progress?.status === 'progress_total';
+        if (isContinuousProgress && now - lastModelProgressAt < 400) return;
+        if (isContinuousProgress) lastModelProgressAt = now;
         postEvent('model-progress', {
           status: progress?.status || 'downloading',
+          model: progress?.name || progress?.model || EMBEDDING_MODEL,
           file: progress?.file || null,
+          cachePresent: cacheBefore.fileCount > 0,
           progress: Number.isFinite(progress?.progress) ? progress.progress : null,
           loaded: progress?.loaded || null,
           total: progress?.total || null,
@@ -425,10 +452,18 @@ async function getExtractor() {
         progress_callback: progressCallback,
       });
       const checksum = await modelCacheChecksum(workerData.modelCachePath);
+      const cacheAfter = modelCacheStats(workerData.modelCachePath);
       const checksumKey = `embedding-model-checksum:${EMBEDDING_MODEL_REF}`;
       const previous = db.prepare('SELECT value FROM corpus_index_meta WHERE key = ?').get(checksumKey)?.value;
       db.prepare('INSERT OR REPLACE INTO corpus_index_meta (key, value) VALUES (?, ?)').run(checksumKey, checksum);
-      postEvent('model-ready', { embeddingModel: EMBEDDING_MODEL_REF, checksum, changedFromPreviousCache: !!previous && previous !== checksum });
+      postEvent('model-ready', {
+        embeddingModel: EMBEDDING_MODEL_REF,
+        checksum,
+        changedFromPreviousCache: !!previous && previous !== checksum,
+        cacheFileCount: cacheAfter.fileCount,
+        cacheBytes: cacheAfter.totalBytes,
+        cacheGrew: cacheAfter.fileCount > cacheBefore.fileCount || cacheAfter.totalBytes > cacheBefore.totalBytes,
+      });
       return extractor;
     })().catch((error) => {
       extractorPromise = null;
