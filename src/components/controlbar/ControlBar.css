@@ -38,6 +38,12 @@ top:0;
   order: var(--cb-dock-order, 0);
 }
 
+/* A removed launcher stays mounted so the editor can pin it again, but it
+   must not occupy the header dock. This wins over each child’s flex layout. */
+.control-bar-dock > [hidden] {
+  display: none !important;
+}
+
 .cb-tab-shape {
   display: none;
 }
