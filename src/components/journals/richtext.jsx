@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Editor, Extension } from '@tiptap/core';
+import { Editor, Extension, Node } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -81,6 +81,46 @@ const LineHeight = Extension.create({
   },
 });
 
+/* A local image belongs to the document as a top-level block. That matters for
+   journal pages: the overflow engine moves whole blocks between paper faces,
+   so an attachment travels with the paragraph boundary instead of being split
+   through a line of prose. */
+const JournalImage = Node.create({
+  name: 'journalImage',
+  group: 'block',
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('src'),
+      },
+      alt: {
+        default: '',
+        parseHTML: (element) => element.getAttribute('alt') || '',
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'img[data-journal-image]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['img', { ...HTMLAttributes, 'data-journal-image': '' }];
+  },
+});
+
+function attachmentTriggerAtSelection(editor) {
+  const { from, empty, $from } = editor.state.selection;
+  if (!empty || !$from.parent.isTextblock) return null;
+  const beforeCaret = $from.parent.textBetween(0, $from.parentOffset, '', '');
+  if (!beforeCaret.endsWith('//+')) return null;
+  return { from: from - 3, to: from };
+}
+
 export const FONT_FAMILIES = [
   { label: 'Georgia', value: "Georgia, 'Times New Roman', serif" },
   { label: 'Jost', value: 'Jost, system-ui, sans-serif' },
@@ -122,7 +162,9 @@ export function loadSystemFonts() {
 export const getSystemFonts = () => systemFontsCache;
 export const canQueryLocalFonts = () => typeof window.queryLocalFonts === 'function';
 
-export function createNotesEditor(element, doc, { onSave, onTick, onFocus, onUpdate }) {
+export function createNotesEditor(element, doc, {
+  onSave, onTick, onFocus, onUpdate, onAttachmentRequest,
+}) {
   return new Editor({
     element,
     extensions: [
@@ -134,6 +176,7 @@ export function createNotesEditor(element, doc, { onSave, onTick, onFocus, onUpd
       FontFamily,
       FontSize,
       LineHeight,
+      JournalImage,
       Placeholder.configure({ placeholder: 'Write…' }),
     ],
     content: doc || '',
@@ -143,6 +186,11 @@ export function createNotesEditor(element, doc, { onSave, onTick, onFocus, onUpd
     // addToHistory:false; skipping them here prevents self-triggered loops.
     onUpdate: ({ editor, transaction }) => {
       if (transaction?.getMeta('addToHistory') === false) return;
+      const attachmentTrigger = attachmentTriggerAtSelection(editor);
+      if (attachmentTrigger) {
+        editor.commands.deleteRange(attachmentTrigger);
+        onAttachmentRequest?.({ position: attachmentTrigger.from });
+      }
       onUpdate?.(editor);
     },
     onTransaction: onTick, // refresh toolbar active states

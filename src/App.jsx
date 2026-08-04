@@ -6,7 +6,7 @@ import TasksPanel from './components/TasksPanel';
 import MediaPanel from './components/MediaPanel';
 import { JournalPanel } from './components/journals/JournalPanel.jsx';
 import { JournalFloat, normalizeJournalFloatSize } from './components/journals/JournalFloat.jsx';
-import { NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
+import { CaptureOnboarding, NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
 import Forest from './components/forest/Forest.jsx';
 import LoginOverlay from './components/LoginOverlay';
 import { TileLayout } from './components/layout/TileLayout';
@@ -21,6 +21,7 @@ import { ToolProvider, useTools } from './context/ToolContext';
 import { useAppContext } from './hooks/useAppContext';
 import { useToolBridge } from './hooks/useToolBridge';
 import { useTaskAutomation } from './hooks/useTaskAutomation';
+import { useBriizyCapture } from './hooks/useBriizyCapture';
 
 // New overlay imports
 import { ControlBar } from './components/controlbar';
@@ -28,10 +29,12 @@ import {
   HEADER_DOCK_ORIENTATIONS,
   HEADER_DOCK_STYLES,
   getStoredHeaderDockOrientation,
+  getStoredHeaderDockItems,
   getStoredHeaderDockStyle,
   normalizeHeaderDockOrientation,
   normalizeHeaderDockStyle,
   persistHeaderDockOrientation,
+  persistHeaderDockItems,
   persistHeaderDockStyle,
 } from './components/controlbar/dockPreferences';
 import { BriiztormOverlay, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
@@ -263,7 +266,7 @@ function HeaderDateTimeWeather() {
     <div className="header-datetime-weather" style={{ WebkitAppRegion: 'no-drag' }}>
       <span className="header-time">{time}     <span className="header-weather">{weather}</span></span>
       <span className="header-date">{date}</span>
-  
+
     </div>
   );
 }
@@ -276,6 +279,7 @@ function AppContent({ layout }) {
   useToolBridge(executeTool, appContext);
   useTaskAutomation();
   const theme = useTheme();
+  const briizyCapture = useBriizyCapture();
 
   // Tool execution context (appContext + layoutHook) flows through
   // ToolContext.executeTool, which is the single tool executor used by
@@ -290,6 +294,7 @@ function AppContent({ layout }) {
   const [dashboardTab, setDashboardTab] = useState(null);
   const [headerDockStyle, setHeaderDockStyle] = useState(getStoredHeaderDockStyle);
   const [headerDockOrientation, setHeaderDockOrientation] = useState(getStoredHeaderDockOrientation);
+  const [headerDockItems, setHeaderDockItems] = useState(getStoredHeaderDockItems);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
@@ -352,6 +357,11 @@ function AppContent({ layout }) {
     setHeaderDockOrientation(normalized);
     persistHeaderDockOrientation(normalized);
   }, [headerDockStyle]);
+
+  const handleHeaderDockItemsChange = useCallback((nextItems) => {
+    const normalized = persistHeaderDockItems(nextItems);
+    setHeaderDockItems(normalized);
+  }, []);
 
   const verticalHeaderActive = headerDockStyle === HEADER_DOCK_STYLES.CURRENT
     && headerDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL;
@@ -419,6 +429,10 @@ function AppContent({ layout }) {
   const journalPanel = getPanelByType('journal');
   const notefallsPanel = getPanelByType('notefalls');
   const forestPanel = getPanelByType('forest');
+  const sourcesPanel = getPanelByType('sources');
+  const tasksPanel = getPanelByType('tasks');
+
+
 
   const openThemeStudio = useCallback(() => {
     setShowSettings(false);
@@ -429,6 +443,23 @@ function AppContent({ layout }) {
     theme.requestClose(() => setThemeStudioOpen(false));
   }, [theme]);
 
+  const [controlBarOpen, setControlBarOpen] = useState(false);
+
+  const toggleControlBar = useCallback(() => {
+    setControlBarOpen(prev => !prev);
+  }, []);
+
+  const toggleBriizyObservation = useCallback(() => {
+    if (!briizyCapture.available || briizyCapture.busy) return;
+    if (briizyCapture.status.enabled && briizyCapture.status.paused) {
+      briizyCapture.togglePause();
+      return;
+    }
+    briizyCapture.toggleCapture();
+  }, [briizyCapture]);
+
+
+
   const toggleInteractionPanel = useCallback(() => {
     if (interactionPanel) {
       togglePanelVisibility(interactionPanel.id);
@@ -436,6 +467,27 @@ function AppContent({ layout }) {
     }
     addPanel({ id: 'interaction', type: 'interaction', size: 20, visible: true });
   }, [interactionPanel, togglePanelVisibility, addPanel]);
+
+  // Sources and Tasks used to be present only because the default layout
+  // seeded them. Giving them the same launch path as the other panels means a
+  // dock icon can now hide them out of the layout and bring them back later.
+  const openSourcesPanel = useCallback(() => {
+    if (sourcesPanel) {
+      togglePanelVisibility(sourcesPanel.id);
+      return;
+    }
+    addPanel({ id: 'sources', type: 'sources', size: 20, visible: true });
+    logger.info('sources', 'Sources panel opened');
+  }, [sourcesPanel, togglePanelVisibility, addPanel]);
+
+  const openTasksPanel = useCallback(() => {
+    if (tasksPanel) {
+      togglePanelVisibility(tasksPanel.id);
+      return;
+    }
+    addPanel({ id: 'tasks', type: 'tasks', size: 20, visible: true });
+    logger.info('tasks', 'Tasks panel opened');
+  }, [tasksPanel, togglePanelVisibility, addPanel]);
 
   const resizeThemeStudio = useCallback((width) => {
     const next = Math.round(Math.min(480, Math.max(300, width)));
@@ -550,6 +602,56 @@ function AppContent({ layout }) {
     addPanel({ id: 'forest', type: 'forest', size: 25, visible: true });
     logger.info('forest', 'Forest panel opened');
   }, [forestPanel, togglePanelVisibility, addPanel]);
+
+  const launchControlBarItem = useCallback((itemId) => {
+    switch (itemId) {
+      case 'chat':
+        toggleInteractionPanel();
+        break;
+      case 'briiztorm':
+        setBriiztormOpen((open) => !open);
+        break;
+      case 'organizer':
+        setOrganizerOpen((open) => !open);
+        break;
+      case 'calendar':
+        setCalendarOpen((open) => !open);
+        break;
+      case 'media':
+        setMediaOpen((open) => !open);
+        break;
+      case 'notes':
+        setNotesOpen((open) => !open);
+        break;
+      case 'canvases':
+        setCanvasesPopoverOpen((open) => !open);
+        break;
+      case 'journal':
+        openJournalPanel();
+        break;
+      case 'forest':
+        openForestPanel();
+        break;
+      case 'notefalls':
+        openNotefallsPanel();
+        break;
+      case 'sources':
+        openSourcesPanel();
+        break;
+      case 'tasks':
+        openTasksPanel();
+        break;
+      default:
+        break;
+    }
+  }, [
+    openForestPanel,
+    openJournalPanel,
+    openNotefallsPanel,
+    openSourcesPanel,
+    openTasksPanel,
+    toggleInteractionPanel,
+  ]);
 
   // ----- Canvases (folder library of saved mini-apps) -----
 
@@ -1098,6 +1200,8 @@ function AppContent({ layout }) {
             variant="dock"
             dockStyle={headerDockStyle}
             orientation={headerDockOrientation}
+            dockItems={headerDockItems}
+            controlBarOpen={controlBarOpen}
             chatOpen={interactionPanel?.visible === true}
             briiztormOpen={briiztormOpen}
             organizerOpen={organizerOpen}
@@ -1105,6 +1209,12 @@ function AppContent({ layout }) {
             mediaOpen={mediaOpen}
             notesOpen={notesOpen}
             canvasesOpen={canvasesPopoverOpen}
+            journalOpen={journalPanel?.visible === true}
+            forestOpen={forestPanel?.visible === true}
+            notefallsOpen={notefallsPanel?.visible === true}
+            sourcesOpen={sourcesPanel?.visible === true}
+            tasksOpen={tasksPanel?.visible === true}
+            onToggleControlBar={toggleControlBar}
             onToggleChat={toggleInteractionPanel}
             onToggleBriiztorm={() => setBriiztormOpen(!briiztormOpen)}
             onOpenOrganizer={() => setOrganizerOpen((prev) => !prev)}
@@ -1112,6 +1222,12 @@ function AppContent({ layout }) {
             onToggleMedia={() => setMediaOpen((prev) => !prev)}
             onToggleNotes={() => setNotesOpen(!notesOpen)}
             onToggleCanvases={() => setCanvasesPopoverOpen((prev) => !prev)}
+            onToggleJournal={openJournalPanel}
+            onToggleForest={openForestPanel}
+            onToggleNotefalls={openNotefallsPanel}
+            onToggleSources={openSourcesPanel}
+            onToggleTasks={openTasksPanel}
+            onDockItemsChange={handleHeaderDockItemsChange}
             canvasesPopoverSlot={(
               <CanvasesPopover
                 isOpen={canvasesPopoverOpen}
@@ -1138,8 +1254,19 @@ function AppContent({ layout }) {
       </header>
 
       {/* Control Bar with Toggles */}
-      <div className="controlBar closed" id="controlBar">
-        <ControlBar variant="bar" />
+      <div className={`controlBar ${controlBarOpen ? '' : 'closed'}`}  id="controlBar" >
+        {controlBarOpen && (
+          <ControlBar
+            variant="bar"
+            dockItems={headerDockItems}
+            onDockItemsChange={handleHeaderDockItemsChange}
+            onLaunchItem={launchControlBarItem}
+            observationActive={briizyCapture.status.enabled && !briizyCapture.status.paused}
+            observationAvailable={briizyCapture.available}
+            observationBusy={briizyCapture.busy}
+            onToggleObservation={toggleBriizyObservation}
+          />
+        )}
       </div>
 
       {/* Main Content */}
@@ -1263,6 +1390,14 @@ function AppContent({ layout }) {
         onWidthChange={resizeThemeStudio}
         onClose={closeThemeStudio}
       />
+
+      {briizyCapture.needsOnboarding && (
+        <div className="cb-onboarding-backdrop" role="presentation">
+          <div className="cb-onboarding-dialog" role="dialog" aria-modal="true" aria-label="Enable briizy observation">
+            <CaptureOnboarding capture={briizyCapture} />
+          </div>
+        </div>
+      )}
 
       {/* Login Overlay - Shows when not authenticated */}
       <LoginOverlay />

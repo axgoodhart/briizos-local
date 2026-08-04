@@ -894,6 +894,20 @@ ipcMain.handle('forest-folios-update', async (_event, id, patch) => {
   logger.debug('forest', 'Folio updated', { id });
   return result;
 });
+ipcMain.handle('forest-journals-attach-images', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'] }],
+  });
+  if (result.canceled) return [];
+  return result.filePaths.map((filePath) => ({
+    id: crypto.randomUUID(),
+    path: filePath,
+    url: pathToFileURL(filePath).toString(),
+    kind: 'image',
+    name: path.basename(filePath),
+  }));
+});
 
 ipcMain.handle('forest-notefalls-list', async () => localDataService.listNotefallPosts());
 ipcMain.handle('forest-notefalls-create', async (_event, input) => {

@@ -306,11 +306,11 @@
 
 .dock-orientation-setting {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  min-width: 0;
-  padding-top: 4px;
+  justify-content: flex-start;
+  gap: 3px;
+width:32%;  padding-top: 4px;
 }
 
 .dock-orientation-copy {
@@ -339,7 +339,6 @@
   flex: 0 0 auto;
   gap: 3px;
   min-width: 0;
-  padding: 3px;
   margin: 0;
   border: 1px solid var(--ui-settings-radio-border, rgba(99, 208, 214, 0.2));
   border-radius: 9px;
@@ -353,7 +352,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 4px;
   border: 1px solid transparent;
   border-radius: 6px;
   color: var(--ui-settings-section-desc, rgba(185, 202, 205, 0.68));
@@ -432,7 +431,8 @@
 }
 
 .appearance-theme-studio-btn {
-  margin: 2px 0 14px;
+  width:50%;
+  background:none;
   corner-shape:var(--ui-corner-shape);
   border-radius: var(--ui-border-radius)
 }
@@ -440,16 +440,6 @@
 @media (max-width: 900px) {
   .dashboard-modal-container {
     max-width: 92vw;
-  }
-
-  .dock-style-options {
-    grid-template-columns: 1fr;
-  }
-
-  .dock-style-option {
-    display: grid;
-    grid-template-columns: minmax(180px, 0.9fr) minmax(160px, 1fr);
-    align-items: center;
   }
 }
 

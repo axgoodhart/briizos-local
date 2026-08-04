@@ -405,6 +405,13 @@ body {
         font-size: 12px;
     }
 }
+.header-settings-btn-slot {
+    width:80px;
+}
+.settings-btn, #settings-btn {
+    padding: 0;
+    border: none;
+}
 
 #settings-btn:hover {
     transform: scale(1)rotate(1800deg);
@@ -478,7 +485,9 @@ body {
     background: var(--ui-chat-header-bg);
     border-top: 1px solid var(--ui-chat-header-border);
     border-radius: 0 !important;
+    transition:all .3s;
 }
+
 
 .panel-header-actions {
     display: flex;
@@ -1380,7 +1389,7 @@ body {
     width: 98%;
     border-radius: 24px 4px 4px 24px;
     margin-bottom: 12px;
-    height: 260px;
+    height: 700px !important;
     border: 2px solid var(--log-section-border);
     background: var(--log-section-bg);
     box-shadow: inset 0 0 18px black;
@@ -2825,7 +2834,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 33;
+    z-index: 2400;
     animation: fadeIn 0.2s ease;
 }
 
@@ -3139,7 +3148,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 12px 14px;
+    padding: 2px 14px;
     background: var(--ui-settings-radio-bg);
     border: 1px solid var(--ui-settings-radio-border);
     border-radius: 8px;
@@ -3165,7 +3174,7 @@ body {
 }
 
 .radio-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--ui-settings-radio-label);
 }
@@ -3629,6 +3638,14 @@ body {
     gap: 7px;
 }
 
+.prioritize-candiate-row::-webkit-scrollbar, .prioritize-candidate-list::-webkit-scrollbar {
+    display: none;
+}
+.prioritize-candiate-row, .prioritize-candidate-list {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
 .prioritize-candidate-source {
     color: var(--palette-text-muted);
     font-size: 8px;
@@ -3643,7 +3660,6 @@ body {
     min-width: 0;
     overflow-x: auto;
     padding: 1px 0 3px;
-    scrollbar-width: thin;
 }
 
 .prioritize-candidate-chip {
@@ -3823,12 +3839,16 @@ body {
 }
 
 .settings-section-title {
-    font-size: 13px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--palette-accent-primary);
-    margin-bottom: 12px;
+    margin-bottom: 3px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .settings-integration-status {
@@ -3859,15 +3879,20 @@ body {
 }
 
 .settings-btn {
-    border-radius: var(--border-radius);
+    border-radius: var(--ui-border-radius);
     corner-shape: var(--ui-corner-shape);
     background: var(--ui-modal-save-bg);
     color:var(--ui-palette-text-main, white);
     padding:2px 3px;
+    padding:10px;
 }
 
 .settings-btn-group {
-    margin: 12px 0;
+    margin: 2px;
+    gap:10px;
+    display:flex;
+    justify-content:space-betwen;
+    width:100%;
 }
 
 .settings-btn-connect {
@@ -3888,15 +3913,18 @@ body {
 
 .settings-btn-disconnect,
 .settings-btn-logout {
-    background: rgba(120, 50, 50, 0.4);
+    background: var(--ui-bg-danger, rgba(120, 50, 50, 0.4));
     border: 1px solid rgba(200, 100, 100, 0.4);
     color: var(--palette-danger);
+    box-shadow:none;
+    border:1.2px solid var(--palette-danger);
+    transition:all .5s ease;
+    width:80px;
 }
 
 .settings-btn-disconnect:hover,
 .settings-btn-logout:hover {
-    background: rgba(150, 60, 60, 0.5);
-    box-shadow: 0 0 12px rgba(255, 100, 100, 0.3);
+width:200px;padding-left:100px;
 }
 
 .account-info {
@@ -5045,7 +5073,7 @@ body {
 }
 
 #controlBar {
-    transition: all .5s;
+    transition: height .5s, min-height .5s, opacity .25s, filter .55s;
     display: flex;
     align-items: center;
     background: var(--ui-controlbar-bg);
@@ -5054,10 +5082,12 @@ body {
     z-index: 16;
     background-size: var(--ui-controlbar-bg-size, 400% 400%);
     justify-content: center;
-    height: 75px;
+    height: 170px;
+    min-height: 170px;
+    overflow: hidden;
     animation: backflow 200s linear infinite;
     filter: var(--ui-controlbar-filter);
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 #controlBar:hover {
@@ -5066,8 +5096,9 @@ body {
 }
 
 #controlBar.closed {
-    transition: height .5s, opacity 2s, filter .55s;
+    transition: height .5s, min-height .5s, opacity .25s, filter .55s;
     height: 0;
+    min-height: 0;
     animation: none;
     pointer-events: none;
     filter: blur(100px);
@@ -5589,8 +5620,6 @@ body {
     border: 1px solid rgba(255, 255, 255, .2);
     opacity: 1;
     background: linear-gradient(black, transparent);
-    ;
-    backdrop-filter: blur(3px);
     display: flex;
     justify-content: flex-start;
     corner-shape: var(--ui-corner-shape, round);
@@ -5605,20 +5634,70 @@ body {
 
 .chat-input-toolbar:hover,
 .chat-input-toolbar:focus-within {
+        backdrop-filter: blur(4px)brightness(.25);
     opacity: 1;
+    height:60px;
     overflow: visible;
     width: 100%;
 }
+
+.modality-selector {
+    gap: 4px;
+    display:flex;
+    overflow:scroll;
+    padding-right:40px;
+    width:fit-content;
+    -webkit-overflow-scrolling: touch;
+    overflow-x: scroll;
+    scrollbar-width: none;
+}
+
+
+.modality-chip{
+                padding: 2px 10px;
+                font-size: 13px;
+                border-radius: var(--ui-border-radius, 12px);
+                corner-shape: var(--ui-corner-shape, '');
+                background: none;
+                color:var(--palette-accent-cyan-soft, #00e5e5);
+                cursor: pointer;
+                transition: all 0.15s ease;
+                border:.8px solid var(--palette-accent-primary-soft, #00e5e5);
+        }
 
 .model-picker-trigger {
     background: var(--ui-controlbar-bg) !important;
     background-size: 250% 500% !important;
 }
 
-/*Themes*/
+
+/* macOS-inspired shelf --------------------------------------------------- */
+.control-bar-dock.control-bar-dock--macos {
+    position: relative;
+    box-sizing: border-box;
+    justify-content: center;
+    gap: 16px;
+    width: max-content;
+    max-width: 100%;
+    height: 60px;
+    min-height: 60px;
+    margin:auto;
+    margin-top:11px;
+
+    padding: 0px 30px;
+    border: .5px solid var(--control-bar-border-color, rgba(255, 255, 255, 0.12));
+    border-radius: var(--ui-border-radius) var(--ui-border-radius) 0 0 !important;;
+    corner-shape: var(--ui-corner-shape, '');
+    background: var(--control-bar-bg, rgba(0, 0, 0, 0.24));
+    box-shadow:
+        inset 0 -10px 7px rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(18px) saturate(1.25);
+    -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
 
 :root {
     --ui-border-radius: 16px;
+    --ui-corner-shape: round;
     --chat-input-border-color: lime;
     --glass-bg-light: linear-gradient(to bottom, gray, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255, 255, 255, .4) 130%);
     --ui-font-main: Chillax;
@@ -5632,7 +5711,8 @@ body {
     --palette-neon-accent: #00ff88;
     --palette-success: #4caf50;
     --palette-warning: #ffd54f;
-    --palette-danger: #ff6b6b;
+    --palette-danger: red;
+    --ui-bg-danger:black;
     --palette-text-main: lime;
     --palette-text-faint: #ccc;
     --palette-text-soft: #aaa;
@@ -5929,12 +6009,641 @@ body {
     --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0, 0, 0, 0.2);
 }
 
+
+
+:root[data-theme='glacial-dusk'] {    --ui-master-filter: saturate(.93);
+    --ui-border-radius: 6px;
+        --chat-input-border-color: #cfcfcf;
+        --glass-bg-light: linear-gradient(to bottom, #8a8a8a, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255, 255, 255, 0.4) 130%);
+        --ui-font-main: Quasimoda;
+        --holo-blue: #c7c7c73d;
+        --text-primary: #f7f7f7;
+        /* Updated Card Gradient to be less loud */
+        --chat-input-text-color: #cfcfcf;
+        --palette-accent-briizlogo: rgb(229, 229, 229);
+        --palette-accent-primary: #c7c7c7;
+        --palette-accent-primary-soft: #adadad;
+        --palette-neon-accent: #e0e0e0;
+        --palette-success: #9c9c9c;
+        --palette-warning: #ededed;
+        --palette-danger: #a4a4a4;
+        --palette-text-main: #cfcfcf;
+        --palette-text-faint: #dcdcdc;
+        --palette-text-soft: #a5a5a5;
+        --palette-text-subtle: #8a8a8a;
+        --palette-text-muted: #545454;
+        --palette-text-dim: #545454;
+        --palette-white: #ffffff;
+        --ui-body-bg: gray;
+        --ui-app-bg: black;
+        --ui-app-border: 3px solid #000;
+        --ui-app-shadow: inset 0 0 10px rgb(28, 28, 28);
+        --ui-text-primary: var(--palette-text-main);
+        --ui-header-text: #9c9c9c;
+        --ui-header-bg: conic-gradient(from 200deg at 5.3cqw -150%, #444, #888, #444, #000, #444);
+        -ui-header-poop:linear-gradient(to bottom, black 40%,darkslategray, white);
+        --ui-title-icon: var(--palette-accent-primary);
+        --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
+        --ui-title-gradient: linear-gradient(120deg, #686868, black, #484848, rgb(28, 28, 28), #242424, black, #686868);
+        --ui-title-stroke: 0.1px var(--palette-white);
+        --ui-button-ghost-border-strong: rgba(255, 255, 255, 0.15);
+        --ui-button-ghost-text: var(--palette-text-subtle);
+        --ui-button-ghost-text-hover: var(--palette-text-soft);
+        --ui-button-ghost-bg-hover: rgba(255, 255, 255, 0.05);
+        --ui-panel-header-text: black;
+        --ui-panel-btn: var(--palette-text-muted);
+        --ui-panel-btn-hover: var(--palette-accent-primary);
+        --ui-chat-header-text: #dcdcdc;
+        --ui-chat-header-bg: linear-gradient(#686868, black 50%, #cfcfcf 150%);
+        ;
+        --ui-chat-header-border: #cfcfcf;
+        --ui-chat-input-bg: linear-gradient(rgba(104, 104, 104, 0.6), rgba(28, 28, 28, 0.447));
+        --ui-chat-input-text: var(--palette-white);
+        --ui-chat-placeholder: rgba(224, 224, 224, 0.5);
+        --ui-modal-bg: linear-gradient(135deg, #c1c1c12d 0%, #0202023a 100%);
+        --ui-modal-border: rgba(163, 163, 163, 0.3);
+        --ui-modal-header-bg: rgba(28, 28, 28, 0.2);
+        --ui-modal-header-border: rgba(163, 163, 163, 0.15);
+        --ui-modal-title: var(--palette-accent-primary);
+        --ui-modal-close: var(--palette-text-muted);
+        --ui-modal-tabs-bg: rgba(2, 2, 2, 0.3);
+        --ui-modal-tabs-border: rgba(163, 163, 163, 0.1);
+        --ui-modal-tab-text: var(--palette-text-muted);
+        --ui-modal-tab-hover-text: var(--palette-text-soft);
+        --ui-modal-tab-hover-bg: rgba(163, 163, 163, 0.05);
+        --ui-modal-tab-active-text: var(--palette-accent-primary);
+        --ui-modal-tab-active-bg: rgba(163, 163, 163, 0.08);
+        --ui-settings-section-desc: var(--palette-text-subtle);
+        --ui-settings-label: var(--palette-text-soft);
+        --ui-settings-hint: var(--palette-text-muted);
+        --ui-settings-input-bg: rgba(28, 28, 28, 0.6);
+        --ui-settings-input-border: rgba(163, 163, 163, 0.2);
+        --ui-settings-input-text: var(--palette-text-main);
+        --ui-settings-input-placeholder: var(--palette-text-dim);
+        --ui-settings-input-focus-border: rgba(163, 163, 163, 0.5);
+        --ui-settings-input-focus-shadow: 0 0 10px rgba(163, 163, 163, 0.1);
+        --ui-settings-toggle-bg: rgba(54, 54, 54, 0.3);
+        --ui-settings-toggle-border: rgba(163, 163, 163, 0.2);
+        --ui-settings-toggle-text: var(--palette-accent-primary);
+        --ui-settings-toggle-bg-hover: rgba(84, 84, 84, 0.4);
+        --ui-settings-toggle-border-hover: rgba(163, 163, 163, 0.4);
+        --ui-settings-radio-bg: rgba(28, 28, 28, 0.4);
+        --ui-settings-radio-border: rgba(163, 163, 163, 0.15);
+        --ui-settings-radio-bg-hover: rgba(54, 54, 54, 0.3);
+        --ui-settings-radio-border-hover: rgba(163, 163, 163, 0.3);
+        --ui-settings-radio-bg-active: rgba(84, 84, 84, 0.3);
+        --ui-settings-radio-border-active: rgba(163, 163, 163, 0.5);
+        --ui-settings-radio-shadow-active: 0 0 15px rgba(163, 163, 163, 0.1);
+        --ui-settings-radio-label: var(--palette-text-main);
+        --ui-settings-radio-label-active: var(--palette-accent-primary);
+        --ui-modal-footer-bg: rgba(2, 2, 2, 0.3);
+        --ui-modal-footer-border: rgba(163, 163, 163, 0.1);
+        --ui-modal-save-bg: rgba(134, 134, 134, 0.5);
+        --ui-modal-save-border: rgba(163, 163, 163, 0.4);
+        --ui-modal-save-text: var(--palette-accent-primary);
+        --ui-modal-save-bg-hover: rgba(163, 163, 163, 0.6);
+        --ui-modal-save-shadow-hover: 0 0 15px rgba(163, 163, 163, 0.2);
+        --ui-provider-tab-bg: rgba(255, 255, 255, 0.03);
+        --ui-provider-tab-border: rgba(255, 255, 255, 0.1);
+        --ui-provider-tab-text: var(--palette-text-subtle);
+        --ui-provider-tab-bg-hover: rgba(255, 255, 255, 0.05);
+        --ui-provider-tab-text-hover: var(--palette-text-faint);
+        --ui-provider-tab-bg-active: rgba(199, 199, 199, 0.15);
+        --ui-provider-tab-border-active: rgba(199, 199, 199, 0.3);
+        --ui-provider-tab-text-active: var(--palette-accent-primary);
+        --ui-slider-thumb-bg: var(--palette-accent-primary);
+        --ui-slider-thumb-shadow: 0 0 6px rgba(199, 199, 199, 0.5);
+        --ui-markdown-code-bg: rgba(199, 199, 199, 0.1);
+        --ui-markdown-code-color: var(--palette-accent-primary);
+        --ui-markdown-th-bg: rgba(199, 199, 199, 0.1);
+        --ui-controlbar-bg: linear-gradient(120deg, #686868, black, #484848, rgb(28, 28, 28), #242424, black, #686868);
+        --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px #323232;
+        --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+        --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+        --layout-bg-primary: black;
+        --layout-bg-panel: black;
+        --layout-bg-panel-header: linear-gradient(to right, deepskyblue, black);
+        --layout-accent-cyan: var(--palette-accent-primary);
+        --layout-accent-cyan-dim: rgba(163, 163, 163, 0.3);
+        --layout-accent-cyan-glow: rgba(163, 163, 163, 0.5);
+        --layout-accent-orange: #909090;
+        --layout-accent-orange-dim: rgba(144, 144, 144, 0.3);
+        --layout-border-color: rgba(0, 0, 0, 0.15);
+        --layout-border-color-hover: rgba(61, 61, 61, 0.4);
+        --layout-border-color-active: rgba(61, 61, 61, 0.6);
+        --layout-gap: 1px;
+        --layout-panel-radius: 6px;
+        --layout-header-height: 36px;
+        --layout-resize-handle-size: 2px;
+        --layout-transition-fast: 0.15s ease;
+        --layout-transition-normal: 0.2s ease;
+        --log-section-bg: #020202;
+        --log-section-border: rgba(207, 207, 207, 0.23);
+        --log-section-header-color: #bfbfbf;
+        /* src/components/LoginOverlay.css */
+        --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #e5e5e5, #3d3d3d);
+        --theme-components-loginoverlay-login-btn-color-1q77m: #000;
+        --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgba(229, 229, 229, 0.6);
+        --theme-components-loginoverlay-login-error-background-1iva2: rgba(164, 164, 164, 0.1);
+        --theme-components-loginoverlay-login-error-border-9dbrq: rgba(164, 164, 164, 0.3);
+        --theme-components-loginoverlay-login-info-color-1tcs7: rgba(255, 255, 255, 0.5);
+        --theme-components-loginoverlay-login-input-background-ypdc9: rgba(0, 0, 0, 0.3);
+        --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(229, 229, 229, 0.2);
+        --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgba(61, 61, 61, 0.4);
+        --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
+        --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #3d3d3d;
+        --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #e5e5e5;
+        --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #e5e5e5, #3d3d3d, var(--palette-accent-primary));
+        --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(61, 61, 61, 0.2);
+        --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(229, 229, 229, 0.4);
+        --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #e5e5e5, #3d3d3d);
+        --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgba(229, 229, 229, 0.3);
+        --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(2, 2, 2, 0.95));
+        --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgba(255, 255, 255, 0.8);
+        --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgba(255, 255, 255, 0.6);
+        /* src/components/PhantomSection.css */
+        --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(164, 164, 164, 0.2);
+        --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(164, 164, 164, 0.12);
+        --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(224, 224, 224, 0.2);
+        --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(224, 224, 224, 0.12);
+        --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(224, 224, 224, 0.25);
+        --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(224, 224, 224, 0.14);
+        --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
+        --theme-components-phantomsection-phantom-event-row-color-1gv4y: #393939;
+        --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(255, 255, 255, 0.015);
+        --theme-components-phantomsection-phantom-events-background-1eqtm: #000000;
+        --theme-components-phantomsection-phantom-events-border-top-1u83g: #020202;
+        --theme-components-phantomsection-phantom-record-hint-color-39knf: #020202;
+        --theme-components-phantomsection-phantom-run-opts-input-border-h3919: #020202;
+        --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(224, 224, 224, 0.3);
+        --theme-components-phantomsection-phantom-status-background-16ah5: rgba(224, 224, 224, 0.03);
+        --theme-components-phantomsection-phantom-status-border-bottom-1of2t: #020202;
+        --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #1c1c1c;
+        --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #a4a4a4;
+        --theme-components-phantomsection-phantom-status-text-color-fs5n5: #6f6f6f;
+        --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #d0d0d0;
+        --theme-components-phantomsection-phantom-tab-color-161cz: #393939;
+        --theme-components-phantomsection-phantom-tabs-background-yq5ln: #020202;
+        --theme-components-phantomsection-phantom-toggle-background-afq8i: #020202;
+        --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: #020202;
+        --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #1c1c1c;
+        --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(224, 224, 224, 0.4);
+        --theme-components-phantomsection-phantom-wf-del-color-13fl3: #020202;
+        --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(164, 164, 164, 0.06);
+        --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(255, 255, 255, 0.04);
+        --theme-components-phantomsection-phantom-wf-name-color-rnz45: #c1c1c1;
+        --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgba(255, 255, 255, 0.025);
+        --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(224, 224, 224, 0.05);
+        --theme-components-phantomsection-phantom-wf-run-border-p8yj7: #1c1c1c;
+        --theme-components-phantomsection-phantom-wf-run-color-13c30: #393939;
+        --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(224, 224, 224, 0.06);
+        --theme-components-phantomsection-root-app-1jpsf: #c7c7c7;
+        --theme-components-phantomsection-root-app-b5mm4: #5d5d5d;
+        --theme-components-phantomsection-root-app-o0md2: black;
+        /* src/components/controlbar/ControlBar.css */
+        --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(61, 61, 61);
+        --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: #dcdcdc;
+        --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #323232;
+        --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(208, 208, 208);
+        --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgba(255, 255, 255, 0.8);
+        --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(163, 163, 163, 0.2);
+        --theme-components-controlbar-controlbar-notes-icon-color-qo8di: #fcfcfc;
+        --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: black;
+        --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: #cfcfcf;
+        --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: #5d5d5d;
+        /* src/components/notes/NotesWidget.css */
+        --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(252, 252, 252, 0.485);
+        --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
+        --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+        --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
+        --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgba(0, 0, 0, 0.5);
+        --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+        --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(0, 0, 0, .8);
+        --theme-components-notes-noteswidget-note-btn-color-26sfj: #cfcfcf;
+        --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.1);
+        --theme-components-notes-noteswidget-note-card-background-48988: rgb(57, 57, 57);
+        --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(163, 163, 163, 0.15);
+        --theme-components-notes-noteswidget-note-card-border-top-12gea: #d0d0d0;
+        --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgba(0, 0, 0, 0.571);
+        --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(163, 163, 163, 0.63);
+        --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgba(0, 0, 0, 0.3);
+        --theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 0, 0, 0.2);
+        --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(163, 163, 163, 0.1);
+        --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(220, 220, 220, 0.8) 45%, rgba(220, 220, 220, 0.8) 55%, transparent 55%);
+        --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: #ffffff;
+        --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: #323232;
+        --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: #dcdcdc;
+        --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgba(50, 50, 50, 0.5);
+        --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(164, 164, 164, 0.5);
+        --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(164, 164, 164, 0.1), rgba(208, 208, 208, 0.51), rgb(117, 117, 117));
+        --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: black;
+        /* src/components/overlays/BriiztormOverlay.css */
+        --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
+        --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.2);
+        --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(25, 25, 25, 0.6);
+        --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(164, 164, 164, 0.5);
+        --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(84, 84, 84, 0.5);
+        --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(28, 28, 28, 0.9) 0%, rgba(2, 2, 2, 0.9) 100%);
+        --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(163, 163, 163, 0.3);
+        --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: #020202;
+        --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgba(163, 163, 163, 0.5);
+        /* src/components/overlays/CalendarModal.css */
+        --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgba(0, 0, 0, 0.12);
+        --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgba(84, 84, 84, 0.25);
+        --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(199, 199, 199, 0.1);
+        --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(199, 199, 199, 0.15);
+        --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgba(255, 255, 255, 0.2);
+        --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgba(156, 156, 156, 0.1);
+        --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgba(28, 28, 28, 0.3);
+        --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(163, 163, 163, 0.08);
+        --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgba(84, 84, 84, 0.2);
+        --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: #7c7c7c;
+        --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: #000;
+        --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: #dcdcdc;
+        --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgba(255, 255, 255, 0.15);
+        --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgba(255, 255, 255, 0.05);
+        --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgba(28, 28, 28, 0.2);
+        --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(163, 163, 163, 0.15);
+        --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #c1c1c12d 0%, #0202023a 100%);
+        --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(163, 163, 163, 0.3);
+        --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgba(2, 2, 2, 0.3);
+        --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(163, 163, 163, 0.1);
+        --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);
+        --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgba(54, 54, 54, 0.3);
+        --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgba(163, 163, 163, 0.2);
+        --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgba(84, 84, 84, 0.4);
+        --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgba(163, 163, 163, 0.4);
+        --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgba(134, 134, 134, 0.4);
+        --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(134, 134, 134, 0.5);
+        --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(163, 163, 163, 0.6);
+        --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(28, 28, 28, 0.6);
+        --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(163, 163, 163, 0.5);
+        /* src/components/overlays/LiveCanvas.css */
+        --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
+        --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.06);
+        --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #020202;
+        --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(255, 255, 255, 0.1);
+        --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+        /* src/components/overlays/OrganizerModal.css */
+        --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgba(57, 57, 57, 0.771);
+        --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgba(156, 156, 156, 0.912);
+        --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgba(0, 0, 0, 0.52);
+        --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgba(255, 255, 255, 0.08);
+        --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #6f6f6f;
+        --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #c1c1c1;
+        --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(255, 255, 255, 0.2);
+        --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(156, 156, 156, 0.1);
+        --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #7c7c7c;
+        --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(28, 28, 28, 0.3);
+        --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(84, 84, 84, 0.2);
+        --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgba(134, 134, 134, 0.5);
+        --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(163, 163, 163, 0.4);
+        --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgba(163, 163, 163, 0.6);
+        --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(28, 28, 28, 0.6);
+        --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(163, 163, 163, 0.5);
+        --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(163, 163, 163, 0.3);
+        --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgba(0, 0, 0, 0.2);
+        --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(255, 255, 255, 0.1);
+        --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(28, 28, 28, 0.2);
+        --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(163, 163, 163, 0.12);
+        --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgba(0, 0, 0, 0.15);
+        --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(255, 255, 255, 0.05);
+        --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgba(255, 255, 255, 0.15);
+        --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(163, 163, 163, 0.15);
+        --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #c1c1c12d 0%, #0202023a 100%);
+        --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(163, 163, 163, 0.7);
+        --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(84, 84, 84, 0.6);
+        --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(235, 235, 235, 0.1);
+        --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(163, 163, 163, 0.08);
+        --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: #cfcfcf;
+        --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: #ffffff;
+        --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(163, 163, 163, 0.05);
+        --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(2, 2, 2, 0.3);
+        --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(163, 163, 163, 0.1);
+        --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(163, 163, 163, 0.2);
+        --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0, 0, 0, 0.2);
+}
+:toot {
+
+        --ui-border-radius: 16px;
+            --chat-input-border-color: #fff600;
+            --glass-bg-light: linear-gradient(to bottom, #4c79cd, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255, 255, 255, .4) 130%);
+            --ui-font-main: Chillax;
+            --holo-blue: #fff5373d;
+            --text-primary: #fbffff;
+            /* Updated Card Gradient to be less loud */
+            --chat-input-text-color: #fff600;
+            --palette-accent-briizlogo: rgb(255, 248, 133);
+            --palette-accent-primary: #fceb34;
+            --palette-accent-primary-soft: #fb85c2;
+            --palette-neon-accent: #fff800;
+            --palette-success: #ff52c5;
+            --palette-warning: #fff834;
+            --palette-danger: #ff55d3;
+            --palette-text-main: #fff600;
+            --palette-text-faint: #edeab3;
+            --palette-text-soft: #ea93bd;
+            --palette-text-subtle: #cd7aa3;
+            --palette-text-muted: #3a65b8;
+            --palette-text-dim: #453c63;
+            --palette-white: #fff;
+            --ui-body-bg: black;
+            --ui-app-bg: black;
+            --ui-app-border: 3px solid #000;
+            --ui-app-shadow: inset 0 0 10px rgb(41, 16, 92);
+            --ui-text-primary: var(--palette-text-main);
+            --ui-header-text: #edd600;
+            --ui-header-bg: linear-gradient(to bottom, black 80%, #ff1dd4);
+            --ui-title-icon: var(--palette-accent-primary);
+            --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
+            --ui-title-gradient: linear-gradient(120deg, #2268f5, black, #ff22ff, rgb(51, 12, 120), #5412bb, black, #2268f5);
+            --ui-title-stroke: 0.1px var(--palette-white);
+            --ui-button-ghost-border-strong: rgba(255, 255, 255, 0.15);
+            --ui-button-ghost-text: var(--palette-text-subtle);
+            --ui-button-ghost-text-hover: var(--palette-text-soft);
+            --ui-button-ghost-bg-hover: rgba(255, 255, 255, 0.05);
+            --ui-panel-header-text: var(--palette-text-subtle);
+            --ui-panel-btn: var(--palette-text-muted);
+            --ui-panel-btn-hover: var(--palette-accent-primary);
+            --ui-chat-header-text: #fbf17e;
+            --ui-chat-header-bg: linear-gradient(#2268f5, black 50%, #fff600 150%);
+            ;
+            --ui-chat-header-border: #fff600;
+            --ui-chat-input-bg: linear-gradient(rgba(39, 109, 251, 0.6), rgba(39, 19, 82, 0.447));
+            --ui-chat-input-text: var(--palette-white);
+            --ui-chat-placeholder: rgba(255, 248, 0, 0.5);
+            --ui-modal-bg: linear-gradient(135deg, #eee1452d 0%, #1c001e3a 100%);
+            --ui-modal-border: rgba(255, 113, 212, 0.3);
+            --ui-modal-header-bg: rgba(48, 22, 101, 0.2);
+            --ui-modal-header-border: rgba(255, 113, 212, 0.15);
+            --ui-modal-title: var(--palette-accent-primary);
+            --ui-modal-close: var(--palette-text-muted);
+            --ui-modal-tabs-bg: rgba(29, 0, 29, 0.3);
+            --ui-modal-tabs-border: rgba(255, 113, 212, 0.1);
+            --ui-modal-tab-text: var(--palette-text-muted);
+            --ui-modal-tab-hover-text: var(--palette-text-soft);
+            --ui-modal-tab-hover-bg: rgba(255, 113, 212, 0.05);
+            --ui-modal-tab-active-text: var(--palette-accent-primary);
+            --ui-modal-tab-active-bg: rgba(255, 113, 212, 0.08);
+            --ui-settings-section-desc: var(--palette-text-subtle);
+            --ui-settings-label: var(--palette-text-soft);
+            --ui-settings-hint: var(--palette-text-muted);
+            --ui-settings-input-bg: rgba(39, 20, 82, 0.6);
+            --ui-settings-input-border: rgba(255, 113, 212, 0.2);
+            --ui-settings-input-text: var(--palette-text-main);
+            --ui-settings-input-placeholder: var(--palette-text-dim);
+            --ui-settings-input-focus-border: rgba(255, 113, 212, 0.5);
+            --ui-settings-input-focus-shadow: 0 0 10px rgba(255, 113, 212, 0.1);
+            --ui-settings-toggle-bg: rgba(66, 41, 123, 0.3);
+            --ui-settings-toggle-border: rgba(255, 113, 212, 0.2);
+            --ui-settings-toggle-text: var(--palette-accent-primary);
+            --ui-settings-toggle-bg-hover: rgba(21, 87, 220, 0.4);
+            --ui-settings-toggle-border-hover: rgba(255, 113, 212, 0.4);
+            --ui-settings-radio-bg: rgba(39, 20, 82, 0.4);
+            --ui-settings-radio-border: rgba(255, 113, 212, 0.15);
+            --ui-settings-radio-bg-hover: rgba(66, 41, 123, 0.3);
+            --ui-settings-radio-border-hover: rgba(255, 113, 212, 0.3);
+            --ui-settings-radio-bg-active: rgba(21, 87, 220, 0.3);
+            --ui-settings-radio-border-active: rgba(255, 113, 212, 0.5);
+            --ui-settings-radio-shadow-active: 0 0 15px rgba(255, 113, 212, 0.1);
+            --ui-settings-radio-label: var(--palette-text-main);
+            --ui-settings-radio-label-active: var(--palette-accent-primary);
+            --ui-modal-footer-bg: rgba(29, 0, 29, 0.3);
+            --ui-modal-footer-border: rgba(255, 113, 212, 0.1);
+            --ui-modal-save-bg: rgba(43, 120, 255, 0.5);
+            --ui-modal-save-border: rgba(255, 113, 212, 0.4);
+            --ui-modal-save-text: var(--palette-accent-primary);
+            --ui-modal-save-bg-hover: rgba(255, 104, 199, 0.6);
+            --ui-modal-save-shadow-hover: 0 0 15px rgba(255, 113, 212, 0.2);
+            --ui-provider-tab-bg: rgba(255, 255, 255, 0.03);
+            --ui-provider-tab-border: rgba(255, 255, 255, 0.1);
+            --ui-provider-tab-text: var(--palette-text-subtle);
+            --ui-provider-tab-bg-hover: rgba(255, 255, 255, 0.05);
+            --ui-provider-tab-text-hover: var(--palette-text-faint);
+            --ui-provider-tab-bg-active: rgba(252, 235, 52, 0.15);
+            --ui-provider-tab-border-active: rgba(252, 235, 52, 0.3);
+            --ui-provider-tab-text-active: var(--palette-accent-primary);
+            --ui-slider-thumb-bg: var(--palette-accent-primary);
+            --ui-slider-thumb-shadow: 0 0 6px rgba(252, 235, 52, 0.5);
+            --ui-markdown-code-bg: rgba(252, 235, 52, 0.1);
+            --ui-markdown-code-color: var(--palette-accent-primary);
+            --ui-markdown-th-bg: rgba(252, 235, 52, 0.1);
+            --ui-controlbar-bg: linear-gradient(120deg, #2268f5, black, #ff22ff, rgb(51, 12, 120), #5412bb, black, #2268f5);
+            --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px #ff17cd;
+            --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
+            --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
+            --layout-bg-primary: black;
+            --layout-bg-panel: black;
+            --layout-bg-panel-header: black;
+            --layout-accent-cyan: var(--palette-accent-primary);
+            --layout-accent-cyan-dim: rgba(255, 113, 212, 0.3);
+            --layout-accent-cyan-glow: rgba(255, 113, 212, 0.5);
+            --layout-accent-orange: #ff4ed2;
+            --layout-accent-orange-dim: rgba(255, 78, 210, 0.3);
+            --layout-border-color: rgba(0, 0, 0, 0.15);
+            --layout-border-color-hover: rgba(236, 8, 255, 0.4);
+            --layout-border-color-active: rgba(248, 0, 255, 0.6);
+            --layout-gap: 1px;
+            --layout-panel-radius: 6px;
+            --layout-header-height: 36px;
+            --layout-resize-handle-size: 2px;
+            --layout-transition-fast: 0.15s ease;
+            --layout-transition-normal: 0.2s ease;
+            --log-section-bg: #020002;
+            --log-section-border: rgba(255, 246, 0, 0.23);
+            --log-section-header-color: #ff68d8;
+            /* src/components/LoginOverlay.css */
+            --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #fffa1c, #ff3cd6);
+            --theme-components-loginoverlay-login-btn-color-1q77m: #000;
+            --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgba(255, 250, 28, 0.6);
+            --theme-components-loginoverlay-login-error-background-1iva2: rgba(255, 85, 211, 0.1);
+            --theme-components-loginoverlay-login-error-border-9dbrq: rgba(255, 85, 211, 0.3);
+            --theme-components-loginoverlay-login-info-color-1tcs7: rgba(255, 255, 255, 0.5);
+            --theme-components-loginoverlay-login-input-background-ypdc9: rgba(0, 0, 0, 0.3);
+            --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(255, 250, 28, 0.2);
+            --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgba(255, 60, 214, 0.4);
+            --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
+            --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #ff3cd6;
+            --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #fffa1c;
+            --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #fffa1c, #ff3cd6, var(--palette-accent-primary));
+            --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(255, 60, 214, 0.2);
+            --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(255, 250, 28, 0.4);
+            --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #fffa1c, #ff3cd6);
+            --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgba(255, 250, 28, 0.3);
+            --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(70, 43, 132, 0.95), rgba(41, 0, 44, 0.95));
+            --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgba(255, 255, 255, 0.8);
+            --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgba(255, 255, 255, 0.6);
+            /* src/components/PhantomSection.css */
+            --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(255, 90, 207, 0.2);
+            --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(255, 90, 207, 0.12);
+            --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(255, 248, 0, 0.2);
+            --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(255, 248, 0, 0.12);
+            --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(255, 248, 0, 0.25);
+            --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(255, 248, 0, 0.14);
+            --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
+            --theme-components-phantomsection-phantom-event-row-color-1gv4y: #32294e;
+            --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(255, 255, 255, 0.015);
+            --theme-components-phantomsection-phantom-events-background-1eqtm: #000000;
+            --theme-components-phantomsection-phantom-events-border-top-1u83g: #060006;
+            --theme-components-phantomsection-phantom-record-hint-color-39knf: #140614;
+            --theme-components-phantomsection-phantom-run-opts-input-border-h3919: #120412;
+            --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(255, 248, 0, 0.3);
+            --theme-components-phantomsection-phantom-status-background-16ah5: rgba(255, 248, 0, 0.03);
+            --theme-components-phantomsection-phantom-status-border-bottom-1of2t: #070007;
+            --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #2d2448;
+            --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #ff5acf;
+            --theme-components-phantomsection-phantom-status-text-color-fs5n5: #4672c6;
+            --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #fff315;
+            --theme-components-phantomsection-phantom-tab-color-161cz: #3a3156;
+            --theme-components-phantomsection-phantom-tabs-background-yq5ln: #000000;
+            --theme-components-phantomsection-phantom-toggle-background-afq8i: #020002;
+            --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: #0f010f;
+            --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #261d41;
+            --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(255, 248, 0, 0.4);
+            --theme-components-phantomsection-phantom-wf-del-color-13fl3: #170019;
+            --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(255, 90, 207, 0.06);
+            --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(255, 255, 255, 0.04);
+            --theme-components-phantomsection-phantom-wf-name-color-rnz45: #f79ec9;
+            --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgba(255, 255, 255, 0.025);
+            --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(255, 248, 0, 0.05);
+            --theme-components-phantomsection-phantom-wf-run-border-p8yj7: #1f0221;
+            --theme-components-phantomsection-phantom-wf-run-color-13c30: #3b2273;
+            --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(255, 248, 0, 0.06);
+            --theme-components-phantomsection-root-app-1jpsf: #ffee33;
+            --theme-components-phantomsection-root-app-b5mm4: #005aff;
+            --theme-components-phantomsection-root-app-o0md2: black;
+            /* src/components/controlbar/ControlBar.css */
+            --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(255, 44, 213);
+            --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: #fbf17e;
+            --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #ff17cd;
+            --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(255, 120, 221);
+            --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgba(255, 255, 255, 0.8);
+            --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(255, 113, 212, 0.2);
+            --theme-components-controlbar-controlbar-notes-icon-color-qo8di: #ffff85;
+            --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: black;
+            --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: #fff600;
+            --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: #005aff;
+            /* src/components/notes/NotesWidget.css */
+            --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(255, 255, 76, 0.485);
+            --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
+            --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+            --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
+            --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgba(0, 0, 0, 0.5);
+            --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+            --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(0, 0, 0, .8);
+            --theme-components-notes-noteswidget-note-btn-color-26sfj: #fff600;
+            --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.1);
+            --theme-components-notes-noteswidget-note-card-background-48988: rgb(55, 35, 103);
+            --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(255, 113, 212, 0.15);
+            --theme-components-notes-noteswidget-note-card-border-top-12gea: #ffee10;
+            --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgba(0, 0, 0, 0.571);
+            --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(255, 113, 212, 0.63);
+            --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgba(0, 0, 0, 0.3);
+            --theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 0, 0, 0.2);
+            --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(255, 113, 212, 0.1);
+            --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(249, 241, 149, 0.8) 45%, rgba(249, 241, 149, 0.8) 55%, transparent 55%);
+            --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: white;
+            --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: #ff17cd;
+            --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: #fbf17e;
+            --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgba(255, 31, 202, 0.5);
+            --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(255, 79, 209, 0.5);
+            --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(255, 109, 222, 0.1), rgba(237, 229, 135, 0.51), rgb(255, 64, 181));
+            --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: black;
+            /* src/components/overlays/BriiztormOverlay.css */
+            --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
+            --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.2);
+            --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(83, 33, 173, 0.6);
+            --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(255, 79, 209, 0.5);
+            --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(21, 87, 220, 0.5);
+            --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(45, 23, 95, 0.9) 0%, rgba(29, 0, 29, 0.9) 100%);
+            --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(255, 113, 212, 0.3);
+            --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: #020002;
+            --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgba(255, 113, 212, 0.5);
+            /* src/components/overlays/CalendarModal.css */
+            --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgba(0, 0, 0, 0.12);
+            --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgba(21, 87, 220, 0.25);
+            --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(252, 235, 52, 0.1);
+            --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(252, 235, 52, 0.15);
+            --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgba(255, 255, 255, 0.2);
+            --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgba(255, 82, 197, 0.1);
+            --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgba(45, 28, 90, 0.3);
+            --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(255, 113, 212, 0.08);
+            --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgba(21, 87, 220, 0.2);
+            --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: #ff1eff;
+            --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: #000;
+            --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: #f0ecb5;
+            --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgba(255, 255, 255, 0.15);
+            --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgba(255, 255, 255, 0.05);
+            --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgba(48, 22, 101, 0.2);
+            --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(255, 113, 212, 0.15);
+            --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #eee1452d 0%, #1c001e3a 100%);
+            --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(255, 113, 212, 0.3);
+            --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgba(29, 0, 29, 0.3);
+            --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(255, 113, 212, 0.1);
+            --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);
+            --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgba(66, 41, 123, 0.3);
+            --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgba(255, 113, 212, 0.2);
+            --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgba(21, 87, 220, 0.4);
+            --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgba(255, 113, 212, 0.4);
+            --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgba(43, 120, 255, 0.4);
+            --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(43, 120, 255, 0.5);
+            --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(255, 104, 199, 0.6);
+            --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(39, 20, 82, 0.6);
+            --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(255, 113, 212, 0.5);
+            /* src/components/overlays/LiveCanvas.css */
+            --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
+            --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.06);
+            --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #070007;
+            --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(255, 255, 255, 0.1);
+            --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
+            /* src/components/overlays/OrganizerModal.css */
+            --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgba(75, 39, 149, 0.771);
+            --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgba(255, 83, 216, 0.912);
+            --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgba(0, 0, 0, 0.52);
+            --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgba(255, 255, 255, 0.08);
+            --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #4672c6;
+            --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #f79ec9;
+            --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(255, 255, 255, 0.2);
+            --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(255, 82, 197, 0.1);
+            --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #ff1eff;
+            --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(45, 28, 90, 0.3);
+            --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(21, 87, 220, 0.2);
+            --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgba(43, 120, 255, 0.5);
+            --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(255, 113, 212, 0.4);
+            --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgba(255, 104, 199, 0.6);
+            --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(39, 20, 82, 0.6);
+            --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(255, 113, 212, 0.5);
+            --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(255, 113, 212, 0.3);
+            --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgba(0, 0, 0, 0.2);
+            --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(255, 255, 255, 0.1);
+            --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(48, 22, 101, 0.2);
+            --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(255, 113, 212, 0.12);
+            --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgba(0, 0, 0, 0.15);
+            --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(255, 255, 255, 0.05);
+            --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgba(255, 255, 255, 0.15);
+            --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(255, 113, 212, 0.15);
+            --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #eee1452d 0%, #1c001e3a 100%);
+            --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(255, 113, 212, 0.7);
+            --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(76, 51, 138, 0.6);
+            --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(255, 253, 57, 0.1);
+            --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(255, 113, 212, 0.08);
+            --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: #fff600;
+            --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: white;
+            --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(255, 113, 212, 0.05);
+            --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(29, 0, 29, 0.3);
+            --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(255, 113, 212, 0.1);
+            --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(255, 113, 212, 0.2);
+            --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0, 0, 0, 0.2);
+}
+
 :root[data-theme='winterbloom'] {
+    --control-bar-bg: var(--glass-bg-light);
+    --control-bar-border-color: rgba(0,0,0,.1);
     --ui-corner-shape: scoop;
     --ui-border-radius: 8px;
     --chat-input-border-color: deepskyblue;
     --ui-font-main: Adso;
-    --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01) 50%, rgba(138, 43, 226, 0.1) 100%);
+    --glass-bg-light:linear-gradient(to bottom, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.01) 50%, rgba(138, 43, 226, 0.1) 100%);
     --holo-blue: #00f7ff;
     --text-primary: #f0f0ff;
     --chat-input-text-color: #00f7ff;
@@ -6237,7 +6946,6 @@ body {
     --ui-border-radius: 4px;
     --ui-forest-card-radius: 4px;
     --ui-font-main: Warbler Variable;
-    ;
     --chat-input-border-color: palegoldenrod;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(224, 255, 247, 0.08) 30%, transparent 60%, rgba(212, 163, 115, 0.1) 130%);
     --holo-blue: #a3f7e5;
@@ -6246,7 +6954,6 @@ body {
     --palette-accent-briizlogo: #e0fff7;
     --palette-accent-primary: gold;
     --palette-accent-primary-soft: palegoldenrod;
-    ;
     --palette-neon-accent: violet;
     --palette-success: white;
     --palette-warning: orange;
@@ -6543,6 +7250,7 @@ body {
     --theme-components-overlays-organizermodal-tab-count-background-1bm8l: #334155;
     --theme-components-overlays-organizermodal-to-box-shadow-n09w3: 0 10px 20px rgba(0, 0, 0, 0.4);
 }
+
 
 :root[data-theme='medieval-taurus'] {
     --ui-border-radius: 16px;
@@ -6896,6 +7604,8 @@ body {
     --layout-transition-fast: 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+
+
 :root[data-theme='mistic'] {
     --ui-border-radius: 4px;
     --ui-forest-card-radius: 4px;
@@ -6923,7 +7633,6 @@ body {
     --palette-white: #93a1a1;
     --ui-body-bg: #002b36;
     --ui-app-bg: linear-gradient(to bottom right, #002b36, rgb(0, 43, 54) 0%, #002b36 100%);
-    ;
     --ui-app-border: 2px solid rgba(147, 161, 161, 0.2);
     --ui-app-shadow: 0 0 40px rgba(0, 43, 54, 0.8), inset 0 0 20px rgba(147, 161, 161, 0.05);
     --ui-text-primary: var(--palette-text-main);
@@ -7011,7 +7720,7 @@ body {
     --ui-controlbar-filter-hover: blur(0px) brightness(1.2) saturate(1.1);
     --layout-bg-primary: #002b36;
     --layout-bg-panel: repeating-linear-gradient(135deg, #002b36, rgb(0, 43, 54) 11px, #002b36 3px, rgb(0, 43, 54) 2px);
-    --layout-bg-panel-header: linear-gradient(to right, #002b36 0%, #002b36 50%, #002b36 100%);
+    --layout-bg-panel-header: linear-gradient(to top, rgba(47, 61, 61, 1), rgba(147, 161, 161, 0) 100%);
     --ui-settings-radio-border-hover: rgba(147, 161, 161, 0.3);
     --ui-settings-radio-bg-active: rgba(147, 161, 161, 0.15);
     --layout-accent-cyan: #93a1a1;
@@ -7933,8 +8642,8 @@ body {
 }
 
 :root[data-theme='neon-orbi'] {
-    /* Original variable set, rethemed heuristically */
     --ui-app-border-radius: 20px;
+    --ui-border-radius:40px;
     --panel-inner-shadow: orange;
     --chat-input-text-color: rgb(236, 237, 232);
     --palette-accent-primary: rgb(206, 95, 161);
@@ -8006,11 +8715,11 @@ body {
     --ui-settings-toggle-text: rgb(236, 237, 232);
     --ui-settings-toggle-bg-hover: rgb(25, 21, 21);
     --ui-settings-toggle-border-hover: rgba(1, 247, 255, 0.3);
-    --ui-settings-radio-bg: rgb(25, 21, 21);
+    --ui-settings-radio-bg: rgba(40,0,20,.25);
     --ui-settings-radio-border: rgba(1, 247, 255, 0.3);
-    --ui-settings-radio-bg-hover: rgb(25, 21, 21);
+    --ui-settings-radio-bg-hover: rgb(20, 70, 31);
     --ui-settings-radio-border-hover: rgba(1, 247, 255, 0.3);
-    --ui-settings-radio-bg-active: rgb(25, 21, 21);
+    --ui-settings-radio-bg-active: rgb(0, 90, 41);
     --ui-settings-radio-border-active: rgba(1, 247, 255, 0.3);
     --ui-settings-radio-shadow-active: 0 0 15px rgba(0, 200, 200, 0.1);
     --ui-settings-radio-label: rgb(236, 237, 232);
@@ -9907,7 +10616,7 @@ body {
     --ui-border-radius: 20px;
     --ui-corner-shape: '';
     --chat-input-border-color: navajowhite;
-    --ui-font-main: Quiche Flare;
+    --ui-font-main: MuseoModerno;
     --chat-input-text-color: deepskyblue;
     --palette-accent-primary: #3fe6ff;
     --palette-accent-primary-soft: #22c7dd;
@@ -10026,7 +10735,7 @@ body {
 }
 
 :root[data-theme='pearlescence'] {
-    --ui-master-filter: blur(0px) saturate(.75);;
+    --ui-master-filter: blur(0px) saturate(1);
     --ui-font-main: Josefin Sans;
     --ui-font-code: Consolas;
         --ui-border-radius: 8px;
@@ -10045,7 +10754,7 @@ body {
     --palette-text-dim: #737a70;
     --palette-white: #d2d2d2;
     --ui-body-bg: linear-gradient(160deg, gray, teal, rgba(255,255,255,.7), lightgreen 200%);
-    --ui-app-bg: navajowhite;
+    --ui-app-bg: radial-gradient(circle at 0% -50%, lightgreen, #888, navajowhite, #888, palegoldenrod);
     --ui-app-border: 10px solid rgba(155, 155, 197, 0.56);
     --ui-app-shadow: inset 0 1px 10px rgba(210, 210, 210, 0.54), inset 0 -12px 30px rgba(96, 96, 96, 0.7), 0 16px 40px rgba(96, 96, 96, 0.55);
     --ui-text-primary: var(--palette-text-main);
@@ -10068,8 +10777,7 @@ body {
     --ui-chat-input-bg: linear-gradient(180deg, rgba(210, 210, 210, 0.08) 0%, rgba(95, 98, 95, 0.72) 40%, rgba(96, 96, 96, 0.82) 100%);
     --ui-chat-input-text: var(--palette-white);
     --ui-chat-placeholder: rgba(204, 199, 175, 0.45);
-    --ui-modal-bg: linear-gradient(135deg, rgba(10, 210, 210, 0.25) 0%, rgba(0, 96, 96, 0.86) 42%, rgba(87, 222, 18, 0.28) 100%), rgb(10, 40, 30);
-    ;
+    --ui-modal-bg: rgb(60,50,80,1);
     --ui-modal-border: rgba(200, 206, 197, 0.58);
     --ui-modal-header-bg: linear-gradient(180deg, rgba(64, 62, 43, 0.94) 0%, rgba(96, 96, 96, 0.6) 100%);
     --ui-modal-header-border: rgba(200, 206, 197, 0.52);
@@ -10765,7 +11473,7 @@ body {
     --ui-corner-shape: scoop;
     --ui-border-radius: 4px;
     --chat-input-border-color: lightgreen;
-    ;
+    --ui-forest-card-radius: 10px;
     --ui-font-main: Quiverleaf CF Bold;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 233, 173, 0.05), rgba(255, 233, 173, 0.01) 50%, rgba(177, 110, 191, 0.1) 100%);
     --holo-blue: #e3f1ae;
@@ -10787,7 +11495,7 @@ body {
     --palette-text-dim: #3b3937;
     --palette-white: #ffe9ad;
     --ui-body-bg: #353735;
-    --ui-app-bg: #343634;
+    --ui-app-bg: linear-gradient(45deg, #b87333, #2e8b57 70%, #1a1a1a);
     --ui-app-border: 2px solid rgba(261, 158, 101, 0.4);
     --ui-app-shadow: 0 0 50px rgba(53, 53, 51, 0.9), inset 0 0 20px rgba(161, 48, 101, 0.15);
     --ui-text-primary: #d9f6bd;
@@ -10875,8 +11583,8 @@ body {
     --ui-controlbar-filter: contrast(1.1) saturate(1.2);
     --ui-controlbar-filter-hover: contrast(1.2) saturate(1.5) brightness(1.1);
     --layout-bg-primary: #343635;
-    --layout-bg-panel: linear-gradient(to bottom right, rgba(60, 19, 13, .5), rgb(30, 20, 10));
-    --layout-bg-panel-header: rgba(93, 56, 114, 0.4);
+    --layout-bg-panel: linear-gradient(to bottom, rgba(80,20,40,.61), rgba(30,0,50,.61) 120%);
+    --layout-bg-panel-header: linear-gradient(to left, rgba(180, 70, 100), rgb(50, 10, 40)50%, rgba(10, 0, 30) 100%);
     --layout-accent-cyan: #e3f1ae;
     --layout-accent-cyan-dim: rgba(227, 241, 174, 0.15);
     --layout-accent-cyan-glow: rgba(227, 241, 174, 0.4);
@@ -10887,11 +11595,11 @@ body {
     --layout-border-color-active: #e3f1ae;
     --layout-gap: 2px;
     --layout-panel-radius: 12px;
-    --layout-header-height: 42px;
+    --layout-header-height: 32px;
     --layout-resize-handle-size: 2px;
     --layout-transition-fast: 0.1s cubic-bezier(0.4, 0, 0.2, 1);
     --layout-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --log-section-bg: #343635;
+    --log-section-bg: rgb(24,0,10);
     --log-section-border: rgba(161, 48, 101, 0.15);
     --log-section-header-color: #b26fbe;
     --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #a13065, #bc6cb9);
@@ -10920,7 +11628,7 @@ body {
     --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(126, 213, 88, 0.15);
     --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(227, 241, 174, 0.4);
     --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(227, 241, 174, 0.15);
-    --theme-components-phantomsection-phantom-drawer-background-1q77m: #343635;
+    --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
     --theme-components-phantomsection-phantom-event-row-color-1gv4y: #d9f6bd;
     --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(161, 48, 101, 0.1);
     --theme-components-phantomsection-phantom-events-background-1eqtm: #343634;
@@ -10934,12 +11642,12 @@ body {
     --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #da7660;
     --theme-components-phantomsection-phantom-status-text-color-fs5n5: #b272bb;
     --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #b0c916;
-    --theme-components-phantomsection-phantom-tab-color-161cz: #593f2a;
-    --theme-components-phantomsection-phantom-tabs-background-yq5ln: #353735;
-    --theme-components-phantomsection-phantom-toggle-background-afq8i: #353735;
+    --theme-components-phantomsection-phantom-tab-color-161cz: red;
+    --theme-components-phantomsection-phantom-tabs-background-yq5ln: rgb(30,0,0);
+    --theme-components-phantomsection-phantom-toggle-background-afq8i: #000;
     --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: rgba(161, 48, 101, 0.2);
     --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #a13065;
-    --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: #e3f1ae;
+    --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: #a00;
     --theme-components-phantomsection-phantom-wf-del-color-13fl3: #da7660;
     --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(218, 118, 96, 0.1);
     --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(227, 241, 174, 0.1);
@@ -11073,8 +11781,7 @@ body {
 :root[data-theme='caspian-sea'] {
     --ui-border-radius: 4px;
     --ui-forest-card-radius: 4px;
-    --ui-font-main: Warbler Variable;
-    ;
+    --ui-font-main: LTC Nicholas Cochin Pro;
     --chat-input-border-color: #ffffff;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08) 30%, transparent 60%, rgba(255, 255, 255, 0.1) 130%);
     --holo-blue: #ffffff;
@@ -11083,7 +11790,6 @@ body {
     --palette-accent-briizlogo: #ffffff;
     --palette-accent-primary: #ffffff;
     --palette-accent-primary-soft: #ffffff;
-    ;
     --palette-neon-accent: #ffffff;
     --palette-success: white;
     --palette-warning: #ffffff;
@@ -11096,17 +11802,16 @@ body {
     --palette-text-dim: #ffddb5;
     --palette-white: #ffffff;
     --ui-body-bg: #70785c;
-    --ui-app-bg: linear-gradient(to bottom right, #474747, rgb(84, 89, 95) 0%, #474747 100%);
-    ;
-    --ui-app-border: 2px solid rgba(255, 255, 255, 0.2);
+    -ui-app-bg: darkslategray;
+    --ui-app-border: 2px solid black;
     --ui-app-shadow: 0 0 40px rgba(71, 71, 71, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.05);
     --ui-text-primary: var(--palette-text-main);
     --ui-header-text: #ffffff;
     --ui-header-bg: linear-gradient(135deg, rgb(103, 115, 131), #474747 30%, rgb(111, 134, 149) 50%, #474747 70%, rgb(162, 105, 67));
     --ui-title-icon: #ffffff;
     --ui-title-icon-glow: 0 0 10px rgba(255, 255, 255, 0.6);
-    --ui-title-gradient: linear-gradient(120deg, #ffffff, #ffffff, #ffffff, #ffffdd, #ffffff);
-    --ui-title-stroke: 0.2px rgba(255, 255, 255, 0.4);
+    --ui-title-gradient: linear-gradient(320deg, black,purple, #ffffff, orange, #ffffff);
+    --ui-title-stroke: 0.2px rgba(255,255,255, 1);
     --ui-button-ghost-border-strong: rgba(255, 255, 255, 0.3);
     --ui-button-ghost-text: #ffffff;
     --ui-button-ghost-text-hover: #ffffff;
@@ -11117,7 +11822,7 @@ body {
     --ui-panel-btn: #ffffff;
     --ui-panel-btn-hover: #ffffff;
     --ui-chat-header-text: #ffffff;
-    --ui-chat-header-bg: linear-gradient(to right, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.2) 100%);
+    --ui-chat-header-bg: linear-gradient(to right, rgba(0, 0, 0, 0.3) 0%, rgba(0,0,0,1) 20%, seagreen 120%);
     --ui-chat-header-border: rgba(255, 255, 255, 0.3);
     --ui-chat-input-bg: linear-gradient(rgba(158, 89, 97, 0.9), rgba(159, 78, 127, 0.8));
     --ui-chat-input-text: #ffffff;
@@ -11178,9 +11883,9 @@ body {
     --ui-markdown-code-bg: rgba(158, 89, 97, 0.8);
     --ui-markdown-code-color: #ffffff;
     --ui-markdown-th-bg: rgba(255, 255, 255, 0.08);
-    --ui-controlbar-bg: linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.02) 75%) 0 0 / 20px 20px, linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.02) 75%) 0 0 / 20px 20px, #f57cf2;
-    --ui-controlbar-bg-size: 120px 120px;
-    --ui-controlbar-shadow: inset 0 0 8px #474747, inset 0 0 20px #ffffff;
+    --ui-controlbar-bg: radial-gradient(circle at 2px 2px, rgba(0,255,255,0.5) 12px, transparent 0) 0 0 / 20px 20px, linear-gradient(45deg, #0f0c29, #302b63, #24243e);
+    --ui-controlbar-bg-size: 600% 500%;
+    --ui-controlbar-shadow: 0px -8px 10px palegoldenrod, inset 0 0 8px black, inset 0 0 20px seagreen;
     --ui-controlbar-filter: blur(0px) brightness(1) saturate(0.2);
     --ui-controlbar-filter-hover: blur(0px) brightness(1.2) saturate(1.1);
     --layout-bg-primary: #70785c;
@@ -12223,6 +12928,7 @@ body {
 @supports (corner-shape: bevel) {
     /* Apply theme corner personality only to elements that already own rounded geometry. */
     .app,
+    .control-bar-dock--macos,
     .panel,
     .panel-header,
     .panel-header-btn,

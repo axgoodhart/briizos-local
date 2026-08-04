@@ -295,7 +295,7 @@ function renderSnippet(snippet) {
    it lives, and the separate question of whether text may reach a model. Both
    answers default to no. */
 
-function CaptureOnboarding({ capture }) {
+export function CaptureOnboarding({ capture }) {
   const { defaults, busy, completeOnboarding, dismissOnboarding } = capture;
   const [allowCloudText, setAllowCloudText] = useState(false);
   const excludedCount = defaults?.excludedBundleIds?.length ?? 0;

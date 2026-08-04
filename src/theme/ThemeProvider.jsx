@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { BUILT_IN_THEMES, getBuiltInTheme } from './builtInThemes';
+import { BUILT_IN_THEMES, BUILT_IN_THEME_IDS, getBuiltInTheme } from './builtInThemes';
 import { contrastRatio, generateTheme } from './chromap';
 import { GLOBAL_TOKEN_REGISTRY, TARGET_REGISTRY, valuesForGlobalToken } from './themeRegistry';
 import {
@@ -11,6 +11,7 @@ import {
   observeThemeSurfaces, registeredTargetFromElement, rulesForOverrides,
   selectorForOverride, setPickerHighlight,
 } from './themeRuntime';
+import logger from '../lib/logger';
 
 const ThemeContext = createContext(null);
 
@@ -427,6 +428,29 @@ export function ThemeProvider({ children }) {
     return saveDocument(copy);
   }, [documentForEditing, draftTheme, library.themes, saveDocument]);
 
+  const replaceDefault = useCallback(async () => {
+    const source = draftTheme || documentForEditing();
+    const baseThemeId = source.baseThemeId;
+    if (!BUILT_IN_THEME_IDS.has(baseThemeId)) throw new Error('This theme has no built-in default to replace.');
+    if (source.id === baseThemeId) return save();
+    const builtInLabel = getBuiltInTheme(baseThemeId)?.label || baseThemeId;
+    const existing = library.themes.find((theme) => theme.id === baseThemeId);
+    const now = Date.now();
+    const replacement = {
+      ...clone(source), id: baseThemeId, name: builtInLabel,
+      createdAt: existing?.createdAt ?? now, updatedAt: now,
+    };
+    logger.info('config', `Replacing default theme "${builtInLabel}" with current edits`, { themeId: baseThemeId, sourceId: source.id });
+    try {
+      const saved = await saveDocument(replacement);
+      logger.info('config', `Default theme "${builtInLabel}" replaced`, { themeId: baseThemeId });
+      return saved;
+    } catch (error) {
+      logger.error('config', `Failed to replace default theme "${builtInLabel}"`, error?.message);
+      throw error;
+    }
+  }, [documentForEditing, draftTheme, library.themes, save, saveDocument]);
+
   const revert = useCallback(() => {
     if (!draftTheme) return;
     if (draftOriginRef.current === 'saved' && savedDraftRef.current) {
@@ -543,6 +567,19 @@ export function ThemeProvider({ children }) {
     if (activeThemeId === themeId) await performThemeSelection(target.baseThemeId);
   }, [activeThemeId, library.themes, performThemeSelection]);
 
+  const restoreDefault = useCallback(async (themeId = activeThemeId) => {
+    if (!BUILT_IN_THEME_IDS.has(themeId)) throw new Error('This theme has no built-in default to restore.');
+    const builtInLabel = getBuiltInTheme(themeId)?.label || themeId;
+    logger.info('config', `Restoring factory default for "${builtInLabel}"`, { themeId });
+    try {
+      await deleteTheme(themeId);
+      logger.info('config', `Factory default restored for "${builtInLabel}"`, { themeId });
+    } catch (error) {
+      logger.error('config', `Failed to restore factory default for "${builtInLabel}"`, error?.message);
+      throw error;
+    }
+  }, [activeThemeId, deleteTheme]);
+
   const getGlobalTokenValue = useCallback((tokenId) => {
     const token = GLOBAL_TOKEN_REGISTRY[tokenId];
     if (!token) return '';
@@ -600,6 +637,7 @@ export function ThemeProvider({ children }) {
     selectTheme, beginDraft, updateGlobalToken, updateTargetStyle, applyGeneratedTheme,
     resetProperty, resetTarget, undo, redo, save, saveAs, revert,
     importTheme, exportJson, exportCss, duplicateTheme, renameTheme, deleteTheme,
+    replaceDefault, restoreDefault,
     startPicker: () => setPickerActive(true), cancelPicker: () => setPickerActive(false),
     requestClose, resolvePendingChange, discardDraft, setWarning,
     getGlobalTokenValue, getTargetOverride, getTargetMatchCount,
@@ -610,6 +648,7 @@ export function ThemeProvider({ children }) {
     importTheme, isDirty, pendingChange, pickerActive, ready, renameTheme, requestClose,
     resetProperty, resetTarget, resolvePendingChange, revert, save, saveAs, selectTheme,
     selectedTarget, undo, updateGlobalToken, updateTargetStyle, warning, redo, duplicateTheme,
+    replaceDefault, restoreDefault,
   ]);
 
   return (

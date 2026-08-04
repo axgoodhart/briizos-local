@@ -659,7 +659,7 @@ function InteractionPanel() {
               isModelAvailable={isModelAvailable}
               apiKeyStatus={apiKeyStatus}
             />
-            <div className="modality-selector" style={{ display: 'flex', gap: '4%' }}>
+            <div className="modality-selector">
               {MODALITIES.map(m => (
                 <button
                   key={m.id}
@@ -668,15 +668,10 @@ function InteractionPanel() {
                   disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
                   title={`${m.label} mode`}
                   style={{
-                    padding: '2px 8px',
-                    fontSize: '10px',
                     fontWeight: modality === m.id ? 600 : 400,
                     border: `1px solid ${modality === m.id ? 'rgba(0, 200, 200, 0.5)' : 'rgba(255,255,255,0.15)'}`,
-                    borderRadius: '12px',
                     background: modality === m.id ? 'rgba(0, 200, 200, 0.15)' : 'transparent',
                     color: modality === m.id ? 'var(--palette-accent-cyan-soft, #7dd3fc)' : 'rgba(255,255,255,0.5)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
                   }}
                 >
                   {m.label}
@@ -761,7 +756,6 @@ function InteractionPanel() {
         <section className="prioritize-candidate-rail" aria-label="Prioritization candidates">
           <div className="prioritize-candidate-header">
             <div>
-              <span className="prioritize-candidate-eyebrow">What competes?</span>
               <span className="prioritize-candidate-hint">
                 Pick candidates, or leave empty and briizOS will inspect your active work.
               </span>

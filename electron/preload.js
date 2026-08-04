@@ -474,6 +474,7 @@ contextBridge.exposeInMainWorld('api', {
   foliosCreate: (journalId, folio, opts) => ipcRenderer.invoke('forest-folios-create', journalId, folio, opts),
   foliosDelete: (id) => ipcRenderer.invoke('forest-folios-delete', id),
   foliosUpdate: (id, patch) => ipcRenderer.invoke('forest-folios-update', id, patch),
+  journalsAttachImages: () => ipcRenderer.invoke('forest-journals-attach-images'),
   notefallsList: () => ipcRenderer.invoke('forest-notefalls-list'),
   notefallsCreate: (input) => ipcRenderer.invoke('forest-notefalls-create', input),
   notefallsUpdate: (id, patch) => ipcRenderer.invoke('forest-notefalls-update', id, patch),

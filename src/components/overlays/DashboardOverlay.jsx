@@ -1000,10 +1000,15 @@ function ThemeChatBgPicker({ theme, onClose, getThemeChatBackground, onSave }) {
   );
 }
 
-function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatView, onOpenChatViewPicker }) {
+function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatView, onOpenChatViewPicker, onRestoreDefault }) {
   const handleButtonClick = (e) => {
     e.preventDefault();
     onOpenChatViewPicker(value);
+  };
+
+  const handleRestoreClick = (e) => {
+    e.preventDefault();
+    onRestoreDefault();
   };
 
   return (
@@ -1028,6 +1033,16 @@ function ThemeRadio({ value, label, desc, currentTheme, handleThemeChange, chatV
         >
           Choose ChatView{chatView ? `: ${chatView.label || '✓'}` : ''}
         </button>
+        {onRestoreDefault && (
+          <button
+            className="settings-choose-chatview-btn"
+            onClick={handleRestoreClick}
+            title="Restore this theme's original built-in appearance"
+            type="button"
+          >
+            Restore default
+          </button>
+        )}
       </div>
     </label>
   );
@@ -1075,6 +1090,26 @@ function AppearanceTab({
     await theme.selectTheme(themeId);
   };
 
+  const handleRestoreDefault = async (themeId) => {
+    const label = theme.builtInThemes.find((item) => item.id === themeId)?.label || 'this theme';
+    if (!window.confirm(`Restore "${label}" to its original built-in appearance? Your edits will be removed.`)) return;
+    try { await theme.restoreDefault(themeId); }
+    catch (error) { theme.setWarning?.(`Could not restore default: ${error.message}`); }
+  };
+
+  // A saved custom theme can share an id with a built-in (see "Replace default"
+  // in Theme Studio) to intentionally shadow it. Substitute it in place rather
+  // than listing both — otherwise two rows share a React key and the id looks
+  // duplicated to the user.
+  const overridesById = new Map(
+    theme.customThemes.filter((item) => theme.builtInThemes.some((built) => built.id === item.id)).map((item) => [item.id, item]),
+  );
+  const extraCustomThemes = theme.customThemes.filter((item) => !overridesById.has(item.id));
+  const visibleThemes = [
+    ...theme.builtInThemes.map((item) => overridesById.get(item.id) || item),
+    ...extraCustomThemes,
+  ];
+
   const getChatViewLabel = (themeKey) => {
     const entry = getThemeChatBackground(themeKey);
     if (!entry || !entry.background) return null;
@@ -1087,10 +1122,6 @@ function AppearanceTab({
     <div className="settings-section">
       <div className="appearance-interface-block">
         <h3 className="settings-section-title">Interface</h3>
-        <p className="settings-section-desc">
-          Choose how the app controls sit in the header.
-        </p>
-
         <fieldset className="dock-style-options">
           <legend className="appearance-visually-hidden">Header dock style</legend>
           {HEADER_DOCK_STYLE_OPTIONS.map((option) => (
@@ -1114,10 +1145,6 @@ function AppearanceTab({
 
         <div className="dock-orientation-setting">
           <span className="dock-orientation-copy">
-            <span className="dock-orientation-label">Header position</span>
-            <span className="dock-orientation-hint" id="dock-orientation-hint">
-              {verticalDockAvailable ? 'Move Ambient controls to the left edge.' : 'Vertical is available with Ambient.'}
-            </span>
           </span>
           <fieldset className="dock-orientation-options" aria-describedby="dock-orientation-hint">
             <legend className="appearance-visually-hidden">Header position</legend>
@@ -1148,28 +1175,29 @@ function AppearanceTab({
 
       <div className="appearance-section-rule" />
 
-      <h3 className="settings-section-title">Theme</h3>
-      <p className="settings-section-desc">
-        Pick the visual style for the desktop UI.
-      </p>
+      <h3 className="settings-section-title">Theme
+        <button className="settings-btn settings-btn-connect appearance-theme-studio-btn" type="button" onClick={onOpenThemeStudio}>
+          Open Theme Studio
+        </button></h3>
 
-      <button className="settings-btn settings-btn-connect appearance-theme-studio-btn" type="button" onClick={onOpenThemeStudio}>
-        Open Theme Studio
-      </button>
 
       <div className="settings-radio-group">
-        {[...theme.builtInThemes, ...theme.customThemes].map((item) => (
-          <ThemeRadio
-            key={item.id}
-            value={item.id}
-            label={item.label || item.name}
-            desc={item.description || `Custom theme based on ${item.baseThemeId}.`}
-            currentTheme={currentTheme}
-            handleThemeChange={handleThemeChange}
-            chatView={getChatViewLabel(item.id)}
-            onOpenChatViewPicker={onOpenChatViewPicker}
-          />
-        ))}
+        {visibleThemes.map((item) => {
+          const isOverride = overridesById.has(item.id);
+          return (
+            <ThemeRadio
+              key={item.id}
+              value={item.id}
+              label={item.label || item.name}
+              desc={isOverride ? 'Your edited version — replaces the built-in default.' : (item.description || `Custom theme based on ${item.baseThemeId}.`)}
+              currentTheme={currentTheme}
+              handleThemeChange={handleThemeChange}
+              chatView={getChatViewLabel(item.id)}
+              onOpenChatViewPicker={onOpenChatViewPicker}
+              onRestoreDefault={isOverride ? () => handleRestoreDefault(item.id) : null}
+            />
+          );
+        })}
       </div>
 
       {openPickerForTheme && (

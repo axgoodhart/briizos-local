@@ -169,6 +169,26 @@ function StudioHeader({ onClose }) {
     catch (error) { theme.setWarning(`Theme could not be deleted: ${error.message}`); }
   };
 
+  const replaceTarget = theme.draftTheme || (isCustom ? theme.activeTheme : null);
+  const replaceTargetId = replaceTarget?.baseThemeId;
+  const canReplaceDefault = Boolean(replaceTargetId)
+    && theme.builtInThemes.some((item) => item.id === replaceTargetId)
+    && replaceTarget.id !== replaceTargetId;
+  const canRestoreDefault = isCustom && theme.builtInThemes.some((item) => item.id === theme.activeTheme.id);
+
+  const replaceDefaultNow = async () => {
+    const label = theme.builtInThemes.find((item) => item.id === replaceTargetId)?.label || replaceTargetId;
+    if (!window.confirm(`Replace “${label}”'s built-in appearance with your current edits? You can restore the original later from this menu.`)) return;
+    try { await theme.replaceDefault(); }
+    catch (error) { theme.setWarning(`Could not replace default: ${error.message}`); }
+  };
+
+  const restoreDefaultNow = async () => {
+    if (!window.confirm(`Restore “${theme.activeTheme.name}” to its original built-in appearance? Your edits will be removed.`)) return;
+    try { await theme.restoreDefault(theme.activeTheme.id); }
+    catch (error) { theme.setWarning(`Could not restore default: ${error.message}`); }
+  };
+
   return (
     <>
       <header className="theme-studio-header">
@@ -203,6 +223,8 @@ function StudioHeader({ onClose }) {
             <div>
               <button type="button" onClick={() => theme.duplicateTheme()}>Duplicate</button>
               <button type="button" disabled={!isCustom} onClick={() => setNameAction('rename')}>Rename</button>
+              <button type="button" disabled={!canReplaceDefault} onClick={replaceDefaultNow}>Replace default</button>
+              <button type="button" disabled={!canRestoreDefault} onClick={restoreDefaultNow}>Restore default</button>
               <button type="button" onClick={() => importRef.current?.click()}>Import JSON</button>
               <button type="button" onClick={() => exportFile('json')}>Export JSON</button>
               <button type="button" onClick={() => exportFile('css')}>Export CSS</button>

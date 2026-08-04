@@ -10,9 +10,20 @@ top:0;
 }
 
 .control-bar-rail {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.4vw, 20px);
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  padding: 0 clamp(12px, 2vw, 28px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+
+.control-bar-rail::-webkit-scrollbar { display: none; }
 
 .cb-canvases-wrap {
   position: relative;
@@ -20,6 +31,11 @@ top:0;
   align-items: center;
   justify-content: center;
   overflow: visible;
+}
+
+.control-bar-dock > .cb-toggle,
+.control-bar-dock > .cb-canvases-wrap {
+  order: var(--cb-dock-order, 0);
 }
 
 .cb-tab-shape {
@@ -109,6 +125,11 @@ top:0;
   transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease, text-shadow 0.3s ease;
 }
 
+.cb-icon.cb-vector-icon {
+  width: 23px;
+  height: 23px;
+}
+
 .control-bar-dock:hover .cb-icon,
 .control-bar-dock:focus-within .cb-icon {
   opacity: 0.82;
@@ -154,6 +175,12 @@ top:0;
   font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+#journal-icon { color: #e5a76a; }
+#forest-icon { color: #7ee7a1; }
+#notefalls-icon { color: #bda6ff; }
+#sources-icon { color: #74dcea; }
+#tasks-icon { color: #ffd36b; }
+
 .cb-label {
   position: relative;
   display:flex;
@@ -164,6 +191,8 @@ top:0;
   letter-spacing: 0.06em;
   color: var(--theme-components-controlbar-controlbar-cb-label-color-sqqmz, rgba(255, 255, 255, 0.8));
   opacity: 0;
+  pointer-events: none;
+  user-select: none;
   max-height: 0;
   justify-content: center;
   width:60px;
@@ -172,6 +201,10 @@ top:0;
   transition: opacity 0.25s ease, max-height 0.25s ease, transform 0.25s ease;
 }
 
+#controlBar-icon {
+color:goldenrod;
+font-size:25px;
+}
 .cb-toggle.active .cb-label,
 .cb-toggle:focus-visible .cb-label,
 .cb-toggle:hover .cb-label {
@@ -180,9 +213,22 @@ top:0;
   transform: translateY(0);
 }
 
+.cb-toggle--control-bar::after {
+  display: none;
+}
+
+.cb-toggle--control-bar.active #controlBar-icon {
+  transform: none;
+  filter: drop-shadow(0 0 2px gold);
+}
+
 /* Each dock view consumes the same semantic accent. The renderer changes;
    the identity and active state of every control stay consistent. */
-.cb-toggle[data-dock-item="chat"] {
+.cb-toggle[data-dock-item="controlBar"] {
+  --cb-accent: black;;
+}
+
+   .cb-toggle[data-dock-item="chat"] {
   --cb-accent: #16df69;
 }
 
@@ -208,6 +254,26 @@ top:0;
 
 .cb-toggle[data-dock-item="canvases"] {
   --cb-accent: #24d9e6;
+}
+
+.cb-toggle[data-dock-item="journal"] {
+  --cb-accent: #e5a76a;
+}
+
+.cb-toggle[data-dock-item="forest"] {
+  --cb-accent: #7ee7a1;
+}
+
+.cb-toggle[data-dock-item="notefalls"] {
+  --cb-accent: #bda6ff;
+}
+
+.cb-toggle[data-dock-item="sources"] {
+  --cb-accent: #74dcea;
+}
+
+.cb-toggle[data-dock-item="tasks"] {
+  --cb-accent: #ffd36b;
 }
 
 /* Ambient vertical rail ------------------------------------------------- */
@@ -282,29 +348,41 @@ top:0;
   }
 }
 
-/* macOS-inspired shelf --------------------------------------------------- */
-.control-bar-dock.control-bar-dock--macos {
-  position: relative;
-  box-sizing: border-box;
-  justify-content: center;
-  gap: 16px;
-  width: max-content;
-  max-width: 100%;
-  height: 58px;
-  min-height: 58px;
-  margin: 0 auto;
-  padding: 6px 10px 7px;
-  border: 1px solid rgba(224, 236, 246, 0.34);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(248, 252, 255, 0.32), rgba(113, 125, 136, 0.38)),
-    rgba(43, 51, 60, 0.82);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -1px 0 rgba(13, 17, 22, 0.45),
-    0 9px 24px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(18px) saturate(1.25);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+/* Ambient gives Ctrl Bar the one visual exception: it is a compact launcher,
+   not an app tab. Its glyph claims the normal icon + label footprint and never
+   grows an underline or a second text line. */
+.control-bar-dock.control-bar-dock--current .cb-toggle--control-bar {
+  width: 50px;
+  min-width: 50px;
+  height: 48px;
+  gap: 0;
+}
+
+.control-bar-dock.control-bar-dock--current .cb-toggle--control-bar .cb-label {
+  display: none;
+}
+
+.control-bar-dock.control-bar-dock--current .cb-toggle--control-bar .cb-icon,
+.control-bar-dock.control-bar-dock--current:hover .cb-toggle--control-bar .cb-icon,
+.control-bar-dock.control-bar-dock--current:focus-within .cb-toggle--control-bar .cb-icon {
+  font-size: 39px;
+  opacity: 0.68;
+  filter: blur(0) saturate(1.1);
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--current .cb-toggle--control-bar:hover .cb-icon,
+.control-bar-dock.control-bar-dock--current .cb-toggle--control-bar.active .cb-icon,
+.control-bar-dock.control-bar-dock--current .cb-toggle--control-bar:focus-visible .cb-icon {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px color-mix(in oklab, goldenrod 62%, transparent));
+  transform: none;
+}
+
+.control-bar-dock.control-bar-dock--current.control-bar-dock--vertical .cb-toggle--control-bar {
+  flex-basis: 52px;
+  width: 52px;
+  height: 52px;
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle {
@@ -377,7 +455,12 @@ top:0;
 .control-bar-dock.control-bar-dock--macos #calendar-icon,
 .control-bar-dock.control-bar-dock--macos #media-icon,
 .control-bar-dock.control-bar-dock--macos #notes-icon,
-.control-bar-dock.control-bar-dock--macos #canvases-icon {
+.control-bar-dock.control-bar-dock--macos #canvases-icon,
+.control-bar-dock.control-bar-dock--macos #journal-icon,
+.control-bar-dock.control-bar-dock--macos #forest-icon,
+.control-bar-dock.control-bar-dock--macos #notefalls-icon,
+.control-bar-dock.control-bar-dock--macos #sources-icon,
+.control-bar-dock.control-bar-dock--macos #tasks-icon {
   color: rgba(247, 252, 255, 0.95);
   -webkit-text-stroke: 0;
 }
@@ -399,20 +482,20 @@ top:0;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -5px);
+  transform:translateY(-100%)translateX(-50%)scale(.1);
   transition: opacity 100ms ease-out, transform 540ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:hover {
   z-index: 4;
   filter: saturate(1.15) brightness(1.04);
-  transform: translateY(3px) scale(1.28);
+  transform: translateY(3px) scale(1.18);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:hover .cb-label,
 .control-bar-dock.control-bar-dock--macos .cb-toggle:focus-visible .cb-label {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translateY(-90%)translateX(-50%)scale(1.1);
 }
 
 .control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-toggle:hover),
@@ -434,15 +517,15 @@ top:0;
 
 /* Keeper-inspired folder tabs ------------------------------------------ */
 .control-bar-dock.control-bar-dock--tabs {
-  --cb-tab-width: 88px;
+  --cb-tab-width: 68px;
   --cb-tab-active-width: 114.4px;
   box-sizing: border-box;
   align-items: flex-end;
   justify-content: center;
-  height: 58px;
-  min-height: 58px;
+  height: 48px;
+  min-height: 48px;
   width: 100%;
-  margin-bottom:-.85%;
+  margin-bottom:-2.3%;
 }
 
 .control-bar-dock.control-bar-dock--tabs::after {
@@ -461,16 +544,17 @@ top:0;
   z-index: 1;
   width: var(--cb-tab-width);
   min-width: var(--cb-tab-width);
-  height: 48px;
+  height: 40px;
   margin: 0 -5px;
-  margin-left: -10px;
-  margin-right: -10px;
+  margin-left: -8px;
+  margin-right: -8px;
   flex-direction: row;
   gap: 5px;
   border-radius: 0;
   color: var(--cb-accent);
+  opacity:.5;
   transform: none;
-  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 120ms ease-out;
+  transition: all 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle::before,
@@ -498,7 +582,7 @@ top:0;
   stroke: rgba(208, 217, 221, 0.2);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
-  transition: fill 120ms ease-out, stroke 120ms ease-out;
+  transition:all 180ms ease;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-icon,
@@ -510,6 +594,7 @@ top:0;
   filter: saturate(0.7);
   -webkit-text-stroke: 0.35px rgba(4, 8, 10, 0.72);
   transform: none;
+  transition:all 180ms ease;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-label {
@@ -518,6 +603,7 @@ top:0;
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover {
   z-index: 3;
+  opacity:.7;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover .cb-tab-face {
@@ -533,6 +619,10 @@ top:0;
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active {
   width: var(--cb-tab-active-width);
   min-width: var(--cb-tab-active-width);
+  height:48px;
+  margin-left:-10px;
+  margin-right:-10px;
+  opacity:1;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active .cb-tab-face,
@@ -554,6 +644,267 @@ top:0;
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 72%, white);
   outline-offset: -5px;
+}
+
+/* Expanded Ctrl Bar ------------------------------------------------------
+   It echoes the icon language of the reference strip: briizy has the fixed
+   far-left control, then the editable header-dock icons appear as tall, quiet
+   glyphs. A chevron says an icon is in the header dock; Option-hover changes
+   that marker to the red remove control. Icons outside the header dock stay in
+   the same strip with their own + pin affordance. */
+.control-bar-rail {
+  justify-content: flex-start;
+  gap: clamp(14px, 2.4vw, 38px);
+}
+
+.cb-observation-toggle {
+  appearance: none;
+  flex: 0 0 118px;
+  display: grid;
+  place-items: center;
+  width: 118px;
+  height: 126px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(245, 248, 248, 0.92);
+  cursor: pointer;
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.cb-observation-toggle:hover:not(:disabled),
+.cb-observation-toggle:focus-visible {
+  filter: brightness(1.12) drop-shadow(0 0 13px rgba(128, 225, 252, 0.34));
+  outline: none;
+}
+
+.cb-observation-toggle:active:not(:disabled) { transform: scale(0.94); }
+.cb-observation-toggle:disabled { cursor: not-allowed; opacity: 0.42; }
+
+.cb-briizy-avatar {
+  display: block;
+  width: 76px;
+  height: 115px;
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-size: 600% 100%;
+  filter: grayscale(0.18) brightness(1.5) drop-shadow(0 6px 7px rgba(0, 0, 0, 0.42));
+}
+
+.cb-observation-toggle.is-active .cb-briizy-avatar {
+  filter: brightness(1.2) drop-shadow(0 6px 7px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 8px rgba(93, 236, 147, 0.74));
+}
+
+.cb-observation-toggle__copy,
+.cb-editor__label,
+.cb-editor__item-label { display: none; }
+
+.cb-editor__rule {
+  width: 1px;
+  height: 98px;
+  flex: 0 0 auto;
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.25), transparent);
+}
+
+.cb-editor__dock {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.cb-editor__dock { flex: 1 1 auto; }
+
+.cb-editor__items {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.3vw, 42px);
+  min-width: 0;
+}
+
+.cb-editor__items {
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px;
+  scrollbar-width: none;
+}
+
+.cb-editor__items::-webkit-scrollbar { display: none; }
+
+.cb-editor__item {
+  position: relative;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 116px;
+  box-sizing: border-box;
+  color: rgba(247, 247, 246, 0.72);
+}
+
+.cb-editor__item {
+  display: grid;
+  grid-template-rows: 29px 1fr;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 17px;
+  background: transparent;
+  user-select: none;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cb-editor__item.is-pinned { cursor: grab; }
+.cb-editor__item.is-unpinned {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(6, 10, 11, 0.14);
+}
+
+.cb-editor__item:hover,
+.cb-editor__item:focus-within {
+  border-color: rgba(211, 240, 247, 0.52);
+  background: linear-gradient(180deg, rgba(38, 55, 59, 0.52), rgba(37, 76, 81, 0.48));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.36), 0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+.cb-editor__item.is-remove-mode {
+  border-color: rgba(255, 195, 195, 0.94);
+  background: linear-gradient(180deg, rgba(112, 30, 28, 0.8), rgba(189, 45, 42, 0.9));
+}
+
+.cb-editor__item.is-pinned:active { cursor: grabbing; }
+
+.cb-editor__marker {
+  grid-row: 1;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(252, 252, 250, 0.94);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  line-height: 1;
+}
+
+.cb-editor__marker--pinned {
+  pointer-events: none;
+  font-size: 39px;
+  font-weight: 200;
+  transform: translateY(5px);
+}
+
+.cb-editor__marker--add {
+  border: 1px dashed rgba(246, 250, 251, 0.58);
+  border-radius: 50%;
+  color: rgba(246, 250, 251, 0.82);
+  cursor: pointer;
+  font-size: 25px;
+  font-weight: 300;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.cb-editor__marker--add:hover,
+.cb-editor__marker--add:focus-visible {
+  border-color: rgba(153, 224, 247, 0.96);
+  background: rgba(109, 193, 227, 0.18);
+  color: #fff;
+  outline: none;
+  transform: scale(1.08);
+}
+
+.cb-editor__marker--remove {
+  border-radius: 50%;
+  background: rgba(235, 0, 0, 0.96);
+  color: #fff;
+  cursor: pointer;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 24px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.cb-editor__marker--remove:hover,
+.cb-editor__marker--remove:focus-visible {
+  background: #ff2727;
+  outline: none;
+  transform: scale(1.08);
+}
+
+.cb-editor__launch {
+  appearance: none;
+  grid-row: 2;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 16px 16px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cb-editor__launch:focus-visible {
+  outline: 2px solid rgba(184, 236, 251, 0.96);
+  outline-offset: -6px;
+}
+
+.cb-editor__glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 58px;
+  height: 65px;
+  font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 39px;
+  line-height: 1;
+  filter: grayscale(0.55) brightness(1.3) drop-shadow(0 2px 1px rgba(0, 0, 0, 0.46));
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.cb-vector-icon {
+  fill: none;
+  stroke: currentColor;
+}
+
+.cb-editor__glyph.cb-vector-icon {
+  display: block;
+  width: 49px;
+  height: 49px;
+}
+
+.cb-editor__item:hover .cb-editor__glyph,
+.cb-editor__item:focus-within .cb-editor__glyph {
+  filter: saturate(1.28) brightness(1.12) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.48));
+  transform: translateY(2px);
+}
+
+/* The icon can request briizy's existing first-run consent flow. Keeping that
+   consent above the workspace lets this shortcut remain a true on/off control
+   without silently enabling screen observation on a new install. */
+.cb-onboarding-backdrop {
+  position: fixed;
+  z-index: 2401;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(2, 7, 10, 0.66);
+  backdrop-filter: blur(10px);
+}
+
+.cb-onboarding-dialog {
+  width: min(640px, 100%);
+  max-height: min(760px, calc(100vh - 56px));
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px 26px;
+  border: 1px solid rgba(153, 224, 247, 0.34);
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(13, 28, 34, 0.98), rgba(6, 10, 14, 0.98));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.7), 0 0 32px rgba(109, 193, 227, 0.16);
 }
 
 @media (max-width: 680px) {

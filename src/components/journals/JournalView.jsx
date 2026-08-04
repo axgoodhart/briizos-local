@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { TEMPLATES } from './templates.js';
 import {
@@ -521,8 +521,8 @@ function TodoFolio({ folio, onSave }) {
           ) : (
             <span
               className="jv-todo__text"
-              title="Double-click to edit"
-              onDblClick={() => {
+              title="Click to edit"
+              onClick={() => {
                 setEditIdx(i);
                 setEditDraft(it.text);
               }}
@@ -588,6 +588,7 @@ function PromptsFolio({ folio, onSave }) {
 
 function NotesFolio({
   folio, onSave, onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick,
+  onAttachmentRequest,
 }) {
   const hostRef = useRef(null);
   const edRef = useRef(null);
@@ -597,11 +598,13 @@ function NotesFolio({
   const rebalRef = useRef(onRebalanced);
   const pullRef = useRef(pullSource);
   const readyRef = useRef(onEditorReady);
+  const attachmentRef = useRef(onAttachmentRequest);
   const contentRef = useRef(folio.content);
   saveRef.current = onSave;
   rebalRef.current = onRebalanced;
   pullRef.current = pullSource;
   readyRef.current = onEditorReady;
+  attachmentRef.current = onAttachmentRequest;
   contentRef.current = folio.content;
 
   useEffect(() => {
@@ -656,11 +659,20 @@ function NotesFolio({
       onTick,
       onFocus: () => registerEditor(folio.id, ed, { focus: true }),
       onUpdate: () => schedule(),
+      onAttachmentRequest: ({ position }) => attachmentRef.current?.({ folioId: folio.id, position }),
     });
     edRef.current = ed;
     lastSavedRef.current = JSON.stringify(folio.content?.doc ?? null);
     registerEditor(folio.id, ed);
     registerRebalance?.(folio.id, () => schedule(0));
+
+    // Image dimensions resolve after their node is inserted. Reflow once that
+    // happens so a newly attached image can move to the next paper face just
+    // like a paragraph that grows past the edge.
+    const onImageLoad = (event) => {
+      if (event.target?.matches?.('img[data-journal-image]')) schedule(0);
+    };
+    hostRef.current?.addEventListener('load', onImageLoad, true);
 
     // First layout pass: trim legacy/overlong docs once the page exists.
     const raf = requestAnimationFrame(() => schedule(0));
@@ -668,6 +680,7 @@ function NotesFolio({
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(timerRef.current);
+      hostRef.current?.removeEventListener('load', onImageLoad, true);
       registerRebalance?.(folio.id, null);
       registerEditor(folio.id, null);
       ed.destroy();
@@ -763,6 +776,58 @@ function AddPageModal({ onClose, onPick }) {
 
         <div className="jr-modal__actions">
           <button type="button" className="jr-btn" onClick={onClose}>cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JournalAttachmentModal({ onClose, onAttach }) {
+  const [picking, setPicking] = useState(false);
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => dialogRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const chooseImages = async () => {
+    setPicking(true);
+    try {
+      const images = await api.attachImages();
+      if (images?.length) onAttach(images);
+    } catch (error) {
+      logger.error('journal', 'Image attachment picker failed', error?.message);
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  return (
+    <div className="jr-modal-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
+      <div
+        ref={dialogRef}
+        className="jr-modal jv-attachment-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Attach images"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }}
+      >
+        <h2 className="jr-modal__title">attach images</h2>
+        <p className="jv-attachment-modal__copy">
+          Choose one or more local images to insert at the <code>//+</code> marker. The journal keeps a local file reference, so the image stays private to this Mac.
+        </p>
+        <div className="jr-modal__actions">
+          <button type="button" className="jr-btn" onClick={onClose} disabled={picking}>cancel</button>
+          <button type="button" className="jr-btn jr-btn--primary" onClick={chooseImages} disabled={picking}>
+            {picking ? 'opening picker…' : 'choose images'}
+          </button>
         </div>
       </div>
     </div>
@@ -910,7 +975,7 @@ function FolioTitle({ folio, onRename }) {
 
 function FolioPage({
   folio, siblings, pageUrl, onSave, onDelete, onRename,
-  onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick,
+  onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick, onAttachmentRequest,
 }) {
   if (!folio) return <div className="jv-page jv-page--empty" />;
   const Renderer = RENDERERS[folio.type] || NotesFolio;
@@ -939,6 +1004,7 @@ function FolioPage({
             registerRebalance={registerRebalance}
             onEditorReady={onEditorReady}
             onTick={onTick}
+            onAttachmentRequest={onAttachmentRequest}
           />
         </div>
       </div>
@@ -1280,6 +1346,7 @@ export function JournalView({
   const [canvasProjects, setCanvasProjects] = useState([]);
   const [typoOpen, setTypoOpen] = useState(false);
   const [typoDraft, setTypoDraft] = useState(null); // live preview before persist
+  const [attachmentRequest, setAttachmentRequest] = useState(null); // { folioId, position }
   const [narrow, setNarrow] = useState(false); // <800px: one page at a time
   const [scale, setScale] = useState(1);
   const [, setTick] = useState(0); // re-renders the shared toolbar on editor transactions
@@ -1324,6 +1391,46 @@ export function JournalView({
   };
 
   const onEditorTick = () => setTick((t) => t + 1);
+
+  const requestAttachment = useCallback((request) => {
+    if (!request?.folioId || !Number.isInteger(request.position)) return;
+    setAttachmentRequest(request);
+  }, []);
+
+  const attachImagesToNote = useCallback((images) => {
+    const request = attachmentRequest;
+    const editor = request ? editorsRef.current.get(request.folioId) : null;
+    const attachable = (images || []).filter((image) => image?.url);
+
+    if (!request || !editor || editor.isDestroyed || !attachable.length) {
+      setAttachmentRequest(null);
+      return;
+    }
+
+    const content = [
+      ...attachable.map((image) => ({
+        type: 'journalImage',
+        attrs: { src: image.url, alt: image.name || 'Journal attachment' },
+      })),
+      { type: 'paragraph' },
+    ];
+    editor.chain().focus().insertContentAt(request.position, content).run();
+    setAttachmentRequest(null);
+    logger.info('journal', 'Images attached to note', {
+      folioId: request.folioId,
+      count: attachable.length,
+    });
+  }, [attachmentRequest]);
+
+  const dismissAttachmentRequest = useCallback(() => {
+    const request = attachmentRequest;
+    setAttachmentRequest(null);
+    if (!request) return;
+    requestAnimationFrame(() => {
+      const editor = editorsRef.current.get(request.folioId);
+      if (editor && !editor.isDestroyed) editor.commands.focus();
+    });
+  }, [attachmentRequest]);
 
   useEffect(() => {
     api.foliosList(journal.id).then(setFolios).catch((err) => {
@@ -1815,6 +1922,7 @@ export function JournalView({
     registerRebalance,
     onEditorReady: consumePendingCaret,
     onTick: onEditorTick,
+    onAttachmentRequest: requestAttachment,
   });
 
   return (
@@ -2046,6 +2154,12 @@ export function JournalView({
       )}
 
       {adding && <AddPageModal onClose={() => setAdding(false)} onPick={addPage} />}
+      {attachmentRequest && (
+        <JournalAttachmentModal
+          onClose={dismissAttachmentRequest}
+          onAttach={attachImagesToNote}
+        />
+      )}
       {typoOpen && (
         <TypographyModal
           typo={typo}

@@ -131,4 +131,47 @@ describe('ThemeProvider draft lifecycle', () => {
     expect(currentTheme.activeThemeId).toBe('winterbloom');
     expect(currentTheme.warning).toMatch(/malformed.*Winterbloom/i);
   });
+
+  it('Replace default shadows the built-in, and Restore default removes the override', async () => {
+    const { set } = await renderProvider({ ui_theme: 'winterbloom', ui_theme_library: { schemaVersion: 1, themes: [] } });
+    await act(async () => currentTheme.updateGlobalToken('primary', '#cc6688'));
+    expect(currentTheme.draftTheme.baseThemeId).toBe('winterbloom');
+
+    await act(async () => { await currentTheme.replaceDefault(); });
+    expect(currentTheme.activeThemeId).toBe('winterbloom');
+    expect(currentTheme.activeTheme.id).toBe('winterbloom');
+    expect(currentTheme.activeTheme.variables['--palette-accent-primary']).toBe('#cc6688');
+    expect(currentTheme.customThemes.map((theme) => theme.id)).toEqual(['winterbloom']);
+    expect(currentTheme.isDirty).toBe(false);
+    expect(set).toHaveBeenCalledWith('ui_theme_library', expect.objectContaining({
+      themes: [expect.objectContaining({ id: 'winterbloom' })],
+    }));
+
+    await act(async () => { await currentTheme.restoreDefault(); });
+    expect(currentTheme.activeThemeId).toBe('winterbloom');
+    expect(currentTheme.customThemes).toHaveLength(0);
+    expect(document.documentElement.getAttribute('data-custom-theme')).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--palette-accent-primary')).toBe('');
+    expect(set).toHaveBeenCalledWith('ui_theme_library', expect.objectContaining({ themes: [] }));
+  });
+
+  it('Replace default can promote an already-saved custom theme instead of forking again', async () => {
+    await renderProvider({ ui_theme: 'default', ui_theme_library: { schemaVersion: 1, themes: [] } });
+    await act(async () => currentTheme.updateGlobalToken('primary', '#b56d45'));
+    await act(async () => { await currentTheme.saveAs('Copper Field'); });
+    expect(currentTheme.customThemes).toHaveLength(1);
+
+    await act(async () => { await currentTheme.replaceDefault(); });
+    expect(currentTheme.activeThemeId).toBe('default');
+    expect(currentTheme.activeTheme.name).toBe('Dark Neon');
+    // The original standalone "Copper Field" save is untouched; the override is a second entry.
+    expect(currentTheme.customThemes).toHaveLength(2);
+    expect(currentTheme.customThemes.some((theme) => theme.id === 'default')).toBe(true);
+    expect(currentTheme.customThemes.some((theme) => theme.name === 'Copper Field')).toBe(true);
+  });
+
+  it('rejects Restore default for an id that has no built-in counterpart', async () => {
+    await renderProvider({ ui_theme: 'default', ui_theme_library: { schemaVersion: 1, themes: [] } });
+    await expect(act(async () => { await currentTheme.restoreDefault('not-a-theme'); })).rejects.toThrow(/no built-in default/);
+  });
 });

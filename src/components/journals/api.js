@@ -100,4 +100,9 @@ export const api = {
     }
     return Promise.reject(new Error('Folio not found'));
   },
+
+  attachImages: () => {
+    if (window.api?.journalsAttachImages) return window.api.journalsAttachImages();
+    return Promise.resolve([]);
+  },
 };

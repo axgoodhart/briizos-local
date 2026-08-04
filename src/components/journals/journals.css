@@ -1140,7 +1140,7 @@ padding: 1px 1px;  cursor: pointer;
 .jv-todo__item { align-items: center; }
 .jv-todo__item .jv-x { opacity: 0; margin-left: auto; }
 .jv-todo__item:hover .jv-x { opacity: 1; }
-.jv-todo__text { cursor: default; }
+.jv-todo__text { cursor: text; }
 
 .jv-todo__editinput {
   flex: 1;
@@ -1422,6 +1422,35 @@ padding: 1px 1px;  cursor: pointer;
 }
 
 .rt-prose .ProseMirror p { margin: 0 0 0.6em; }
+
+.rt-prose .ProseMirror img[data-journal-image] {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 246px;
+  margin: 0.75em auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.25);
+}
+
+.jv-attachment-modal { width: min(490px, 100%); }
+
+.jv-attachment-modal__copy {
+  margin: -4px 0 18px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.jv-attachment-modal__copy code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(120, 180, 255, 0.15);
+  color: rgba(205, 226, 255, 0.96);
+}
 
 .rt-prose .ProseMirror h1,
 .rt-prose .ProseMirror h2,
