@@ -1201,7 +1201,16 @@ function AppContent({ layout }) {
       <header className="app-header" data-theme-role="header" data-theme-component="Application">
         <div className="header-title">
           <span className="title-icon:before"></span>
-          <span className="title-icon" id="settings-btn" data-theme-role="button-icon" data-theme-component="Application" onClick={() => setShowSettings(true)}></span>
+          <button
+            type="button"
+            className="title-icon"
+            id="settings-btn"
+            data-theme-role="button-icon"
+            data-theme-component="Application"
+            onClick={() => setShowSettings(true)}
+            aria-label="Open settings"
+            title="Settings"
+          />
           <span className="title-text" data-theme-role="wordmark" data-theme-component="Application">briizOS</span>
         </div>
 

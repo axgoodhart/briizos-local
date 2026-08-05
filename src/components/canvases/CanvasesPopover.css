@@ -24,6 +24,18 @@
   font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* The compact header scrolls its launcher row. Rendering this surface at the
+   document layer keeps it anchored to Canvases without clipping it to that
+   horizontal scrollport. */
+.canvases-popover--portaled {
+  width: min(360px, calc(100vw - 16px));
+  z-index: 60;
+}
+
+.canvases-popover--portaled.canvases-popover--vertical {
+  max-height: min(70vh, 640px);
+}
+
 .control-bar-dock--vertical .canvases-popover {
   top: 50%;
   right: auto;
@@ -33,6 +45,13 @@
 }
 
 .control-bar-dock--vertical .canvases-popover-tail {
+  top: 50%;
+  right: auto;
+  left: -7px;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.canvases-popover--vertical .canvases-popover-tail {
   top: 50%;
   right: auto;
   left: -7px;

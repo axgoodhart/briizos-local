@@ -1,5 +1,5 @@
 import './ControlBar.css';
-import { useEffect, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 import briizyLogoAwake from '../../briizy/assets/briizy-logo-awake.png';
 import briizyLogoAsleep from '../../briizy/assets/briizy-logo-asleep.png';
 
@@ -410,6 +410,8 @@ function ControlBar({
   onAvatarVisibilityChange,
   onAvatarSizeChange,
 }) {
+  const canvasesToggleRef = useRef(null);
+
   if (variant === 'bar') {
     return (
       <DockEditor
@@ -436,6 +438,10 @@ function ControlBar({
     };
   };
 
+  const renderedCanvasesPopover = isValidElement(canvasesPopoverSlot)
+    ? cloneElement(canvasesPopoverSlot, { anchorRef: canvasesToggleRef })
+    : canvasesPopoverSlot;
+
   return (
     <nav className={`control-bar-dock control-bar-dock--${dockStyle} control-bar-dock--${orientation}`} aria-label="Control dock">
 
@@ -455,6 +461,7 @@ function ControlBar({
         <span className="cb-label">Ctrl Bar</span>
       </button>
 
+      <div className="control-bar-dock__scroll" role="group" aria-label="Dock applications">
       <button
         type="button"
         className={`cb-toggle ${chatOpen ? 'active' : ''}`}
@@ -547,6 +554,7 @@ function ControlBar({
 
       <div className="cb-canvases-wrap" {...dockItemProps('canvases')}>
         <button
+          ref={canvasesToggleRef}
           type="button"
           className={`cb-toggle ${canvasesOpen ? 'active' : ''}`}
           data-dock-item="canvases"
@@ -560,7 +568,7 @@ function ControlBar({
           <span className="cb-icon" id="canvases-icon">􀏜</span>
           <span className="cb-label">Canvases</span>
         </button>
-        {canvasesPopoverSlot}
+        {renderedCanvasesPopover}
       </div>
 
       <HeaderDockButton
@@ -593,6 +601,7 @@ function ControlBar({
         onLaunch={onToggleTasks}
         dockItemProps={dockItemProps}
       />
+      </div>
     </nav>
   );
 }

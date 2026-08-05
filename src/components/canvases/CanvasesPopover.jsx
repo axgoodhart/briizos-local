@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import CanvasCard from './CanvasCard';
 import NewCanvasFlow from './NewCanvasFlow';
 import './CanvasesPopover.css';
@@ -14,9 +15,64 @@ function CanvasesPopover({
   onRenameCanvas,
   onSetFormFactor,
   onSetRenderEngine,
+  anchorRef,
 }) {
   const popoverRef = useRef(null);
   const [newFlowOpen, setNewFlowOpen] = useState(false);
+  const [anchorPlacement, setAnchorPlacement] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !anchorRef?.current || typeof window === 'undefined') {
+      setAnchorPlacement(null);
+      return undefined;
+    }
+
+    const updatePlacement = () => {
+      const anchor = anchorRef.current;
+      if (!anchor) return;
+
+      const bounds = anchor.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+      const isVertical = Boolean(anchor.closest('.control-bar-dock--vertical'));
+
+      if (isVertical) {
+        setAnchorPlacement({
+          isVertical,
+          style: {
+            position: 'fixed',
+            top: `${Math.round(bounds.top + (bounds.height / 2))}px`,
+            left: `${Math.round(bounds.right + 18)}px`,
+            right: 'auto',
+            transform: 'translateY(-50%)',
+          },
+        });
+        return;
+      }
+
+      const popoverWidth = Math.min(360, Math.max(0, viewportWidth - 16));
+      const maxLeft = Math.max(8, viewportWidth - popoverWidth - 8);
+      const left = Math.min(Math.max(8, bounds.right - popoverWidth), maxLeft);
+
+      setAnchorPlacement({
+        isVertical,
+        style: {
+          position: 'fixed',
+          top: `${Math.round(bounds.bottom + 12)}px`,
+          left: `${Math.round(left)}px`,
+          right: 'auto',
+          transform: 'none',
+        },
+      });
+    };
+
+    updatePlacement();
+    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('scroll', updatePlacement, true);
+    return () => {
+      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('scroll', updatePlacement, true);
+    };
+  }, [anchorRef, isOpen]);
 
   // Close on outside click
   useEffect(() => {
@@ -51,10 +107,20 @@ function CanvasesPopover({
     await onCreateCanvas?.(payload);
   };
 
-  return (
+  const isPortaled = Boolean(anchorRef?.current && typeof document !== 'undefined');
+  const popover = (
     <div
       ref={popoverRef}
-      className={`canvases-popover ${newFlowOpen ? 'is-creating' : ''}`}
+      className={`canvases-popover ${newFlowOpen ? 'is-creating' : ''} ${isPortaled ? 'canvases-popover--portaled' : ''} ${anchorPlacement?.isVertical ? 'canvases-popover--vertical' : ''}`}
+      style={isPortaled
+        ? anchorPlacement?.style || {
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 'auto',
+          visibility: 'hidden',
+        }
+        : undefined}
       role="dialog"
       aria-label="Canvases"
       onMouseDown={(e) => e.stopPropagation()}
@@ -119,6 +185,8 @@ function CanvasesPopover({
       ) : null}
     </div>
   );
+
+  return isPortaled ? createPortal(popover, document.body) : popover;
 }
 
 export default CanvasesPopover;

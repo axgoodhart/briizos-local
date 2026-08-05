@@ -413,6 +413,24 @@ body {
     border: none;
 }
 
+#settings-btn {
+    appearance: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+#settings-btn.title-icon {
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+}
+
+#settings-btn:focus-visible {
+    outline: 2px solid var(--palette-accent-primary, #22dce8);
+    outline-offset: 3px;
+}
+
 #settings-btn:hover {
     transform: scale(1)rotate(1800deg);
     opacity: 1;
@@ -1254,21 +1272,36 @@ body {
 }
 
 @media (max-width: 980px) {
-    .app-header {
-        justify-content: space-between;
+    /* Keep the two global controls anchored; the application launchers get
+       the remaining horizontal track and scroll inside it. */
+    .app:not(.app--vertical-header) .app-header {
+        grid-template-columns: 48px minmax(0, 1fr);
+        gap: 0;
+        padding-inline: 8px;
     }
-    .title-text,
-    .header-right {
+    .app:not(.app--vertical-header) .header-title {
+        width: 48px;
+        min-width: 48px;
+        gap: 0;
+    }
+    .app:not(.app--vertical-header) .title-text,
+    .app:not(.app--vertical-header) .header-right {
         display: none;
     }
-    .header-dock-slot {
-        width: min(95vw, 720px);
-        min-width: 0;
-        justify-content: flex-end;
-        display: flex;
+    .app:not(.app--vertical-header) #settings-btn {
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        width: 44px;
+        min-width: 44px;
+        height: 48px;
     }
-    .header-right {
-        gap: 2px;
+    .app:not(.app--vertical-header) .header-dock-slot {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        justify-self: stretch;
     }
 }
 
