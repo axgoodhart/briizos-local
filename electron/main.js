@@ -1091,9 +1091,9 @@ app.whenReady().then(() => {
   unregisterBriizyIPC = registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger });
   briizy.start();
 
-  // Avatar overlay + menu bar item. The overlay is only shown once capture is
-  // actually running — before onboarding there is nothing for briizy to say,
-  // and a floating robot over an app that is not watching anything is a lie.
+  // Avatar overlay + menu bar item. Its on-screen presence is intentionally
+  // independent of capture: someone can hide the character while their local
+  // screen memory runs, or leave it visibly asleep while capture is off.
   briizyShell = new BriizyShell({
     briizy,
     logger,
@@ -1103,11 +1103,11 @@ app.whenReady().then(() => {
   // "Open briizOS…" from the menu bar must work even after the workspace window
   // has been closed — monitoring lives in main and outlives any window (§9).
   briizyShell.start({ getMainWindow: () => ensureMainWindow() });
-  if (briizy.getConfig().enabled) briizyShell.show();
-  briizy.on('config', (config) => {
-    if (config.enabled) briizyShell?.show();
-    else briizyShell?.hide();
-  });
+  const syncBriizyAvatarPresentation = (config = briizy.getConfig()) => {
+    briizyShell?.applyPresentation(config);
+  };
+  syncBriizyAvatarPresentation();
+  briizy.on('config', syncBriizyAvatarPresentation);
 
   // Start USB drive watcher
   filesystem.startUSBWatcher((data) => {

@@ -458,6 +458,16 @@ function AppContent({ layout }) {
     briizyCapture.toggleCapture();
   }, [briizyCapture]);
 
+  const setBriizyAvatarVisible = useCallback((avatarVisible) => {
+    if (!briizyCapture.available || briizyCapture.busy) return;
+    briizyCapture.updateConfig({ avatarVisible });
+  }, [briizyCapture]);
+
+  const setBriizyAvatarSize = useCallback((avatarSizePx) => {
+    if (!briizyCapture.available || briizyCapture.busy) return;
+    briizyCapture.updateConfig({ avatarSizePx });
+  }, [briizyCapture]);
+
 
 
   const toggleInteractionPanel = useCallback(() => {
@@ -1265,6 +1275,10 @@ function AppContent({ layout }) {
             observationAvailable={briizyCapture.available}
             observationBusy={briizyCapture.busy}
             onToggleObservation={toggleBriizyObservation}
+            avatarVisible={briizyCapture.config?.avatarVisible ?? true}
+            avatarSizePx={briizyCapture.config?.avatarSizePx ?? 70}
+            onAvatarVisibilityChange={setBriizyAvatarVisible}
+            onAvatarSizeChange={setBriizyAvatarSize}
           />
         )}
       </div>

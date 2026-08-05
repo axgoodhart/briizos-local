@@ -29,6 +29,9 @@ const CAPTURE_STATES = Object.freeze([
 
 const OCR_MODES = Object.freeze(['fast', 'accurate']);
 const BATTERY_BEHAVIORS = Object.freeze(['ignore', 'deferOcr', 'pauseCapture']);
+const AVATAR_SIZE_MIN_PX = 48;
+const AVATAR_SIZE_MAX_PX = 140;
+const DEFAULT_AVATAR_SIZE_PX = 70;
 
 /** The six assistants from the omi port (§6). Ids are stable storage keys. */
 const ASSISTANT_IDS = Object.freeze([
@@ -71,6 +74,10 @@ function defaults() {
     // I10 — nothing silently enabled. Onboarding flips this.
     enabled: false,
     onboardedAt: null,
+    // Presentation is deliberately separate from capture. Someone can keep
+    // their local screen memory running while choosing not to see the avatar.
+    avatarVisible: true,
+    avatarSizePx: DEFAULT_AVATAR_SIZE_PX,
     captureIntervalMs: 3000,
     ocrEveryNthFrame: 3,
     retentionDays: 30,
@@ -151,6 +158,11 @@ function normalize(input) {
     onboardedAt: Number.isFinite(Number(input.onboardedAt)) && Number(input.onboardedAt) > 0
       ? Math.round(Number(input.onboardedAt))
       : null,
+    avatarVisible: input.avatarVisible !== false,
+    avatarSizePx: clampInt(input.avatarSizePx, base.avatarSizePx, {
+      min: AVATAR_SIZE_MIN_PX,
+      max: AVATAR_SIZE_MAX_PX,
+    }),
     // 1s floor: below that the WindowServer contention outweighs the extra frames.
     captureIntervalMs: clampInt(input.captureIntervalMs, base.captureIntervalMs, {
       min: 1000,

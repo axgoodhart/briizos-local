@@ -138,6 +138,10 @@ function run() {
       .every((a) => a.enabled === false && a.immediateExecution === false), undefined, 'I6');
   assert('cloud text analysis is off by default',
     briizyConfig.defaults().cloudTextAnalysisAllowed === false, undefined, 'I2');
+  assert('the avatar defaults to visible at the mockup size', (() => {
+    const config = briizyConfig.defaults();
+    return config.avatarVisible === true && config.avatarSizePx === 70;
+  })());
   assert('garbage normalizes to defaults',
     briizyConfig.normalize('not an object').captureIntervalMs === 3000);
   assert('a truthy-but-not-true enabled value stays off',
@@ -146,6 +150,11 @@ function run() {
     briizyConfig.normalize({ captureIntervalMs: 1 }).captureIntervalMs === 1000);
   assert('retentionBytes has a floor',
     briizyConfig.normalize({ retentionBytes: 1 }).retentionBytes === 256 * 1024 * 1024, undefined, 'I8');
+  assert('avatar presentation is independent and bounded', (() => {
+    const config = briizyConfig.normalize({ avatarVisible: false, avatarSizePx: 999 });
+    return config.avatarVisible === false && config.avatarSizePx === 140
+      && briizyConfig.normalize({ avatarSizePx: 1 }).avatarSizePx === 48;
+  })());
   assert('an unknown ocrMode falls back to fast',
     briizyConfig.normalize({ ocrMode: 'perfect' }).ocrMode === 'fast');
   assert('unknown top-level keys are dropped',

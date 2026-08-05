@@ -38,6 +38,10 @@ const AVATAR_STATES = Object.freeze([
   'idle', 'working', 'error', 'thinking', 'sleeping', 'speaking',
 ]);
 
+const AVATAR_SIZE_MIN_PX = 48;
+const AVATAR_SIZE_MAX_PX = 140;
+const DEFAULT_AVATAR_SIZE_PX = 70;
+
 class BriizyShell {
   constructor({ briizy, logger, electron, isDev, devServerUrl = 'http://localhost:5173' }) {
     this.briizy = briizy;
@@ -174,8 +178,7 @@ class BriizyShell {
   }
 
   toggle() {
-    if (this.visible) this.hide();
-    else this.show();
+    this.setAvatarVisible(!this.visible);
   }
 
   /**
@@ -189,6 +192,46 @@ class BriizyShell {
     this.interactive = next;
     this.window.setIgnoreMouseEvents(!next, { forward: true });
     this._log('debug', `Overlay ${next ? 'interactive' : 'click-through'}`);
+  }
+
+  /**
+   * The avatar's presentation is a saved preference, not a capture state. Keep
+   * the bounds here as a defensive fallback; normal config values are already
+   * clamped before reaching the shell.
+   */
+  getPresentation(config = this.briizy.getConfig?.()) {
+    const requestedSize = Math.round(Number(config?.avatarSizePx));
+    return {
+      avatarVisible: config?.avatarVisible !== false,
+      avatarSizePx: Number.isFinite(requestedSize)
+        ? Math.min(AVATAR_SIZE_MAX_PX, Math.max(AVATAR_SIZE_MIN_PX, requestedSize))
+        : DEFAULT_AVATAR_SIZE_PX,
+    };
+  }
+
+  /** Apply saved presentation without changing capture, OCR, or analysis. */
+  applyPresentation(config = this.briizy.getConfig?.()) {
+    const presentation = this.getPresentation(config);
+    if (presentation.avatarVisible) {
+      if (this.visible) this.pushState(presentation);
+      else this.show();
+    } else if (this.visible) {
+      this.hide();
+    } else {
+      this.pushState(presentation);
+    }
+    return presentation;
+  }
+
+  /** Route every Show/Hide affordance through the same persisted preference. */
+  setAvatarVisible(visible) {
+    const nextVisible = visible === true;
+    const config = this.briizy.getConfig?.() || {};
+    if (config.avatarVisible === nextVisible) {
+      this.applyPresentation(config);
+      return config;
+    }
+    return this.briizy.setConfig({ avatarVisible: nextVisible });
   }
 
   _send(channel, payload) {
@@ -208,9 +251,11 @@ class BriizyShell {
 
   pushState(overrides = {}) {
     const status = this.briizy.getStatus();
+    const presentation = this.getPresentation();
     this._send(SHELL_CHANNELS.state, {
       avatar: overrides.avatar || this.avatarStateFor(status),
       status,
+      ...presentation,
       ...overrides,
     });
   }
@@ -218,6 +263,13 @@ class BriizyShell {
   /** Show a suggestion bubble anchored to the avatar. */
   showSuggestion(suggestion) {
     if (!suggestion) return;
+    if (!this.getPresentation().avatarVisible) {
+      this._log('info', 'Suggestion kept off-screen because the avatar is invisible', {
+        id: suggestion.id,
+        kind: suggestion.kind,
+      });
+      return;
+    }
     this.show();
     this._send(SHELL_CHANNELS.suggestion, suggestion);
     this.pushState({ avatar: 'speaking' });
@@ -268,7 +320,7 @@ class BriizyShell {
       { type: 'separator' },
       {
         label: this.visible ? 'Hide briizy' : 'Show briizy',
-        click: () => this.toggle(),
+        click: () => this.setAvatarVisible(!this.visible),
       },
       {
         label: status.paused ? 'Resume capture' : 'Pause capture',
@@ -401,7 +453,7 @@ class BriizyShell {
 
     const handlers = [
       [SHELL_CHANNELS.setInteractive, (_event, interactive) => this.setInteractive(interactive)],
-      [SHELL_CHANNELS.hide, () => this.hide()],
+      [SHELL_CHANNELS.hide, () => this.setAvatarVisible(false)],
       [SHELL_CHANNELS.ready, () => {
         this._log('debug', 'The screen-memory avatar interface finished loading. This reports the controls only, not capture permission or screenshot success.');
         this.pushState();

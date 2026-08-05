@@ -12,8 +12,14 @@ const { assert, makeLogger, section } = require('./harness');
 function run() {
   const logger = makeLogger();
   let status = { state: 'paused', enabled: false, paused: false, session: null, storage: null };
+  let config = { avatarVisible: true, avatarSizePx: 70 };
   const briizy = {
     getStatus: () => status,
+    getConfig: () => config,
+    setConfig: (patch) => {
+      config = { ...config, ...patch };
+      return config;
+    },
     on: () => {},
     off: () => {},
   };
@@ -40,6 +46,23 @@ function run() {
   assert('every mapped state exists in the sprite sheet',
     cases.every(([, , expected]) => AVATAR_STATES.includes(expected)), AVATAR_STATES);
   assert('missing status degrades to idle', shell.avatarStateFor(null) === 'idle');
+
+  section('avatar presentation stays separate from capture');
+
+  const compact = shell.getPresentation({ avatarVisible: false, avatarSizePx: 1 });
+  const large = shell.getPresentation({ avatarVisible: true, avatarSizePx: 999 });
+  assert('visibility can be off while capture status remains off',
+    compact.avatarVisible === false && status.enabled === false, compact);
+  assert('the avatar size is clamped before it reaches overlay geometry',
+    compact.avatarSizePx === 48 && large.avatarSizePx === 140, { compact, large });
+  assert('a hidden avatar does not reappear for a suggestion', (() => {
+    config = { avatarVisible: false, avatarSizePx: 70 };
+    let shown = false;
+    shell.show = () => { shown = true; };
+    shell.showSuggestion({ id: 'hidden-suggestion', kind: 'insight' });
+    return shown === false;
+  })());
+  config = { avatarVisible: true, avatarSizePx: 70 };
 
   section('menu-bar labels');
 

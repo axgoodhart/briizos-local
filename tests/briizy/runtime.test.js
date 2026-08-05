@@ -59,13 +59,16 @@ async function run() {
     assert('cloud text analysis stays off unless asked for',
       onboarded.cloudTextAnalysisAllowed === false, undefined, 'I2');
     assert('config survives a restart', (() => {
-      briizy.setConfig({ retentionDays: 14 });
+      briizy.setConfig({ retentionDays: 14, avatarVisible: false, avatarSizePx: 92 });
       const second = createBriizy({
         service, logger, powerMonitor: { on: () => {} }, nativeImage,
         userDataPath: sandbox.dir, ownBundleIds: [],
       });
       second.start();
-      return second.getConfig().retentionDays === 14 && second.getConfig().onboardedAt !== null;
+      return second.getConfig().retentionDays === 14
+        && second.getConfig().avatarVisible === false
+        && second.getConfig().avatarSizePx === 92
+        && second.getConfig().onboardedAt !== null;
     })(), undefined, 'I4');
 
     section('session cards — one per session, never one per frame');

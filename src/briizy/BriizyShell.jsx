@@ -28,9 +28,17 @@ const AVATAR_CELLS = {
   speaking: 5,
 };
 
-const AVATAR_WIDTH = 116;
+const DEFAULT_AVATAR_SIZE_PX = 70;
+const AVATAR_SIZE_MIN_PX = 48;
+const AVATAR_SIZE_MAX_PX = 140;
 /** Sheet cell is 330.5 x 499, so the character keeps its proportions at 0.662. */
-const AVATAR_HEIGHT = Math.round(AVATAR_WIDTH * (499 / 330.5));
+const AVATAR_ASPECT_RATIO = 499 / 330.5;
+
+function normalizeAvatarSizePx(value) {
+  const size = Math.round(Number(value));
+  if (!Number.isFinite(size)) return DEFAULT_AVATAR_SIZE_PX;
+  return Math.min(AVATAR_SIZE_MAX_PX, Math.max(AVATAR_SIZE_MIN_PX, size));
+}
 
 /** How long a bubble stays up before it retires itself, by urgency. */
 const BUBBLE_TTL_MS = { high: 60000, normal: 30000, low: 18000 };
@@ -54,6 +62,10 @@ export function BriizyShell() {
   const [focus, setFocus] = useState(null);
   const [hovered, setHovered] = useState(false);
   const [side, setSide] = useState('left');
+  const [avatarSizePx, setAvatarSizePx] = useState(DEFAULT_AVATAR_SIZE_PX);
+
+  const avatarWidth = normalizeAvatarSizePx(avatarSizePx);
+  const avatarHeight = Math.round(avatarWidth * AVATAR_ASPECT_RATIO);
 
   const avatarRef = useRef(null);
   const bubbleRef = useRef(null);
@@ -112,6 +124,9 @@ export function BriizyShell() {
     const offState = bridge.onState((payload) => {
       if (payload?.avatar) setAvatar(payload.avatar);
       if (payload?.status) setStatus(payload.status);
+      if (payload?.avatarSizePx !== undefined) {
+        setAvatarSizePx(normalizeAvatarSizePx(payload.avatarSizePx));
+      }
     });
     const offSuggestion = bridge.onSuggestion((payload) => {
       setSuggestion(payload);
@@ -155,8 +170,8 @@ export function BriizyShell() {
   const drift = useCallback(() => {
     const node = avatarRef.current;
     if (!node) return;
-    const maxX = window.innerWidth - AVATAR_WIDTH - EDGE_MARGIN;
-    const maxY = window.innerHeight - AVATAR_HEIGHT - EDGE_MARGIN;
+    const maxX = window.innerWidth - avatarWidth - EDGE_MARGIN;
+    const maxY = window.innerHeight - avatarHeight - EDGE_MARGIN;
     // Stay along the right two-fifths of the screen: near enough to notice,
     // far enough from where most work happens.
     const targetX = Math.max(EDGE_MARGIN, maxX - Math.random() * (window.innerWidth * 0.18));
@@ -169,7 +184,7 @@ export function BriizyShell() {
     } else {
       gsap.to(node, { x: targetX, y: targetY, duration: 4.5, ease: 'sine.inOut' });
     }
-  }, []);
+  }, [avatarHeight, avatarWidth]);
 
   useEffect(() => {
     const node = avatarRef.current;
@@ -177,8 +192,8 @@ export function BriizyShell() {
 
     // Start parked bottom-right, then drift from there.
     gsap.set(node, {
-      x: window.innerWidth - AVATAR_WIDTH - EDGE_MARGIN * 2,
-      y: window.innerHeight - AVATAR_HEIGHT - EDGE_MARGIN * 2,
+      x: window.innerWidth - avatarWidth - EDGE_MARGIN * 2,
+      y: window.innerHeight - avatarHeight - EDGE_MARGIN * 2,
     });
 
     let bob = null;
@@ -258,7 +273,7 @@ export function BriizyShell() {
       <div
         className={`briizy-avatar-wrap briizy-avatar-wrap--${side}`}
         ref={avatarRef}
-        style={{ '--briizy-w': `${AVATAR_WIDTH}px`, '--briizy-h': `${AVATAR_HEIGHT}px` }}
+        style={{ '--briizy-w': `${avatarWidth}px`, '--briizy-h': `${avatarHeight}px` }}
       >
         {(suggestion || result) && (
           <div

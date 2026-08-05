@@ -1,6 +1,17 @@
 import './ControlBar.css';
-import { useEffect, useState } from 'react';
-import briizyMoods from '../../briizy/assets/briizy-moods.png';
+import { useEffect, useRef, useState } from 'react';
+import briizyLogoAwake from '../../briizy/assets/briizy-logo-awake.png';
+import briizyLogoAsleep from '../../briizy/assets/briizy-logo-asleep.png';
+
+const AVATAR_SIZE_MIN_PX = 48;
+const AVATAR_SIZE_MAX_PX = 140;
+const DEFAULT_AVATAR_SIZE_PX = 70;
+
+function normalizeAvatarSizePx(value) {
+  const size = Math.round(Number(value));
+  if (!Number.isFinite(size)) return DEFAULT_AVATAR_SIZE_PX;
+  return Math.min(AVATAR_SIZE_MAX_PX, Math.max(AVATAR_SIZE_MIN_PX, size));
+}
 
 const FOLDER_TAB_PATH = [
   'M 0 48',
@@ -148,14 +159,30 @@ function DockEditor({
   observationAvailable = false,
   observationBusy = false,
   onToggleObservation,
+  avatarVisible = true,
+  avatarSizePx = DEFAULT_AVATAR_SIZE_PX,
+  onAvatarVisibilityChange,
+  onAvatarSizeChange,
 }) {
   const includedIds = dockItems.filter((id) => id !== 'controlBar');
   const included = includedIds.map((id) => DOCK_ITEMS_BY_ID.get(id)).filter(Boolean);
   const available = EDITABLE_DOCK_ITEMS.filter((item) => !includedIds.includes(item.id));
   const allItems = [...included, ...available];
   const [hoveredItemId, setHoveredItemId] = useState(null);
+  const [avatarVisibleDraft, setAvatarVisibleDraft] = useState(avatarVisible);
+  const currentAvatarSize = normalizeAvatarSizePx(avatarSizePx);
+  const [avatarSizeDraft, setAvatarSizeDraft] = useState(currentAvatarSize);
+  const committedAvatarSizeRef = useRef(currentAvatarSize);
   const optionHeld = useOptionHeld();
-  const observationLabel = observationActive ? 'Observation on' : 'Observation off';
+
+  useEffect(() => {
+    setAvatarVisibleDraft(avatarVisible);
+  }, [avatarVisible]);
+
+  useEffect(() => {
+    committedAvatarSizeRef.current = currentAvatarSize;
+    setAvatarSizeDraft(currentAvatarSize);
+  }, [currentAvatarSize]);
 
   const updateIncluded = (next) => onDockItemsChange?.(['controlBar', ...next]);
 
@@ -168,28 +195,93 @@ function DockEditor({
     updateIncluded(next);
   };
 
+  const commitAvatarSize = (value) => {
+    const nextSize = normalizeAvatarSizePx(value);
+    setAvatarSizeDraft(nextSize);
+    if (nextSize === committedAvatarSizeRef.current) return;
+    committedAvatarSizeRef.current = nextSize;
+    onAvatarSizeChange?.(nextSize);
+  };
+
   return (
     <section className="control-bar-rail" aria-label="Header dock editor">
-      <button
-        type="button"
-        className={'cb-observation-toggle' + (observationActive ? ' is-active' : '')}
-        onClick={onToggleObservation}
-        disabled={!observationAvailable || observationBusy}
-        aria-pressed={observationActive}
-        title={observationAvailable
-          ? `${observationActive ? 'Turn off' : 'Turn on'} briizy observation`
-          : 'briizy observation is unavailable in this build'}
+      <section
+        className={'cb-briizy-presence' + (avatarVisibleDraft ? ' is-visible' : ' is-invisible')}
+        aria-label="Briizy on-screen appearance"
       >
-        <span
-          className="cb-briizy-avatar"
-          aria-hidden="true"
-          style={{ backgroundImage: `url(${briizyMoods})` }}
-        />
-        <span className="cb-observation-toggle__copy">
-          <span className="cb-observation-toggle__name">briizy</span>
-          <span className="cb-observation-toggle__state">{observationLabel}</span>
-        </span>
-      </button>
+        <button
+          type="button"
+          className={'cb-observation-toggle' + (observationActive ? ' is-active' : '')}
+          onClick={onToggleObservation}
+          disabled={!observationAvailable || observationBusy}
+          aria-pressed={observationActive}
+          title={observationAvailable
+            ? `${observationActive ? 'Turn off' : 'Turn on'} briizy observation capture`
+            : 'briizy observation is unavailable in this build'}
+          aria-label={observationAvailable
+            ? `${observationActive ? 'Turn off' : 'Turn on'} briizy observation capture`
+            : 'briizy observation is unavailable in this build'}
+        >
+          <img
+            className="cb-briizy-avatar"
+            src={observationActive ? briizyLogoAwake : briizyLogoAsleep}
+            alt=""
+          />
+        </button>
+
+        <label className="cb-briizy-size" htmlFor="briizy-avatar-size">
+          <span className="cb-briizy-size__label">Briizy size</span>
+          <output className="cb-briizy-size__value" htmlFor="briizy-avatar-size">{avatarSizeDraft} px</output>
+          <input
+            id="briizy-avatar-size"
+            className="cb-briizy-size__range"
+            type="range"
+            min={AVATAR_SIZE_MIN_PX}
+            max={AVATAR_SIZE_MAX_PX}
+            step="1"
+            value={avatarSizeDraft}
+            disabled={!observationAvailable || observationBusy}
+            aria-valuetext={`${avatarSizeDraft} pixels`}
+            style={{ '--cb-avatar-size-progress': `${((avatarSizeDraft - AVATAR_SIZE_MIN_PX) / (AVATAR_SIZE_MAX_PX - AVATAR_SIZE_MIN_PX)) * 100}%` }}
+            onChange={(event) => setAvatarSizeDraft(normalizeAvatarSizePx(event.currentTarget.value))}
+            onPointerUp={(event) => commitAvatarSize(event.currentTarget.value)}
+            onBlur={(event) => commitAvatarSize(event.currentTarget.value)}
+            onKeyUp={(event) => {
+              if (['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'].includes(event.key)) {
+                commitAvatarSize(event.currentTarget.value);
+              }
+            }}
+          />
+        </label>
+
+        <fieldset className="cb-briizy-visibility" disabled={!observationAvailable || observationBusy}>
+          <legend className="cb-sr-only">Briizy visibility</legend>
+          <label className="cb-briizy-visibility__option">
+            <input
+              type="radio"
+              name="briizy-avatar-visibility"
+              checked={avatarVisibleDraft}
+              onChange={() => {
+                setAvatarVisibleDraft(true);
+                onAvatarVisibilityChange?.(true);
+              }}
+            />
+            <span>Visible</span>
+          </label>
+          <label className="cb-briizy-visibility__option">
+            <input
+              type="radio"
+              name="briizy-avatar-visibility"
+              checked={!avatarVisibleDraft}
+              onChange={() => {
+                setAvatarVisibleDraft(false);
+                onAvatarVisibilityChange?.(false);
+              }}
+            />
+            <span>Invisible</span>
+          </label>
+        </fieldset>
+      </section>
 
       <span className="cb-editor__rule" aria-hidden="true" />
 
@@ -313,6 +405,10 @@ function ControlBar({
   observationAvailable,
   observationBusy,
   onToggleObservation,
+  avatarVisible,
+  avatarSizePx,
+  onAvatarVisibilityChange,
+  onAvatarSizeChange,
 }) {
   if (variant === 'bar') {
     return (
@@ -324,6 +420,10 @@ function ControlBar({
         observationAvailable={observationAvailable}
         observationBusy={observationBusy}
         onToggleObservation={onToggleObservation}
+        avatarVisible={avatarVisible}
+        avatarSizePx={avatarSizePx}
+        onAvatarVisibilityChange={onAvatarVisibilityChange}
+        onAvatarSizeChange={onAvatarSizeChange}
       />
     );
   }
