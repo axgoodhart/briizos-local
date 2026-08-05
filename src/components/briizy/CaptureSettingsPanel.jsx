@@ -334,6 +334,18 @@ export default function CaptureSettingsPanel({ capture, onClose }) {
       {config && (
         <div className="nf-capture__fields">
           <label className="nf-capture__field">
+            <span>screenshot view</span>
+            <select
+              value={config.captureStrategy}
+              onChange={(e) => updateConfig({ captureStrategy: e.currentTarget.value })}
+              disabled={busy}
+            >
+              <option value="alternate">alternate window + full display</option>
+              <option value="window">active window only</option>
+              <option value="display">full display only</option>
+            </select>
+          </label>
+          <label className="nf-capture__field">
             <span>capture every</span>
             <select
               value={config.captureIntervalMs}
@@ -400,6 +412,13 @@ export default function CaptureSettingsPanel({ capture, onClose }) {
       )}
 
       {config && (
+        <p className="nf-capture__hint">
+          The alternating view starts with the active window, then takes the full display, and repeats.
+          A full display is a Mac display selected by briizy, not a browser page.
+        </p>
+      )}
+
+      {config && (
         <div className="nf-capture__exclusions">
           <span className="nf-drawer__label">never captured</span>
           <label className="nf-capture__consent">
@@ -419,7 +438,9 @@ export default function CaptureSettingsPanel({ capture, onClose }) {
             {config.excludedBundleIds.length} app{config.excludedBundleIds.length === 1 ? '' : 's'} and{' '}
             {config.excludedTitlePatterns.length} window-title pattern
             {config.excludedTitlePatterns.length === 1 ? '' : 's'} are excluded before anything is written to
-            disk — password managers, the lock screen, and private-browsing windows by default.
+            disk when they are active — password managers, the lock screen, and private-browsing windows by default.
+            A full-display screenshot can include other visible windows, so choose “active window only”
+            when you want strictly window-scoped history.
           </p>
           {defaults && (
             <details className="nf-capture__details">

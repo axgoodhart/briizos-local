@@ -307,9 +307,9 @@ export function CaptureOnboarding({ capture }) {
 
       <ul className="nf-onboard__list">
         <li>
-          <strong>What it does.</strong> Every few seconds it takes a picture of your
-          <em> active window only</em> — not your whole screen — reads the text in it, and keeps
-          both so you can search back through what you were doing.
+          <strong>What it does.</strong> Every few seconds it alternates between a picture of your
+          <em> active window</em> and a <em>full display</em>, reads the text in each, and
+          keeps both so you can search back through what you were doing.
         </li>
         <li>
           <strong>Where it stays.</strong> The pictures never leave this Mac. They live in briizOS's
@@ -317,9 +317,9 @@ export function CaptureOnboarding({ capture }) {
         </li>
         <li>
           <strong>What it skips.</strong> {excludedCount} apps and {patternCount} window-title
-          patterns are excluded before anything is written to disk — password managers, the lock
-          screen, private-browsing windows. You can add your own, and nothing from an excluded
-          window is ever recorded in the first place.
+          patterns stop a capture when they are active — password managers, the lock screen, and
+          private-browsing windows. You can add your own. A full-display screenshot can still show
+          other visible windows, so choose active-window-only capture in Settings if that matters.
         </li>
         <li>
           <strong>How much space.</strong> Up to 10 GB or 30 days, whichever comes first. Oldest
@@ -934,6 +934,11 @@ export function NotefallsPanel() {
   };
 
   const expandedPost = posts.find((p) => p.id === expandedId) || null;
+  const isAlternating = capture.status.captureStrategy === 'alternate'
+    && capture.status.session?.kind !== 'display';
+  const captureLabel = isAlternating
+    ? `next: ${capture.status.nextCaptureMode === 'display' ? 'full display' : 'active window'}`
+    : 'capturing';
 
   return (
     <div className="panel notefalls-panel">
@@ -941,7 +946,7 @@ export function NotefallsPanel() {
         <span className="panel-header-title">Notefalls</span>
         {capture.available && capture.status.enabled && !capture.status.paused && (
           <span className="nf-header__capture" title={describeCaptureState(capture.status)}>
-            <span className="nf-capture__dot is-capturingWindow" /> capturing
+            <span className={'nf-capture__dot is-' + (capture.status.state || 'unknown')} /> {captureLabel}
           </span>
         )}
       </div>

@@ -27,6 +27,8 @@ const CAPTURE_STATES = Object.freeze([
   'error',
 ]);
 
+/** The framing used for ordinary, automatically scheduled screenshots. */
+const CAPTURE_STRATEGIES = Object.freeze(['alternate', 'window', 'display']);
 const OCR_MODES = Object.freeze(['fast', 'accurate']);
 const BATTERY_BEHAVIORS = Object.freeze(['ignore', 'deferOcr', 'pauseCapture']);
 const AVATAR_SIZE_MIN_PX = 48;
@@ -79,6 +81,10 @@ function defaults() {
     avatarVisible: true,
     avatarSizePx: DEFAULT_AVATAR_SIZE_PX,
     captureIntervalMs: 3000,
+    // Automatic capture starts with the active window, then alternates with a
+    // full-display screenshot. A manually started display session stays full
+    // display until the user ends it.
+    captureStrategy: 'alternate',
     ocrEveryNthFrame: 3,
     retentionDays: 30,
     // I8 — byte cap enforced from the first capture, before compaction exists.
@@ -168,6 +174,9 @@ function normalize(input) {
       min: 1000,
       max: 5 * 60 * 1000,
     }),
+    captureStrategy: CAPTURE_STRATEGIES.includes(input.captureStrategy)
+      ? input.captureStrategy
+      : base.captureStrategy,
     ocrEveryNthFrame: clampInt(input.ocrEveryNthFrame, base.ocrEveryNthFrame, { min: 1, max: 30 }),
     retentionDays: clampInt(input.retentionDays, base.retentionDays, { min: 1, max: 3650 }),
     retentionBytes: clampInt(input.retentionBytes, base.retentionBytes, {
@@ -226,6 +235,7 @@ function inQuietHours(hours, now = new Date()) {
 module.exports = {
   ASSISTANT_IDS,
   BATTERY_BEHAVIORS,
+  CAPTURE_STRATEGIES,
   CAPTURE_STATES,
   OCR_MODES,
   defaultAssistant,

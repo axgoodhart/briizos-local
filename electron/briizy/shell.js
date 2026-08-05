@@ -450,8 +450,14 @@ class BriizyShell {
 
   _statusLabel(status) {
     switch (status?.state) {
-      case 'capturingWindow': return 'watching the active window';
-      case 'capturingDisplay': return 'recording this display';
+      case 'capturingWindow':
+        return status.captureStrategy === 'alternate' && status.session?.kind !== 'display'
+          ? 'next: active window'
+          : 'watching the active window';
+      case 'capturingDisplay':
+        return status.captureStrategy === 'alternate' && status.session?.kind !== 'display'
+          ? 'next: full display'
+          : 'recording this display';
       case 'paused': return status.enabled ? 'paused' : 'off';
       case 'permissionRequired': return 'needs Screen Recording permission';
       case 'unavailable': return 'helper unavailable';

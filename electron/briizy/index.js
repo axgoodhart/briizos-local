@@ -179,13 +179,19 @@ class Briizy extends EventEmitter {
     this.indexer.setConfig(this.config);
 
     const cadenceSeconds = +(this.config.captureIntervalMs / 1000).toFixed(1);
+    const framing = {
+      alternate: 'alternate active-window and full-display screenshots',
+      window: 'capture the active window only',
+      display: 'capture the full display only',
+    }[this.config.captureStrategy];
     this._log(
       'info',
       this.config.enabled
-        ? `Screen memory is enabled. briizOS will attempt one screenshot every ${cadenceSeconds} seconds and run local OCR on every ${this.config.ocrEveryNthFrame} captured screenshots. The next capture-status entry reports whether macOS granted Screen Recording.`
+        ? `Screen memory is enabled. briizOS will ${framing} every ${cadenceSeconds} seconds and run local OCR on every ${this.config.ocrEveryNthFrame} captured screenshots. The next capture-status entry reports whether macOS granted Screen Recording.`
         : 'Screen memory is off. No screenshots or OCR will be taken until the user enables it.',
       {
         captureEnabled: this.config.enabled,
+        captureStrategy: this.config.captureStrategy,
         onboardingCompleted: !!this.config.onboardedAt,
         screenshotIntervalSeconds: cadenceSeconds,
         localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,

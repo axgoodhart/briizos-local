@@ -138,6 +138,8 @@ function run() {
       .every((a) => a.enabled === false && a.immediateExecution === false), undefined, 'I6');
   assert('cloud text analysis is off by default',
     briizyConfig.defaults().cloudTextAnalysisAllowed === false, undefined, 'I2');
+  assert('automatic screenshots alternate window and full display by default',
+    briizyConfig.defaults().captureStrategy === 'alternate');
   assert('the avatar defaults to visible at the mockup size', (() => {
     const config = briizyConfig.defaults();
     return config.avatarVisible === true && config.avatarSizePx === 70;
@@ -157,6 +159,9 @@ function run() {
   })());
   assert('an unknown ocrMode falls back to fast',
     briizyConfig.normalize({ ocrMode: 'perfect' }).ocrMode === 'fast');
+  assert('capture strategy accepts only the supported framings',
+    briizyConfig.normalize({ captureStrategy: 'display' }).captureStrategy === 'display'
+      && briizyConfig.normalize({ captureStrategy: 'invented' }).captureStrategy === 'alternate');
   assert('unknown top-level keys are dropped',
     briizyConfig.normalize({ sneaky: true }).sneaky === undefined);
   assert('unknown assistant ids are dropped',

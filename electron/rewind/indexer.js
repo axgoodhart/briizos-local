@@ -46,6 +46,8 @@ const HEARTBEAT_MIN_MS = 30 * 1000;
 const OCR_BACKFILL_PER_TICK = 2;
 /** How long a context that crashed the helper stays quarantined. */
 const POISON_RETRY_MS = 5 * 60 * 1000;
+/** The ordinary automatic cycle begins with the focused window. */
+const AUTO_CAPTURE_MODES = Object.freeze(['window', 'display']);
 
 class RewindIndexer extends EventEmitter {
   constructor({ helper, service, logger, powerMonitor, userDataPath, ownBundleIds = [] }) {
@@ -68,8 +70,12 @@ class RewindIndexer extends EventEmitter {
     this.lastMeta = null;
     this.lastContextKey = null;
     this.lastCaptureAt = 0;
-    this.lastKeptPhash = null;
+    // A display frame and an active-window frame must be deduplicated against
+    // their own previous view. Comparing those two framings would make either
+    // kind of screenshot disappear by accident.
+    this.lastKeptByMode = new Map();
     this.lastKeptContextKey = null;
+    this.nextAutoCaptureMode = AUTO_CAPTURE_MODES[0];
     this.lastHeartbeatAt = 0;
     this.framesSinceOcr = 0;
     this.contextSwitchPending = false;
@@ -119,11 +125,25 @@ class RewindIndexer extends EventEmitter {
   setConfig(config) {
     const previous = this.config;
     this.config = briizyConfig.normalize(config);
+    if (previous.captureStrategy !== this.config.captureStrategy) {
+      // Changing the strategy creates a predictable new cycle: the next
+      // alternating capture begins with the focused window.
+      this.nextAutoCaptureMode = AUTO_CAPTURE_MODES[0];
+      this._log('info', 'Automatic screenshot framing changed.', {
+        captureStrategy: this.config.captureStrategy,
+        effect: {
+          alternate: 'Each scheduled cycle takes the active window, then the full display, and repeats.',
+          window: 'Each scheduled cycle takes the active window only.',
+          display: 'Each scheduled cycle takes the full display only.',
+        }[this.config.captureStrategy],
+      });
+    }
     if (previous.enabled !== this.config.enabled) {
       this._log('info', this.config.enabled
-        ? `Screen memory was enabled: one screenshot will be attempted every ${+(this.config.captureIntervalMs / 1000).toFixed(1)} seconds, with local OCR on every ${this.config.ocrEveryNthFrame} screenshots.`
+        ? `Screen memory was enabled: ${this.config.captureStrategy === 'alternate' ? 'active-window and full-display screenshots will alternate' : `${this.config.captureStrategy} screenshots will be taken`} every ${+(this.config.captureIntervalMs / 1000).toFixed(1)} seconds, with local OCR on every ${this.config.ocrEveryNthFrame} screenshots.`
         : 'Screen memory was disabled. No further screenshots or OCR will be scheduled.', {
         captureEnabled: this.config.enabled,
+        captureStrategy: this.config.captureStrategy,
         screenshotIntervalSeconds: +(this.config.captureIntervalMs / 1000).toFixed(1),
         localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
         retentionDays: this.config.retentionDays,
@@ -213,17 +233,34 @@ class RewindIndexer extends EventEmitter {
   // State
   // ------------------------------------------------------------------
 
-  _refreshState() {
+  /** The framing the next automatic capture will use. */
+  _captureModeForNextFrame() {
+    // Explicit display sessions intentionally override the ordinary strategy.
+    if (this.sessionKind === 'display') return 'display';
+    if (this.config.captureStrategy === 'window') return 'window';
+    if (this.config.captureStrategy === 'display') return 'display';
+    return this.nextAutoCaptureMode;
+  }
+
+  /** Advance only after a real screenshot succeeds, never after a failed call. */
+  _advanceAutoCaptureMode(capturedMode, explicitDisplaySession) {
+    if (explicitDisplaySession || this.config.captureStrategy !== 'alternate') return;
+    const currentIndex = AUTO_CAPTURE_MODES.indexOf(capturedMode);
+    this.nextAutoCaptureMode = AUTO_CAPTURE_MODES[(currentIndex + 1) % AUTO_CAPTURE_MODES.length];
+    this._refreshState();
+  }
+
+  _refreshState(force = false) {
     const helperStatus = this.helper.getStatus();
     let next;
     if (helperStatus.state === 'unavailable' || !helperStatus.available) next = 'unavailable';
     else if (!this.config.enabled || this.paused || this.screenLocked) next = 'paused';
     else if (helperStatus.state === 'ready' && !helperStatus.permission) next = 'permissionRequired';
     else if (helperStatus.state === 'error') next = 'error';
-    else if (this.sessionKind === 'display') next = 'capturingDisplay';
-    else next = 'capturingWindow';
+    else next = this._captureModeForNextFrame() === 'display' ? 'capturingDisplay' : 'capturingWindow';
 
-    if (next !== this.captureState) {
+    const stateChanged = next !== this.captureState;
+    if (stateChanged) {
       this.captureState = next;
       const explanation = {
         unavailable: 'Screen memory cannot capture because the local helper is unavailable.',
@@ -232,18 +269,29 @@ class RewindIndexer extends EventEmitter {
           : 'Screen memory is paused or disabled; no screenshots or OCR are taken.',
         permissionRequired: 'macOS Screen Recording permission is missing. No screenshots or OCR can be produced until it is granted.',
         error: 'Screen memory stopped this capture attempt because the local helper reported an error.',
-        capturingDisplay: 'Screen memory may now capture the explicitly selected display at the configured cadence.',
-        capturingWindow: 'Screen memory may now capture the visible front window at the configured cadence.',
+        capturingDisplay: this.sessionKind === 'display'
+          ? 'Screen memory may now capture the explicitly selected display at the configured cadence.'
+          : this.config.captureStrategy === 'alternate'
+            ? 'The next automatic screenshot will use the full display; the following one returns to the active window.'
+            : 'Screen memory may now capture the full display at the configured cadence.',
+        capturingWindow: this.config.captureStrategy === 'alternate'
+          ? 'The next automatic screenshot will use the active window; the following one uses the full display.'
+          : 'Screen memory may now capture the visible front window at the configured cadence.',
       }[next] || `Screen memory entered the internal “${next}” state.`;
       this._log(next === 'unavailable' || next === 'permissionRequired' || next === 'error' ? 'warn' : 'info', explanation, {
         captureState: next,
         captureHelperState: helperStatus.state,
         screenRecordingPermission: helperStatus.permission,
+        captureStrategy: this.config.captureStrategy,
+        nextCaptureMode: this._captureModeForNextFrame(),
         screenshotIntervalSeconds: +(this.config.captureIntervalMs / 1000).toFixed(1),
         localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
       });
-      this.emit('state', this.getStatus());
     }
+    // Session boundaries carry status information even if the visible framing
+    // happens to stay the same (for example, an explicit display session ends
+    // just before an automatic full-display frame).
+    if (stateChanged || force) this.emit('state', this.getStatus());
   }
 
   getStatus() {
@@ -251,6 +299,8 @@ class RewindIndexer extends EventEmitter {
     return {
       state: this.captureState,
       enabled: this.config.enabled,
+      captureStrategy: this.config.captureStrategy,
+      nextCaptureMode: this._captureModeForNextFrame(),
       paused: this.paused,
       screenLocked: this.screenLocked,
       onBattery: this._onBattery(),
@@ -307,7 +357,7 @@ class RewindIndexer extends EventEmitter {
       localOcrEveryNthScreenshot: this.config.ocrEveryNthFrame,
     });
     this.emit('session-open', created.row);
-    this._refreshState();
+    this._refreshState(true);
     return this.sessionId;
   }
 
@@ -319,7 +369,7 @@ class RewindIndexer extends EventEmitter {
     this.sessionId = null;
     this.sessionKind = null;
     this.sessionDayKey = null;
-    this.lastKeptPhash = null;
+    this.lastKeptByMode.clear();
     this.lastKeptContextKey = null;
 
     let row = null;
@@ -338,7 +388,7 @@ class RewindIndexer extends EventEmitter {
       if (row && row.frameCount === 0) {
         this.service.deleteRewindHistory({ sessionId });
         this._log('debug', 'Dropped empty session', { sessionId });
-        this._refreshState();
+        this._refreshState(true);
         return null;
       }
       this.emit('session-close', { session: row, reason });
@@ -348,7 +398,7 @@ class RewindIndexer extends EventEmitter {
         error: error?.message,
       });
     }
-    this._refreshState();
+    this._refreshState(true);
     this._runPrune('session-close').catch(() => {});
     return row;
   }
@@ -504,7 +554,11 @@ class RewindIndexer extends EventEmitter {
   }
 
   async _captureOnce(now, meta, onBattery) {
-    const mode = this.sessionKind === 'display' ? 'display' : 'window';
+    // A display session is an explicitly bounded group. Automatic full-display
+    // frames still belong in the ordinary auto session so alternating frames do
+    // not close and reopen a session on every tick.
+    const explicitDisplaySession = this.sessionKind === 'display';
+    const mode = explicitDisplaySession ? 'display' : this._captureModeForNextFrame();
     const contextKey = `${meta.appName || ''} ${this._normalizeTitle(meta.windowTitle)}`;
     const isNewContext = this.contextSwitchPending || contextKey !== this.lastKeptContextKey;
 
@@ -528,7 +582,7 @@ class RewindIndexer extends EventEmitter {
       this.poisonedContexts.delete(contextKey);
     }
 
-    const sessionId = await this._ensureSession(now, mode === 'display' ? 'display' : 'auto');
+    const sessionId = await this._ensureSession(now, explicitDisplaySession ? 'display' : 'auto');
     const outPath = storage.framePath(this.userDataPath, now, `${mode}`);
 
     let captured;
@@ -569,13 +623,15 @@ class RewindIndexer extends EventEmitter {
     }
 
     this.lastCaptureAt = now;
+    this._advanceAutoCaptureMode(mode, explicitDisplaySession);
     this.stats.captures += 1;
 
     // 4. Dedup. A near-identical frame in the same context is not worth
     // ~200 KB; delete the file and keep at most a heartbeat row.
-    const distance = storage.hammingDistance(captured.phash, this.lastKeptPhash);
-    const sameContext = contextKey === this.lastKeptContextKey;
-    const isDuplicate = sameContext && this.lastKeptPhash && distance <= DEDUP_THRESHOLD;
+    const previousInMode = this.lastKeptByMode.get(mode);
+    const distance = storage.hammingDistance(captured.phash, previousInMode?.phash);
+    const sameContext = contextKey === previousInMode?.contextKey;
+    const isDuplicate = sameContext && previousInMode?.phash && distance <= DEDUP_THRESHOLD;
 
     if (isDuplicate) {
       this.stats.duplicates += 1;
@@ -649,7 +705,10 @@ class RewindIndexer extends EventEmitter {
       return;
     }
 
-    this.lastKeptPhash = captured.phash || null;
+    this.lastKeptByMode.set(mode, {
+      phash: captured.phash || null,
+      contextKey,
+    });
     this.lastKeptContextKey = contextKey;
     this.lastHeartbeatAt = now;
     this.lastActivityAt = now;
@@ -668,8 +727,9 @@ class RewindIndexer extends EventEmitter {
       frameId: recorded.row.frameId,
       app: recorded.row.appName,
       title: recorded.row.windowTitle,
+      mode,
       kb: Math.round((recorded.row.bytes || 0) / 1024),
-      distance: this.lastKeptPhash ? distance : null,
+      distance: previousInMode?.phash ? distance : null,
       ocr: ocrStatus,
       ocrChars: ocr?.fullText?.length || 0,
     });
@@ -849,4 +909,4 @@ class RewindIndexer extends EventEmitter {
   }
 }
 
-module.exports = { RewindIndexer, DEDUP_THRESHOLD, HEARTBEAT_MIN_MS };
+module.exports = { AUTO_CAPTURE_MODES, RewindIndexer, DEDUP_THRESHOLD, HEARTBEAT_MIN_MS };

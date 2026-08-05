@@ -15,6 +15,10 @@ npm run dev          # or dev:debug for per-frame logging
 Then open Notefalls and click **auto capture is OFF**. Nothing captures until you
 complete the onboarding sheet — that is I10, not a formality.
 
+Ordinary automatic capture alternates the active window and a full display. In
+**briizy Settings → screenshot view**, you can instead keep every
+screenshot to the active window or use the full display every time.
+
 ## Screen Recording permission in development
 
 macOS grants Screen Recording to the *responsible process*, not to the helper.

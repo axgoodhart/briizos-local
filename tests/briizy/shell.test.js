@@ -68,6 +68,9 @@ function run() {
 
   assert('watching', shell._statusLabel({ state: 'capturingWindow' }) === 'watching the active window');
   assert('recording', shell._statusLabel({ state: 'capturingDisplay' }) === 'recording this display');
+  assert('alternating labels name the next framing',
+    shell._statusLabel({ state: 'capturingWindow', captureStrategy: 'alternate' }) === 'next: active window'
+      && shell._statusLabel({ state: 'capturingDisplay', captureStrategy: 'alternate' }) === 'next: full display');
   assert('off vs paused are distinguishable',
     shell._statusLabel({ state: 'paused', enabled: false }) === 'off'
     && shell._statusLabel({ state: 'paused', enabled: true }) === 'paused');

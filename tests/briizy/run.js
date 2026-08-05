@@ -13,6 +13,7 @@ const { app } = require('electron');
 const SUITES = [
   { name: 'privacy', module: './privacy.test' },
   { name: 'storage', module: './storage.test' },
+  { name: 'indexer', module: './indexer.test' },
   { name: 'helper', module: './helper.test' },
   { name: 'runtime', module: './runtime.test' },
   { name: 'shell', module: './shell.test' },

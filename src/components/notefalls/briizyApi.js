@@ -83,9 +83,10 @@ export function formatBytes(bytes) {
 
 /** Human label for a CaptureState (§2). */
 export function describeCaptureState(status) {
+  const alternating = status?.captureStrategy === 'alternate' && status?.session?.kind !== 'display';
   switch (status?.state) {
-    case 'capturingWindow': return 'capturing active window';
-    case 'capturingDisplay': return 'capturing full display';
+    case 'capturingWindow': return alternating ? 'next screenshot: active window' : 'capturing active window';
+    case 'capturingDisplay': return alternating ? 'next screenshot: full display' : 'capturing full display';
     case 'paused': return status?.enabled ? 'paused' : 'off';
     case 'permissionRequired': return 'needs Screen Recording permission';
     case 'unavailable': return 'unavailable on this machine';

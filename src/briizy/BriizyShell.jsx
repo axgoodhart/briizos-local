@@ -400,8 +400,14 @@ export function BriizyShell() {
 /** One short line for the hover tip — what briizy is doing right now. */
 function describeStatus(status) {
   switch (status.state) {
-    case 'capturingWindow': return `watching ${status.current?.appName || 'the active window'}`;
-    case 'capturingDisplay': return 'recording this display';
+    case 'capturingWindow':
+      return status.captureStrategy === 'alternate' && status.session?.kind !== 'display'
+        ? 'next: active window'
+        : `watching ${status.current?.appName || 'the active window'}`;
+    case 'capturingDisplay':
+      return status.captureStrategy === 'alternate' && status.session?.kind !== 'display'
+        ? 'next: full display'
+        : 'recording this display';
     case 'paused': return status.enabled ? 'paused' : 'off';
     case 'permissionRequired': return 'needs Screen Recording permission';
     case 'unavailable': return 'capture helper unavailable';
