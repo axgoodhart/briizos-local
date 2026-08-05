@@ -1,5 +1,5 @@
 /**
- * briizy capture settings — one component, two homes.
+ * briizy capture setting
  *
  * Rendered in the Dashboard's "briizy" tab (the findable home) and inside the
  * Notefalls session drawer (where it historically lived). Extracted from
@@ -9,6 +9,9 @@
  * `capture` is the object returned by useBriizyCapture(). `onClose` is
  * optional: the Notefalls drawer passes it, the Dashboard tab does not.
  */
+/*
+I dont know what the hell those notes up there mean. Stop using shorthand grammar and explain your reasoning.
+*/
 
 import { useCallback, useEffect, useState } from 'react';
 import { briizyApi, describeCaptureState, formatBytes } from '../notefalls/briizyApi.js';

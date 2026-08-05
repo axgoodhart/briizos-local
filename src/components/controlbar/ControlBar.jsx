@@ -230,7 +230,6 @@ function DockEditor({
         </button>
 
         <label className="cb-briizy-size" htmlFor="briizy-avatar-size">
-          <span className="cb-briizy-size__label">Briizy size</span>
           <output className="cb-briizy-size__value" htmlFor="briizy-avatar-size">{avatarSizeDraft} px</output>
           <input
             id="briizy-avatar-size"
@@ -253,8 +252,9 @@ function DockEditor({
             }}
           />
         </label>
-
-        <fieldset className="cb-briizy-visibility" disabled={!observationAvailable || observationBusy}>
+        </section>
+<section className="cb-briizy-vis-toggles">
+        <fieldset className="cb-briizy-visibility" n={!observationAvailable || observationBusy}>
           <legend className="cb-sr-only">Briizy visibility</legend>
           <label className="cb-briizy-visibility__option">
             <input
