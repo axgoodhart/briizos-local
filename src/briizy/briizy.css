@@ -14,15 +14,32 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* The wrapper is what GSAP moves; children position relative to it. */
+/* The wrapper is now anchored inside the small pet window (like OpenPets'
+   PetHostView). Drift moves the window itself via shell.updateBounds, so the
+   wrapper stays at a fixed inset and only bobs. Side modifiers keep the bubble
+   inside the window. */
 .briizy-avatar-wrap {
   position: absolute;
-  top: 0;
-  left: 0;
+  bottom: 24px;
   width: var(--briizy-w, 116px);
   height: var(--briizy-h, 175px);
   pointer-events: none;
   will-change: transform;
+}
+.briizy-avatar-wrap--left {
+  right: 24px;
+  left: auto;
+  top: auto;
+}
+.briizy-avatar-wrap--right {
+  left: 24px;
+  right: auto;
+  top: auto;
+}
+.briizy-avatar-wrap--left.briizy-avatar-wrap,
+.briizy-avatar-wrap--right.briizy-avatar-wrap {
+  /* ensure bottom anchoring wins over legacy top:0 */
+  top: auto;
 }
 
 /* ── Avatar ─────────────────────────────────────────────────────────── */
@@ -78,7 +95,7 @@
   position: absolute;
   bottom: 62%;
   width: 296px;
-  max-width: 34vw;
+  max-width: 296px;
   padding: 14px 16px;
   border-radius: 16px;
   background: rgba(10, 16, 30, 0.92);

@@ -46,8 +46,43 @@ const BUBBLE_TTL_MS = { high: 60000, normal: 30000, low: 18000 };
 const DRIFT_MIN_MS = 22000;
 const DRIFT_MAX_MS = 48000;
 const EDGE_MARGIN = 28;
+const WINDOW_PADDING_PX = 24;
+const BUBBLE_WIDTH_PX = 296;
 
 const shell = () => (typeof window !== 'undefined' ? window.briizy?.shell : null);
+
+function getScreenWorkArea() {
+  // In the small pet window, window.innerWidth is the window size, not the
+  // screen. Use screen.availWidth/availHeight (workArea minus Dock/menu bar)
+  // like OpenPets does with NSScreen.visibleFrame.
+  const s = typeof window !== 'undefined' ? window.screen : null;
+  if (s && s.availWidth && s.availHeight) {
+    const availLeft = s.availLeft ?? 0;
+    const availTop = s.availTop ?? 0;
+    // Some environments report availLeft/Top, others just width/height.
+    return {
+      x: availLeft,
+      y: availTop,
+      width: s.availWidth,
+      height: s.availHeight,
+    };
+  }
+  // Fallback to inner viewport (e.g., tests)
+  return { x: 0, y: 0, width: typeof window !== 'undefined' ? window.innerWidth : 1280, height: typeof window !== 'undefined' ? window.innerHeight : 800 };
+}
+
+function windowSizeFor(avatarW, avatarH, hasBubble) {
+  if (hasBubble) {
+    return {
+      width: avatarW + BUBBLE_WIDTH_PX + WINDOW_PADDING_PX * 2 + 12,
+      height: Math.max(avatarH, 160) + WINDOW_PADDING_PX * 2 + 24,
+    };
+  }
+  return {
+    width: avatarW + WINDOW_PADDING_PX * 2,
+    height: avatarH + WINDOW_PADDING_PX * 2,
+  };
+}
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined'
@@ -165,40 +200,46 @@ export function BriizyShell() {
     return () => window.clearTimeout(bubbleTimer.current);
   }, [suggestion, result]);
 
-  /* ── Idle drift ──────────────────────────────────────────────────── */
+  /* ── Idle drift (pet-style: move the window, not the inner div) ────── */
+  // The window is now sized to the avatar (+ bubble when visible), so drift
+  // moves the window origin via shell.updateBounds. The avatar itself stays
+  // anchored inside the window (bottom padding) and only bobs.
+
+  const syncWindowBounds = useCallback((hasBubble, nextSide) => {
+    const { width: winW, height: winH } = windowSizeFor(avatarWidth, avatarHeight, hasBubble);
+    // Notify main to resize; position stays where drift put it.
+    shell()?.updateBounds?.({ width: winW, height: winH });
+  }, [avatarWidth, avatarHeight]);
 
   const drift = useCallback(() => {
-    const node = avatarRef.current;
-    if (!node) return;
-    const maxX = window.innerWidth - avatarWidth - EDGE_MARGIN;
-    const maxY = window.innerHeight - avatarHeight - EDGE_MARGIN;
+    const hasBubble = !!suggestionRef.current;
+    const { width: winW, height: winH } = windowSizeFor(avatarWidth, avatarHeight, hasBubble);
+    const workArea = getScreenWorkArea();
+    const maxX = workArea.x + workArea.width - winW - EDGE_MARGIN;
+    const maxY = workArea.y + workArea.height - winH - EDGE_MARGIN;
+    const minX = workArea.x + EDGE_MARGIN;
+    const minY = workArea.y + EDGE_MARGIN;
     // Stay along the right two-fifths of the screen: near enough to notice,
-    // far enough from where most work happens.
-    const targetX = Math.max(EDGE_MARGIN, maxX - Math.random() * (window.innerWidth * 0.18));
-    const targetY = Math.max(EDGE_MARGIN, EDGE_MARGIN + Math.random() * Math.max(1, maxY - EDGE_MARGIN));
-    // Bubbles flip to whichever side has room.
-    setSide(targetX > window.innerWidth * 0.5 ? 'left' : 'right');
+    // far enough from where most work happens. Like OpenPets default
+    // windowOrigin at maxX -40, minY +40.
+    const targetX = Math.max(minX, maxX - Math.random() * (workArea.width * 0.18));
+    const targetY = Math.max(minY, minY + Math.random() * Math.max(1, maxY - minY));
+    const nextSide = targetX > workArea.x + workArea.width * 0.5 ? 'left' : 'right';
+    setSide(nextSide);
 
-    if (prefersReducedMotion()) {
-      gsap.set(node, { x: targetX, y: targetY });
-    } else {
-      gsap.to(node, { x: targetX, y: targetY, duration: 4.5, ease: 'sine.inOut' });
-    }
-  }, [avatarHeight, avatarWidth]);
+    // Move the window itself. Use immediate set when reduced motion, otherwise
+    // the main process will animate via setBounds (no GSAP transform on the
+    // wrapper — that would push the avatar outside the small window).
+    shell()?.updateBounds?.({ x: targetX, y: targetY, width: winW, height: winH });
+  }, [avatarWidth, avatarHeight]);
 
   useEffect(() => {
     const node = avatarRef.current;
     if (!node) return undefined;
 
-    // Start parked bottom-right, then drift from there.
-    gsap.set(node, {
-      x: window.innerWidth - avatarWidth - EDGE_MARGIN * 2,
-      y: window.innerHeight - avatarHeight - EDGE_MARGIN * 2,
-    });
-
+    // Initial window already parked bottom-right by main. Just start bob.
     let bob = null;
     if (!prefersReducedMotion()) {
-      // A slow hover bob, so a propeller-driven robot does not look frozen.
       bob = gsap.to(node, {
         yPercent: -3.5,
         duration: 2.4,
@@ -208,26 +249,40 @@ export function BriizyShell() {
       });
     }
 
+    // Ensure window size matches current avatar (no bubble yet).
+    syncWindowBounds(false, side);
+
     const scheduleDrift = () => {
       driftTimer.current = window.setTimeout(() => {
-        // Never move while a bubble is open or the pointer is on it — moving out
-        // from under the cursor is the most annoying thing an overlay can do.
         if (!suggestionRef.current && !interactiveRef.current) drift();
         scheduleDrift();
       }, DRIFT_MIN_MS + Math.random() * (DRIFT_MAX_MS - DRIFT_MIN_MS));
     };
     scheduleDrift();
 
-    const onResize = () => drift();
+    const onResize = () => {
+      // Screen workArea changed — re-clamp is handled in main's fitToDisplay,
+      // but side may need flipping if window straddles center.
+      const workArea = getScreenWorkArea();
+      // Keep window on-screen by drifting if needed; main also clamps.
+      if (!suggestionRef.current && !interactiveRef.current) drift();
+    };
+    // Screen avail size change is not a window resize in small-window mode,
+    // so listen to screen orientation if available.
     window.addEventListener('resize', onResize);
-
     return () => {
       bob?.kill();
       gsap.killTweensOf(node);
       window.clearTimeout(driftTimer.current);
       window.removeEventListener('resize', onResize);
     };
-  }, [drift]);
+  }, [drift, syncWindowBounds, side]);
+
+  // Keep window sized correctly when bubble appears/dismisses or avatar resizes.
+  useEffect(() => {
+    const hasBubble = !!(suggestion || result);
+    syncWindowBounds(hasBubble, side);
+  }, [suggestion, result, avatarWidth, avatarHeight, side, syncWindowBounds]);
 
   useEffect(() => { suggestionRef.current = suggestion; }, [suggestion]);
 

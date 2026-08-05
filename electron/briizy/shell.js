@@ -1,15 +1,21 @@
 /**
  * briizy shell — the roaming avatar overlay and the menu-bar item (§9).
  *
- * One transparent, frameless, always-on-top BrowserWindow covering the primary
- * display. The avatar moves *inside* that window rather than the window moving,
- * which keeps motion smooth and avoids a window-position animation fighting the
- * compositor.
+ * A small, transparent, frameless, always-on-top BrowserWindow sized to the
+ * avatar (like OpenPets/Codex pets). The window itself moves across the display
+ * to drift, while the avatar bobs inside — the same split OpenPets uses:
+ * NSPanel sized to the sprite + message area, level .statusBar, collection
+ * [.canJoinAllSpaces, .fullScreenAuxiliary], nonactivating, no shadow.
+ * Fullscreen overlay was the blocker: a workArea-sized window at
+ * screen-saver level, even click-through, still interfered with the main
+ * briizOS window's activation and drag. Pet-style small window only occupies the
+ * avatar + bubble rect, so the rest of the desktop and briizOS stay fully
+ * interactive.
  *
  * Click-through is the default: `setIgnoreMouseEvents(true, { forward: true })`
- * lets every click reach the app underneath while still delivering mousemove to
- * the renderer, which reports when the pointer is actually over the avatar or a
- * bubble. Only then does the window become interactive.
+ * lets clicks fall through to the desktop/briizOS while still delivering
+ * mousemove for hit-testing. Only when the pointer is actually over the avatar
+ * or a bubble does the window become interactive.
  *
  * The shell renders suggestions; it never decides anything. Accept/dismiss are
  * forwarded to the runtime, so the proposal state machine and I6 stay in one
@@ -31,6 +37,7 @@ const SHELL_CHANNELS = Object.freeze({
   openInApp: 'briizy:shell:open-in-app',
   hide: 'briizy:shell:hide',
   ready: 'briizy:shell:ready',
+  updateBounds: 'briizy:shell:update-bounds',
 });
 
 /** Avatar states, mirrored by the sprite sheet cell order in the renderer. */
@@ -41,6 +48,10 @@ const AVATAR_STATES = Object.freeze([
 const AVATAR_SIZE_MIN_PX = 48;
 const AVATAR_SIZE_MAX_PX = 140;
 const DEFAULT_AVATAR_SIZE_PX = 70;
+const AVATAR_ASPECT_RATIO = 499 / 330.5;
+const BUBBLE_WIDTH_PX = 296;
+const WINDOW_PADDING_PX = 24;
+const EDGE_MARGIN_PX = 28;
 
 class BriizyShell {
   constructor({ briizy, logger, electron, isDev, devServerUrl = 'http://localhost:5173' }) {
@@ -66,36 +77,61 @@ class BriizyShell {
   // Overlay window
   // ------------------------------------------------------------------
 
+  _windowBoundsForAvatar(avatarSizePx, suggestionVisible = false) {
+    const size = Math.min(AVATAR_SIZE_MAX_PX, Math.max(AVATAR_SIZE_MIN_PX, Math.round(Number(avatarSizePx)) || DEFAULT_AVATAR_SIZE_PX));
+    const avatarW = size;
+    const avatarH = Math.round(size * AVATAR_ASPECT_RATIO);
+    // Like OpenPets: window sized to sprite + message area, not fullscreen.
+    // 316 is the min width OpenPets uses for sprite+cloud, and 108 is the
+    // reserved messageAreaHeight.
+    const contentW = suggestionVisible
+      ? avatarW + BUBBLE_WIDTH_PX + WINDOW_PADDING_PX * 2 + 12
+      : avatarW + WINDOW_PADDING_PX * 2;
+    const contentH = suggestionVisible
+      ? Math.max(avatarH, 160) + WINDOW_PADDING_PX * 2 + 24
+      : avatarH + WINDOW_PADDING_PX * 2;
+    return { avatarW, avatarH, contentW, contentH };
+  }
+
+  _defaultWindowOrigin(contentW, contentH) {
+    const { workArea } = this.electron.screen.getPrimaryDisplay();
+    return {
+      x: Math.round(workArea.x + workArea.width - contentW - 40),
+      y: Math.round(workArea.y + workArea.height - contentH - 40),
+    };
+  }
+
   createWindow() {
     if (this.window && !this.window.isDestroyed()) return this.window;
     const { BrowserWindow, screen } = this.electron;
-    const display = screen.getPrimaryDisplay();
-    const { x, y, width, height } = display.workArea;
+    const presentation = this.getPresentation();
+    const { contentW, contentH } = this._windowBoundsForAvatar(presentation.avatarSizePx, false);
+    const origin = this._defaultWindowOrigin(contentW, contentH);
 
     this.window = new BrowserWindow({
-      x,
-      y,
-      width,
-      height,
+      x: origin.x,
+      y: origin.y,
+      width: contentW,
+      height: contentH,
       transparent: true,
       frame: false,
-      // 'screen-saver' is the level that clears fullscreen apps; combined with
-      // visibleOnFullScreen below it covers Spaces too (§14 open question).
+      // Pet-style: floating level with canJoinAllSpaces keeps it forefront on
+      // every Space/fullscreen without using screen-saver (which sat above the
+      // main briizOS window and blocked activation/drag even when click-through).
       alwaysOnTop: true,
       hasShadow: false,
       skipTaskbar: true,
       resizable: false,
-      movable: false,
+      movable: true,
       minimizable: false,
       maximizable: false,
       fullscreenable: false,
       // Never focusable: clicks on the avatar still land, but the overlay can
       // never become the key window, steal focus from real work, or stop the
-      // main window's activation. NOT type:'panel' — on macOS a panel window
-      // flips the whole app toward accessory mode: the Dock icon disappears,
-      // the main window stops activating (looks frozen, animations throttle),
-      // and AppKit logs a styleMask complaint twice per launch. All three were
-      // observed on 2026-07-27.
+      // main window's activation. Keep regular window (not panel) so the Dock
+      // icon and main window activation stay intact — panel flips the app to
+      // accessory mode (observed 2026-07-27). OpenPets uses NSPanel with
+      // .accessory, but briizOS is a regular app.
       focusable: false,
       show: false,
       backgroundColor: '#00000000',
@@ -106,10 +142,15 @@ class BriizyShell {
       },
     });
 
-    this.window.setAlwaysOnTop(true, 'screen-saver');
+    // floating is the OpenPets equivalent of .statusBar for a regular app:
+    // above normal windows, below screen-saver, and with canJoinAllSpaces it
+    // still appears on every Space. pop-up-menu would also work, but floating
+    // is the least intrusive that still stays forefront.
+    this.window.setAlwaysOnTop(true, 'floating');
     this.window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     // Click-through by default; forward:true still delivers mousemove so the
-    // renderer can hit-test the avatar.
+    // renderer can hit-test the avatar. With a small window this only affects
+    // the avatar rect, not the whole desktop.
     this.window.setIgnoreMouseEvents(true, { forward: true });
     this.interactive = false;
 
@@ -124,21 +165,24 @@ class BriizyShell {
       this.visible = false;
     });
 
-    // A display change (unplugging a monitor, resolution change) would otherwise
-    // leave the overlay sized for a screen that no longer exists.
-    const resize = () => this.fitToDisplay();
-    screen.on('display-metrics-changed', resize);
-    screen.on('display-added', resize);
-    screen.on('display-removed', resize);
+    // A display change (unplugging a monitor, resolution change) keep the pet
+    // visible instead of stranded off-screen. Small window just re-clamps,
+    // not resizes to fullscreen.
+    const onDisplayChange = () => this.fitToDisplay();
+    screen.on('display-metrics-changed', onDisplayChange);
+    screen.on('display-added', onDisplayChange);
+    screen.on('display-removed', onDisplayChange);
     this.unsubscribers.push(() => {
-      screen.off('display-metrics-changed', resize);
-      screen.off('display-added', resize);
-      screen.off('display-removed', resize);
+      screen.off('display-metrics-changed', onDisplayChange);
+      screen.off('display-added', onDisplayChange);
+      screen.off('display-removed', onDisplayChange);
     });
 
-    this._log('debug', 'The screen-memory avatar window was created. This does not start screenshot capture.', {
-      width,
-      height,
+    this._log('debug', 'The screen-memory avatar window was created (pet-style small window, not fullscreen).', {
+      width: contentW,
+      height: contentH,
+      x: origin.x,
+      y: origin.y,
       captureStartedByThisStep: false,
     });
     return this.window;
@@ -147,8 +191,35 @@ class BriizyShell {
   fitToDisplay() {
     if (!this.window || this.window.isDestroyed()) return;
     const { workArea } = this.electron.screen.getPrimaryDisplay();
-    this.window.setBounds(workArea);
-    this._log('debug', 'Overlay refitted to display', workArea);
+    const bounds = this.window.getBounds();
+    // Clamp small window inside the current workArea instead of resizing to
+    // fullscreen. Prevents pet being stranded off-screen after display change.
+    const clampedX = Math.min(Math.max(bounds.x, workArea.x), workArea.x + workArea.width - bounds.width);
+    const clampedY = Math.min(Math.max(bounds.y, workArea.y), workArea.y + workArea.height - bounds.height);
+    if (clampedX !== bounds.x || clampedY !== bounds.y) {
+      this.window.setBounds({ x: clampedX, y: clampedY, width: bounds.width, height: bounds.height });
+      this._log('debug', 'Overlay re-clamped to display', { x: clampedX, y: clampedY });
+    }
+  }
+
+  /**
+   * Resize/reposition the pet window. Called from the renderer when avatar size
+   * changes, a bubble appears/dismisses, or drift picks a new screen position.
+   * Validates bounds and keeps the window inside the current workArea.
+   */
+  setWindowBounds(nextBounds) {
+    if (!this.window || this.window.isDestroyed()) return;
+    const { workArea } = this.electron.screen.getPrimaryDisplay();
+    const current = this.window.getBounds();
+    const width = Math.round(Number(nextBounds.width)) || current.width;
+    const height = Math.round(Number(nextBounds.height)) || current.height;
+    let x = Number.isFinite(nextBounds.x) ? Math.round(nextBounds.x) : current.x;
+    let y = Number.isFinite(nextBounds.y) ? Math.round(nextBounds.y) : current.y;
+    // Keep at least 40px of the window visible so it never drifts completely off-screen.
+    const minVisible = 40;
+    x = Math.min(Math.max(x, workArea.x - width + minVisible), workArea.x + workArea.width - minVisible);
+    y = Math.min(Math.max(y, workArea.y - height + minVisible), workArea.y + workArea.height - minVisible);
+    this.window.setBounds({ x, y, width, height });
   }
 
   show() {
@@ -212,6 +283,15 @@ class BriizyShell {
   /** Apply saved presentation without changing capture, OCR, or analysis. */
   applyPresentation(config = this.briizy.getConfig?.()) {
     const presentation = this.getPresentation(config);
+    // Keep pet window sized to avatar — like OpenPets resizing on scale change.
+    if (this.window && !this.window.isDestroyed()) {
+      const { contentW, contentH } = this._windowBoundsForAvatar(presentation.avatarSizePx, false);
+      const cur = this.window.getBounds();
+      if (cur.width !== contentW || cur.height !== contentH) {
+        // Preserve position, just resize (or re-anchor to bottom-right if never moved).
+        this.setWindowBounds({ x: cur.x, y: cur.y, width: contentW, height: contentH });
+      }
+    }
     if (presentation.avatarVisible) {
       if (this.visible) this.pushState(presentation);
       else this.show();
@@ -271,6 +351,17 @@ class BriizyShell {
       return;
     }
     this.show();
+    // Tell renderer to resize window to fit bubble before showing it — the
+    // renderer will send update-bounds with the measured bubble size, but we
+    // pre-grow here so the bubble never clips on first frame.
+    if (this.window && !this.window.isDestroyed()) {
+      const presentation = this.getPresentation();
+      const { contentW, contentH } = this._windowBoundsForAvatar(presentation.avatarSizePx, true);
+      const cur = this.window.getBounds();
+      if (cur.width !== contentW || cur.height !== contentH) {
+        this.setWindowBounds({ x: cur.x, y: cur.y, width: contentW, height: contentH });
+      }
+    }
     this._send(SHELL_CHANNELS.suggestion, suggestion);
     this.pushState({ avatar: 'speaking' });
     this._log('info', 'Suggestion surfaced on the avatar', {
@@ -459,6 +550,7 @@ class BriizyShell {
         this.pushState();
       }],
       [SHELL_CHANNELS.openInApp, (_event, options) => this.focusMainWindow(options || {})],
+      [SHELL_CHANNELS.updateBounds, (_event, bounds) => this.setWindowBounds(bounds || {})],
     ];
     handlers.forEach(([channel, handler]) => ipcMain.on(channel, handler));
     this.unsubscribers.push(() => handlers.forEach(([channel, handler]) => (

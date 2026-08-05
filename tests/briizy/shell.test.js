@@ -119,8 +119,15 @@ function run() {
   assert('accept is forwarded to the runtime, not handled locally',
     /decideProposal/.test(source) && !/acceptCommand|createTask/.test(source), undefined, 'I6');
   assert('the overlay never steals focus', /showInactive/.test(source));
+  // Pet-style small window: floating level (statusBar equivalent) with
+  // canJoinAllSpaces+visibleOnFullScreen, not fullscreen screen-saver which
+  // blocked the main window even when click-through.
   assert('the overlay is visible over fullscreen Spaces',
-    /visibleOnFullScreen:\s*true/.test(source) && /'screen-saver'/.test(source));
+    /visibleOnFullScreen:\s*true/.test(source) && /setAlwaysOnTop\(true,\s*'(floating|status|pop-up-menu|screen-saver)'\)/.test(source));
+  assert('pet-style small window does not cover the whole display',
+    !/this\.window\.setBounds\(workArea\)/.test(source) && /_windowBoundsForAvatar/.test(source));
+  assert('overlay exposes updateBounds channel for window-driven drift',
+    typeof SHELL_CHANNELS.updateBounds === 'string' && SHELL_CHANNELS.updateBounds === 'briizy:shell:update-bounds');
 }
 
 module.exports = { run };

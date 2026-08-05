@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('briizy', {
     hide: () => ipcRenderer.send('briizy:shell:hide'),
     openInApp: (options) => ipcRenderer.send('briizy:shell:open-in-app', options || {}),
     decide: (decision) => ipcRenderer.invoke('briizy:shell:decide', decision),
+    updateBounds: (bounds) => ipcRenderer.send('briizy:shell:update-bounds', bounds || {}),
     onState: (callback) => {
       const handler = (_event, data) => callback(data);
       ipcRenderer.on('briizy:shell:state', handler);
