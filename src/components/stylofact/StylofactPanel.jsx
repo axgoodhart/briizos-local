@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -378,10 +378,7 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     setActiveStage(visibleStage(project?.stage));
   }, [project?.id, project?.stage]);
 
-  const criticOptions = useMemo(() => {
-    const primary = availableModels.find((model) => model.name === (project?.primaryModel || defaultPrimaryModel));
-    return availableModels.filter((model) => model.provider !== primary?.provider);
-  }, [availableModels, defaultPrimaryModel, project?.primaryModel]);
+  const criticOptions = availableModels;
   const extractions = project?.extraction?.extracted_artifacts || [];
   const busy = !!runState;
   const hasSearchableCorpus = corpora.some((corpus) => (

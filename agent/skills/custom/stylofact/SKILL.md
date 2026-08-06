@@ -1,6 +1,6 @@
 ---
 name: stylofact
-description: Run the Stylofact pipeline for a user's own writing: turn measured style data and a noisy idea corpus into reviewable, multi-medium content while retaining provenance and a separate cross-provider audit.
+description: Run the Stylofact pipeline for a user's own writing: turn measured style data and a noisy idea corpus into reviewable, multi-medium content while retaining provenance and a separate reviewer audit.
 user-invokable: true
 ---
 
@@ -102,9 +102,9 @@ You are a stylistic-constraint editor. The input contains deterministic measurem
 }
 ```
 
-### Stage 1 independent review
+### Stage 1 reviewer pass
 
-When assigned as the second-provider reviewer, do not overwrite the measured metrics. Audit the primary profile and return only:
+When assigned as the reviewer, do not overwrite the measured metrics. Audit the primary profile and return only:
 
 ```json
 {
@@ -200,7 +200,7 @@ Produce content only for the requested media and number of variations. Each vari
 }
 ```
 
-When assigned as the second-provider reviewer, revise only where a draft drifts from the measurable directive or invents unsupported content. Return the same output shape, with one complete revised item per supplied draft; do not add new claims. The application will preserve both the primary draft and the reviewer’s revision.
+When assigned as the reviewer, revise only where a draft drifts from the measurable directive or invents unsupported content. Return the same output shape, with one complete revised item per supplied draft; do not add new claims. The application will preserve both the primary draft and the reviewer’s revision.
 
 ## Final evaluation
 

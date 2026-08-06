@@ -25,6 +25,22 @@ const {
 } = require('./provider-http-audit');
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
+const GPT_5_6_MODEL = /^gpt-5\.6(?:-|$)/i;
+const GPT_5_6_REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+const GPT_5_6_REASONING_LABELS = new Map([
+  ['fast', 'none'],
+  ['no reasoning', 'none'],
+  ['fast / no reasoning', 'none'],
+  ['none', 'none'],
+  ['light', 'low'],
+  ['low', 'low'],
+  ['medium', 'medium'],
+  ['high', 'high'],
+  ['extra high', 'xhigh'],
+  ['extra-high', 'xhigh'],
+  ['xhigh', 'xhigh'],
+  ['max', 'max'],
+]);
 let localDataService = null;
 
 class AuditedChatOpenAI extends ChatOpenAI {
@@ -120,6 +136,28 @@ function getApiKey(provider, modelEntry = null) {
   }
 }
 
+function isGpt56Model(modelName) {
+  return GPT_5_6_MODEL.test(String(modelName || ''));
+}
+
+/**
+ * GPT-5.6 accepts API values none|low|medium|high|xhigh|max. Stylofact uses
+ * human-facing labels for those standard efforts, but must never send `light`
+ * or `ultra` directly to OpenAI. Ultra is a separate beta multi-agent mode.
+ */
+function normalizeGpt56ReasoningEffort(value) {
+  if (value == null || String(value).trim() === '') return 'medium';
+  const label = String(value).trim().toLowerCase().replace(/\s+/g, ' ');
+  if (label === 'ultra') {
+    throw new Error('GPT-5.6 Ultra is a separate Responses multi-agent beta mode, not a reasoning effort. Choose Max for a single-agent request.');
+  }
+  const effort = GPT_5_6_REASONING_LABELS.get(label) || label;
+  if (!GPT_5_6_REASONING_EFFORTS.has(effort)) {
+    throw new Error(`Unsupported GPT-5.6 reasoning effort: ${value}. Choose Light, Medium, High, Extra High, Max, or Fast / No reasoning.`);
+  }
+  return effort;
+}
+
 /**
  * Resolve the exact non-secret constructor settings that will reach the
  * provider adapter. Keeping this separate from credential lookup lets the
@@ -129,7 +167,7 @@ function getApiKey(provider, modelEntry = null) {
  * @param {object} opts
  * @param {string|null} opts.name              Model name (e.g. 'claude-sonnet-4-6').
  * @param {boolean} opts.thinkingEnabled       Enable extended thinking where supported.
- * @param {string|null} opts.reasoningEffort   e.g. 'minimal' | 'low' | 'medium' | 'high'.
+ * @param {string|null} opts.reasoningEffort   GPT-5.6: none|low|medium|high|xhigh|max, with UI labels such as Light and Extra High accepted.
  * @param {number|null} opts.temperature       Optional override.
  */
 function resolveChatModelRequest({
@@ -152,7 +190,11 @@ function resolveChatModelRequest({
 
   const common = { model: modelName, streaming: true };
   const outputTokens = maxTokens == null ? resolved.maxTokens : Math.min(maxTokens, resolved.maxTokens || maxTokens);
+  const gpt56Model = provider === 'openai' && isGpt56Model(modelName);
   const openAIReasoningModel = provider === 'openai' && (/^o[13](?:-|$)/.test(modelName) || /^gpt-5(?:\.|-|$)/.test(modelName));
+  const effectiveOpenAIReasoningEffort = provider === 'openai'
+    ? (gpt56Model ? normalizeGpt56ReasoningEffort(reasoningEffort) : reasoningEffort || null)
+    : null;
   if (temperature != null && !openAIReasoningModel && !(provider === 'claude' && thinkingEnabled && resolved.supportsThinking)) {
     common.temperature = temperature;
   }
@@ -179,7 +221,8 @@ function resolveChatModelRequest({
       constructorOptions = { ...common, maxRetries: 0 };
       if (outputTokens != null) constructorOptions.maxTokens = outputTokens;
       if (topP != null && !openAIReasoningModel) constructorOptions.topP = topP;
-      if (reasoningEffort) constructorOptions.reasoningEffort = reasoningEffort;
+      if (gpt56Model) constructorOptions.useResponsesApi = true;
+      if (effectiveOpenAIReasoningEffort) constructorOptions.reasoning = { effort: effectiveOpenAIReasoningEffort };
       break;
     }
     case 'gemini':
@@ -202,13 +245,19 @@ function resolveChatModelRequest({
       temperature: constructorOptions.temperature ?? null,
       top_p: constructorOptions.topP ?? null,
       max_tokens: outputTokens ?? null,
-      provider_max_tokens_parameter: provider === 'gemini' ? 'maxOutputTokens' : 'maxTokens',
+      provider_max_tokens_parameter: provider === 'gemini'
+        ? 'maxOutputTokens'
+        : gpt56Model ? 'max_output_tokens' : 'maxTokens',
       thinking: constructorOptions.thinking || false,
-      reasoning_effort: constructorOptions.reasoningEffort ?? null,
+      reasoning_effort: constructorOptions.reasoning?.effort ?? null,
+      provider_reasoning_parameter: gpt56Model && constructorOptions.reasoning ? 'reasoning.effort' : null,
+      openai_endpoint: gpt56Model ? '/v1/responses' : null,
     },
     modelCapabilities: {
       supports_thinking: resolved.supportsThinking,
       openai_reasoning_model: openAIReasoningModel,
+      openai_responses_api: gpt56Model,
+      gpt_5_6: gpt56Model,
     },
   };
 }
@@ -268,6 +317,8 @@ module.exports = {
   createChatModel,
   detectProvider,
   resolveChatModelRequest,
+  isGpt56Model,
+  normalizeGpt56ReasoningEffort,
   DEFAULT_MODEL,
   setLocalDataService,
 };

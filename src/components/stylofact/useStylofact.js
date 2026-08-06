@@ -148,11 +148,10 @@ function modelNameFor(models, selectedModel, available) {
   return available[0]?.name || null;
 }
 
-function independentCriticFor(primaryModel, requestedCritic, availableModels) {
-  const primary = availableModels.find((model) => model.name === primaryModel);
+function reviewerFor(requestedCritic, availableModels) {
   const requested = availableModels.find((model) => model.name === requestedCritic);
-  if (requested && requested.provider !== primary?.provider) return requested.name;
-  return availableModels.find((model) => model.provider !== primary?.provider)?.name || null;
+  if (requested) return requested.name;
+  return availableModels[0]?.name || null;
 }
 
 export function useStylofact({ models = [], selectedModel, isModelAvailable } = {}) {
@@ -174,10 +173,7 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     [models, isModelAvailable],
   );
   const defaultPrimaryModel = modelNameFor(models, selectedModel, availableModels);
-  const defaultCriticModel = useMemo(() => {
-    const primary = availableModels.find((model) => model.name === defaultPrimaryModel);
-    return availableModels.find((model) => model.provider !== primary?.provider)?.name || null;
-  }, [availableModels, defaultPrimaryModel]);
+  const defaultCriticModel = defaultPrimaryModel;
 
   useEffect(() => { projectRef.current = project; }, [project]);
 
@@ -651,7 +647,9 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     if (!requestedFormats.length) throw new Error('Choose at least one output medium.');
     const variationCount = Math.max(1, Math.min(MAX_VARIATIONS, Number.parseInt(variations, 10) || 1));
     const primaryModel = current.primaryModel || defaultPrimaryModel;
-    const criticModel = independentCriticFor(primaryModel, current.criticModel || defaultCriticModel, availableModels);
+    const criticModel = reviewerFor(current.criticModel || defaultCriticModel, availableModels);
+    const primaryProvider = availableModels.find((model) => model.name === primaryModel)?.provider || null;
+    const reviewerProvider = availableModels.find((model) => model.name === criticModel)?.provider || null;
     const request = {
       operation: 'generate_content_variations',
       active_style_profile: activeProfile,
@@ -698,7 +696,12 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       setArtifacts(persisted.rows || []);
       const saved = await updateProject({
         stage: 'complete',
-        generationOptions: { formats: requestedFormats, variations: variationCount, reviewedBySecondProvider: !!criticModel },
+        generationOptions: {
+          formats: requestedFormats,
+          variations: variationCount,
+          reviewedByReviewer: !!criticModel,
+          reviewedBySecondProvider: !!criticModel && !!primaryProvider && primaryProvider !== reviewerProvider,
+        },
       });
       await recordRun('generate', 'completed', {
         modelName: primaryModel,
