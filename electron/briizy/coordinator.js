@@ -346,7 +346,12 @@ class AssistantCoordinator extends EventEmitter {
             error: error?.message,
             captureContinues: true,
           });
-          this.emit('error', { assistantId, hook, error });
+          // This is an intentionally contained feature failure. EventEmitter's
+          // reserved "error" event throws when nobody has subscribed, which
+          // would turn a missing or rejected provider credential into a
+          // process-level rejection. A regular event keeps capture running and
+          // still lets an interested consumer observe the degraded result.
+          this.emit('assistant-error', { assistantId, hook, error });
         })
         .finally(() => this.busy.delete(assistantId));
     }

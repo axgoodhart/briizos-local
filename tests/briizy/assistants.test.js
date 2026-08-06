@@ -507,6 +507,68 @@ async function run() {
     assert('stopping unbinds every listener',
       indexer.listenerCount('frame') === 0 && indexer.listenerCount('context-switch') === 0);
 
+    section('coordinator: provider failures stay contained');
+
+    const failingIndexer = new EventEmitter();
+    failingIndexer.paused = false;
+    failingIndexer.lastMeta = { appName: 'Writer', windowTitle: 'Draft' };
+    const failingConfig = briizyConfig.merge(briizyConfig.defaults(), {
+      enabled: true,
+      cloudTextAnalysisAllowed: true,
+      assistants: { insight: { enabled: true, intervalMs: 1 } },
+    });
+    const failingCoordinator = new AssistantCoordinator({
+      service, logger, indexer: failingIndexer, getConfig: () => failingConfig,
+    });
+    const assistantFailures = [];
+    failingCoordinator.on('assistant-error', (event) => assistantFailures.push(event));
+    failingCoordinator.register({
+      id: 'insight',
+      kind: 'insight',
+      onSegmentClose: async () => {
+        throw new Error('No encrypted API credential is configured for claude');
+      },
+    });
+    failingCoordinator.start();
+
+    let unhandledRejection = null;
+    let failureStatus = null;
+    const recordUnhandledRejection = (reason) => { unhandledRejection = reason; };
+    process.on('unhandledRejection', recordUnhandledRejection);
+    try {
+      const failureStartedAt = Date.now();
+      failingIndexer.emit('frame', {
+        frameId: 'credential-failure-1', sessionId: sessionRow.id,
+        capturedAt: failureStartedAt - 30000, appName: 'Writer', windowTitle: 'Draft',
+        ocrText: 'A paragraph that needs review.', duplicate: false,
+      });
+      failingIndexer.emit('frame', {
+        frameId: 'credential-failure-2', sessionId: sessionRow.id,
+        capturedAt: failureStartedAt, appName: 'Writer', windowTitle: 'Draft',
+        ocrText: 'A second paragraph that needs review.', duplicate: false,
+      });
+      failingIndexer.emit('frame', {
+        frameId: 'credential-failure-3', sessionId: sessionRow.id,
+        capturedAt: failureStartedAt + 1, appName: 'Finder', windowTitle: 'Documents',
+        ocrText: 'Documents folder.', duplicate: false,
+      });
+      await sleep(30);
+      failureStatus = failingCoordinator.getStatus();
+    } finally {
+      process.off('unhandledRejection', recordUnhandledRejection);
+      failingCoordinator.stop();
+    }
+
+    assert('a missing provider credential never creates a process-level rejection',
+      unhandledRejection === null, unhandledRejection?.message);
+    assert('a failed assistant leaves capture running and clears its busy state',
+      failureStatus?.running === true && failureStatus.busy.length === 0
+      && failureStatus.stats.errors === 1, failureStatus);
+    assert('a failed assistant publishes a nonfatal error event',
+      assistantFailures.length === 1
+      && assistantFailures[0].assistantId === 'insight'
+      && /No encrypted API credential/.test(assistantFailures[0].error?.message || ''), assistantFailures);
+
     section('dedupe key normalization');
 
     assert('the same sentence yields the same key',
