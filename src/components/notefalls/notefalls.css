@@ -453,6 +453,7 @@
   max-height: 76vh;
   overflow-y: auto;
   background:var(--ui-modal-bg);
+  backdrop-filter:blur(3.5px);
   border: 1px solid rgba(75, 139, 255, 0.35);
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);

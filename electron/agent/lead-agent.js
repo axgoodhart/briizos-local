@@ -84,7 +84,14 @@ function getRuntimeCheckpointer() {
   return checkpointer;
 }
 
-function boundToolSchemasForAudit() {
+function boundToolSchemasForAudit(allowedTools = null) {
+  const all = allToolSchemasForAudit();
+  if (!Array.isArray(allowedTools)) return all;
+  const allowed = new Set(allowedTools);
+  return all.filter((schema) => allowed.has(schema.name));
+}
+
+function allToolSchemasForAudit() {
   if (cachedToolSchemasForAudit) return cachedToolSchemasForAudit;
   cachedToolSchemasForAudit = ALL_TOOLS.map((tool) => {
     let inputSchema;
@@ -192,6 +199,7 @@ function agentKey(opts) {
     Array.isArray(opts.availableSkills) ? opts.availableSkills.join(',') : '',
     opts.injectMemory !== false,
     opts.modality || '',
+    Array.isArray(opts.allowedTools) ? opts.allowedTools.slice().sort().join(',') : '*',
   ].join('|');
 }
 
@@ -209,6 +217,7 @@ function getOrBuildAgent({
   availableSkills,
   injectMemory,
   modality,
+  allowedTools,
 }) {
   const key = agentKey({
     modelName,
@@ -224,9 +233,19 @@ function getOrBuildAgent({
     availableSkills,
     injectMemory,
     modality,
+    allowedTools,
   });
   const cached = agentCache.get(key);
   if (cached) return cached;
+
+  let boundTools = ALL_TOOLS;
+  if (Array.isArray(allowedTools)) {
+    const allowed = new Set(allowedTools);
+    boundTools = ALL_TOOLS.filter((tool) => allowed.has(tool.name));
+    if (!boundTools.length) {
+      throw new Error('allowed_tools matched no registered agent tools; refusing to run a tool-less agent by misconfiguration.');
+    }
+  }
 
   const llm = createChatModel({ name: modelName, thinkingEnabled, temperature, topP, maxTokens, reasoningEffort });
   const promptConfig = {
@@ -245,7 +264,7 @@ function getOrBuildAgent({
 
   const agent = createReactAgent({
     llm,
-    tools: ALL_TOOLS,
+    tools: boundTools,
     prompt,
     stateSchema: ThreadState,
     checkpointer: getRuntimeCheckpointer(),
@@ -597,6 +616,7 @@ async function streamAgentInput({
     availableSkills: config.available_skills || null,
     injectMemory: config.inject_memory !== false,
     modality: config.modality || null,
+    allowedTools: Array.isArray(config.allowed_tools) ? config.allowed_tools : null,
   };
   const auditTurnKind = config.permission_policy?.surface === 'suggestions'
     ? 'suggestion'
@@ -682,7 +702,7 @@ async function streamAgentInput({
       disable_title_generation: !!config.disable_title_generation,
       recursion_limit: 100,
     },
-    bound_tool_schemas: boundToolSchemasForAudit(),
+    bound_tool_schemas: boundToolSchemasForAudit(agentOptions.allowedTools),
     provider_transport_audit: resolvedModelRequest.provider === 'openai'
       ? {
         request_capture: 'Exact serialized HTTP request body immediately before fetch, with credentials redacted before database storage.',
@@ -877,7 +897,7 @@ async function streamAgentInput({
           boundary: 'LangChain on_chat_model_start before completion',
           event_envelope: langChainEventEnvelope(evt),
           provider_input_messages: evt?.data?.input ?? null,
-          bound_tool_schemas: boundToolSchemasForAudit(),
+          bound_tool_schemas: boundToolSchemasForAudit(agentOptions.allowedTools),
           effective_model_request: invocationAuditContext.effectiveConfig,
           note: 'Provider SDK credentials are deliberately redacted; prompts, duplicates, system/tool messages, schemas, and non-secret model settings are retained.',
         };

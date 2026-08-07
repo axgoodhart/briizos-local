@@ -838,6 +838,22 @@ backdrop-filter:blur(10px);
 .stylofact-running p { font-size: .75rem; line-height: 1.4; }
 .stylofact-error { font: .875rem/1.4 var(--stylofact-font); padding: 10px clamp(20px, 4cqw, 40px); }
 
+.stylofact-decision {
+  align-items: center;
+  background: color-mix(in srgb, var(--stylofact-warning) 16%, var(--stylofact-code-bg));
+  border-bottom: 1px solid var(--stylofact-rule);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px clamp(20px, 4cqw, 40px);
+}
+.stylofact-decision strong { display: block; font: 700 .8125rem/1.2 var(--stylofact-font); }
+.stylofact-decision p { color: var(--stylofact-muted); font: .75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 4px 0 0; word-break: break-word; }
+.stylofact-decision-actions { display: flex; flex-shrink: 0; gap: 8px; }
+.stylofact-decision-actions button { border: 0; border-radius: 8px; cursor: pointer; font: 700 .75rem/1 var(--stylofact-font); min-height: 32px; padding: 0 14px; }
+.stylofact-decision-deny { background: var(--stylofact-error-bg); color: var(--stylofact-on-error); }
+.stylofact-decision-grant { background: var(--stylofact-green); color: var(--stylofact-code-bg); }
+
 .stylofact-receipt,
 .stylofact-source-viewer { box-shadow: 0 20px 60px rgb(0 0 0 / 24%); padding: 24px; }
 .stylofact-receipt > header,

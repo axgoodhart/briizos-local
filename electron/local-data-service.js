@@ -2648,6 +2648,90 @@ class LocalDataService extends EventEmitter {
     }));
   }
 
+  /**
+   * Metadata-only view of the audit trail for the AI visibility timeline.
+   * Payload bodies (request/response envelopes) routinely reach hundreds of
+   * kilobytes per event, so the timeline lists shapes and sizes and the
+   * inspector fetches one full event on demand via getAiTurnAuditEvent.
+   */
+  listAiTurnAuditEventSummaries(filters = {}) {
+    this._assertReady();
+    v.object(filters, 'AI turn audit filters', ['threadId', 'turnId', 'sinceMs', 'limit']);
+    const clauses = [];
+    const params = [];
+    if (filters.threadId !== undefined) {
+      clauses.push('thread_id = ?');
+      params.push(v.identifier(filters.threadId, 'threadId'));
+    }
+    if (filters.turnId !== undefined) {
+      clauses.push('turn_id = ?');
+      params.push(v.identifier(filters.turnId, 'turnId'));
+    }
+    if (filters.sinceMs !== undefined) {
+      clauses.push('created_at >= ?');
+      params.push(v.integer(filters.sinceMs, 'sinceMs', { min: 0 }));
+    }
+    const limit = filters.limit === undefined
+      ? 400
+      : v.integer(filters.limit, 'limit', { min: 1, max: 2000 });
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    return this.db.prepare(`
+      SELECT id, thread_id, turn_id, invocation_id, sequence, event_type, turn_kind,
+             provider, model, modality, outcome, token_usage_json, error_json, created_at,
+             length(request_json) AS request_bytes,
+             length(response_json) AS response_bytes
+      FROM ai_turn_audit_events
+      ${where}
+      ORDER BY created_at DESC, sequence DESC
+      LIMIT ?
+    `).all(...params, limit).map((row) => ({
+      id: row.id,
+      threadId: row.thread_id,
+      turnId: row.turn_id,
+      invocationId: row.invocation_id,
+      sequence: row.sequence,
+      eventType: row.event_type,
+      turnKind: row.turn_kind,
+      provider: row.provider,
+      model: row.model,
+      modality: row.modality,
+      outcome: row.outcome,
+      tokenUsage: row.token_usage_json ? JSON.parse(row.token_usage_json) : null,
+      error: row.error_json ? JSON.parse(row.error_json) : null,
+      requestBytes: row.request_bytes || 0,
+      responseBytes: row.response_bytes || 0,
+      createdAtMs: row.created_at,
+      timestamp: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  getAiTurnAuditEvent(eventId) {
+    this._assertReady();
+    eventId = v.identifier(eventId, 'eventId');
+    const row = this.db.prepare('SELECT * FROM ai_turn_audit_events WHERE id = ?').get(eventId);
+    if (!row) v.fail('NOT_FOUND', 'AI turn audit event not found');
+    return {
+      id: row.id,
+      threadId: row.thread_id,
+      turnId: row.turn_id,
+      invocationId: row.invocation_id,
+      sequence: row.sequence,
+      eventType: row.event_type,
+      turnKind: row.turn_kind,
+      provider: row.provider,
+      model: row.model,
+      modality: row.modality,
+      outcome: row.outcome,
+      effectiveConfig: JSON.parse(row.effective_config_json),
+      permissionPolicy: row.permission_policy_json ? JSON.parse(row.permission_policy_json) : null,
+      request: row.request_json ? JSON.parse(row.request_json) : null,
+      response: row.response_json ? JSON.parse(row.response_json) : null,
+      error: row.error_json ? JSON.parse(row.error_json) : null,
+      tokenUsage: row.token_usage_json ? JSON.parse(row.token_usage_json) : null,
+      timestamp: new Date(row.created_at).toISOString(),
+    };
+  }
+
   archiveThread(threadId) {
     threadId = v.identifier(threadId, 'threadId');
     return this._writeDomains(['threads', 'checkpoints'], (timestamp) => {

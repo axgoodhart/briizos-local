@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { analyzeStylometry, compileStyleProfile, corpusFromSources, evaluateVoiceFit } from '../../lib/stylofactMetrics';
+import { registerSurfaceForThread, unregisterThread } from '../../lib/agentSurfaces';
 
 const MAX_DIRECT_CORPUS_CHARACTERS = 80000;
 const MAX_GENERATION_FORMATS = 4;
@@ -123,6 +124,16 @@ function profileForGeneration(project) {
   return measuredProfile;
 }
 
+// Stylofact stages are read-only by design: the agent may load its skill
+// instructions and, during extraction, search/fetch the local corpus. It is
+// never given destructive tools (bash, file writes, briizOS mutations), so a
+// headless run can never deadlock on a confirmation it has no UI to answer.
+function allowedToolsFor(stage) {
+  return stage === 'extract'
+    ? ['read_file', 'stylofact_search_history', 'stylofact_fetch_context']
+    : ['read_file'];
+}
+
 function makeAgentConfig(model, stage, runtime = {}) {
   const maxTokens = stage === 'generate' || stage === 'generate-review' ? 48000
     : stage === 'extract' ? 22000
@@ -137,7 +148,9 @@ function makeAgentConfig(model, stage, runtime = {}) {
     inject_memory: false,
     disable_memory_update: true,
     disable_title_generation: true,
-    tool_confirmation_mode: 'ask-always',
+    allowed_tools: allowedToolsFor(stage),
+    tool_confirmation_mode: runtime.permissionPolicy?.mode || 'ask-always',
+    permission_policy: runtime.permissionPolicy || null,
     stylofact_project_id: runtime.projectId || null,
     stylofact_retrieval_run_id: runtime.retrievalRunId || null,
   };
@@ -165,6 +178,7 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
   const [runState, setRunState] = useState(null);
   const [error, setError] = useState(null);
   const [streamPreview, setStreamPreview] = useState('');
+  const [pendingDecision, setPendingDecision] = useState(null);
   const projectRef = useRef(null);
   const streamsRef = useRef(new Map());
 
@@ -242,7 +256,10 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       if (!current) return;
       try {
         const refreshed = await Promise.all(corpora.map((corpus) => api.corpora.status(corpus.id)));
-        setCorpora(refreshed.filter(Boolean));
+        const refreshedById = new Map(refreshed.filter(Boolean).map((item) => [item.id, item]));
+        // Merge into the LATEST list rather than replacing it: an unlink that
+        // landed while this poll was in flight must not resurrect the corpus.
+        setCorpora((current) => current.map((item) => refreshedById.get(item.id) || item));
       } catch {
         // The normal hydrate/error path remains authoritative; polling is best-effort progress UI.
       }
@@ -259,12 +276,35 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
         run.text += payload.content;
         setStreamPreview(run.text);
       }
+      if (type === 'tool_confirmation') {
+        // The run paused for a permission decision. Hold the run open and
+        // surface the decision instead of letting the paused turn end and
+        // read back as a malformed answer.
+        run.paused = true;
+        setPendingDecision({
+          kind: 'tool_confirmation',
+          streamId,
+          threadId: run.threadId,
+          stage: run.stage,
+          summary: payload?.summary || payload?.tool_name || 'A tool request needs your approval.',
+        });
+      }
+      if (type === 'clarification') {
+        streamsRef.current.delete(streamId);
+        setPendingDecision(null);
+        run.reject(new Error(`The AI paused to ask: “${payload?.question || 'no question text was provided'}”. Stylofact stages run unattended — add the missing detail to the stage input and run it again.`));
+      }
       if (type === 'error') {
         streamsRef.current.delete(streamId);
+        setPendingDecision(null);
         run.reject(new Error(payload?.message || 'The Stylofact agent failed.'));
       }
       if (type === 'end') {
+        // A paused turn also emits 'end'; the run stays open until the
+        // decision is answered and the resumed stream finishes for real.
+        if (run.paused) return;
         streamsRef.current.delete(streamId);
+        setPendingDecision(null);
         run.resolve(run.text);
       }
     });
@@ -283,6 +323,10 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     const thread = await window.api.langgraphCreateThread('stylofact');
     const threadId = thread?.thread_id;
     if (!threadId) throw new Error('Stylofact could not create an AI workspace.');
+    // Stylofact runs headless, so it registers under the Task Agents column of
+    // the permissions dashboard — the user's saved preference, not a hardcoded
+    // fallback, governs the run.
+    const permissionPolicy = await registerSurfaceForThread(threadId, 'task');
     const streamId = newId(`stylofact-${stage}`);
     setRunState({ stage, model, label: `Running ${stage.replace(/-/g, ' ')}…` });
     setStreamPreview('');
@@ -296,13 +340,20 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     // pending. Attach a rejection observer immediately so an early agent
     // error is delivered to the caller without becoming an unhandled promise.
     completed.catch(() => {});
-    streamsRef.current.set(streamId, { text: '', resolve: resolveStream, reject: rejectStream });
+    streamsRef.current.set(streamId, {
+      text: '',
+      resolve: resolveStream,
+      reject: rejectStream,
+      threadId,
+      stage,
+      paused: false,
+    });
     try {
       const invocation = await window.api.langgraphStreamMessage(
         streamId,
         threadId,
         `[Use skill: stylofact]\n\n${prompt}`,
-        makeAgentConfig(model, stage, runtime),
+        makeAgentConfig(model, stage, { ...runtime, permissionPolicy }),
       );
       const text = await completed;
       return { text, threadId, turnId: invocation?.turnId || null, outcome: invocation?.outcome || null };
@@ -314,9 +365,30 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       }
       throw runError;
     } finally {
+      unregisterThread(threadId);
       setRunState(null);
     }
   }, []);
+
+  const resolveDecision = useCallback(async (approved) => {
+    const decision = pendingDecision;
+    if (!decision) return;
+    const run = streamsRef.current.get(decision.streamId);
+    setPendingDecision(null);
+    if (!run) return;
+    try {
+      run.paused = false;
+      await window.api.langgraphResumeRun(decision.streamId, decision.threadId, { approved: !!approved });
+      if (!approved) {
+        // The tool was refused; the model was told and the resumed stream will
+        // still finish the turn (possibly with a usable answer).
+        setRunState((current) => (current ? { ...current, label: `${current.label} (continuing without the refused tool)` } : current));
+      }
+    } catch (resumeError) {
+      streamsRef.current.delete(decision.streamId);
+      run.reject(new Error(resumeError?.message || 'The paused Stylofact run could not be resumed.'));
+    }
+  }, [pendingDecision]);
 
   const recordRun = useCallback(async (stage, status, details) => {
     const activeProject = projectRef.current;
@@ -772,6 +844,8 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     isLoading,
     runState,
     streamPreview,
+    pendingDecision,
+    resolveDecision,
     error,
     setError,
     createProject,

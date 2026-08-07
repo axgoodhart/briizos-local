@@ -335,6 +335,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     isLoading,
     runState,
     streamPreview,
+    pendingDecision,
+    resolveDecision,
     error,
     setError,
     createProject,
@@ -476,6 +478,18 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
         <aside className="stylofact-running" aria-live="polite">
           <div><span className="stylofact-running-dot" />{runState.label}<small>{runState.model}</small></div>
           {streamPreview && <p>{streamPreview.slice(-360)}</p>}
+        </aside>
+      )}
+      {pendingDecision && (
+        <aside className="stylofact-decision" role="alertdialog" aria-live="assertive" aria-label="A paused AI process needs your decision">
+          <div>
+            <strong>This run is paused and awaiting your decision</strong>
+            <p>{pendingDecision.summary}</p>
+          </div>
+          <div className="stylofact-decision-actions">
+            <button type="button" className="stylofact-decision-deny" onClick={() => resolveDecision(false)}>Refuse and continue</button>
+            <button type="button" className="stylofact-decision-grant" onClick={() => resolveDecision(true)}>Grant permission</button>
+          </div>
         </aside>
       )}
       {error && <div className="stylofact-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError(null)} aria-label="Dismiss error">×</button></div>}

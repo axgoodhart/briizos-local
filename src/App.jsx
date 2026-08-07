@@ -37,7 +37,7 @@ import {
   persistHeaderDockItems,
   persistHeaderDockStyle,
 } from './components/controlbar/dockPreferences';
-import { BriiztormOverlay, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay } from './components/overlays';
+import { BriiztormOverlay, OrganizerModal, CalendarModal, LiveCanvas, DashboardOverlay, AIVisibilityModal } from './components/overlays';
 import { NotesWidget } from './components/notes';
 import { CanvasesPopover, CanvasTile } from './components/canvases';
 import { useCanvases } from './hooks/useCanvases';
@@ -1324,6 +1324,9 @@ function AppContent({ layout }) {
         planningFocus={calendarPlanningFocus}
         onPlanningFocusHandled={() => setCalendarPlanningFocus(null)}
       />
+
+      {/* AI visibility — self-contained: floating pill trigger + timeline modal */}
+      <AIVisibilityModal />
 
       {/* Notes Widget */}
       <NotesWidget

@@ -96,6 +96,8 @@ const CHANNELS = Object.freeze({
   sharedTextList: 'local-data:shared-text:list',
   sharedTextImport: 'local-data:shared-text:import',
   logsList: 'local-data:logs:list',
+  aiAuditList: 'local-data:ai-audit:list',
+  aiAuditGet: 'local-data:ai-audit:get',
   logsAppend: 'local-data:logs:append',
   continuityStatus: 'local-data:continuity:status',
   continuityRestore: 'local-data:continuity:restore',
@@ -230,6 +232,8 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, dialog, service, corpusS
     [CHANNELS.sharedTextImport, (ownerAppId, remoteId) => service.importSharedTextMirror(ownerAppId, remoteId)],
     [CHANNELS.logsList, (filters) => service.listLogs(filters)],
     [CHANNELS.logsAppend, (input) => service.appendLog(input)],
+    [CHANNELS.aiAuditList, (filters) => service.listAiTurnAuditEventSummaries(filters)],
+    [CHANNELS.aiAuditGet, (eventId) => service.getAiTurnAuditEvent(eventId)],
   ];
 
   for (const [channel, operation] of registrations) {

@@ -274,18 +274,7 @@ export function TileLayout({
     if (onMovePanel) onMovePanel(draggedId, targetId, dropZone);
   }, [onMovePanel]);
 
-  if (!layoutRow || !layoutRow.columns || layoutRow.columns.length === 0) {
-    return (
-      <div className={`tile-layout ${className}`}>
-        <div className="tile-layout-empty">No panels to display</div>
-      </div>
-    );
-  }
-
-  const { columns } = layoutRow;
-  const fullscreenPanel = columns
-    .flatMap((column) => column.panels)
-    .find((panel) => panel.panelId === fullscreenPanelId);
+  const columns = layoutRow?.columns ?? [];
 
   // Default layout for the horizontal Group
   const defaultColumnLayout = useMemo(() => {
@@ -300,6 +289,18 @@ export function TileLayout({
   const groupKey = useMemo(() => {
     return columns.map(c => `${c.id}:${c.panels.map(p => p.panelId).join('+')}`).join('-');
   }, [columns]);
+
+  if (columns.length === 0) {
+    return (
+      <div className={`tile-layout ${className}`}>
+        <div className="tile-layout-empty">No panels to display</div>
+      </div>
+    );
+  }
+
+  const fullscreenPanel = columns
+    .flatMap((column) => column.panels)
+    .find((panel) => panel.panelId === fullscreenPanelId);
 
   return (
     <DndProvider backend={HTML5Backend}>

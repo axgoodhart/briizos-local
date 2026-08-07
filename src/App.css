@@ -22,7 +22,7 @@
     --cc-padding-huge: 24px;
 }
 
-:root[data-theme='medieval-taurus'] {
+:root[data-theme='medieval-taurus'], :root[data-theme='caspian-sea'] {
     --cc-font-size-tiny: 10.05px;
     --cc-font-size-small: 17.42px;
     --cc-font-size-medium: 21.44px;
@@ -438,8 +438,6 @@ body {
 
     .app--vertical-header .title-icon,
     .app--vertical-header .title-icon::before {
-        width: 54px;
-        height: 54px;
         font-size: var(--cc-font-size-large);
     }
 
@@ -1538,7 +1536,7 @@ body {
 
 .log-count-error {
     background: rgba(255, 82, 82, 0.2);
-    color: #ff5252;
+    color: var(--palette-warning);
 }
 
 .log-count-warn {
@@ -1810,15 +1808,15 @@ body {
 }
 
 .log-level-error .log-message {
-    color: #ff5252;
+    color: var(--palette-danger, #ff5252);
 }
 
 .log-level-error .log-type {
-    color: #ff5252 !important;
+    color: var(--palette-danger, #ff5252) !important;
 }
 
 .log-level-error .log-level-label {
-    color: #ff5252;
+    color: var(--palette-danger, #ff5252);
 }
 
 .log-level-warn .log-message {
@@ -2924,7 +2922,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2400;
+    z-index: 999999;
     animation: fadeIn 0.2s ease;
 }
 
@@ -5239,7 +5237,6 @@ body {
 
 * {
     box-sizing: border-box;
-    filter: var(--ui-master-filter);
 }
 
 .chat-textarea::-webkit-scrollbar {
@@ -5794,6 +5791,11 @@ body {
     -webkit-backdrop-filter: blur(18px) saturate(1.25);
 }
 
+
+.control-bar-dock--vertical #controlBarToggle {
+    margin-right:0px !important;
+}
+
 :root {
     --ui-border-radius: 16px;
     --ui-corner-shape: round;
@@ -6110,41 +6112,42 @@ body {
 
 
 
+/* ===== pasted.css ===== */
 :root[data-theme='glacial-dusk'] {
     --ui-master-filter: saturate(.93);
     --ui-border-radius: 6px;
-    --chat-input-border-color: #cfcfcf;
-    --glass-bg-light: linear-gradient(to bottom, #8a8a8a, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255, 255, 255, 0.4) 130%);
+    --chat-input-border-color: #e7f0e2;
+    --glass-bg-light: linear-gradient(to bottom, #8b8a81, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255, 255, 255, 0.4) 130%);
     --ui-font-main: Quasimoda;
-    --holo-blue: #c7c7c73d;
-    --text-primary: #f7f7f7;
+    --holo-blue: #e1e9db3d;
+    --text-primary: #ffffff;
     /* Updated Card Gradient to be less loud */
-    --chat-input-text-color: #cfcfcf;
-    --palette-accent-briizlogo: rgb(229, 229, 229);
-    --palette-accent-primary: #c7c7c7;
-    --palette-accent-primary-soft: #adadad;
-    --palette-neon-accent: #e0e0e0;
-    --palette-success: #9c9c9c;
-    --palette-warning: #ededed;
-    --palette-danger: #a4a4a4;
-    --palette-text-main: #cfcfcf;
-    --palette-text-faint: #dcdcdc;
-    --palette-text-soft: #a5a5a5;
-    --palette-text-subtle: #8a8a8a;
-    --palette-text-muted: #545454;
-    --palette-text-dim: #545454;
+    --chat-input-text-color: #e7f0e2;
+    --palette-accent-briizlogo: rgb(255, 255, 255);
+    --palette-accent-primary: #e1e9db;
+    --palette-accent-primary-soft: #cbd4c7;
+    --palette-neon-accent: #f5fdee;
+    --palette-success: #9a998f;
+    --palette-warning: #ffffff;
+    --palette-danger: #c3ccc0;
+    --palette-text-main: #e7f0e2;
+    --palette-text-faint: #f2fbeb;
+    --palette-text-soft: #c4cdc1;
+    --palette-text-subtle: #8b8a81;
+    --palette-text-muted: #5e5247;
+    --palette-text-dim: #5e5247;
     --palette-white: #ffffff;
-    --ui-body-bg: gray;
+    --ui-body-bg: #83837a;
     --ui-app-bg: black;
     --ui-app-border: 3px solid #000;
-    --ui-app-shadow: inset 0 0 10px rgb(28, 28, 28);
+    --ui-app-shadow: inset 0 0 10px rgb(3, 5, 3);
     --ui-text-primary: var(--palette-text-main);
-    --ui-header-text: #9c9c9c;
-    --ui-header-bg: conic-gradient(from 200deg at 5.3cqw -150%, #444, #888, #444, #000, #444);
-    -ui-header-poop: linear-gradient(to bottom, black 40%, darkslategray, white);
+    --ui-header-text: #9a998f;
+    --ui-header-bg: conic-gradient(from 200deg at 5.3cqw -150%, #50453b, #89897f, #50453b, #000, #50453b);
+    -ui-header-poop: linear-gradient(to bottom, black 40%, #474e39, white);
     --ui-title-icon: var(--palette-accent-primary);
     --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
-    --ui-title-gradient: linear-gradient(120deg, #686868, black, #484848, rgb(28, 28, 28), #242424, black, #686868);
+    --ui-title-gradient: linear-gradient(120deg, #6f6f67, black, #54483d, rgb(3, 5, 3), #0a0b09, black, #6f6f67);
     --ui-title-stroke: 0.1px var(--palette-white);
     --ui-button-ghost-border-strong: rgba(255, 255, 255, 0.15);
     --ui-button-ghost-text: var(--palette-text-subtle);
@@ -6153,277 +6156,276 @@ body {
     --ui-panel-header-text: black;
     --ui-panel-btn: var(--palette-text-muted);
     --ui-panel-btn-hover: var(--palette-accent-primary);
-    --ui-chat-header-text: #dcdcdc;
-    --ui-chat-header-bg: linear-gradient(#686868, black 50%, #cfcfcf 150%);
+    --ui-chat-header-text: #f2fbeb;
+    --ui-chat-header-bg: linear-gradient(#6f6f67, black 50%, #e7f0e2 150%);
     ;
-    --ui-chat-header-border: #cfcfcf;
-    --ui-chat-input-bg: linear-gradient(rgba(104, 104, 104, 0.6), rgba(28, 28, 28, 0.447));
+    --ui-chat-header-border: #e7f0e2;
+    --ui-chat-input-bg: linear-gradient(rgba(111, 111, 103, 0.6), rgba(3, 5, 3, 0.447));
     --ui-chat-input-text: var(--palette-white);
-    --ui-chat-placeholder: rgba(224, 224, 224, 0.5);
-    --ui-modal-bg: linear-gradient(135deg, #c1c1c12d 0%, #0202023a 100%);
-    --ui-modal-border: rgba(163, 163, 163, 0.3);
-    --ui-modal-header-bg: rgba(28, 28, 28, 0.2);
-    --ui-modal-header-border: rgba(163, 163, 163, 0.15);
+    --ui-chat-placeholder: rgba(245, 253, 238, 0.5);
+    --ui-modal-bg: var(--glass-bg-light);
+    --ui-modal-border: rgba(193, 203, 191, 0.3);
+    --ui-modal-header-bg: rgba(3, 5, 3, 0.2);
+    --ui-modal-header-border: rgba(193, 203, 191, 0.15);
     --ui-modal-title: var(--palette-accent-primary);
     --ui-modal-close: var(--palette-text-muted);
-    --ui-modal-tabs-bg: rgba(2, 2, 2, 0.3);
-    --ui-modal-tabs-border: rgba(163, 163, 163, 0.1);
+    --ui-modal-tabs-bg: rgba(0, 0, 0, 0.3);
+    --ui-modal-tabs-border: rgba(193, 203, 191, 0.1);
     --ui-modal-tab-text: var(--palette-text-muted);
     --ui-modal-tab-hover-text: var(--palette-text-soft);
-    --ui-modal-tab-hover-bg: rgba(163, 163, 163, 0.05);
+    --ui-modal-tab-hover-bg: rgba(193, 203, 191, 0.05);
     --ui-modal-tab-active-text: var(--palette-accent-primary);
-    --ui-modal-tab-active-bg: rgba(163, 163, 163, 0.08);
+    --ui-modal-tab-active-bg: rgba(193, 203, 191, 0.08);
     --ui-settings-section-desc: var(--palette-text-subtle);
     --ui-settings-label: var(--palette-text-soft);
     --ui-settings-hint: var(--palette-text-muted);
-    --ui-settings-input-bg: rgba(28, 28, 28, 0.6);
-    --ui-settings-input-border: rgba(163, 163, 163, 0.2);
+    --ui-settings-input-bg: rgba(3, 5, 3, 0.6);
+    --ui-settings-input-border: rgba(193, 203, 191, 0.2);
     --ui-settings-input-text: var(--palette-text-main);
     --ui-settings-input-placeholder: var(--palette-text-dim);
-    --ui-settings-input-focus-border: rgba(163, 163, 163, 0.5);
-    --ui-settings-input-focus-shadow: 0 0 10px rgba(163, 163, 163, 0.1);
-    --ui-settings-toggle-bg: rgba(54, 54, 54, 0.3);
-    --ui-settings-toggle-border: rgba(163, 163, 163, 0.2);
+    --ui-settings-input-focus-border: rgba(193, 203, 191, 0.5);
+    --ui-settings-input-focus-shadow: 0 0 10px rgba(193, 203, 191, 0.1);
+    --ui-settings-toggle-bg: rgba(67, 57, 47, 0.3);
+    --ui-settings-toggle-border: rgba(193, 203, 191, 0.2);
     --ui-settings-toggle-text: var(--palette-accent-primary);
-    --ui-settings-toggle-bg-hover: rgba(84, 84, 84, 0.4);
-    --ui-settings-toggle-border-hover: rgba(163, 163, 163, 0.4);
-    --ui-settings-radio-bg: rgba(28, 28, 28, 0.4);
-    --ui-settings-radio-border: rgba(163, 163, 163, 0.15);
-    --ui-settings-radio-bg-hover: rgba(54, 54, 54, 0.3);
-    --ui-settings-radio-border-hover: rgba(163, 163, 163, 0.3);
-    --ui-settings-radio-bg-active: rgba(84, 84, 84, 0.3);
-    --ui-settings-radio-border-active: rgba(163, 163, 163, 0.5);
-    --ui-settings-radio-shadow-active: 0 0 15px rgba(163, 163, 163, 0.1);
+    --ui-settings-toggle-bg-hover: rgba(94, 82, 71, 0.4);
+    --ui-settings-toggle-border-hover: rgba(193, 203, 191, 0.4);
+    --ui-settings-radio-bg: rgba(3, 5, 3, 0.4);
+    --ui-settings-radio-border: rgba(193, 203, 191, 0.15);
+    --ui-settings-radio-bg-hover: rgba(67, 57, 47, 0.3);
+    --ui-settings-radio-border-hover: rgba(193, 203, 191, 0.3);
+    --ui-settings-radio-bg-active: rgba(94, 82, 71, 0.3);
+    --ui-settings-radio-border-active: rgba(193, 203, 191, 0.5);
+    --ui-settings-radio-shadow-active: 0 0 15px rgba(193, 203, 191, 0.1);
     --ui-settings-radio-label: var(--palette-text-main);
     --ui-settings-radio-label-active: var(--palette-accent-primary);
-    --ui-modal-footer-bg: rgba(2, 2, 2, 0.3);
-    --ui-modal-footer-border: rgba(163, 163, 163, 0.1);
-    --ui-modal-save-bg: rgba(134, 134, 134, 0.5);
-    --ui-modal-save-border: rgba(163, 163, 163, 0.4);
+    --ui-modal-footer-bg: rgba(0, 0, 0, 0.3);
+    --ui-modal-footer-border: rgba(193, 203, 191, 0.1);
+    --ui-modal-save-bg: rgba(136, 136, 126, 0.5);
+    --ui-modal-save-border: rgba(193, 203, 191, 0.4);
     --ui-modal-save-text: var(--palette-accent-primary);
-    --ui-modal-save-bg-hover: rgba(163, 163, 163, 0.6);
-    --ui-modal-save-shadow-hover: 0 0 15px rgba(163, 163, 163, 0.2);
+    --ui-modal-save-bg-hover: rgba(193, 203, 191, 0.6);
+    --ui-modal-save-shadow-hover: 0 0 15px rgba(193, 203, 191, 0.2);
     --ui-provider-tab-bg: rgba(255, 255, 255, 0.03);
     --ui-provider-tab-border: rgba(255, 255, 255, 0.1);
     --ui-provider-tab-text: var(--palette-text-subtle);
     --ui-provider-tab-bg-hover: rgba(255, 255, 255, 0.05);
     --ui-provider-tab-text-hover: var(--palette-text-faint);
-    --ui-provider-tab-bg-active: rgba(199, 199, 199, 0.15);
-    --ui-provider-tab-border-active: rgba(199, 199, 199, 0.3);
+    --ui-provider-tab-bg-active: rgba(225, 233, 219, 0.15);
+    --ui-provider-tab-border-active: rgba(225, 233, 219, 0.3);
     --ui-provider-tab-text-active: var(--palette-accent-primary);
     --ui-slider-thumb-bg: var(--palette-accent-primary);
-    --ui-slider-thumb-shadow: 0 0 6px rgba(199, 199, 199, 0.5);
-    --ui-markdown-code-bg: rgba(199, 199, 199, 0.1);
+    --ui-slider-thumb-shadow: 0 0 6px rgba(225, 233, 219, 0.5);
+    --ui-markdown-code-bg: rgba(225, 233, 219, 0.1);
     --ui-markdown-code-color: var(--palette-accent-primary);
-    --ui-markdown-th-bg: rgba(199, 199, 199, 0.1);
-    --ui-controlbar-bg: linear-gradient(120deg, #686868, black, #484848, rgb(28, 28, 28), #242424, black, #686868);
-    --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px #323232;
+    --ui-markdown-th-bg: rgba(225, 233, 219, 0.1);
+    --ui-controlbar-bg: linear-gradient(120deg, #6f6f67, black, #54483d, rgb(3, 5, 3), #0a0b09, black, #6f6f67);
+    --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px #161713;
     --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
     --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
     --layout-bg-primary: black;
     --layout-bg-panel: black;
-    --layout-bg-panel-header: linear-gradient(to right, deepskyblue, black);
+    --layout-bg-panel-header: linear-gradient(to right, #84d5de, black);
     --layout-accent-cyan: var(--palette-accent-primary);
-    --layout-accent-cyan-dim: rgba(163, 163, 163, 0.3);
-    --layout-accent-cyan-glow: rgba(163, 163, 163, 0.5);
-    --layout-accent-orange: #909090;
-    --layout-accent-orange-dim: rgba(144, 144, 144, 0.3);
+    --layout-accent-cyan-dim: rgba(193, 203, 191, 0.3);
+    --layout-accent-cyan-glow: rgba(193, 203, 191, 0.5);
+    --layout-accent-orange: #908f85;
+    --layout-accent-orange-dim: rgba(144, 143, 133, 0.3);
     --layout-border-color: rgba(0, 0, 0, 0.15);
-    --layout-border-color-hover: rgba(61, 61, 61, 0.4);
-    --layout-border-color-active: rgba(61, 61, 61, 0.6);
+    --layout-border-color-hover: rgba(74, 63, 53, 0.4);
+    --layout-border-color-active: rgba(74, 63, 53, 0.6);
     --layout-gap: 1px;
     --layout-panel-radius: 6px;
     --layout-header-height: 36px;
     --layout-resize-handle-size: 2px;
     --layout-transition-fast: 0.15s ease;
     --layout-transition-normal: 0.2s ease;
-    --log-section-bg: #020202;
-    --log-section-border: rgba(207, 207, 207, 0.23);
-    --log-section-header-color: #bfbfbf;
+    --log-section-bg: #000000;
+    --log-section-border: rgba(231, 240, 226, 0.23);
+    --log-section-header-color: #d9e3d5;
     /* src/components/LoginOverlay.css */
-    --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #e5e5e5, #3d3d3d);
+    --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #ffffff, #4a3f35);
     --theme-components-loginoverlay-login-btn-color-1q77m: #000;
-    --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgba(229, 229, 229, 0.6);
-    --theme-components-loginoverlay-login-error-background-1iva2: rgba(164, 164, 164, 0.1);
-    --theme-components-loginoverlay-login-error-border-9dbrq: rgba(164, 164, 164, 0.3);
+    --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: rgba(255, 255, 255, 0.6);
+    --theme-components-loginoverlay-login-error-background-1iva2: rgba(195, 204, 192, 0.1);
+    --theme-components-loginoverlay-login-error-border-9dbrq: rgba(195, 204, 192, 0.3);
     --theme-components-loginoverlay-login-info-color-1tcs7: rgba(255, 255, 255, 0.5);
     --theme-components-loginoverlay-login-input-background-ypdc9: rgba(0, 0, 0, 0.3);
-    --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(229, 229, 229, 0.2);
-    --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgba(61, 61, 61, 0.4);
+    --theme-components-loginoverlay-login-input-box-shadow-u3asw: rgba(255, 255, 255, 0.2);
+    --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: rgba(74, 63, 53, 0.4);
     --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(255, 255, 255, 0.4);
-    --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #3d3d3d;
-    --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #e5e5e5;
-    --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #e5e5e5, #3d3d3d, var(--palette-accent-primary));
-    --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(61, 61, 61, 0.2);
-    --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(229, 229, 229, 0.4);
-    --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #e5e5e5, #3d3d3d);
-    --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgba(229, 229, 229, 0.3);
-    --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(2, 2, 2, 0.95));
+    --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #4a3f35;
+    --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #ffffff;
+    --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, #ffffff, #4a3f35, var(--palette-accent-primary));
+    --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: rgba(74, 63, 53, 0.2);
+    --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: rgba(255, 255, 255, 0.4);
+    --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, #ffffff, #4a3f35);
+    --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: rgba(255, 255, 255, 0.3);
+    --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, rgba(5, 7, 4, 0.95), rgba(0, 0, 0, 0.95));
     --theme-components-loginoverlay-login-subtitle-color-sqqmz: rgba(255, 255, 255, 0.8);
     --theme-components-loginoverlay-login-toggle-link-color-tuiqr: rgba(255, 255, 255, 0.6);
     /* src/components/PhantomSection.css */
-    --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(164, 164, 164, 0.2);
-    --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(164, 164, 164, 0.12);
-    --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(224, 224, 224, 0.2);
-    --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(224, 224, 224, 0.12);
-    --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(224, 224, 224, 0.25);
-    --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(224, 224, 224, 0.14);
+    --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(195, 204, 192, 0.2);
+    --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(195, 204, 192, 0.12);
+    --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(245, 253, 238, 0.2);
+    --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(245, 253, 238, 0.12);
+    --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(245, 253, 238, 0.25);
+    --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(245, 253, 238, 0.14);
     --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
-    --theme-components-phantomsection-phantom-event-row-color-1gv4y: #393939;
+    --theme-components-phantomsection-phantom-event-row-color-1gv4y: #463b32;
     --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(255, 255, 255, 0.015);
     --theme-components-phantomsection-phantom-events-background-1eqtm: #000000;
-    --theme-components-phantomsection-phantom-events-border-top-1u83g: #020202;
-    --theme-components-phantomsection-phantom-record-hint-color-39knf: #020202;
-    --theme-components-phantomsection-phantom-run-opts-input-border-h3919: #020202;
-    --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(224, 224, 224, 0.3);
-    --theme-components-phantomsection-phantom-status-background-16ah5: rgba(224, 224, 224, 0.03);
-    --theme-components-phantomsection-phantom-status-border-bottom-1of2t: #020202;
-    --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #1c1c1c;
-    --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #a4a4a4;
-    --theme-components-phantomsection-phantom-status-text-color-fs5n5: #6f6f6f;
-    --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #d0d0d0;
-    --theme-components-phantomsection-phantom-tab-color-161cz: #393939;
-    --theme-components-phantomsection-phantom-tabs-background-yq5ln: #020202;
-    --theme-components-phantomsection-phantom-toggle-background-afq8i: #020202;
-    --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: #020202;
-    --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #1c1c1c;
-    --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(224, 224, 224, 0.4);
-    --theme-components-phantomsection-phantom-wf-del-color-13fl3: #020202;
-    --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(164, 164, 164, 0.06);
+    --theme-components-phantomsection-phantom-events-border-top-1u83g: #000000;
+    --theme-components-phantomsection-phantom-record-hint-color-39knf: #000000;
+    --theme-components-phantomsection-phantom-run-opts-input-border-h3919: #000000;
+    --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: rgba(245, 253, 238, 0.3);
+    --theme-components-phantomsection-phantom-status-background-16ah5: rgba(245, 253, 238, 0.03);
+    --theme-components-phantomsection-phantom-status-border-bottom-1of2t: #000000;
+    --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #030503;
+    --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #c3ccc0;
+    --theme-components-phantomsection-phantom-status-text-color-fs5n5: #75756d;
+    --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #e8f1e2;
+    --theme-components-phantomsection-phantom-tab-color-161cz: #463b32;
+    --theme-components-phantomsection-phantom-tabs-background-yq5ln: #000000;
+    --theme-components-phantomsection-phantom-toggle-background-afq8i: #000000;
+    --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: #000000;
+    --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #030503;
+    --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: rgba(245, 253, 238, 0.4);
+    --theme-components-phantomsection-phantom-wf-del-color-13fl3: #000000;
+    --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(195, 204, 192, 0.06);
     --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(255, 255, 255, 0.04);
-    --theme-components-phantomsection-phantom-wf-name-color-rnz45: #c1c1c1;
+    --theme-components-phantomsection-phantom-wf-name-color-rnz45: #dce4d6;
     --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgba(255, 255, 255, 0.025);
-    --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(224, 224, 224, 0.05);
-    --theme-components-phantomsection-phantom-wf-run-border-p8yj7: #1c1c1c;
-    --theme-components-phantomsection-phantom-wf-run-color-13c30: #393939;
-    --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(224, 224, 224, 0.06);
-    --theme-components-phantomsection-root-app-1jpsf: #c7c7c7;
-    --theme-components-phantomsection-root-app-b5mm4: #5d5d5d;
+    --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(245, 253, 238, 0.05);
+    --theme-components-phantomsection-phantom-wf-run-border-p8yj7: #030503;
+    --theme-components-phantomsection-phantom-wf-run-color-13c30: #463b32;
+    --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(245, 253, 238, 0.06);
+    --theme-components-phantomsection-root-app-1jpsf: #e1e9db;
+    --theme-components-phantomsection-root-app-b5mm4: #665a4e;
     --theme-components-phantomsection-root-app-o0md2: black;
     /* src/components/controlbar/ControlBar.css */
-    --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(61, 61, 61);
-    --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: #dcdcdc;
-    --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #323232;
-    --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(208, 208, 208);
+    --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: rgb(74, 63, 53);
+    --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: #f2fbeb;
+    --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #161713;
+    --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: rgb(232, 241, 226);
     --theme-components-controlbar-controlbar-cb-label-color-sqqmz: rgba(255, 255, 255, 0.8);
-    --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(163, 163, 163, 0.2);
-    --theme-components-controlbar-controlbar-notes-icon-color-qo8di: #fcfcfc;
+    --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(193, 203, 191, 0.2);
+    --theme-components-controlbar-controlbar-notes-icon-color-qo8di: #ffffff;
     --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: black;
-    --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: #cfcfcf;
-    --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: #5d5d5d;
+    --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: #e7f0e2;
+    --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: #665a4e;
     /* src/components/notes/NotesWidget.css */
-    --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(252, 252, 252, 0.485);
+    --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(255, 255, 255, 0.485);
     --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.5) 50%, transparent 50%), linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.5) 60%, rgba(255, 255, 255, 0.5) 70%, transparent 70%), linear-gradient(135deg, transparent 80%, rgba(255, 255, 255, 0.5) 80%, rgba(255, 255, 255, 0.5) 90%, transparent 90%);
     --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
     --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
     --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: rgba(0, 0, 0, 0.5);
     --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
     --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: rgba(0, 0, 0, .8);
-    --theme-components-notes-noteswidget-note-btn-color-26sfj: #cfcfcf;
+    --theme-components-notes-noteswidget-note-btn-color-26sfj: #e7f0e2;
     --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.1);
-    --theme-components-notes-noteswidget-note-card-background-48988: rgb(57, 57, 57);
-    --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(163, 163, 163, 0.15);
-    --theme-components-notes-noteswidget-note-card-border-top-12gea: #d0d0d0;
+    --theme-components-notes-noteswidget-note-card-background-48988: rgb(70, 59, 50);
+    --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(193, 203, 191, 0.15);
+    --theme-components-notes-noteswidget-note-card-border-top-12gea: #e8f1e2;
     --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: rgba(0, 0, 0, 0.571);
-    --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(163, 163, 163, 0.63);
+    --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: rgba(193, 203, 191, 0.63);
     --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: rgba(0, 0, 0, 0.3);
     --theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(0, 0, 0, 0.2);
-    --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(163, 163, 163, 0.1);
-    --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(220, 220, 220, 0.8) 45%, rgba(220, 220, 220, 0.8) 55%, transparent 55%);
+    --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(193, 203, 191, 0.1);
+    --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, rgba(242, 251, 235, 0.8) 45%, rgba(242, 251, 235, 0.8) 55%, transparent 55%);
     --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: #ffffff;
-    --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: #323232;
-    --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: #dcdcdc;
-    --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgba(50, 50, 50, 0.5);
-    --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(164, 164, 164, 0.5);
-    --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(164, 164, 164, 0.1), rgba(208, 208, 208, 0.51), rgb(117, 117, 117));
+    --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: #161713;
+    --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: #f2fbeb;
+    --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: rgba(22, 23, 19, 0.5);
+    --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(195, 204, 192, 0.5);
+    --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, rgba(195, 204, 192, 0.1), rgba(232, 241, 226, 0.51), rgb(122, 122, 113));
     --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: black;
     /* src/components/overlays/BriiztormOverlay.css */
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(0, 0, 0, 0.4);
     --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(255, 255, 255, 0.2);
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(25, 25, 25, 0.6);
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(164, 164, 164, 0.5);
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(84, 84, 84, 0.5);
-    --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(28, 28, 28, 0.9) 0%, rgba(2, 2, 2, 0.9) 100%);
-    --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(163, 163, 163, 0.3);
-    --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: #020202;
-    --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgba(163, 163, 163, 0.5);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(1, 3, 0, 0.6);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: rgba(195, 204, 192, 0.5);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(94, 82, 71, 0.5);
+    --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, rgba(3, 5, 3, 0.9) 0%, rgba(0, 0, 0, 0.9) 100%);
+    --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(193, 203, 191, 0.3);
+    --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: #000000;
+    --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: rgba(193, 203, 191, 0.5);
     /* src/components/overlays/CalendarModal.css */
     --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgba(0, 0, 0, 0.12);
-    --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgba(84, 84, 84, 0.25);
-    --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(199, 199, 199, 0.1);
-    --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(199, 199, 199, 0.15);
+    --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgba(94, 82, 71, 0.25);
+    --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(225, 233, 219, 0.1);
+    --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: rgba(225, 233, 219, 0.15);
     --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgba(255, 255, 255, 0.2);
-    --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgba(156, 156, 156, 0.1);
-    --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgba(28, 28, 28, 0.3);
-    --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(163, 163, 163, 0.08);
-    --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgba(84, 84, 84, 0.2);
-    --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: #7c7c7c;
+    --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgba(154, 153, 143, 0.1);
+    --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgba(3, 5, 3, 0.3);
+    --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(193, 203, 191, 0.08);
+    --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgba(94, 82, 71, 0.2);
+    --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: #807f76;
     --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: #000;
-    --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: #dcdcdc;
+    --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: #f2fbeb;
     --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgba(255, 255, 255, 0.15);
     --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgba(255, 255, 255, 0.05);
-    --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgba(28, 28, 28, 0.2);
-    --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(163, 163, 163, 0.15);
-    --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #c1c1c12d 0%, #0202023a 100%);
-    --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(163, 163, 163, 0.3);
-    --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgba(2, 2, 2, 0.3);
-    --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(163, 163, 163, 0.1);
+    --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgba(3, 5, 3, 0.2);
+    --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(193, 203, 191, 0.15);
+    --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #dce4d62d 0%, #0000003a 100%);
+    --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(193, 203, 191, 0.3);
+    --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgba(0, 0, 0, 0.3);
+    --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(193, 203, 191, 0.1);
     --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);
-    --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgba(54, 54, 54, 0.3);
-    --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgba(163, 163, 163, 0.2);
-    --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgba(84, 84, 84, 0.4);
-    --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgba(163, 163, 163, 0.4);
-    --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgba(134, 134, 134, 0.4);
-    --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(134, 134, 134, 0.5);
-    --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(163, 163, 163, 0.6);
-    --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(28, 28, 28, 0.6);
-    --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(163, 163, 163, 0.5);
+    --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgba(67, 57, 47, 0.3);
+    --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgba(193, 203, 191, 0.2);
+    --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgba(94, 82, 71, 0.4);
+    --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: rgba(193, 203, 191, 0.4);
+    --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgba(136, 136, 126, 0.4);
+    --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(136, 136, 126, 0.5);
+    --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(193, 203, 191, 0.6);
+    --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(3, 5, 3, 0.6);
+    --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: rgba(193, 203, 191, 0.5);
     /* src/components/overlays/LiveCanvas.css */
     --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(255, 255, 255, 0.03);
     --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(255, 255, 255, 0.06);
-    --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #020202;
+    --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #000000;
     --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(255, 255, 255, 0.1);
     --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: rgba(0, 0, 0, 0.6);
     /* src/components/overlays/OrganizerModal.css */
-    --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgba(57, 57, 57, 0.771);
-    --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgba(156, 156, 156, 0.912);
+    --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: rgba(70, 59, 50, 0.771);
+    --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: rgba(154, 153, 143, 0.912);
     --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgba(0, 0, 0, 0.52);
     --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgba(255, 255, 255, 0.08);
-    --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #6f6f6f;
-    --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #c1c1c1;
+    --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #75756d;
+    --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #dce4d6;
     --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(255, 255, 255, 0.2);
-    --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(156, 156, 156, 0.1);
-    --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #7c7c7c;
-    --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(28, 28, 28, 0.3);
-    --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(84, 84, 84, 0.2);
-    --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgba(134, 134, 134, 0.5);
-    --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(163, 163, 163, 0.4);
-    --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgba(163, 163, 163, 0.6);
-    --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(28, 28, 28, 0.6);
-    --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(163, 163, 163, 0.5);
-    --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(163, 163, 163, 0.3);
+    --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(154, 153, 143, 0.1);
+    --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #807f76;
+    --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(3, 5, 3, 0.3);
+    --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(94, 82, 71, 0.2);
+    --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: rgba(136, 136, 126, 0.5);
+    --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(193, 203, 191, 0.4);
+    --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: rgba(193, 203, 191, 0.6);
+    --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(3, 5, 3, 0.6);
+    --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: rgba(193, 203, 191, 0.5);
+    --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: rgba(193, 203, 191, 0.3);
     --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgba(0, 0, 0, 0.2);
     --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(255, 255, 255, 0.1);
-    --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(28, 28, 28, 0.2);
-    --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(163, 163, 163, 0.12);
+    --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(3, 5, 3, 0.2);
+    --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(193, 203, 191, 0.12);
     --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgba(0, 0, 0, 0.15);
     --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(255, 255, 255, 0.05);
     --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgba(255, 255, 255, 0.15);
-    --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(163, 163, 163, 0.15);
-    --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #c1c1c12d 0%, #0202023a 100%);
-    --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(163, 163, 163, 0.7);
-    --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(84, 84, 84, 0.6);
-    --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(235, 235, 235, 0.1);
-    --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(163, 163, 163, 0.08);
-    --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: #cfcfcf;
+    --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(193, 203, 191, 0.15);
+    --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, #dce4d62d 0%, #0000003a 100%);
+    --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(193, 203, 191, 0.7);
+    --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(94, 82, 71, 0.6);
+    --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(193, 203, 191, 0.08);
+    --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: #e7f0e2;
     --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: #ffffff;
-    --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(163, 163, 163, 0.05);
-    --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(2, 2, 2, 0.3);
-    --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(163, 163, 163, 0.1);
-    --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(163, 163, 163, 0.2);
+    --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(193, 203, 191, 0.05);
+    --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(0, 0, 0, 0.3);
+    --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(193, 203, 191, 0.1);
+    --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgba(193, 203, 191, 0.2);
     --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0, 0, 0, 0.2);
 }
-
 :toot {
 
     --ui-border-radius: 16px;
@@ -6738,6 +6740,7 @@ body {
 }
 
 :root[data-theme='winterbloom'] {
+    --ui-forest-card-radius: 4px;
     --control-bar-bg: var(--glass-bg-light);
     --control-bar-border-color: rgba(0, 0, 0, .1);
     --ui-corner-shape: scoop;
@@ -6845,11 +6848,11 @@ body {
     --ui-markdown-th-bg: rgba(123, 44, 191, 0.15);
     --ui-controlbar-bg: linear-gradient(to right, #05050a, #0f0a1e, #05050a);
     --ui-controlbar-shadow: 0 -2px 20px rgba(0, 0, 0, 0.8), 0 0 15px rgba(123, 44, 191, 0.2);
-    --ui-controlbar-filter: contrast(1.1) saturate(1.2);
-    --ui-controlbar-filter-hover: contrast(1.2) saturate(1.5) brightness(1.1);
+    --ui-controlbar-filter: contrast(.8) saturate(.2)brightness(1.8);
+    --ui-controlbar-filter-hover: contrast(1.15) saturate(2.5) brightness(1.1);
     --layout-bg-primary: #020205;
     --layout-bg-panel: rgba(10, 10, 20, 0.6);
-    --layout-bg-panel-header: rgba(20, 20, 40, 0.4);
+    --layout-bg-panel-header: linear-gradient(to right, rgba(20,20,40,0.4) 65%, #c77dff);
     --layout-accent-cyan: #00f7ff;
     --layout-accent-cyan-dim: rgba(0, 247, 255, 0.15);
     --layout-accent-cyan-glow: rgba(0, 247, 255, 0.4);
@@ -6860,7 +6863,7 @@ body {
     --layout-border-color-active: #00f7ff;
     --layout-gap: 2px;
     --layout-panel-radius: 12px;
-    --layout-header-height: 42px;
+    --layout-header-height: 32px;
     --layout-resize-handle-size: 2px;
     --layout-transition-fast: 0.1s cubic-bezier(0.4, 0, 0.2, 1);
     --layout-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -11893,12 +11896,12 @@ body {
     --text-primary: #ffffff;
     --chat-input-text-color: #ffffff;
     --palette-accent-briizlogo: #ffffff;
-    --palette-accent-primary: #ffffff;
+    --palette-accent-primary: #lightgreen;
     --palette-accent-primary-soft: #ffffff;
-    --palette-neon-accent: #ffffff;
-    --palette-success: white;
-    --palette-warning: #ffffff;
-    --palette-danger: #ffffff;
+    --palette-neon-accent: lightblue;
+    --palette-success: lime;
+    --palette-warning: goldenrod;
+    --palette-danger: violet;
     --palette-text-main: #ffffff;
     --palette-text-faint: #ffffff;
     --palette-text-soft: #ffffff;
@@ -11988,13 +11991,13 @@ body {
     --ui-markdown-code-bg: rgba(158, 89, 97, 0.8);
     --ui-markdown-code-color: #ffffff;
     --ui-markdown-th-bg: rgba(255, 255, 255, 0.08);
-    --ui-controlbar-bg: radial-gradient(circle at 2px 2px, rgba(0, 255, 255, 0.5) 12px, transparent 0) 0 0 / 20px 20px, linear-gradient(45deg, #0f0c29, #302b63, #24243e);
+    --ui-controlbar-bg: radial-gradient(circle at 2px 2px, rgba(0, 255, 180, 0.5) 12px, transparent 0) 0 0 / 20px 20px, linear-gradient(45deg, #0f0c29, #302b63, #24243e);
     --ui-controlbar-bg-size: 600% 500%;
     --ui-controlbar-shadow: 0px -8px 10px palegoldenrod, inset 0 0 8px black, inset 0 0 20px seagreen;
     --ui-controlbar-filter: blur(0px) brightness(1) saturate(0.2);
     --ui-controlbar-filter-hover: blur(0px) brightness(1.2) saturate(1.1);
     --layout-bg-primary: #70785c;
-    --layout-bg-panel: repeating-linear-gradient(135deg, #474747, rgb(91, 104, 112) 11px, #474747 3px, rgb(104, 112, 131) 2px);
+    --layout-bg-panel: repeating-linear-gradient(135deg, #001300 5px, rgb(1, 44, 42) 11px, #002142 14px);
     --layout-bg-panel-header: linear-gradient(to right, #474747 0%, #f277c0 50%, #474747 100%);
     --ui-settings-radio-border-hover: rgba(255, 255, 255, 0.3);
     --ui-settings-radio-bg-active: rgba(255, 255, 255, 0.15);
@@ -12012,7 +12015,7 @@ body {
     --layout-resize-handle-size: 2px;
     --layout-transition-fast: 0.12s ease-out;
     --layout-transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    --log-section-bg: #626075;
+    --log-section-bg: #424055;
     --log-section-border: rgba(255, 255, 255, 0.08);
     --log-section-header-color: #ffffff;
     --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #ffffff, #ffffff);
@@ -13050,12 +13053,9 @@ body {
 @supports (corner-shape: bevel) {
 
     /* Apply theme corner personality only to elements that already own rounded geometry. */
-    .app,
     .control-bar-dock--macos,
     .panel,
     .panel-header,
-    .panel-header-btn,
-    .canvas-tile-close,
     .notes-drawer,
     .media-floating-panel,
     .media-panel-close-btn,
@@ -13064,10 +13064,8 @@ body {
     .media-browse-button,
     .media-stage,
     .media-audio-card,
-    .media-progress-slider,
     .media-controls,
     .media-control-btn,
-    .media-volume-slider,
     .media-playlist,
     .media-playlist-actions button,
     .media-track-actions button,
@@ -13075,32 +13073,21 @@ body {
     .source-header,
     .source-item,
     .log-section,
-    .log-count,
     .log-header-btn,
     .log-filter-select,
-    .log-search,
-    .log-data,
-    .briiz-logo,
     .action-btn,
     .suggestion-chip,
-    .chat-input-wrapper,
-    .chat-input-wrapper:focus-within,
     .chat-thread,
     .task-item,
     .task-progress,
-    .task-progress-bar,
-    .studio-btn,
     .record-btn,
     .chat-message,
     .tool-message,
-    .tool-json,
     .config-warning,
     .task-input,
     .task-add-btn,
     .overall-progress,
     .progress-bar-container,
-    .progress-bar-fill,
-    .file-tree-item,
     .file-tree-item.selected,
     .modal-container,
     .settings-input,

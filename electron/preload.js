@@ -304,6 +304,10 @@ contextBridge.exposeInMainWorld('api', {
       list: (filters) => invokeLocalData('local-data:logs:list', filters),
       append: (input) => invokeLocalData('local-data:logs:append', input),
     },
+    aiAudit: {
+      list: (filters) => invokeLocalData('local-data:ai-audit:list', filters),
+      get: (eventId) => invokeLocalData('local-data:ai-audit:get', eventId),
+    },
     onChanged: (callback) => {
       const handler = (_event, change) => callback(change);
       ipcRenderer.on('data:changed', handler);
