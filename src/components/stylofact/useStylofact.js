@@ -498,7 +498,7 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     if (!current) throw new Error('No Stylofact project is active.');
     if (!current.targetPrompt?.trim()) throw new Error('Describe the idea you want to find in the thematic corpus.');
     const searchableCorpora = corpora.filter((corpus) => (
-      ['lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
+      ['scanning', 'lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
       && corpus.chunkCount > 0
     ));
     if (!thematicCorpus.trim() && !searchableCorpora.length) {

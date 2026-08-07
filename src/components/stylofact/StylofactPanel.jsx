@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -173,7 +173,7 @@ function CorpusNavigatorCard({ corpora, busy, onConnect, onRefresh, onRebuild, o
               <summary>Archive options</summary>
               <div className="stylofact-corpus-status-actions">
                 <button type="button" className="stylofact-text-button" onClick={() => onRefresh(corpus)} disabled={busy || corpus.state === 'scanning'}>Refresh</button>
-                <button type="button" className="stylofact-text-button" onClick={() => onPause(corpus, !corpus.paused)} disabled={busy || !corpus.chunkCount}>{corpus.paused ? 'Resume semantic search' : 'Pause semantic search'}</button>
+                {['semantic-indexing', 'paused'].includes(corpus.state) && <button type="button" className="stylofact-text-button" onClick={() => onPause(corpus, !corpus.paused)} disabled={busy || !corpus.chunkCount}>{corpus.paused ? 'Resume semantic search' : 'Pause semantic search'}</button>}
                 <button type="button" className="stylofact-text-button" onClick={() => onRebuild(corpus)} disabled={busy || corpus.state === 'scanning'}>Rebuild index</button>
                 <button type="button" className="stylofact-text-button danger" onClick={() => onUnlink(corpus)} disabled={busy}>Disconnect</button>
               </div>
@@ -365,6 +365,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
   const [receipt, setReceipt] = useState(null);
   const [sourceView, setSourceView] = useState(null);
   const [activeStage, setActiveStage] = useState(() => visibleStage(project?.stage));
+  const [actionPending, setActionPending] = useState(false);
+  const actionPendingRef = useRef(false);
 
   useEffect(() => {
     setProjectTitle(project?.title || '');
@@ -380,9 +382,9 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
 
   const criticOptions = availableModels;
   const extractions = project?.extraction?.extracted_artifacts || [];
-  const busy = !!runState;
+  const busy = actionPending || !!runState;
   const hasSearchableCorpus = corpora.some((corpus) => (
-    ['lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
+    ['scanning', 'lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
     && corpus.chunkCount > 0
   ));
   const latestRetrievalRunId = project?.extraction?.corpus_diagnostics?.retrieval_run_id
@@ -390,9 +392,16 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     || null;
 
   const act = async (task) => {
+    if (actionPendingRef.current) return;
+    actionPendingRef.current = true;
+    setActionPending(true);
     setError(null);
     try { await task(); }
     catch (taskError) { setError(taskError?.message || 'Stylofact could not complete that step.'); }
+    finally {
+      actionPendingRef.current = false;
+      setActionPending(false);
+    }
   };
 
   const saveTargetPrompt = async () => {

@@ -92,6 +92,9 @@ async function testIntegratedLexicalNavigator() {
 
   try {
     await navigator.initialize();
+    const workerStatus = await navigator.status();
+    assert.equal(workerStatus.isolatedProcess, true);
+    assert.notEqual(workerStatus.processId, process.pid);
     const connected = await navigator.connectArchive(project.id, archiveRoot);
     const corpusId = connected.corpus.id;
     const status = await navigator.refreshCorpus(corpusId);
@@ -99,6 +102,18 @@ async function testIntegratedLexicalNavigator() {
     assert.equal(status.userMessageCount, 1);
     assert.equal(status.contextMessageCount, 1);
     assert.equal(status.state, 'lexical-ready');
+
+    // An incremental startup scan retains the completed keyword cache. Retrieval
+    // must continue to use it instead of reporting that no archive is connected.
+    local.updateStylofactCorpusStatus(corpusId, { state: 'scanning' });
+    const scanningRetrieval = (await navigator.beginRetrieval(project.id, 'music theory while the archive is refreshing')).row;
+    const scanningSearch = await navigator.searchHistory({
+      projectId: project.id,
+      retrievalRunId: scanningRetrieval.id,
+      queries: [{ text: 'music theory' }],
+    });
+    assert.ok(scanningSearch.results.length >= 1);
+    local.updateStylofactCorpusStatus(corpusId, { state: 'lexical-ready' });
 
     const retrieval = (await navigator.beginRetrieval(project.id, 'Find my idea connecting music theory with self-help.')).row;
     const search = await navigator.searchHistory({

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { parentPort, workerData } = require('worker_threads');
+const { parentPort: threadParentPort, workerData: threadWorkerData } = require('worker_threads');
 const Database = require('better-sqlite3');
 const sqliteVec = require('sqlite-vec');
 const {
@@ -18,7 +18,14 @@ const EMBEDDING_MODEL = 'mixedbread-ai/mxbai-embed-xsmall-v1';
 const EMBEDDING_MODEL_REVISION = 'e6ac24e5d6efb8782b59de1647b3ececb4ece94e';
 const EMBEDDING_MODEL_REF = `${EMBEDDING_MODEL}@${EMBEDDING_MODEL_REVISION}`;
 const EMBEDDING_DIMENSIONS = 384;
-const EMBEDDING_BATCH = 16;
+// Keep native ONNX allocations small. The model runs in an isolated utility
+// process as a second line of defense, but one passage per inference also avoids
+// the large BFCArena extension that previously triggered a fatal native trap.
+const EMBEDDING_BATCH = 1;
+
+const parentPort = threadParentPort || process.parentPort;
+const workerData = threadWorkerData || JSON.parse(process.env.STYLOFACT_CORPUS_WORKER_DATA || '{}');
+if (!parentPort) throw new Error('Stylofact corpus worker requires a parent message port.');
 
 const db = new Database(workerData.databasePath);
 db.pragma('journal_mode = WAL');
@@ -735,7 +742,16 @@ async function handle(command, payload) {
   if (command === 'sourceContext') return sourceContext(payload);
   if (command === 'setPaused') return setPaused(payload);
   if (command === 'sampleKnownAnswers') return sampleKnownAnswers(payload);
-  if (command === 'status') return { vectorAvailable, vectorError, indexVersion: INDEX_VERSION, embeddingModel: EMBEDDING_MODEL_REF };
+  if (command === 'status') {
+    return {
+      vectorAvailable,
+      vectorError,
+      indexVersion: INDEX_VERSION,
+      embeddingModel: EMBEDDING_MODEL_REF,
+      processId: process.pid,
+      isolatedProcess: !!process.parentPort,
+    };
+  }
   if (command === 'close') {
     db.close();
     return { closed: true };

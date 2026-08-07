@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { EventEmitter } = require('events');
-const { Worker } = require('worker_threads');
+const { app, utilityProcess } = require('electron');
 const { detectArchive, sha256 } = require('./parser');
 
 const DIRECT_CONTEXT_LIMIT = 80000;
@@ -35,6 +35,8 @@ class StylofactCorpusService extends EventEmitter {
     this.progressWrittenAt = new Map();
     this.loggedProgress = new Map();
     this.modelLoadStartedAt = null;
+    this.semanticFallbackStarted = false;
+    this.workerRecovery = null;
     this.closed = false;
   }
 
@@ -101,18 +103,8 @@ class StylofactCorpusService extends EventEmitter {
       manualServerRequired: false,
       privacy: 'Archive text stays local; only receipt-selected evidence can enter a Stage 2 prompt.',
     }, { phase: 'start' });
-    this.worker = new Worker(path.join(__dirname, 'worker.js'), {
-      workerData: {
-        databasePath: path.join(this.userDataPath, 'stylofact-corpus.db'),
-        modelCachePath: path.join(this.userDataPath, 'stylofact-models'),
-        disableEmbeddings: this.disableEmbeddings,
-      },
-    });
-    this.worker.on('message', (message) => this._onMessage(message));
-    this.worker.on('error', (error) => this._onWorkerFailure(error));
-    this.worker.on('exit', (code) => {
-      if (!this.closed && code !== 0) this._onWorkerFailure(new Error(`Stylofact corpus worker stopped with code ${code}`));
-    });
+    await app.whenReady();
+    this._startWorker({ disableEmbeddings: this.disableEmbeddings });
     const status = await this.status();
     for (const corpus of this.service.listStylofactCorpora()) {
       this._watchCorpus(corpus);
@@ -140,6 +132,39 @@ class StylofactCorpusService extends EventEmitter {
     return status;
   }
 
+  _startWorker({ disableEmbeddings }) {
+    const workerData = {
+      databasePath: path.join(this.userDataPath, 'stylofact-corpus.db'),
+      modelCachePath: path.join(this.userDataPath, 'stylofact-models'),
+      disableEmbeddings: !!disableEmbeddings,
+    };
+    const worker = utilityProcess.fork(path.join(__dirname, 'worker.js'), [], {
+      env: {
+        ...process.env,
+        STYLOFACT_CORPUS_WORKER_DATA: JSON.stringify(workerData),
+      },
+      serviceName: disableEmbeddings
+        ? 'Stylofact Corpus Navigator (keyword only)'
+        : 'Stylofact Corpus Navigator',
+      stdio: 'inherit',
+      allowLoadingUnsignedLibraries: process.platform === 'darwin',
+    });
+    this.worker = worker;
+    let fatalError = null;
+    worker.on('message', (message) => this._onMessage(message));
+    worker.on('error', (type, location) => {
+      fatalError = new Error(`Stylofact corpus utility process ${type || 'failed'}${location ? ` at ${location}` : ''}`);
+    });
+    worker.on('exit', (code) => {
+      if (this.closed || this.worker !== worker || code === 0) return;
+      this._onWorkerFailure(
+        fatalError || new Error(`Stylofact corpus utility process stopped with code ${code}`),
+        worker,
+      );
+    });
+    return worker;
+  }
+
   _onMessage(message) {
     if (message?.type === 'response') {
       const pending = this.pending.get(message.requestId);
@@ -155,14 +180,54 @@ class StylofactCorpusService extends EventEmitter {
     if (message?.type === 'event') this._onWorkerEvent(message.event, message.payload || {});
   }
 
-  _onWorkerFailure(error) {
+  _onWorkerFailure(error, failedWorker = this.worker) {
+    if (failedWorker && this.worker !== failedWorker) return;
+    this.worker = null;
     this._log('error', 'The local Stylofact corpus worker stopped unexpectedly.', {
       error: error?.message || String(error),
-      result: 'The interface remains available, but new archive searches may fail until briizOS restarts.',
-      nextStep: 'Restart briizOS. Existing source archives and cached index files are not deleted by this failure.',
+      result: this.disableEmbeddings || this.semanticFallbackStarted
+        ? 'The interface remains available; the worker could not be recovered automatically.'
+        : 'briizOS remains open. Stylofact is restarting safely with keyword search only.',
+      nextStep: 'Existing source archives and cached keyword indexes are not deleted by this failure.',
     }, { outcome: 'failed' });
     this.pending.forEach(({ reject }) => reject(error));
     this.pending.clear();
+    if (this.closed || this.disableEmbeddings || this.semanticFallbackStarted) return;
+    this.semanticFallbackStarted = true;
+    this.workerRecovery = Promise.resolve()
+      .then(() => {
+        if (this.closed) return null;
+        this._startWorker({ disableEmbeddings: true });
+        return this.status();
+      })
+      .then((status) => {
+        if (!status || this.closed) return;
+        this.service.listStylofactCorpora({ includeInternal: true }).forEach((corpus) => {
+          if (!corpus.chunkCount) return;
+          this.service.updateStylofactCorpusStatus(corpus.id, {
+            state: 'lexical-ready',
+            progressCurrent: corpus.chunkCount,
+            progressTotal: corpus.chunkCount,
+            progressMessage: 'Keyword search is ready. Semantic search was disabled after its isolated process stopped.',
+            error: 'Local semantic search stopped unexpectedly; keyword search remains available.',
+          });
+        });
+        this._log('warn', 'Stylofact recovered from a semantic engine failure without closing briizOS.', {
+          fallback: 'The isolated corpus process restarted with exact keyword search only.',
+          archiveSafety: 'The source archive and completed keyword index were preserved.',
+          nextStep: 'Find material can continue now. Retrieval receipts will identify the mode as lexical-only.',
+        }, { outcome: 'fallback' });
+      })
+      .catch((recoveryError) => {
+        this._log('error', 'Stylofact could not restart its keyword-search process.', {
+          error: recoveryError?.message || String(recoveryError),
+          archiveSafety: 'The source archive and cached index files remain on disk.',
+          nextStep: 'Restart briizOS to retry the local corpus navigator.',
+        }, { outcome: 'failed' });
+      })
+      .finally(() => {
+        this.workerRecovery = null;
+      });
   }
 
   _onWorkerEvent(event, payload) {
@@ -377,7 +442,11 @@ class StylofactCorpusService extends EventEmitter {
   }
 
   _call(command, payload = {}) {
-    if (!this.worker) return Promise.reject(new Error('Stylofact corpus navigator is not ready.'));
+    if (!this.worker) {
+      return Promise.reject(new Error(this.workerRecovery
+        ? 'Stylofact corpus navigator is recovering with keyword search. Try again in a moment.'
+        : 'Stylofact corpus navigator is not ready.'));
+    }
     const requestId = crypto.randomUUID();
     return new Promise((resolve, reject) => {
       this.pending.set(requestId, { resolve, reject });
@@ -491,6 +560,8 @@ class StylofactCorpusService extends EventEmitter {
     this._resetCorpusProgress(corpusId);
     this.service.updateStylofactCorpusStatus(corpusId, {
       state: 'scanning',
+      chunkCount: rebuild ? 0 : corpus.chunkCount,
+      embeddedChunkCount: rebuild ? 0 : corpus.embeddedChunkCount,
       progressCurrent: 0,
       progressTotal: 0,
       progressMessage: rebuild ? 'Rebuilding the local archive index…' : 'Checking the archive for changes…',
@@ -673,7 +744,7 @@ class StylofactCorpusService extends EventEmitter {
       const linked = this.service.listStylofactProjectCorpora(projectId)
         .filter((corpus) => (
           (corpus.sourceKind !== 'project-sources' || corpus.id === projectSourceCorpus?.id)
-          && ['lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
+          && ['scanning', 'lexical-ready', 'semantic-indexing', 'ready', 'paused', 'stale'].includes(corpus.state)
           && corpus.chunkCount > 0
         ));
       if (!linked.length) throw new Error('Connect a chat archive or add thematic material before extracting ideas.');
@@ -1025,8 +1096,9 @@ class StylofactCorpusService extends EventEmitter {
     });
     this.watchers.clear();
     if (!this.worker) return;
+    const worker = this.worker;
     try { await this._call('close'); } catch { /* Worker may already be gone. */ }
-    await this.worker.terminate();
+    worker.kill();
     this.worker = null;
     this._log('info', 'The local Stylofact Corpus Navigator stopped cleanly.', {
       cacheResult: 'No source archives or cached indexes were deleted.',
