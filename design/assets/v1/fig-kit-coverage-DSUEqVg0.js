@@ -6124,11 +6124,11 @@ Object.assign(window, { TweakSuggestionBar });
       overlay.setAttribute('data-omelette-chrome', '');
       overlay.innerHTML = \`
         <button class="btn prev" type="button" aria-label="Previous slide" title="Previous (←)">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
         </button>
         <span class="count" aria-live="polite"><span class="current">1</span><span class="sep">/</span><span class="total">1</span></span>
         <button class="btn next" type="button" aria-label="Next slide" title="Next (→)">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
         </button>
         <span class="divider"></span>
         <button class="btn reset" type="button" aria-label="Reset to first slide" title="Reset (R)">Reset<span class="kbd">R</span></button>
@@ -7578,7 +7578,7 @@ Object.assign(window, { TweakSuggestionBar });
 
   const icon =
     '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    'stroke-width="1.6" strokeLinecap="round" strokeLinejoin="round">' +
     '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>' +
     '<path d="m21 15-5-5L5 21"/></svg>';
 
@@ -8278,10 +8278,10 @@ Object.assign(window, { TweakSuggestionBar });
     return '<svg class="mxo-spk" viewBox="0 0 ' + (n * (bw + g) - g) + ' ' + h + '" width="' + (n * (bw + g) - g) + '" height="' + h + '">' + b + '</svg>';
   }
   var barIcon = '<svg viewBox="0 0 11 10" width="11" height="10"><rect x="0" y="0" width="3" height="10" rx="0.5"/><rect x="4" y="3" width="3" height="7" rx="0.5"/><rect x="8" y="6" width="3" height="4" rx="0.5"/></svg>';
-  var trashIcon = '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 3.5h9M5.5 3.5V2.3a.8.8 0 0 1 .8-.8h1.4a.8.8 0 0 1 .8.8v1.2M4 3.5l.5 8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1l.5-8"/></svg>';
+  var trashIcon = '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" strokeLinecap="round"><path d="M2.5 3.5h9M5.5 3.5V2.3a.8.8 0 0 1 .8-.8h1.4a.8.8 0 0 1 .8.8v1.2M4 3.5l.5 8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1l.5-8"/></svg>';
   var playIcon = '<svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><path d="M4 2.5v9l7-4.5z"/></svg>';
   var pauseIcon = '<svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="3.5" y="3" width="2.5" height="8" rx=".8"/><rect x="8" y="3" width="2.5" height="8" rx=".8"/></svg>';
-  var restartIcon = '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 7a5 5 0 1 0 1.7-3.7L2 5"/><path d="M2 2v3h3"/></svg>';
+  var restartIcon = '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" strokeLinecap="round"><path d="M2 7a5 5 0 1 0 1.7-3.7L2 5"/><path d="M2 2v3h3"/></svg>';
   // The one "talk to the agent" button — sentence-row refetch and the
   // panel's compute both render this. kind → the click-handler hook;
   // busy → muted "Getting…"; disabled → dimmed no-op.

@@ -12,14 +12,16 @@
     --cc-radius-huge: 999px;
     --cc-gap-none: 0px;
     --cc-gap-small: 1.5px;
-    --cc-gap-medium: 4px;
-    --cc-gap-large: 6.5px;
-    --cc-gap-huge: 12px;
+    --cc-gap-medium: 5px;
+    --cc-gap-large: 9.5px;
+    --cc-gap-huge: 16px;
     --cc-padding-tiny: 0px;
     --cc-padding-small: 1.5px;
-    --cc-padding-medium: 6px;
-    --cc-padding-large: 14px;
-    --cc-padding-huge: 24px;
+    --cc-padding-medium: 5px;
+    --cc-padding-large: 11px;
+    --cc-padding-huge: 20px;
+    --cc-app-header-height: 70px;
+    --cc-app-header-shrunk-height:14px;
 }
 
 :root[data-theme='medieval-taurus'], :root[data-theme='caspian-sea'] {
@@ -182,7 +184,7 @@ body {
     align-items: center;
     gap: var(--cc-gap-huge);
     position: relative;
-    height: 70px;
+    height: var(--cc-app-header-height);
     top: 0;
     z-index: 34;
     color: var(--ui-header-text, whitesmoke);
@@ -198,7 +200,7 @@ body {
             ;}
 
 .app-header:hover {
-    height:70px;
+    height:var(--cc-app-header-height);
     transform:scale(1);
     transition-delay:0s;
 }
@@ -210,12 +212,12 @@ body {
 }
 
 .app-header.shrunk {
-    height: 14px;
+    height: var(--cc-app-header-shrunk-height);
         transition-delay: 5s;
 }
 
 .app-header.shrinkable:hover, .app-header.shrunk:hover {
-    height: 70px;
+    height: var(--cc-app-header-height);
     transition-delay: 0s;
 }
 
@@ -246,7 +248,7 @@ body {
     position: absolute;
     top: 4px;
     right: 4px;
-    z-index: 40;
+    z-index: 4000;
     display: grid;
     width: 30px;
     height: 40px;
@@ -278,6 +280,10 @@ body {
         0 0 14px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 48%, transparent);
     outline: none;
     opacity:1;
+}
+
+.header-shrink-toggle.is-active {
+    right:50%;  transform:translateX(50%)scaleY(.5);
 }
 
 .header-shrink-toggle:focus-visible {
@@ -599,7 +605,7 @@ body {
 .app-main {
     display: flex;
     z-index: 15;
-    height: calc(100vh - 70px);
+    height: calc(100vh - var(--cc-app-header-height));
     flex: 1;
     overflow: hidden;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1460,8 +1466,6 @@ body {
     #controlBarToggle {
         transform:scale(.8);
     }
-        #root>div>header>div.header-dock-slot>nav>div
-        {justify-content:flex-end;}
 }
 
 .panel.sources-panel {
@@ -2133,7 +2137,7 @@ body {
     ;
     padding-bottom: 40%;
     text-shadow: 0 0 8px var(--palette-accent-briizlogo, white), 0 0 2px var(--palette-accent-briizlogo, black);
-    margin-bottom: -70px;
+    margin-bottom: -68px;
     transition: all 4s cubic-bezier(0.075, 0.82, 0.165, 1) 0s;
     cursor: pointer;
 }
@@ -3078,8 +3082,8 @@ body {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    strokeLinecap: round;
+    strokeLinejoin: round;
 }
 
 .modal-autosave-status.is-saved {
@@ -11427,7 +11431,8 @@ body {
 
 :root[data-theme='vineyard-gloom'] {
     --ui-corner-shape: notch;
-    --ui-border-radius: 6px;
+    --ui-forest-card-radius: 0px;
+        --ui-border-radius: 6px;
     --chat-input-border-color: #ffab86;
     --glass-bg-light: linear-gradient(to bottom, #737281, rgba(234, 219, 220, 0.083) 20%, transparent 50%, rgba(234, 219, 220, 0.4) 130%);
     --ui-font-main: Civane;
@@ -13214,7 +13219,6 @@ body {
 
 @supports (corner-shape: bevel) {
 
-    /* Apply theme corner personality only to elements that already own rounded geometry. */
     .control-bar-dock--macos,
     .panel,
     .panel-header,
@@ -13317,7 +13321,69 @@ body {
         border-radius: var(--ui-border-radius, var(--cc-radius-slight)) !important;
     }
 }
+/*
 
+@supports (corner-shape: bevel) {
+    .control-bar-dock--macos,
+        .panel,
+        .panel-header,
+        .notes-drawer,
+        .media-floating-panel,
+        .media-panel-close-btn,
+        .media-dropzone,
+        .media-browse-button,
+        .media-stage,
+        .media-audio-card,
+        .media-controls,
+        .media-control-btn,
+        .media-playlist,
+        .source-header,
+        .source-item,
+        .log-section,
+        .log-header-btn,
+        .log-filter-select,
+        .action-btn,
+        .suggestion-chip,
+        .chat-thread,
+        .task-item,
+        .task-progress,
+        .record-btn,
+        .chat-message,
+        .settings-input,
+        .settings-toggle-btn,
+        .settings-choose-chatview-btn,
+        .settings-radio,
+        .modal-btn,
+        .session-item,
+        .session-action-btn,
+        .back-btn,
+        .playback-controls,
+
+        .subtask-progress-badge,
+        .task-action-btn,
+        .subtask-item,
+        .subtask-input,
+        .subtask-add-btn,
+        .subtask-cancel-btn,
+        .task-card,
+        .task-card-subtask-input,
+        .task-card-subtask-submit,
+        .task-card-subtask-cancel,
+        .task-card-log-entry,
+        .task-card-btn,
+        .markdown-body code,
+        .confirmation-toast,
+        .result-toast,
+        .message-tooltip-assistant,
+        .message-tooltip-user,
+        .panel-control-btn,
+        .model-picker-trigger,
+        .widget-placeholder {            corner-shape: var(--ui-corner-shape, round);
+            border-radius: var(--ui-border-radius, var(--cc-radius-slight)) !important;
+
+        }
+
+}*/
 .chat-input-wrapper {
     background: var(--ui-chat-input-bg);
     background-clip: padding-box;

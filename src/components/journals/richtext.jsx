@@ -211,39 +211,39 @@ const I = {
   italic: <span className="rt-glyph" style={{ fontStyle: 'italic', fontFamily: 'Georgia,serif' }}>I</span>,
   underline: <span className="rt-glyph" style={{ textDecoration: 'underline' }}>U</span>,
   link: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M10 14a4 4 0 0 0 6 .4l2.5-2.5a4 4 0 1 0-5.7-5.7L11.5 7.5" />
       <path d="M14 10a4 4 0 0 0-6-.4L5.5 12.1a4 4 0 1 0 5.7 5.7l1.3-1.3" />
     </svg>
   ),
   code: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m9 8-5 4 5 4M15 8l5 4-5 4" />
     </svg>
   ),
   wrench: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17a2 2 0 1 0 3 3l7.7-8.3a4 4 0 0 0 0-5.4Z" />
     </svg>
   ),
   quote: <span className="rt-glyph" style={{ fontFamily: 'Georgia,serif', fontWeight: 700 }}>”</span>,
   alignL: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M4 6h16M4 11h10M4 16h16M4 21h10" transform="translate(0,-1.5)" />
     </svg>
   ),
   alignC: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M4 6h16M7 11h10M4 16h16M7 21h10" transform="translate(0,-1.5)" />
     </svg>
   ),
   alignR: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M4 6h16M10 11h10M4 16h16M10 21h10" transform="translate(0,-1.5)" />
     </svg>
   ),
   bullets: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M9 6h11M9 12h11M9 18h11" />
       <circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
       <circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
@@ -251,7 +251,7 @@ const I = {
     </svg>
   ),
   numbers: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M10 6h10M10 12h10M10 18h10" />
       <text x="2" y="8" font-size="7" fill="currentColor" stroke="none" font-family="system-ui">1</text>
       <text x="2" y="14.5" font-size="7" fill="currentColor" stroke="none" font-family="system-ui">2</text>
@@ -259,7 +259,7 @@ const I = {
     </svg>
   ),
   chevron: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m6 10 6 6 6-6" />
     </svg>
   ),

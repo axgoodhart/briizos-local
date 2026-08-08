@@ -1097,7 +1097,7 @@ i[class*=\ ai-]:before {
 }
 
 :where(.cds-root) textarea.cds-input::-webkit-resizer {
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 11.5 11.5 4.5M8.5 11.5 11.5 8.5' stroke='%23898781' stroke-width='1.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 11.5 11.5 4.5M8.5 11.5 11.5 8.5' stroke='%23898781' stroke-width='1.5' strokeLinecap='round' fill='none'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat
 }
 
 @keyframes cds-dot-pulse {

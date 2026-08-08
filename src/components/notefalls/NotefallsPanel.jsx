@@ -19,14 +19,14 @@ import {
 
 const Icon = {
   image: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
       <circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none" />
       <path d="M4.5 17.5l5-5 3 3 3.5-3.5 4 4" />
     </svg>
   ),
   chevron: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 9l6 6 6-6" />
     </svg>
   ),
@@ -36,30 +36,30 @@ const Icon = {
     </svg>
   ),
   journal: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 5.5c2-1 4.7-1.3 7-.3v13c-2.3-1-5-.7-7 .3z" />
       <path d="M21 5.5c-2-1-4.7-1.3-7-.3v13c2.3-1 5-.7 7 .3z" />
     </svg>
   ),
   note: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 4h16v12H8l-4 4z" />
     </svg>
   ),
   screen: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4.5" width="18" height="12" rx="2" />
       <path d="M8.5 20h7M12 16.5V20" />
     </svg>
   ),
   search: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <circle cx="11" cy="11" r="6.5" />
       <path d="M16 16l4.5 4.5" />
     </svg>
   ),
   x: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
       <path d="M5 5l14 14M19 5L5 19" />
     </svg>
   ),

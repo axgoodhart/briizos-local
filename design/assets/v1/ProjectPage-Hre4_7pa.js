@@ -14498,7 +14498,7 @@ By.options = By.setOptions = function(e) {
 }, By.parseInline = zy.parseInline, By.Parser = Iy, By.parser = Iy.parse, By.Renderer = Py, By.TextRenderer = Fy, By.Lexer = Ny, By.lexer = Ny.lex, By.Tokenizer = My, By.Hooks = Ly, By.parse = By, By.options, By.setOptions, By.use, By.walkTokens, By.parseInline, Iy.parse, Ny.lex;
 var Vy = `__other__`,
     Hy = {
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23999' stroke-width='1.5' strokeLinecap='round' strokeLinejoin='round'/%3E%3C/svg%3E")`,
         backgroundRepeat: `no-repeat`,
         backgroundPosition: `right 8px center`
     };
@@ -27220,10 +27220,10 @@ function qD({
         })
     })
 }
-var JD = `<defs><marker id="dc-arrow-head" orient="auto" markerWidth="5" markerHeight="5" refX="0.8" refY="2" overflow="visible"><path d="M-3.2 -1.7 L0.8 0 L-3.2 1.7" transform="translate(0 2)" fill="none" stroke="context-stroke" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+var JD = `<defs><marker id="dc-arrow-head" orient="auto" markerWidth="5" markerHeight="5" refX="0.8" refY="2" overflow="visible"><path d="M-3.2 -1.7 L0.8 0 L-3.2 1.7" transform="translate(0 2)" fill="none" stroke="context-stroke" stroke-width="1" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>`;
 
 function YD(e, t, n, r, i, a = !1) {
-    return `<svg width="${e}" height="${t}" viewBox="0 0 ${e} ${t}" preserveAspectRatio="none" style="${r}width: ${e}px; height: ${t}px; overflow: visible; fill: none; stroke: ${i}; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round">` + (a ? JD : ``) + `<path d="${n}"${a?` marker-end="url(#dc-arrow-head)"`:``}></path></svg>`
+    return `<svg width="${e}" height="${t}" viewBox="0 0 ${e} ${t}" preserveAspectRatio="none" style="${r}width: ${e}px; height: ${t}px; overflow: visible; fill: none; stroke: ${i}; stroke-width: 4; strokeLinecap: round; strokeLinejoin: round">` + (a ? JD : ``) + `<path d="${n}"${a?` marker-end="url(#dc-arrow-head)"`:``}></path></svg>`
 }
 var XD = 8;
 
@@ -30385,8 +30385,8 @@ function Xk(e) {
         o.push({
             id: `stroke`,
             title: n ? `Fill & stroke` : `Stroke`,
-            rows: [t(`stroke`, n ? `Stroke` : `Color`, `color`), t(`stroke-width`, `Width`, `number`), ...n ? [t(`fill`, `Fill`, `color`)] : [], { ...t(`stroke-linecap`, `Cap`, `select`, [`butt`, `round`, `square`]),
-                spec: { ...t(`stroke-linecap`, `Cap`, `select`, [`butt`, `round`, `square`]).spec,
+            rows: [t(`stroke`, n ? `Stroke` : `Color`, `color`), t(`stroke-width`, `Width`, `number`), ...n ? [t(`fill`, `Fill`, `color`)] : [], { ...t(`strokeLinecap`, `Cap`, `select`, [`butt`, `round`, `square`]),
+                spec: { ...t(`strokeLinecap`, `Cap`, `select`, [`butt`, `round`, `square`]).spec,
                     half: !0
                 }
             }]
@@ -30412,7 +30412,7 @@ function Xk(e) {
         fallback: r(t),
         disabled: e.disabled
     });
-    let C = new Set(e.tag === `path` ? [`stroke`, `stroke-width`, `fill`, `stroke-linecap`] : e.tag === `svg` ? [`preserveAspectRatio`] : e.tag === `a` ? [`href`] : e.tag === `video` || e.tag === `iframe` ? [`src`] : []);
+    let C = new Set(e.tag === `path` ? [`stroke`, `stroke-width`, `fill`, `strokeLinecap`] : e.tag === `svg` ? [`preserveAspectRatio`] : e.tag === `a` ? [`href`] : e.tag === `video` || e.tag === `iframe` ? [`src`] : []);
     for (let [t, n] of Object.entries(e.attrs)) Gk.has(t) || e.tag === `img` && t === `src` || p.has(t) || C.has(t) || S.push({
         prop: `@${t}`,
         label: t,
@@ -32070,8 +32070,8 @@ var hA = `(function(){
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', '#3b82f6');
     path.setAttribute('stroke-width', '2');
-    path.setAttribute('stroke-linecap', 'round');
-    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('strokeLinecap', 'round');
+    path.setAttribute('strokeLinejoin', 'round');
     drawSession.svg.appendChild(path);
     drawStroke = { points: [[e.clientX, e.clientY]], path: path };
     hideToolGhost();
@@ -32677,13 +32677,13 @@ var hA = `(function(){
         var ad = 'M ' + asx + ' ' + asy + ' L ' + aex + ' ' + aey;
         var amark = tool === 'arrow'
           ? '<defs><marker id="dc-draw-head" orient="auto" markerWidth="5" markerHeight="5" refX="0.8" refY="2" overflow="visible">' +
-            '<path d="M-3.2 -1.7 L0.8 0 L-3.2 1.7" transform="translate(0 2)" fill="none" stroke="#3b82f6" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>'
+            '<path d="M-3.2 -1.7 L0.8 0 L-3.2 1.7" transform="translate(0 2)" fill="none" stroke="#3b82f6" stroke-width="1" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>'
           : '';
         toolDraw.box.innerHTML =
           '<svg width="100%" height="100%" viewBox="0 0 ' + abw + ' ' + abh + '" ' +
           'style="display:block;overflow:visible">' + amark +
           '<path d="' + ad + '" fill="none" stroke="#3b82f6" stroke-width="' + (4 * adsc) +
-          '" stroke-linecap="round" stroke-linejoin="round"' +
+          '" strokeLinecap="round" strokeLinejoin="round"' +
           (tool === 'arrow' ? ' marker-end="url(#dc-draw-head)"' : '') + '/></svg>';
       }
       return;
@@ -35514,7 +35514,7 @@ function _j({
                     return
                 }
                 let t = e.rect;
-                n = `<svg width="${t.w}" height="${t.h}" viewBox="0 0 ${t.w} ${t.h}" preserveAspectRatio="none" style="position: absolute; left: ${t.x}px; top: ${t.y}px; width: ${t.w}px; height: ${t.h}px; overflow: visible; fill: none; stroke: ${pj}; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><path d="${e.path.d}"></path></svg>`
+                n = `<svg width="${t.w}" height="${t.h}" viewBox="0 0 ${t.w} ${t.h}" preserveAspectRatio="none" style="position: absolute; left: ${t.x}px; top: ${t.y}px; width: ${t.w}px; height: ${t.h}px; overflow: visible; fill: none; stroke: ${pj}; stroke-width: 2; strokeLinecap: round; strokeLinejoin: round"><path d="${e.path.d}"></path></svg>`
             }
             if ((t === `arrow` || t === `line`) && e.rect) {
                 let r = e.rect,
@@ -38582,7 +38582,7 @@ async function PM(e, t, n, r, i) {
             '"': `&quot;`
         })[e]),
         y = t.filter(e => e.points.length > 1).map(e => `<polyline points="${e.points.map(e=>{let t=g(e);return`${t.x},${t.y}`}).join(`
-            `)}" fill="none" stroke="${xM}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`).join(``),
+            `)}" fill="none" stroke="${xM}" stroke-width="4" strokeLinecap="round" strokeLinejoin="round"/>`).join(``),
         b = n.map(e => {
             let t = g(e),
                 n = NM(e.text, AM),

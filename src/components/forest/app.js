@@ -1109,7 +1109,7 @@ function renderMilestoneTimeline(project) {
                    data-draggable-node>
                 <button class="tl-dot" data-action="open-milestone-modal" data-milestone-id="${m.id}" title="Click to expand · Drag to reorder">
                   ${m.completed
-                    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
                     : `<span class="tl-dot-index">${i + 1}</span>`}
                 </button>
                 <div class="tl-node-info">
