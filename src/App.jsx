@@ -295,6 +295,7 @@ function AppContent({ layout }) {
   const [headerDockStyle, setHeaderDockStyle] = useState(getStoredHeaderDockStyle);
   const [headerDockOrientation, setHeaderDockOrientation] = useState(getStoredHeaderDockOrientation);
   const [headerDockItems, setHeaderDockItems] = useState(getStoredHeaderDockItems);
+  const [headerShrunk, setHeaderShrunk] = useState(false);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
@@ -1198,7 +1199,22 @@ function AppContent({ layout }) {
       data-theme-role="canvas"
       data-theme-component="Application"
     >
-      <header className="app-header" data-theme-role="header" data-theme-component="Application">
+      <button
+        type="button"
+        className={`header-shrink-toggle ${headerShrunk ? 'is-active' : ''}`}
+        onClick={() => setHeaderShrunk((shrunk) => !shrunk)}
+        aria-label={headerShrunk ? 'Keep header expanded' : 'Shrink header'}
+        aria-pressed={headerShrunk}
+        title={headerShrunk ? 'Keep header expanded' : 'Shrink header'}
+      >
+        <span aria-hidden="true">􀚍</span>
+      </button>
+
+      <header
+        className={`app-header ${headerShrunk && !verticalHeaderActive ? 'shrinkable shrunk' : ''}`}
+        data-theme-role="header"
+        data-theme-component="Application"
+      >
         <div className="header-title">
           <span className="title-icon:before"></span>
           <button

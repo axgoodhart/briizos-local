@@ -154,6 +154,7 @@ body {
 .app {
     display: flex;
     flex-direction: column;
+    position: relative;
     height: 100vh;
     background: linear-gradient(var(--ui-body-bg), var(--ui-app-bg));
     color: var(--ui-text-primary);
@@ -200,6 +201,84 @@ body {
     height:70px;
     transform:scale(1);
     transition-delay:0s;
+}
+
+/* The header toggle pins the bar to a thin ambient strip. Hovering that strip
+   reveals every control immediately; moving away tucks it back after the
+   brief delay from Alex's interaction sketch. */
+.app-header.shrinkable {
+    overflow: hidden;
+    transition: all .15s cubic-bezier(.3,.8,.7,1.1);
+    transition-delay: .12s;
+}
+
+.app-header.shrunk {
+    height: 13px;
+}
+
+.app-header.shrinkable:hover {
+    height: 70px;
+    transition-delay: 0s;
+}
+
+.app-header.shrunk:not(:hover) .title-text,
+.app-header.shrunk:not(:hover) .header-dock-slot,
+.app-header.shrunk:not(:hover) .header-right {
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+}
+
+.header-shrink-toggle {
+    -webkit-app-region: no-drag;
+    appearance: none;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 40;
+    display: grid;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 74%, transparent);
+    border-radius: var(--cc-radius-slight);
+    background: color-mix(in oklab, var(--ui-header-bg, #050708) 88%, transparent);
+    color: var(--palette-accent-primary, #42dbe8);
+    box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 20%, transparent),
+        0 0 10px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 24%, transparent);
+    cursor: pointer;
+    font-family: 'SF Pro Display', 'SF Pro Symbols', 'Apple Symbols', sans-serif;
+    font-size: 19px;
+    line-height: 1;
+    text-shadow: 0 0 7px currentColor;
+    transition: color .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.header-shrink-toggle:hover,
+.header-shrink-toggle:focus-visible,
+.header-shrink-toggle.is-active {
+    border-color: var(--palette-accent-primary, #42dbe8);
+    background: color-mix(in oklab, var(--ui-header-bg, #050708) 72%, var(--palette-accent-primary, #42dbe8));
+    color: color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 74%, white);
+    box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 34%, transparent),
+        0 0 14px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 48%, transparent);
+    outline: none;
+}
+
+.header-shrink-toggle:focus-visible {
+    outline: 1px solid currentColor;
+    outline-offset: 2px;
+}
+
+.app:not(.app--vertical-header) .header-right {
+    padding-right: 32px;
+}
+
+.app--vertical-header .header-shrink-toggle {
+    display: none;
 }
 
 .header-title {
