@@ -319,11 +319,16 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      <div className="calendar-modal">
+      <div className="calendar-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-title">
         {/* Header */}
         <div className="calendar-header">
-          <h2 className="calendar-title">Calendar</h2>
-          <button className="calendar-close-btn" onClick={onClose}>×</button>
+          <h2 className="calendar-title" id="calendar-title">Calendar</h2>
+          <div className="calendar-header-actions">
+            <span className="items-count">
+              {selectedDayItems.length + selectedDayPlacements.length} block{selectedDayItems.length + selectedDayPlacements.length !== 1 ? 's' : ''} on {selectedDate}
+            </span>
+            <button className="calendar-close-btn" onClick={onClose} aria-label="Close Calendar">×</button>
+          </div>
         </div>
 
         {/* Month Navigation */}
@@ -412,13 +417,6 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="calendar-footer">
-          <span className="items-count">
-            {selectedDayItems.length + selectedDayPlacements.length} block{selectedDayItems.length + selectedDayPlacements.length !== 1 ? 's' : ''} on {selectedDate}
-          </span>
-          <button className="calendar-btn close" onClick={onClose}>Close</button>
-        </div>
         {addFromOpen && (
           <AddFromPicker
             dateStr={selectedDate}

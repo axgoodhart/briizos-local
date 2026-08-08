@@ -23,25 +23,27 @@
 @keyframes aiviz-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .aiviz-overlay {
-  align-items: center;
+  align-items: stretch;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   inset: 0;
-  justify-content: center;
+  justify-content: stretch;
   position: fixed;
   z-index: 1300;
 }
 
 .aiviz-modal {
   background: var(--theme-components-overlays-aivisibility-modal-background, linear-gradient(135deg, rgba(6, 28, 40, 0.97) 0%, rgba(2, 14, 30, 0.98) 100%));
-  border: 1px solid var(--theme-components-overlays-aivisibility-modal-border, rgba(0, 200, 200, 0.3));
-  border-radius: 14px;
+  border: 0;
+  border-radius: 0;
   color: var(--palette-text, #d8e6ea);
   display: flex;
   flex-direction: column;
-  height: min(82vh, 860px);
+  height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
-  width: min(94vw, 1280px);
+  width: 100vw;
+  max-width: 100vw;
 }
 
 .aiviz-header {

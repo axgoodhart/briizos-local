@@ -1254,7 +1254,7 @@ function DashboardOverlay({
   const [activeTab, setActiveTab] = useState('model');
   const [settings, setSettings] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('saved');
   const [showGithubToken, setShowGithubToken] = useState(false);
   const [githubStatus, setGithubStatus] = useState(null);
   const [isValidatingGithub, setIsValidatingGithub] = useState(false);
@@ -1262,6 +1262,9 @@ function DashboardOverlay({
   const [isConnectingGdrive, setIsConnectingGdrive] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [openPickerForTheme, setOpenPickerForTheme] = useState(null);
+  const settingsHydratedRef = useRef(false);
+  const lastSavedSettingsRef = useRef('');
+  const saveRevisionRef = useRef(0);
 
   // Load settings when overlay opens
   useEffect(() => {
@@ -1278,14 +1281,19 @@ function DashboardOverlay({
 
   const loadSettings = async () => {
     setIsLoading(true);
+    settingsHydratedRef.current = false;
     try {
       const allSettings = await window.api.localData.settings.list();
       const dashboardSettings = { ...allSettings };
       delete dashboardSettings.ui_theme;
       delete dashboardSettings.ui_theme_library;
+      lastSavedSettingsRef.current = JSON.stringify(dashboardSettings);
       setSettings(dashboardSettings);
+      setSaveStatus('saved');
+      settingsHydratedRef.current = true;
     } catch (error) {
       logger.error('config', 'Failed to load settings', error?.message);
+      setSaveStatus('error');
     } finally {
       setIsLoading(false);
     }
@@ -1312,25 +1320,53 @@ function DashboardOverlay({
     setThemeChatBackground(theme, background, blur);
   }, [setThemeChatBackground]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
+  const persistSettings = useCallback(async (settingsSnapshot, revision) => {
+    setSaveStatus('saving');
     try {
-      for (const [key, value] of Object.entries(settings)) {
+      for (const [key, value] of Object.entries(settingsSnapshot)) {
         if (!['github_token', 'ui_theme', 'ui_theme_library'].includes(key)) {
           await window.api.localData.settings.set(key, value);
         }
       }
-      if (settings.github_token && window.api?.githubSetToken) {
-        window.api.githubSetToken(settings.github_token);
+      if (settingsSnapshot.github_token && window.api?.githubSetToken) {
+        await window.api.githubSetToken(settingsSnapshot.github_token);
       }
       logger.info('settings.saved', 'Settings updated');
-      onClose();
+      if (revision === saveRevisionRef.current) {
+        lastSavedSettingsRef.current = JSON.stringify(settingsSnapshot);
+        setSaveStatus('saved');
+      }
+      return true;
     } catch (error) {
       logger.error('config', 'Failed to save settings', error?.message);
-    } finally {
-      setIsSaving(false);
+      if (revision === saveRevisionRef.current) setSaveStatus('error');
+      return false;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || isLoading || !settingsHydratedRef.current) return undefined;
+    const serializedSettings = JSON.stringify(settings);
+    if (serializedSettings === lastSavedSettingsRef.current) return undefined;
+
+    const revision = ++saveRevisionRef.current;
+    setSaveStatus('pending');
+    const timeoutId = window.setTimeout(() => {
+      persistSettings(settings, revision);
+    }, 600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isLoading, isOpen, persistSettings, settings]);
+
+  const closeDashboard = useCallback(async () => {
+    const serializedSettings = JSON.stringify(settings);
+    if (settingsHydratedRef.current && serializedSettings !== lastSavedSettingsRef.current) {
+      const revision = ++saveRevisionRef.current;
+      const saved = await persistSettings(settings, revision);
+      if (!saved) return;
+    }
+    onClose();
+  }, [onClose, persistSettings, settings]);
 
   const handleGdriveConnect = async () => {
     setIsConnectingGdrive(true);
@@ -1396,11 +1432,11 @@ function DashboardOverlay({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') closeDashboard();
   };
 
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) closeDashboard();
   };
 
   if (!isOpen) return null;
@@ -1415,6 +1451,13 @@ function DashboardOverlay({
     { id: 'health', label: 'Health' }
   ];
 
+  const saveStatusCopy = {
+    pending: 'Waiting to save',
+    saving: 'Saving',
+    saved: 'Autosaved',
+    error: 'Save failed',
+  }[saveStatus];
+
   return (
     <div
       className="modal-overlay"
@@ -1422,28 +1465,55 @@ function DashboardOverlay({
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      <div className="modal-container dashboard-modal-container">
+      <div className="modal-container dashboard-modal-container" role="dialog" aria-modal="true" aria-labelledby="dashboard-title">
         {/* Header */}
         <div className="modal-header">
-          <h2 className="modal-title">Dashboard</h2>
-          <button className="modal-close-btn" onClick={onClose}>&times;</button>
-        </div>
-
-        {/* Tabs */}
-        <div className="modal-tabs">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`modal-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+          <h2 className="modal-title" id="dashboard-title">Dashboard</h2>
+          <div className="modal-header-actions">
+            <div
+              className={`modal-autosave-status is-${saveStatus}`}
+              role="status"
+              aria-live="polite"
+              title={saveStatusCopy}
             >
-              {tab.label}
-            </button>
-          ))}
+              {saveStatus === 'error' ? (
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.25a7.75 7.75 0 1 1 0 15.5 7.75 7.75 0 0 1 0-15.5Zm0 3.1v5.2m0 3.1v.1" /></svg>
+              ) : saveStatus === 'saved' ? (
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10.2 8.2 14l7.3-8" /></svg>
+              ) : (
+                <svg className="modal-autosave-spinner" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.6 7A7 7 0 1 0 17 11" /><path d="m13.7 3.7 3.1 3.5 1.4-4.4" /></svg>
+              )}
+              <span>{saveStatusCopy}</span>
+            </div>
+            <button className="modal-close-btn" onClick={closeDashboard} aria-label="Close Dashboard">&times;</button>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="modal-content">
+        <div className="modal-workspace">
+          {/* Tabs */}
+          <div className="modal-tabs" role="tablist" aria-label="Dashboard sections" aria-orientation="vertical">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                id={`dashboard-tab-${tab.id}`}
+                className={`modal-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls="dashboard-tab-panel"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div
+            className="modal-content"
+            id="dashboard-tab-panel"
+            role="tabpanel"
+            aria-labelledby={`dashboard-tab-${activeTab}`}
+          >
           {isLoading && activeTab !== 'memory' && activeTab !== 'permissions' && activeTab !== 'health' && activeTab !== 'briizy' ? (
             <div className="settings-loading">Loading settings...</div>
           ) : (
@@ -1503,24 +1573,7 @@ function DashboardOverlay({
               )}
             </>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="modal-footer">
-          <button
-            className="modal-btn modal-btn-cancel"
-            onClick={onClose}
-            disabled={isSaving}
-          >
-            Cancel
-          </button>
-          <button
-            className="modal-btn modal-btn-save"
-            onClick={handleSave}
-            disabled={isLoading || isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </button>
+          </div>
         </div>
       </div>
     </div>

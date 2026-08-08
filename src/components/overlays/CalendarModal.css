@@ -11,9 +11,9 @@
 /*  background: linear-gradient(var(--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3, rgba(0, 0, 0, 0.25)));*/
   backdrop-filter: blur(88px) brightness(.1);
   display: flex;
-  align-items: center;
-  justify-content: center;
-   z-index: 24;
+  align-items: stretch;
+  justify-content: stretch;
+   z-index: 1200;
   animation: cal-fadeIn 0.2s ease;
 }
 
@@ -23,12 +23,13 @@
 }
 
 .calendar-modal {
-  width: min(1180px, 96vw);
-  max-width: 1180px;
-  max-height: 92vh;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
   background: var(--theme-components-overlays-calendarmodal-calendar-modal-background-gradient, linear-gradient(135deg, #80d2972d 0%, #0115343a 100%));
-  border: 1px solid var(--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub, rgba(0, 200, 200, 0.3));
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -56,6 +57,12 @@
   padding: 14px 20px;
   border-bottom: 1px solid var(--theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog, rgba(0, 200, 200, 0.15));
   background: var(--theme-components-overlays-calendarmodal-calendar-header-background-1oise, rgba(0, 50, 80, 0.2));
+}
+
+.calendar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .calendar-title {
@@ -126,7 +133,7 @@
   flex-direction: column;
   padding: 14px 16px;
   overflow: hidden;
-  min-height: 560px;
+  min-height: 0;
 }
 
 /* =====================

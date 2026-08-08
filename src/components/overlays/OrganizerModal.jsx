@@ -213,29 +213,47 @@ function OrganizerModal({ isOpen, onClose }) {
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      <div className="organizer-modal">
+      <div className="organizer-modal" role="dialog" aria-modal="true" aria-labelledby="organizer-title">
         <div className="organizer-header">
-          <h2 className="organizer-title">Organizer</h2>
-          <button className="organizer-close-btn" onClick={onClose}>×</button>
+          <h2 className="organizer-title" id="organizer-title">Organizer</h2>
+          <div className="organizer-header-actions">
+            <span className="projects-count">
+              {activeTab === 'projects'
+                ? `${projectCount} project${projectCount !== 1 ? 's' : ''}`
+                : `${itemCount} item${itemCount !== 1 ? 's' : ''}`
+              }
+            </span>
+            <button className="organizer-close-btn" onClick={onClose} aria-label="Close Organizer">×</button>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="organizer-tabs">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`organizer-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="tab-count">{tab.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        <div className="organizer-workspace">
+          {/* Tabs */}
+          <div className="organizer-tabs" role="tablist" aria-label="Organizer sections" aria-orientation="vertical">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                id={`organizer-tab-${tab.id}`}
+                className={`organizer-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls="organizer-tab-panel"
+              >
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className="tab-count">{tab.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
 
-        <div className="organizer-content">
+          <div
+            className="organizer-content"
+            id="organizer-tab-panel"
+            role="tabpanel"
+            aria-labelledby={`organizer-tab-${activeTab}`}
+          >
           {loading ? (
             <div className="loading-state">Loading...</div>
           ) : (
@@ -427,16 +445,7 @@ function OrganizerModal({ isOpen, onClose }) {
               </div>
             </>
           )}
-        </div>
-
-        <div className="organizer-footer">
-          <span className="projects-count">
-            {activeTab === 'projects'
-              ? `${projectCount} project${projectCount !== 1 ? 's' : ''}`
-              : `${itemCount} item${itemCount !== 1 ? 's' : ''}`
-            }
-          </span>
-          <button className="organizer-btn secondary" onClick={onClose}>Close</button>
+          </div>
         </div>
       </div>
     </div>
