@@ -1254,7 +1254,7 @@ function DashboardOverlay({
   const [activeTab, setActiveTab] = useState('model');
   const [settings, setSettings] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [saveStatus, setSaveStatus] = useState('saved');
+  const [saveStatus, setSaveStatus] = useState('idle');
   const [showGithubToken, setShowGithubToken] = useState(false);
   const [githubStatus, setGithubStatus] = useState(null);
   const [isValidatingGithub, setIsValidatingGithub] = useState(false);
@@ -1289,11 +1289,11 @@ function DashboardOverlay({
       delete dashboardSettings.ui_theme_library;
       lastSavedSettingsRef.current = JSON.stringify(dashboardSettings);
       setSettings(dashboardSettings);
-      setSaveStatus('saved');
+      setSaveStatus('idle');
       settingsHydratedRef.current = true;
     } catch (error) {
       logger.error('config', 'Failed to load settings', error?.message);
-      setSaveStatus('error');
+      setSaveStatus('idle');
     } finally {
       setIsLoading(false);
     }
@@ -1470,21 +1470,23 @@ function DashboardOverlay({
         <div className="modal-header">
           <h2 className="modal-title" id="dashboard-title">Dashboard</h2>
           <div className="modal-header-actions">
-            <div
-              className={`modal-autosave-status is-${saveStatus}`}
-              role="status"
-              aria-live="polite"
-              title={saveStatusCopy}
-            >
-              {saveStatus === 'error' ? (
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.25a7.75 7.75 0 1 1 0 15.5 7.75 7.75 0 0 1 0-15.5Zm0 3.1v5.2m0 3.1v.1" /></svg>
-              ) : saveStatus === 'saved' ? (
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10.2 8.2 14l7.3-8" /></svg>
-              ) : (
-                <svg className="modal-autosave-spinner" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.6 7A7 7 0 1 0 17 11" /><path d="m13.7 3.7 3.1 3.5 1.4-4.4" /></svg>
-              )}
-              <span>{saveStatusCopy}</span>
-            </div>
+            {saveStatus !== 'idle' && (
+              <div
+                className={`modal-autosave-status is-${saveStatus}`}
+                role="status"
+                aria-live="polite"
+                title={saveStatusCopy}
+              >
+                {saveStatus === 'error' ? (
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.25a7.75 7.75 0 1 1 0 15.5 7.75 7.75 0 0 1 0-15.5Zm0 3.1v5.2m0 3.1v.1" /></svg>
+                ) : saveStatus === 'saved' ? (
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10.2 8.2 14l7.3-8" /></svg>
+                ) : (
+                  <svg className="modal-autosave-spinner" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.6 7A7 7 0 1 0 17 11" /><path d="m13.7 3.7 3.1 3.5 1.4-4.4" /></svg>
+                )}
+                <span>{saveStatusCopy}</span>
+              </div>
+            )}
             <button className="modal-close-btn" onClick={closeDashboard} aria-label="Close Dashboard">&times;</button>
           </div>
         </div>
