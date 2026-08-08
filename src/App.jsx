@@ -347,7 +347,11 @@ function AppContent({ layout }) {
     const normalized = normalizeHeaderDockStyle(nextStyle);
     setHeaderDockStyle(normalized);
     persistHeaderDockStyle(normalized);
-  }, []);
+    if (normalized !== HEADER_DOCK_STYLES.CURRENT && headerDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL) {
+      setHeaderDockOrientation(HEADER_DOCK_ORIENTATIONS.HORIZONTAL);
+      persistHeaderDockOrientation(HEADER_DOCK_ORIENTATIONS.HORIZONTAL);
+    }
+  }, [headerDockOrientation]);
 
   const handleHeaderDockOrientationChange = useCallback((nextOrientation) => {
     const normalized = normalizeHeaderDockOrientation(nextOrientation);
@@ -361,10 +365,8 @@ function AppContent({ layout }) {
     setHeaderDockItems(normalized);
   }, []);
 
-  const effectiveHeaderDockOrientation = headerDockStyle === HEADER_DOCK_STYLES.CURRENT
-    ? headerDockOrientation
-    : HEADER_DOCK_ORIENTATIONS.HORIZONTAL;
-  const verticalHeaderActive = effectiveHeaderDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL;
+  const verticalHeaderActive = headerDockStyle === HEADER_DOCK_STYLES.CURRENT
+    && headerDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL;
   const headerCollapsed = headerShrunk && !verticalHeaderActive && !headerHovered;
 
   const handleHeaderHeightToggle = useCallback(() => {
@@ -1244,7 +1246,7 @@ function AppContent({ layout }) {
           <ControlBar
             variant="dock"
             dockStyle={headerDockStyle}
-            orientation={effectiveHeaderDockOrientation}
+            orientation={headerDockOrientation}
             dockItems={headerDockItems}
             controlBarOpen={controlBarOpen}
             chatOpen={interactionPanel?.visible === true}
@@ -1432,7 +1434,7 @@ function AppContent({ layout }) {
         initialTab={dashboardTab}
         headerDockStyle={headerDockStyle}
         onHeaderDockStyleChange={handleHeaderDockStyleChange}
-        headerDockOrientation={effectiveHeaderDockOrientation}
+        headerDockOrientation={headerDockOrientation}
         onHeaderDockOrientationChange={handleHeaderDockOrientationChange}
       />
 

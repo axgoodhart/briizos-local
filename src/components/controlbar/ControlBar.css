@@ -99,11 +99,6 @@ padding:0;  overflow: visible;
   pointer-events: none;
 }
 
-.control-bar-dock:hover .cb-toggle,
-.control-bar-dock:focus-within .cb-toggle {
-  transform: translateY(-1px);
-}
-
 .cb-toggle:hover {
   transform: translateY(-2px);
 }
@@ -502,7 +497,7 @@ font-size:25px;
 .control-bar-dock.control-bar-dock--macos .cb-toggle:hover {
   z-index: 4;
   filter: saturate(1.15) brightness(1.04);
-  transform: translateY(3px) scale(1.18);
+  transform: translateY(-3px) scale(1.18);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:hover .cb-label,
@@ -510,18 +505,6 @@ font-size:25px;
   opacity: 1;
   filter:brightness(1);
   transform: translateY(-90%)translateX(-50%)scale(1.1);
-}
-
-.control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-toggle:hover),
-.control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-toggle,
-.control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-canvases-wrap:hover),
-.control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle,
-.control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:has(+ .cb-toggle:hover),
-.control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:hover + .cb-toggle,
-.control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:has(+ .cb-canvases-wrap:hover),
-.control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle {
-  transform: translateY(-1px) scale(1.1);
-  transition: 600ms;
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle:active {
@@ -1120,14 +1103,6 @@ grid-row: 1;
   }
 
   .control-bar-dock.control-bar-dock--macos .cb-toggle:hover,
-  .control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-toggle:hover),
-  .control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-toggle,
-  .control-bar-dock.control-bar-dock--macos > .cb-toggle:has(+ .cb-canvases-wrap:hover),
-  .control-bar-dock.control-bar-dock--macos > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle,
-  .control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:has(+ .cb-toggle:hover),
-  .control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:hover + .cb-toggle,
-  .control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:has(+ .cb-canvases-wrap:hover),
-  .control-bar-dock.control-bar-dock--macos > .control-bar-dock__scroll > .cb-toggle:hover + .cb-canvases-wrap > .cb-toggle,
   .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover,
   .control-bar-dock.control-bar-dock--tabs .cb-toggle.active {
     transform: none;
