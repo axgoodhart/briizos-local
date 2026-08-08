@@ -20,6 +20,78 @@ function visibleStage(projectStage) {
   return PIPELINE_STEPS.some((step) => step.id === projectStage) ? projectStage : 'voice';
 }
 
+const RUN_STAGE_LABELS = {
+  voice: 'Voice profile (measured locally)',
+  extract: 'Find material (Stage 2 extraction)',
+  blueprint: 'Build blueprint (Stage 4)',
+  generate: 'Generate content (Stages 5–6)',
+};
+
+// Open the AI visibility timeline focused on the audit turn behind a run, so
+// the exact request/response/error evidence is one click away — never a trip
+// to the provider's dashboard.
+function openAuditTurn(turnId) {
+  if (!turnId) return;
+  window.dispatchEvent(new CustomEvent('briizos:ai-visibility:open', { detail: { turnId } }));
+}
+
+function StageError({ error, onDismiss }) {
+  if (!error) return null;
+  const detail = typeof error === 'object' ? error : { message: error };
+  const providerLine = [
+    detail.provider && detail.model ? `${detail.provider} · ${detail.model}` : detail.model || detail.provider,
+    detail.status != null ? `HTTP ${detail.status}` : null,
+    detail.code != null ? `code ${detail.code}` : null,
+  ].filter(Boolean).join(' · ');
+  return (
+    <div className="stylofact-error" role="alert">
+      <div className="stylofact-error-body">
+        <span>{detail.message || 'Stylofact could not complete that step.'}</span>
+        {providerLine && <small className="stylofact-error-provider">{providerLine}</small>}
+        {detail.nextAction && <small className="stylofact-error-next"><strong>Next:</strong> {detail.nextAction}</small>}
+        {detail.turnId && (
+          <button type="button" className="stylofact-text-button" onClick={() => openAuditTurn(detail.turnId)}>
+            View the full AI record
+          </button>
+        )}
+      </div>
+      <button type="button" onClick={onDismiss} aria-label="Dismiss error">×</button>
+    </div>
+  );
+}
+
+function RunHistory({ runs }) {
+  if (!runs.length) return null;
+  const failedCount = runs.filter((run) => run.status === 'failed').length;
+  return (
+    <details className="stylofact-disclosure stylofact-run-history">
+      <summary>Run history · {runs.length}{failedCount ? ` · ${failedCount} failed` : ''}</summary>
+      <ul aria-label="Recent Stylofact runs">
+        {runs.slice(0, 12).map((run) => {
+          const detail = run.result?.errorDetail || null;
+          const turnId = run.agentTurnId || detail?.turnId || null;
+          return (
+            <li key={run.id} className={`stylofact-run stylofact-run-${run.status}`}>
+              <div className="stylofact-run-head">
+                <strong>{RUN_STAGE_LABELS[run.stage] || run.stage}</strong>
+                <span>{new Date(run.createdAt).toLocaleString()} · {run.modelName || 'local'}</span>
+                <em className={`stylofact-run-status status-${run.status}`}>{run.status}</em>
+              </div>
+              {run.status === 'failed' && run.error && <p className="stylofact-run-error">{run.error}</p>}
+              {run.status === 'failed' && detail?.nextAction && <p className="stylofact-run-next"><strong>Next:</strong> {detail.nextAction}</p>}
+              {turnId && (
+                <button type="button" className="stylofact-text-button" onClick={() => openAuditTurn(turnId)}>
+                  View the full AI record
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  );
+}
+
 const OUTPUT_FORMATS = [
   { id: 'slide_deck_script', label: 'Slide deck script', note: 'Narration and visual beats for video or slides.' },
   { id: 'infographic_brief', label: 'Infographic brief', note: 'A concise editorial and visual specification.' },
@@ -399,7 +471,13 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
     setActionPending(true);
     setError(null);
     try { await task(); }
-    catch (taskError) { setError(taskError?.message || 'Stylofact could not complete that step.'); }
+    catch (taskError) {
+      // Keep the runtime's structured failure (provider, status, next action,
+      // audit turn id) so the banner can explain what happened in-app.
+      setError(taskError?.aiTurn
+        ? { message: taskError.message, ...taskError.aiTurn }
+        : (taskError?.message || 'Stylofact could not complete that step.'));
+    }
     finally {
       actionPendingRef.current = false;
       setActionPending(false);
@@ -492,7 +570,8 @@ export default function StylofactPanel({ models, selectedModel, isModelAvailable
           </div>
         </aside>
       )}
-      {error && <div className="stylofact-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError(null)} aria-label="Dismiss error">×</button></div>}
+      <StageError error={error} onDismiss={() => setError(null)} />
+      <RunHistory runs={runs} />
 
       <main key={activeStage} className="stylofact-scroll">
         {activeStage === 'voice' && <section className="stylofact-section" aria-label="Voice stage">

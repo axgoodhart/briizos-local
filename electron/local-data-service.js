@@ -85,6 +85,7 @@ class LocalDataService extends EventEmitter {
     try {
       this._runMigrations();
       this._ensureDeviceIdentity();
+      this.closeAbandonedAiTurns();
       const status = this.getStatus();
       const availableRecordTables = this.db.prepare(`
         SELECT name FROM sqlite_master
@@ -2484,6 +2485,7 @@ class LocalDataService extends EventEmitter {
       'invocationId',
       'eventType',
       'turnKind',
+      'turnLabel',
       'provider',
       'model',
       'modality',
@@ -2502,6 +2504,10 @@ class LocalDataService extends EventEmitter {
       : v.identifier(input.invocationId, 'invocationId');
     const eventType = v.string(input.eventType, 'eventType', { required: true, max: 100 });
     const turnKind = v.string(input.turnKind, 'turnKind', { required: true, max: 100 });
+    const turnLabel = v.optional(
+      input.turnLabel,
+      (value) => v.string(value, 'turnLabel', { nullable: true, max: 200 }),
+    ) ?? null;
     const provider = v.optional(
       input.provider,
       (value) => v.string(value, 'provider', { nullable: true, max: 100 }),
@@ -2541,11 +2547,11 @@ class LocalDataService extends EventEmitter {
       this.db.prepare(`
         INSERT INTO ai_turn_audit_events (
           id, thread_id, turn_id, invocation_id, sequence, event_type,
-          turn_kind, provider, model, modality, outcome,
+          turn_kind, turn_label, provider, model, modality, outcome,
           effective_config_json, permission_policy_json, request_json,
           response_json, error_json, token_usage_json, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         eventId,
         threadId,
@@ -2554,6 +2560,7 @@ class LocalDataService extends EventEmitter {
         sequence,
         eventType,
         turnKind,
+        turnLabel,
         provider,
         model,
         modality,
@@ -2575,6 +2582,7 @@ class LocalDataService extends EventEmitter {
           sequence,
           eventType,
           turnKind,
+          turnLabel,
           provider,
           model,
           modality,
@@ -2634,6 +2642,7 @@ class LocalDataService extends EventEmitter {
       sequence: row.sequence,
       eventType: row.event_type,
       turnKind: row.turn_kind,
+      turnLabel: row.turn_label,
       provider: row.provider,
       model: row.model,
       modality: row.modality,
@@ -2676,7 +2685,7 @@ class LocalDataService extends EventEmitter {
       : v.integer(filters.limit, 'limit', { min: 1, max: 2000 });
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     return this.db.prepare(`
-      SELECT id, thread_id, turn_id, invocation_id, sequence, event_type, turn_kind,
+      SELECT id, thread_id, turn_id, invocation_id, sequence, event_type, turn_kind, turn_label,
              provider, model, modality, outcome, token_usage_json, error_json, created_at,
              length(request_json) AS request_bytes,
              length(response_json) AS response_bytes
@@ -2692,6 +2701,7 @@ class LocalDataService extends EventEmitter {
       sequence: row.sequence,
       eventType: row.event_type,
       turnKind: row.turn_kind,
+      turnLabel: row.turn_label,
       provider: row.provider,
       model: row.model,
       modality: row.modality,
@@ -2703,6 +2713,70 @@ class LocalDataService extends EventEmitter {
       createdAtMs: row.created_at,
       timestamp: new Date(row.created_at).toISOString(),
     }));
+  }
+
+  /**
+   * Startup sweep for AI turns that never recorded an outcome.
+   *
+   * The agent runtime lives in this process, so at initialize() time no turn
+   * can legitimately be running yet. Any turn whose newest event is not
+   * terminal (turn_completed / turn_error) died with a previous process —
+   * quit or crash mid-turn — and would otherwise read as "active" forever in
+   * the AI visibility timeline and inflate its active count. Each one gets an
+   * explicit terminal record; nothing is rewritten or deleted.
+   */
+  closeAbandonedAiTurns() {
+    this._assertReady();
+    // With MAX(sequence), SQLite resolves the bare columns from the row that
+    // holds the maximum — i.e. each turn's newest event.
+    const orphans = this.db.prepare(`
+      SELECT turn_id AS turnId, thread_id AS threadId, turn_kind AS turnKind,
+             turn_label AS turnLabel, provider, model, modality,
+             event_type AS eventType, outcome, created_at AS createdAt,
+             MAX(sequence) AS sequence
+      FROM ai_turn_audit_events
+      GROUP BY turn_id
+      HAVING event_type NOT IN ('turn_completed', 'turn_error')
+    `).all();
+    let closed = 0;
+    for (const orphan of orphans) {
+      try {
+        this.appendAiTurnAuditEvent({
+          threadId: orphan.threadId,
+          turnId: orphan.turnId,
+          invocationId: null,
+          eventType: 'turn_error',
+          turnKind: orphan.turnKind,
+          turnLabel: orphan.turnLabel,
+          provider: orphan.provider,
+          model: orphan.model,
+          modality: orphan.modality,
+          outcome: 'abandoned',
+          effectiveConfig: {},
+          error: {
+            name: 'TurnAbandoned',
+            message: 'briizOS exited before this AI turn recorded an outcome. The turn was closed at the next app start; no provider success or failure is claimed beyond the events recorded before the exit.',
+            last_recorded_event_type: orphan.eventType,
+            last_recorded_outcome: orphan.outcome,
+            last_recorded_at: new Date(orphan.createdAt).toISOString(),
+          },
+        });
+        closed += 1;
+      } catch (error) {
+        this.logger?.error?.('local-data', 'An abandoned AI turn could not be closed at startup.', {
+          turnId: orphan.turnId,
+          error: error?.message,
+        });
+      }
+    }
+    if (closed > 0) {
+      this.logger?.info?.(
+        'local-data',
+        `${closed} AI turn${closed === 1 ? '' : 's'} from a previous app session never recorded an outcome and ${closed === 1 ? 'was' : 'were'} closed as abandoned.`,
+        { turnIds: orphans.map((orphan) => orphan.turnId) },
+      );
+    }
+    return closed;
   }
 
   getAiTurnAuditEvent(eventId) {
@@ -2718,6 +2792,7 @@ class LocalDataService extends EventEmitter {
       sequence: row.sequence,
       eventType: row.event_type,
       turnKind: row.turn_kind,
+      turnLabel: row.turn_label,
       provider: row.provider,
       model: row.model,
       modality: row.modality,

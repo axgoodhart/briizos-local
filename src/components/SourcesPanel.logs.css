@@ -171,3 +171,84 @@
     margin-left: 4px;
   }
 }
+
+/* --- Read-without-reflow: paused feed pill, per-type muting --- */
+
+.sources-panel .log-entries-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+.sources-panel .log-entries-shell .log-entries { flex: 1; min-height: 0; }
+
+.sources-panel .log-pending-pill {
+  background: color-mix(in srgb, var(--palette-accent-primary) 26%, black);
+  border: 1px solid color-mix(in srgb, var(--palette-accent-primary) 65%, transparent);
+  border-radius: 999px;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.45);
+  color: var(--palette-text-main);
+  cursor: pointer;
+  font: 650 10px/1 var(--ui-font-main, sans-serif);
+  left: 50%;
+  letter-spacing: 0.03em;
+  padding: 6px 12px;
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 3;
+}
+
+.sources-panel .log-muted-note {
+  align-items: center;
+  color: var(--palette-text-subtle);
+  display: flex;
+  font-size: 10px;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 2px 2px 0;
+}
+.sources-panel .log-muted-note button {
+  background: transparent;
+  border: 0;
+  color: var(--palette-accent-primary);
+  cursor: pointer;
+  font: 650 10px/1 var(--ui-font-main, sans-serif);
+  letter-spacing: 0.03em;
+  min-height: 22px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-transform: lowercase;
+}
+
+.sources-panel .log-row-wrap {
+  align-items: stretch;
+  display: flex;
+  min-width: 0;
+}
+.sources-panel .log-row-wrap .log-row { flex: 1; min-width: 0; width: auto; }
+.sources-panel .log-mute {
+  align-self: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--palette-text-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
+  font: 650 9px/1 var(--ui-font-main, sans-serif);
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+  min-height: 20px;
+  opacity: 0;
+  padding: 2px 7px;
+  text-transform: lowercase;
+  transition: opacity 0.12s ease;
+}
+.sources-panel .log-row-wrap:hover .log-mute,
+.sources-panel .log-mute:focus-visible { opacity: 1; }
+.sources-panel .log-mute:hover {
+  border-color: color-mix(in srgb, var(--log-section-border) 70%, transparent);
+  color: var(--palette-text-main);
+}

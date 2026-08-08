@@ -41,6 +41,8 @@ function DraggableGithubFile({ item, githubPath, isSelected, onNavigateFolder })
 const api = window.api || {};
 const hasApi = typeof window !== 'undefined' && window.api;
 
+const MUTED_LOG_TYPES_KEY = 'briizos.logs.mutedTypes';
+
 const LOG_LEVEL_META = {
   debug: { label: 'Technical detail', glyph: '·' },
   info: { label: 'Recorded', glyph: 'i' },
@@ -185,6 +187,75 @@ function SourcesPanel() {
   const [logQuery, setLogQuery] = useState('');
   const [expandedActivityId, setExpandedActivityId] = useState(null);
   const logContainerRef = useRef(null);
+
+  // Reading a live feed must never reflow under the reader: while the pointer
+  // is over the list, the list is scrolled away from the top, or a card is
+  // expanded, incoming entries queue behind a "N new" pill instead of moving
+  // the boxes. Updates are also coalesced so at most ~1 re-render/second.
+  const [isHoveringLogs, setIsHoveringLogs] = useState(false);
+  const [isScrolledAwayLogs, setIsScrolledAwayLogs] = useState(false);
+  const [pendingLogCount, setPendingLogCount] = useState(0);
+  const logsPaused = isHoveringLogs || isScrolledAwayLogs || expandedActivityId !== null;
+  const logsPausedRef = useRef(false);
+  const latestLogsRef = useRef([]);
+  const displayedLogIdsRef = useRef(new Set());
+  const logPublishTimerRef = useRef(null);
+
+  const [mutedLogTypes, setMutedLogTypes] = useState(() => {
+    try { return new Set(JSON.parse(window.localStorage.getItem(MUTED_LOG_TYPES_KEY) || '[]')); }
+    catch { return new Set(); }
+  });
+
+  const publishLogs = useCallback(() => {
+    if (logPublishTimerRef.current) {
+      clearTimeout(logPublishTimerRef.current);
+      logPublishTimerRef.current = null;
+    }
+    displayedLogIdsRef.current = new Set(latestLogsRef.current.map((entry) => entry.id));
+    setLogs(latestLogsRef.current);
+    setPendingLogCount(0);
+  }, []);
+
+  const queueLogsUpdate = useCallback(() => {
+    if (displayedLogIdsRef.current.size === 0) {
+      publishLogs();
+      return;
+    }
+    if (logsPausedRef.current) {
+      const displayed = displayedLogIdsRef.current;
+      setPendingLogCount(latestLogsRef.current.reduce(
+        (count, entry) => count + (displayed.has(entry.id) ? 0 : 1),
+        0,
+      ));
+      return;
+    }
+    if (logPublishTimerRef.current) return;
+    logPublishTimerRef.current = setTimeout(() => {
+      logPublishTimerRef.current = null;
+      publishLogs();
+    }, 900);
+  }, [publishLogs]);
+
+  useEffect(() => {
+    logsPausedRef.current = logsPaused;
+    if (logsPaused) return;
+    const displayed = displayedLogIdsRef.current;
+    const hasNews = latestLogsRef.current.length !== displayed.size
+      || latestLogsRef.current.some((entry) => !displayed.has(entry.id));
+    if (hasNews) publishLogs();
+  }, [logsPaused, publishLogs]);
+
+  const persistMutedLogTypes = useCallback((next) => {
+    setMutedLogTypes(next);
+    try { window.localStorage.setItem(MUTED_LOG_TYPES_KEY, JSON.stringify([...next])); }
+    catch { /* A view preference that cannot persist is still applied for this session. */ }
+  }, []);
+
+  const muteActivityTypes = useCallback((activity) => {
+    const next = new Set(mutedLogTypes);
+    activity.details.forEach((detail) => { if (detail.type) next.add(detail.type); });
+    persistMutedLogTypes(next);
+  }, [mutedLogTypes, persistMutedLogTypes]);
 
   // Fetch home directories on mount
   useEffect(() => {
@@ -429,25 +500,29 @@ function SourcesPanel() {
 
   // Merge the current live stream with SQLite history. Before this, the panel
   // discarded its own persisted logs on every restart even though they were
-  // still present in briizos.db.
+  // still present in briizos.db. Incoming entries land in latestLogsRef and
+  // reach the rendered list through queueLogsUpdate, which respects the
+  // paused-while-reading state. Nothing here touches the scroll position.
   useEffect(() => {
     let mounted = true;
     let liveLogs = [];
     let persistedLogs = [];
-    const publish = () => {
-      if (mounted) setLogs(mergeLogLists(liveLogs, persistedLogs));
+    const receive = () => {
+      if (!mounted) return;
+      latestLogsRef.current = mergeLogLists(liveLogs, persistedLogs);
+      queueLogsUpdate();
     };
 
     const unsubscribe = subscribeLogs((logData) => {
       liveLogs = logData;
-      publish();
+      receive();
     });
 
     if (typeof api.localData?.logs?.list === 'function') {
       api.localData.logs.list({ limit: 500 })
         .then((entries) => {
           persistedLogs = Array.isArray(entries) ? entries : [];
-          publish();
+          receive();
         })
         .catch((error) => {
           logger.warn('ui.logs', 'The activity panel could not load earlier SQLite logs; current-session logs are still visible.', {
@@ -460,15 +535,9 @@ function SourcesPanel() {
     return () => {
       mounted = false;
       unsubscribe();
+      if (logPublishTimerRef.current) clearTimeout(logPublishTimerRef.current);
     };
-  }, []);
-
-  // Keep newest logs visible.
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = 0;
-    }
-  }, [logs]);
+  }, [queueLogsUpdate]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -495,7 +564,12 @@ function SourcesPanel() {
   };
 
   const normalizedLogQuery = logQuery.trim().toLowerCase();
-  const activities = useMemo(() => buildLogActivities(logs), [logs]);
+  const visibleLogs = useMemo(
+    () => (mutedLogTypes.size ? logs.filter((entry) => !mutedLogTypes.has(entry.type)) : logs),
+    [logs, mutedLogTypes],
+  );
+  const mutedEntryCount = logs.length - visibleLogs.length;
+  const activities = useMemo(() => buildLogActivities(visibleLogs), [visibleLogs]);
   const filteredActivities = activities.filter((activity) => {
     if (logView === 'problems' && activity.problemCount === 0) return false;
     if (logView !== 'all' && logView !== 'problems' && !activity.facets.has(logView)) return false;
@@ -509,7 +583,7 @@ function SourcesPanel() {
         : activities.filter((activity) => activity.facets.has(id)).length;
     return [id, count];
   })), [activities]);
-  const problemCount = logs.filter((entry) => entry.level === 'warn' || entry.level === 'error').length;
+  const problemCount = visibleLogs.filter((entry) => entry.level === 'warn' || entry.level === 'error').length;
   const facetLabel = (facetId) => LOG_FACETS.find(({ id }) => id === facetId)?.label || facetId;
 
   return (
@@ -748,13 +822,13 @@ function SourcesPanel() {
           )}
         </div>
 
-        <div class="settings-divider"></div>
-        
+        <div className="settings-divider"></div>
+
         <div className="log-section">
           <div className="log-header">
             <span>Activity &amp; evidence</span>
             <span className="log-header-summary">
-              {activities.length} activit{activities.length === 1 ? 'y' : 'ies'} · {logs.length} details · {problemCount} need attention
+              {activities.length} activit{activities.length === 1 ? 'y' : 'ies'} · {visibleLogs.length} details · {problemCount} need attention
             </span>
           </div>
           <div className="log-filters" role="group" aria-label="Choose which activity logs to show">
@@ -781,8 +855,33 @@ function SourcesPanel() {
               placeholder="Search messages or evidence"
               aria-label="Search activity messages and evidence"
             />
+            {mutedLogTypes.size > 0 && (
+              <div className="log-muted-note">
+                <span>{mutedLogTypes.size} event type{mutedLogTypes.size === 1 ? '' : 's'} muted · {mutedEntryCount} entr{mutedEntryCount === 1 ? 'y' : 'ies'} hidden</span>
+                <button type="button" onClick={() => persistMutedLogTypes(new Set())}>unmute all</button>
+              </div>
+            )}
           </div>
-          <div className="log-entries" ref={logContainerRef}>
+          <div className="log-entries-shell">
+            {logsPaused && pendingLogCount > 0 && (
+              <button
+                type="button"
+                className="log-pending-pill"
+                onClick={() => {
+                  publishLogs();
+                  logContainerRef.current?.scrollTo({ top: 0 });
+                }}
+              >
+                Paused while you read · {pendingLogCount} new — show now
+              </button>
+            )}
+            <div
+              className="log-entries"
+              ref={logContainerRef}
+              onScroll={(event) => setIsScrolledAwayLogs(event.currentTarget.scrollTop > 8)}
+              onMouseEnter={() => setIsHoveringLogs(true)}
+              onMouseLeave={() => setIsHoveringLogs(false)}
+            >
             {filteredActivities.length === 0 ? (
               <div className="log-entry log-empty">
                 <span className="log-message">
@@ -798,29 +897,40 @@ function SourcesPanel() {
                     key={activity.id}
                     className={`log-entry log-activity-card log-level-${activity.level || 'info'}`}
                   >
-                    <button
-                      type="button"
-                      className="log-row"
-                      onClick={() => setExpandedActivityId(expanded ? null : activity.id)}
-                      aria-expanded={expanded}
-                    >
-                      <time
-                        className="log-time"
-                        dateTime={activity.endedAt}
-                        title={`${formatLogDate(activity.endedAt)} at ${formatLogTime(activity.endedAt)}`}
+                    <div className="log-row-wrap">
+                      <button
+                        type="button"
+                        className="log-row"
+                        onClick={() => setExpandedActivityId(expanded ? null : activity.id)}
+                        aria-expanded={expanded}
                       >
-                        {formatLogTime(activity.endedAt)}
-                      </time>
-                      <span className="log-level-label" title={level.label} aria-label={level.label}>
-                        {level.glyph}
-                      </span>
-                      <span className={`log-type log-facet-${activity.facet}`}>{facetLabel(activity.facet)}</span>
-                      <span className="log-message">{activity.title}</span>
-                      {activity.detailCount > 1 && (
-                        <span className="log-detail-count">{activity.detailCount} details</span>
-                      )}
-                      <span className="log-expand" aria-hidden="true">{expanded ? '−' : '+'}</span>
-                    </button>
+                        <time
+                          className="log-time"
+                          dateTime={activity.endedAt}
+                          title={`${formatLogDate(activity.endedAt)} at ${formatLogTime(activity.endedAt)}`}
+                        >
+                          {formatLogTime(activity.endedAt)}
+                        </time>
+                        <span className="log-level-label" title={level.label} aria-label={level.label}>
+                          {level.glyph}
+                        </span>
+                        <span className={`log-type log-facet-${activity.facet}`}>{facetLabel(activity.facet)}</span>
+                        <span className="log-message">{activity.title}</span>
+                        {activity.detailCount > 1 && (
+                          <span className="log-detail-count">{activity.detailCount} details</span>
+                        )}
+                        <span className="log-expand" aria-hidden="true">{expanded ? '−' : '+'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="log-mute"
+                        title={`Hide "${activity.details[0]?.type || 'this event type'}" from this feed — undo with "unmute all"`}
+                        aria-label="Mute this event type"
+                        onClick={() => muteActivityTypes(activity)}
+                      >
+                        mute
+                      </button>
+                    </div>
                     {expanded && (
                       <div className="log-data">
                         <p className="log-interpretation">{activityInterpretation(activity)}</p>
@@ -877,6 +987,7 @@ function SourcesPanel() {
                 );
               })
             )}
+            </div>
           </div>
         </div>
 

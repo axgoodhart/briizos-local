@@ -903,3 +903,30 @@ backdrop-filter:blur(10px);
   .stylofact-icon-button,
   .stylofact-disclosure > summary { min-height: 48px; }
 }
+
+/* --- Failure detail + run history (errors must be explainable in-app) --- */
+
+.stylofact-error { align-items: flex-start; }
+.stylofact-error-body { display: grid; gap: 4px; min-width: 0; }
+.stylofact-error-body > span { font-weight: 700; overflow-wrap: anywhere; }
+.stylofact-error-provider { font: 650 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .85; }
+.stylofact-error-next { font: 12px/1.45 var(--stylofact-font); }
+.stylofact-error-next strong { text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+.stylofact-error-body .stylofact-text-button { color: inherit; justify-self: start; text-decoration: underline; text-underline-offset: 3px; }
+
+.stylofact-run-history { border-bottom: 1px solid var(--stylofact-rule); padding: 4px clamp(20px, 4cqw, 40px); }
+.stylofact-run-history > summary { color: var(--stylofact-muted); font: 700 11px/1.2 var(--stylofact-font); letter-spacing: .05em; text-transform: uppercase; }
+.stylofact-run-history ul { display: grid; gap: 10px; list-style: none; margin: 10px 0 12px; padding: 0; }
+.stylofact-run { border-left: 3px solid var(--stylofact-rule); display: grid; gap: 3px; padding: 2px 0 2px 12px; }
+.stylofact-run-failed { border-left-color: var(--stylofact-red); }
+.stylofact-run-completed { border-left-color: var(--stylofact-green, #2e7d32); }
+.stylofact-run-head { align-items: baseline; display: flex; flex-wrap: wrap; gap: 10px; }
+.stylofact-run-head strong { font: 700 12px/1.3 var(--stylofact-font); }
+.stylofact-run-head span { color: var(--stylofact-muted); font: 11px/1.3 var(--stylofact-font); }
+.stylofact-run-status { font: 700 10px/1 var(--stylofact-font); font-style: normal; letter-spacing: .06em; margin-left: auto; text-transform: uppercase; }
+.stylofact-run-status.status-failed { color: var(--stylofact-red); }
+.stylofact-run-status.status-completed { color: var(--stylofact-green, #2e7d32); }
+.stylofact-run-error { color: var(--stylofact-red); font: 12px/1.45 var(--stylofact-font); margin: 0; overflow-wrap: anywhere; }
+.stylofact-run-next { color: var(--stylofact-ink); font: 12px/1.45 var(--stylofact-font); margin: 0; }
+.stylofact-run-next strong { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.stylofact-run .stylofact-text-button { justify-self: start; }

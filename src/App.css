@@ -181,7 +181,7 @@ body {
     align-items: center;
     gap: var(--cc-gap-huge);
     position: relative;
-    height: 70px;
+    height: 35px;
     top: 0;
     z-index: 34;
     color: var(--ui-header-text, whitesmoke);
@@ -190,8 +190,16 @@ body {
     flex-shrink: 0;
     border-radius: var(--cc-radius-none) !important;
     user-select: none;
-    overflow: visible;
+    overflow: hidden;;
     margin-top: -5px;
+    transition:all .15s cubic-bezier(.3,.8,.7,1.1);;
+        transition-delay:9s;;
+}
+
+.app-header:hover {
+    height:70px;
+    transform:scale(1);
+    transition-delay:0s;
 }
 
 .header-title {
@@ -1326,7 +1334,7 @@ body {
     .app:not(.app--vertical-header) .app-header {
         grid-template-columns: 48px minmax(0, 1fr);
         gap: var(--cc-gap-none);
-        padding-inline: 8px;
+        padding-inline: 4px;
     }
 
     .app:not(.app--vertical-header) .header-title {
@@ -1351,11 +1359,17 @@ body {
 
     .app:not(.app--vertical-header) .header-dock-slot {
         display: block;
-        width: 100%;
+        margin-left:auto;
+        width: 95%;
         min-width: 0;
         max-width: none;
         justify-self: stretch;
     }
+    #controlBarToggle {
+        transform:scale(.8);
+    }
+        #root>div>header>div.header-dock-slot>nav>div
+        {justify-content:flex-end;}
 }
 
 .panel.sources-panel {

@@ -491,6 +491,12 @@ function providerLabel(provider) {
   return provider || 'The AI provider';
 }
 
+/**
+ * Log a turn failure with provider guidance, and return a renderer-ready
+ * failure report so the same status/code/next-action the log gets is also
+ * delivered to the surface that started the turn (chat, Stylofact, tasks) —
+ * the user must never need a provider dashboard to learn what happened.
+ */
 function logTurnFailure({
   threadId,
   turnId,
@@ -540,6 +546,16 @@ function logTurnFailure({
       nextAction: guidance.nextAction,
     },
   );
+  return {
+    turnId,
+    threadId,
+    provider,
+    model,
+    category: guidance.category,
+    status: guidance.status ?? errorDetails?.status ?? errorDetails?.statusCode ?? null,
+    code: guidance.code ?? errorDetails?.code ?? errorDetails?.type ?? null,
+    nextAction: guidance.nextAction,
+  };
 }
 
 /**
@@ -621,6 +637,11 @@ async function streamAgentInput({
   const auditTurnKind = config.permission_policy?.surface === 'suggestions'
     ? 'suggestion'
     : turnKind;
+  // Surface-supplied intent label ("Stylofact · Find material (Stage 2)").
+  // Deliberately separate from `modality`, which feeds the system prompt.
+  const turnLabel = typeof config.audit_label === 'string' && config.audit_label.trim()
+    ? config.audit_label.trim().slice(0, 200)
+    : null;
   const modality = config.modality || config.permission_policy?.surface || null;
   const userMessageSavedBeforeProvider = hasSavedUserChatMessage(threadId);
   const outerRequest = {
@@ -657,6 +678,7 @@ async function streamAgentInput({
       invocationId: null,
       eventType: 'turn_error',
       turnKind: auditTurnKind,
+      turnLabel,
       provider: requestedProvider,
       model: requestedModel,
       modality,
@@ -666,7 +688,7 @@ async function streamAgentInput({
       request: outerRequest,
       error: errorDetails,
     });
-    logTurnFailure({
+    const failureReport = logTurnFailure({
       threadId,
       turnId,
       provider: requestedProvider,
@@ -676,7 +698,10 @@ async function streamAgentInput({
       completedProviderRequests: 0,
       receivedAssistantOutput: false,
     });
-    onEvent('error', { message: error?.message || 'The AI model settings could not be resolved.' });
+    onEvent('error', {
+      message: error?.message || 'The AI model settings could not be resolved.',
+      ...failureReport,
+    });
     return { turnId, outcome: 'failed' };
   }
 
@@ -719,6 +744,7 @@ async function streamAgentInput({
     threadId,
     turnId,
     turnKind: auditTurnKind,
+    turnLabel,
     provider: resolvedModelRequest.provider,
     model: resolvedModelRequest.model,
     modality,
@@ -748,7 +774,7 @@ async function streamAgentInput({
         error: error.message,
       },
     );
-    onEvent('error', { message: error.message });
+    onEvent('error', { message: error.message, turnId, threadId });
     return { turnId, outcome: 'blocked_by_audit_storage' };
   }
 
@@ -765,7 +791,7 @@ async function streamAgentInput({
       request: outerRequest,
       error: errorDetails,
     });
-    logTurnFailure({
+    const failureReport = logTurnFailure({
       threadId,
       turnId,
       provider: resolvedModelRequest.provider,
@@ -775,7 +801,10 @@ async function streamAgentInput({
       completedProviderRequests: 0,
       receivedAssistantOutput: false,
     });
-    onEvent('error', { message: error?.message || 'The AI provider request could not be prepared.' });
+    onEvent('error', {
+      message: error?.message || 'The AI provider request could not be prepared.',
+      ...failureReport,
+    });
     return { turnId, outcome: 'failed' };
   }
 
@@ -1012,7 +1041,7 @@ async function streamAgentInput({
         },
         { requiredForOutcome: true },
       );
-      logTurnFailure({
+      const failureReport = logTurnFailure({
         threadId,
         turnId,
         provider: resolvedModelRequest.provider,
@@ -1024,6 +1053,7 @@ async function streamAgentInput({
       });
       onEvent('error', {
         message: failure.errorDetails?.message || 'The AI provider request failed.',
+        ...failureReport,
       });
       return { turnId, outcome: 'failed' };
     }
@@ -1080,7 +1110,13 @@ async function streamAgentInput({
           receivedAssistantOutput,
         },
       );
-      onEvent('error', { message: incompleteError.message });
+      onEvent('error', {
+        message: incompleteError.message,
+        turnId,
+        threadId,
+        provider: resolvedModelRequest.provider,
+        model: resolvedModelRequest.model,
+      });
       return { turnId, outcome: 'incomplete' };
     }
 
@@ -1117,7 +1153,7 @@ async function streamAgentInput({
           auditWriteFailures,
         },
       );
-      onEvent('error', { message: auditGapError.message });
+      onEvent('error', { message: auditGapError.message, turnId, threadId });
       return { turnId, outcome: 'blocked_by_audit_storage' };
     }
 
@@ -1186,7 +1222,7 @@ async function streamAgentInput({
           error: auditBlockError.message,
         },
       );
-      onEvent('error', { message: auditBlockError.message });
+      onEvent('error', { message: auditBlockError.message, turnId, threadId });
       return { turnId, outcome: 'blocked_by_audit_storage' };
     }
     const errorDetails = serializeError(err);
@@ -1221,7 +1257,7 @@ async function streamAgentInput({
       error: errorDetails,
       tokenUsage: collectTokenUsage([...invocations.values()].map((invocation) => invocation.streamedEvents)),
     });
-    logTurnFailure({
+    const failureReport = logTurnFailure({
       threadId,
       turnId,
       provider: resolvedModelRequest.provider,
@@ -1231,7 +1267,7 @@ async function streamAgentInput({
       completedProviderRequests: providerInvocationsCompleted,
       receivedAssistantOutput,
     });
-    onEvent('error', { message: err?.message || 'Agent stream failed' });
+    onEvent('error', { message: err?.message || 'Agent stream failed', ...failureReport });
     return { turnId, outcome: 'failed' };
   }
 }

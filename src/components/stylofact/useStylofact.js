@@ -134,12 +134,22 @@ function allowedToolsFor(stage) {
     : ['read_file'];
 }
 
+// What each agent-backed stage is FOR, in the words the pipeline UI uses.
+// Shown verbatim in the AI visibility timeline and the run history.
+export const STAGE_AUDIT_LABELS = {
+  extract: 'Stylofact · Find material (Stage 2 extraction)',
+  blueprint: 'Stylofact · Build blueprint (Stage 4)',
+  generate: 'Stylofact · Generate content (Stages 5–6)',
+  'generate-review': 'Stylofact · Reviewer pass (Stages 5–6)',
+};
+
 function makeAgentConfig(model, stage, runtime = {}) {
   const maxTokens = stage === 'generate' || stage === 'generate-review' ? 48000
     : stage === 'extract' ? 22000
       : 16000;
   return {
     model,
+    audit_label: STAGE_AUDIT_LABELS[stage] || `Stylofact · ${stage.replace(/-/g, ' ')}`,
     thinking: true,
     max_tokens: maxTokens,
     plan_mode: false,
@@ -292,12 +302,29 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       if (type === 'clarification') {
         streamsRef.current.delete(streamId);
         setPendingDecision(null);
-        run.reject(new Error(`The AI paused to ask: “${payload?.question || 'no question text was provided'}”. Stylofact stages run unattended — add the missing detail to the stage input and run it again.`));
+        const clarification = new Error(`The AI paused to ask: “${payload?.question || 'no question text was provided'}”. Stylofact stages run unattended — add the missing detail to the stage input and run it again.`);
+        clarification.aiTurn = { threadId: run.threadId, stage: run.stage };
+        run.reject(clarification);
       }
       if (type === 'error') {
         streamsRef.current.delete(streamId);
         setPendingDecision(null);
-        run.reject(new Error(payload?.message || 'The Stylofact agent failed.'));
+        // The runtime's error events carry the exact provider failure and
+        // what to do about it; keep all of it so the panel can show more
+        // than a one-line fallback.
+        const failure = new Error(payload?.message || 'The Stylofact agent failed.');
+        failure.aiTurn = {
+          stage: run.stage,
+          threadId: payload?.threadId || run.threadId || null,
+          turnId: payload?.turnId || null,
+          provider: payload?.provider || null,
+          model: payload?.model || null,
+          status: payload?.status ?? null,
+          code: payload?.code ?? null,
+          category: payload?.category || null,
+          nextAction: payload?.nextAction || null,
+        };
+        run.reject(failure);
       }
       if (type === 'end') {
         // A paused turn also emits 'end'; the run stays open until the
@@ -394,16 +421,21 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
     const activeProject = projectRef.current;
     if (!api || !activeProject) return;
     try {
+      // errorDetail rides inside result_json (the runs schema keeps `error`
+      // as the message string) so the run history can show provider status,
+      // next action, and the audit turn behind a failure.
+      const result = details?.result
+        || (details?.errorDetail ? { errorDetail: details.errorDetail } : {});
       const created = await api.runs.create(activeProject.id, {
         stage,
         modelName: details?.modelName || activeProject.primaryModel,
         criticModelName: details?.criticModelName || activeProject.criticModel,
         status,
         input: details?.input || {},
-        result: details?.result || {},
+        result,
         error: details?.error || null,
-        agentThreadId: details?.agentThreadId || null,
-        agentTurnId: details?.agentTurnId || null,
+        agentThreadId: details?.agentThreadId || details?.errorDetail?.threadId || null,
+        agentTurnId: details?.agentTurnId || details?.errorDetail?.turnId || null,
         retrievalRunId: details?.retrievalRunId || null,
       });
       setRuns((current) => [created.row, ...current]);
@@ -665,7 +697,11 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       if (retrievalRun) {
         try { await api.retrieval.complete(retrievalRun.id, { status: 'failed', error: runError?.message }); } catch { /* Preserve the original stage failure. */ }
       }
-      await recordRun('extract', 'failed', { error: runError?.message, retrievalRunId: retrievalRun?.id || null });
+      await recordRun('extract', 'failed', {
+        error: runError?.message,
+        errorDetail: runError?.aiTurn || null,
+        retrievalRunId: retrievalRun?.id || null,
+      });
       throw runError;
     }
   }, [api, corpora, defaultPrimaryModel, recordRun, runAgent, thematicCorpus, thematicSources, updateProject]);
@@ -704,7 +740,7 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       });
       return saved;
     } catch (runError) {
-      await recordRun('blueprint', 'failed', { error: runError?.message });
+      await recordRun('blueprint', 'failed', { error: runError?.message, errorDetail: runError?.aiTurn || null });
       throw runError;
     }
   }, [activeProfile, defaultPrimaryModel, recordRun, runAgent, updateProject]);
@@ -791,7 +827,7 @@ export function useStylofact({ models = [], selectedModel, isModelAvailable } = 
       await refreshProjects();
       return { saved, artifacts: persisted.rows || [] };
     } catch (runError) {
-      await recordRun('generate', 'failed', { error: runError?.message });
+      await recordRun('generate', 'failed', { error: runError?.message, errorDetail: runError?.aiTurn || null });
       throw runError;
     }
   }, [activeProfile, api, availableModels, defaultCriticModel, defaultPrimaryModel, recordRun, refreshProjects, runAgent, updateProject]);
