@@ -296,6 +296,7 @@ function AppContent({ layout }) {
   const [headerDockOrientation, setHeaderDockOrientation] = useState(getStoredHeaderDockOrientation);
   const [headerDockItems, setHeaderDockItems] = useState(getStoredHeaderDockItems);
   const [headerShrunk, setHeaderShrunk] = useState(false);
+  const [headerHovered, setHeaderHovered] = useState(false);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [themeStudioWidth, setThemeStudioWidth] = useState(320);
   const {
@@ -366,6 +367,12 @@ function AppContent({ layout }) {
 
   const verticalHeaderActive = headerDockStyle === HEADER_DOCK_STYLES.CURRENT
     && headerDockOrientation === HEADER_DOCK_ORIENTATIONS.VERTICAL;
+  const headerCollapsed = headerShrunk && !verticalHeaderActive && !headerHovered;
+
+  const handleHeaderHeightToggle = useCallback(() => {
+    setHeaderShrunk((shrunk) => !shrunk);
+    setHeaderHovered(false);
+  }, []);
 
   useEffect(() => {
     if (!calendarOpen) setCalendarPlanningFocus(null);
@@ -1195,14 +1202,17 @@ function AppContent({ layout }) {
   return (
     <div
       className={`app ${themeStudioOpen ? 'theme-studio-docked' : ''} ${verticalHeaderActive ? 'app--vertical-header' : ''}`}
-      style={themeStudioOpen ? { '--theme-studio-width': `${themeStudioWidth}px` } : undefined}
+      style={{
+        ...(themeStudioOpen ? { '--theme-studio-width': `${themeStudioWidth}px` } : {}),
+        ...(headerCollapsed ? { '--cc-app-header-height': '14px' } : {}),
+      }}
       data-theme-role="canvas"
       data-theme-component="Application"
     >
       <button
         type="button"
         className={`header-shrink-toggle ${headerShrunk ? 'is-active' : ''}`}
-        onClick={() => setHeaderShrunk((shrunk) => !shrunk)}
+        onClick={handleHeaderHeightToggle}
         aria-label={headerShrunk ? 'Keep header expanded' : 'Shrink header'}
         aria-pressed={headerShrunk}
         title={headerShrunk ? 'Keep header expanded' : 'Shrink header'}
@@ -1212,6 +1222,8 @@ function AppContent({ layout }) {
 
       <header
         className={`app-header ${headerShrunk && !verticalHeaderActive ? 'shrinkable shrunk' : ''}`}
+        onMouseEnter={() => setHeaderHovered(true)}
+        onMouseLeave={() => setHeaderHovered(false)}
         data-theme-role="header"
         data-theme-component="Application"
       >

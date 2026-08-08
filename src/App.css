@@ -21,7 +21,6 @@
     --cc-padding-large: 11px;
     --cc-padding-huge: 20px;
     --cc-app-header-height: 70px;
-    --cc-app-header-shrunk-height:14px;
 }
 
 :root[data-theme='medieval-taurus'], :root[data-theme='caspian-sea'] {
@@ -212,8 +211,7 @@ body {
 }
 
 .app-header.shrunk {
-    height: var(--cc-app-header-shrunk-height);
-        transition-delay: 5s;
+    transition-delay: 5s;
 }
 
 .app-header.shrinkable:hover, .app-header.shrunk:hover {
