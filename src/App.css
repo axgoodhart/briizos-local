@@ -180,20 +180,18 @@ body {
 .app-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
     gap: var(--cc-gap-huge);
     position: relative;
     height: var(--cc-app-header-height);
     top: 0;
     z-index: 34;
     color: var(--ui-header-text, whitesmoke);
-    padding: var(--cc-padding-tiny) var(--cc-padding-large);
+    padding: 0;
     background: var(--ui-header-bg);
     flex-shrink: 0;
     border-radius: var(--cc-radius-none) !important;
     user-select: none;
     overflow: hidden;;
-    margin-top: -5px;
     transition:all .15s cubic-bezier(.3,.8,.7,1.1);;
         transition-delay: 0s;
             ;}
@@ -1976,23 +1974,6 @@ body {
 
 .chat-container.has-custom-bg {
     background: black;
-}
-
-.chat-container.stylofact-container {
-    align-items: stretch;
-    background: var(--layout-bg-panel);
-    box-shadow: none;
-    justify-content: stretch;
-    padding-bottom: var(--cc-padding-tiny);
-}
-
-.chat-container.stylofact-container .chat-bg-frame-container {
-    display: none;
-}
-
-.chat-container.stylofact-container .stylofact-panel {
-    position: relative;
-    z-index: 1;
 }
 
 .chat-bg-frame-container {

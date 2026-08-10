@@ -4,7 +4,7 @@
 
 This document mirrors `electron/agent/data-catalog.js`, the source of truth for data the in-process agent may read. Reads are local, read-only, and logged as `agent.data`. Values remain stored once; panels and calendar placements are contextual appearances.
 
-The dedicated task, Forest, organizer, placement, and schedule tools remain optimized for common work. `briizos_query_data` provides bounded access to these additional domains: `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `stylofact_projects`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status`.
+The dedicated task, Forest, organizer, placement, and schedule tools remain optimized for common work. `briizos_query_data` provides bounded access to these additional domains: `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status`.
 
 ## Tasks
 
@@ -243,24 +243,6 @@ Relationships:
 Filters and detail controls:
 - domain=recorder_sessions, id, query, include_content, limit
 
-## Stylofact writing projects
-
-- Key: `stylofact_projects`
-- Category: `creation`
-- Read tools: `briizos_query_data`
-
-Writing-voice projects with source corpora, style profiles, blueprints, generated artifacts, and pipeline run history.
-
-Fields:
-- project: id, title, stage, approvalMode, profileChoice, targetPrompt
-- style metrics/profile/review, extraction, blueprint, generation options
-- sources, artifacts, runs, model choices, projectThreadId
-Relationships:
-- projectThreadId → conversations.id
-- sources/artifacts/runs belong to one Stylofact project
-Filters and detail controls:
-- domain=stylofact_projects, id, query, status (stage), include_content, limit
-
 ## Automation runs
 
 - Key: `automation_runs`
@@ -384,14 +366,13 @@ Filters and detail controls:
 
 | Modality | Injected objects |
 |---|---|
-| `chat` | `tasks`, `forest_projects`, `placements`, `organizer_events`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `stylofact_projects`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status` |
+| `chat` | `tasks`, `forest_projects`, `placements`, `organizer_events`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status` |
 | `plan` | `tasks`, `forest_projects`, `organizer_events`, `placements`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `conversations`, `automation_runs`, `recorder_sessions` |
 | `planner` | `organizer_events`, `placements`, `tasks`, `forest_projects` |
 | `prioritize` | `forest_projects`, `tasks` |
-| `research` | `organizer_notes`, `journals`, `notefall_posts`, `canvases`, `forest_projects`, `files`, `conversations`, `stylofact_projects` |
+| `research` | `organizer_notes`, `journals`, `notefall_posts`, `canvases`, `forest_projects`, `files`, `conversations` |
 | `code` | `forest_projects`, `files`, `canvases`, `conversations`, `automation_runs`, `logs`, `system_status` |
 | `report` | `tasks`, `forest_projects`, `organizer_events`, `placements`, `journals`, `notefall_posts`, `conversations`, `automation_runs`, `recorder_sessions`, `logs` |
-| `stylofact` | `stylofact_projects`, `files`, `journals`, `notefall_posts`, `conversations` |
 
 ## Unavailable by design
 

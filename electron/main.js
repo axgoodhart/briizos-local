@@ -18,7 +18,6 @@ const agentTerminal = require('./agent-terminal');
 const langgraph = require('./agent');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
-const { StylofactCorpusService } = require('./stylofact-corpus');
 const { CloudGateway } = require('./cloud-gateway');
 const { AutomationRunner } = require('./automation-runner');
 const operationReceipts = require('./agent-op-receipts');
@@ -34,7 +33,6 @@ const { BriizyShell } = require('./briizy/shell');
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
 let unregisterLocalDataIPC = null;
-let stylofactCorpusService = null;
 let cloudGateway = null;
 let automationRunner = null;
 let briizy = null;
@@ -354,7 +352,6 @@ const DEFAULT_AGENT_CONFIG = Object.freeze({
 const DEFAULT_SKILLS_CONFIG = Object.freeze({
   'deep-research': true, bootstrap: true, 'skill-creator': true,
   'frontend-design': true, 'web-design-guidelines': true,
-  stylofact: true,
   'consulting-analysis': true, 'data-analysis': true,
   'chart-visualization': false, 'image-generation': false,
   'video-generation': false, 'podcast-generation': false,
@@ -1029,24 +1026,13 @@ app.whenReady().then(() => {
   }
   const storedGithubToken = localDataService.getSecret('github_token');
   if (storedGithubToken) github.setToken(storedGithubToken);
-  stylofactCorpusService = new StylofactCorpusService({
-    service: localDataService,
-    userDataPath: app.getPath('userData'),
-    logger,
-  });
-  stylofactCorpusService.initialize().catch((error) => {
-    logger.error('stylofact.corpus', 'The local corpus navigator could not initialize.', { error: error?.message });
-  });
   unregisterLocalDataIPC = registerLocalDataIPC({
     ipcMain,
     BrowserWindow,
-    dialog,
     service: localDataService,
-    corpusService: stylofactCorpusService,
     logger,
   });
   langgraph.setLocalDataService(localDataService);
-  langgraph.setStylofactCorpusService(stylofactCorpusService);
   operationReceipts.setLocalDataService(localDataService);
   cloudGateway = new CloudGateway({
     service: localDataService,
@@ -1194,7 +1180,6 @@ app.on('before-quit', (event) => {
       Promise.all([
         cloudGateway?.flushContinuity() || Promise.resolve(),
         briizy?.stop() || Promise.resolve(),
-        stylofactCorpusService?.close() || Promise.resolve(),
       ]),
       new Promise((resolve) => setTimeout(resolve, 1500)),
     ]).finally(() => app.quit());
@@ -1213,7 +1198,6 @@ app.on('before-quit', (event) => {
   automationRunner = null;
   unregisterLocalDataIPC?.();
   unregisterLocalDataIPC = null;
-  stylofactCorpusService = null;
   localDataService?.close();
   localDataService = null;
 });

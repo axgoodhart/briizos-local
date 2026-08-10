@@ -176,16 +176,6 @@ const DATA_OBJECTS = [
     tools: [BROWSE_TOOL],
   },
   {
-    key: 'stylofact_projects',
-    title: 'Stylofact writing projects',
-    category: 'creation',
-    description: 'Writing-voice projects with source corpora, style profiles, blueprints, generated artifacts, and pipeline run history.',
-    fields: ['project: id, title, stage, approvalMode, profileChoice, targetPrompt', 'style metrics/profile/review, extraction, blueprint, generation options', 'sources, artifacts, runs, model choices, projectThreadId'],
-    relationships: ['projectThreadId → conversations.id', 'sources/artifacts/runs belong to one Stylofact project'],
-    filters: ['domain=stylofact_projects, id, query, status (stage), include_content, limit'],
-    tools: [BROWSE_TOOL],
-  },
-  {
     key: 'automation_runs',
     title: 'Automation runs',
     category: 'activity',
@@ -282,10 +272,9 @@ const MODALITY_SLICES = {
   ],
   planner: ['organizer_events', 'placements', 'tasks', 'forest_projects'],
   prioritize: ['forest_projects', 'tasks'],
-  research: ['organizer_notes', 'journals', 'notefall_posts', 'canvases', 'forest_projects', 'files', 'conversations', 'stylofact_projects'],
+  research: ['organizer_notes', 'journals', 'notefall_posts', 'canvases', 'forest_projects', 'files', 'conversations'],
   code: ['forest_projects', 'files', 'canvases', 'conversations', 'automation_runs', 'logs', 'system_status'],
   report: ['tasks', 'forest_projects', 'organizer_events', 'placements', 'journals', 'notefall_posts', 'conversations', 'automation_runs', 'recorder_sessions', 'logs'],
-  stylofact: ['stylofact_projects', 'files', 'journals', 'notefall_posts', 'conversations'],
 };
 
 // Chat gets a compact view of every readable domain. Whole objects are

@@ -52,6 +52,7 @@
   background: var(--ui-settings-radio-bg, rgba(12, 30, 39, 0.72));
   cursor: pointer;
   transition: border-color 140ms ease-out, background 140ms ease-out, box-shadow 180ms ease-out, transform 140ms ease-out;
+  corner-shape:var(--ui-corner-shape);
 }
 
 .dock-style-option:hover {

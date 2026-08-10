@@ -141,7 +141,7 @@ function isGpt56Model(modelName) {
 }
 
 /**
- * GPT-5.6 accepts API values none|low|medium|high|xhigh|max. Stylofact uses
+ * GPT-5.6 accepts API values none|low|medium|high|xhigh|max. briizOS uses
  * human-facing labels for those standard efforts, but must never send `light`
  * or `ultra` directly to OpenAI. Ultra is a separate beta multi-agent mode.
  */

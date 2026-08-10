@@ -23,7 +23,6 @@ const { logger } = require('../logger');
 const {
   ALL_TOOLS,
   setLocalDataService: setToolsLocalDataService,
-  setStylofactCorpusService: setToolsStylofactCorpusService,
 } = require('./tools');
 const { ThreadState } = require('./state');
 const {
@@ -73,10 +72,6 @@ function setLocalDataService(service) {
 
 function getLocalDataService() {
   return localDataService;
-}
-
-function setStylofactCorpusService(service) {
-  setToolsStylofactCorpusService(service);
 }
 
 function getRuntimeCheckpointer() {
@@ -494,7 +489,7 @@ function providerLabel(provider) {
 /**
  * Log a turn failure with provider guidance, and return a renderer-ready
  * failure report so the same status/code/next-action the log gets is also
- * delivered to the surface that started the turn (chat, Stylofact, tasks) —
+ * delivered to the surface that started the turn (chat, tasks) —
  * the user must never need a provider dashboard to learn what happened.
  */
 function logTurnFailure({
@@ -637,7 +632,7 @@ async function streamAgentInput({
   const auditTurnKind = config.permission_policy?.surface === 'suggestions'
     ? 'suggestion'
     : turnKind;
-  // Surface-supplied intent label ("Stylofact · Find material (Stage 2)").
+  // Surface-supplied intent label (e.g. "Tasks · Automation run").
   // Deliberately separate from `modality`, which feeds the system prompt.
   const turnLabel = typeof config.audit_label === 'string' && config.audit_label.trim()
     ? config.audit_label.trim().slice(0, 200)
@@ -817,8 +812,6 @@ async function streamAgentInput({
       permission_policy: config.permission_policy || null,
       disable_memory_update: !!config.disable_memory_update,
       disable_title_generation: !!config.disable_title_generation,
-      stylofact_project_id: config.stylofact_project_id || null,
-      stylofact_retrieval_run_id: config.stylofact_retrieval_run_id || null,
       writer: (payload) => {
         if (payload?.type) onEvent(payload.type, payload);
       },
@@ -1394,6 +1387,5 @@ module.exports = {
   resetCache,
   mapEvent,
   setLocalDataService,
-  setStylofactCorpusService,
   getLocalDataService,
 };

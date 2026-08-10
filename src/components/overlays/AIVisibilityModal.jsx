@@ -320,7 +320,7 @@ export default function AIVisibilityModal() {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen]);
 
-  // Other surfaces (Stylofact's error banner, run history) open the timeline
+  // Other surfaces (error banners, run history) open the timeline
   // focused on the exact turn behind their failure.
   useEffect(() => {
     const onOpenRequest = (event) => {

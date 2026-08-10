@@ -35,14 +35,9 @@ const GRAPH_CONFIRMED_KEY = '__agentGraphConfirmed';
 // renderer is busy or absent (headless automation runs). Writes still go
 // through the renderer bridge + confirmation policy.
 let localDataService = null;
-let stylofactCorpusService = null;
 
 function setLocalDataService(service) {
   localDataService = service;
-}
-
-function setStylofactCorpusService(service) {
-  stylofactCorpusService = service;
 }
 
 const DESTRUCTIVE_TOOLS = new Set([
@@ -788,35 +783,6 @@ function dateFilterMs(value, endOfDay = false) {
   return timestamp;
 }
 
-function summarizeStylofactDetail(detail, includeContent) {
-  if (includeContent) return detail;
-  return {
-    project: detail.project,
-    sources: (detail.sources || []).map((source) => ({
-      ...source,
-      bodyText: clipCatalogText(source.bodyText || '', 500),
-    })),
-    artifacts: (detail.artifacts || []).map((artifact) => ({
-      ...artifact,
-      content: clipCatalogText(artifact.content || '', 500),
-      draftContent: clipCatalogText(artifact.draftContent || '', 500),
-      criticContent: clipCatalogText(artifact.criticContent || '', 500),
-    })),
-    runs: (detail.runs || []).map((run) => ({
-      id: run.id,
-      projectId: run.projectId,
-      stage: run.stage,
-      modelName: run.modelName,
-      criticModelName: run.criticModelName,
-      status: run.status,
-      error: run.error,
-      createdAt: run.createdAt,
-      updatedAt: run.updatedAt,
-      revision: run.revision,
-    })),
-  };
-}
-
 function queryCatalogData(input) {
   const domain = input.domain;
   const query = String(input.query || '').trim().toLowerCase();
@@ -913,23 +879,6 @@ function queryCatalogData(input) {
         ? localDataService.getRecorderSession(session.id)
         : session;
       if (catalogMatches(detail, query)) items.push(detail);
-    }
-    return catalogResult(domain, items, input, items.length);
-  }
-
-  if (domain === 'stylofact_projects') {
-    let projects = localDataService.listStylofactProjects({ limit: 500 });
-    if (input.id) projects = projects.filter((project) => project.id === input.id);
-    if (input.status) projects = projects.filter((project) => project.stage === input.status);
-    const items = [];
-    for (const project of projects) {
-      const detail = input.id || input.include_content || query
-        ? localDataService.getStylofactProject(project.id)
-        : project;
-      if (!catalogMatches(detail, query)) continue;
-      items.push(input.id || input.include_content || query
-        ? summarizeStylofactDetail(detail, !!input.include_content)
-        : project);
     }
     return catalogResult(domain, items, input, items.length);
   }
@@ -1585,82 +1534,6 @@ const briizos_get_recent_activity = makeDataReadTool({
   },
 });
 
-const stylofact_search_history = tool(
-  async (input, config) => {
-    const configurable = config?.configurable || {};
-    const projectId = configurable.stylofact_project_id;
-    const retrievalRunId = configurable.stylofact_retrieval_run_id;
-    if (!stylofactCorpusService || !projectId || !retrievalRunId) {
-      return 'Error: this read-only tool is available only during a Stylofact thematic extraction run.';
-    }
-    try {
-      const result = await stylofactCorpusService.searchHistory({
-        projectId,
-        retrievalRunId,
-        queries: input.queries,
-        limit: input.limit || 20,
-      });
-      return JSON.stringify(result);
-    } catch (error) {
-      logger.error('stylofact.corpus', 'stylofact_search_history failed', { error: error?.message, projectId, retrievalRunId });
-      return `Error: ${error?.message || 'Stylofact corpus search failed'}`;
-    }
-  },
-  {
-    name: 'stylofact_search_history',
-    description: [
-      'Search Alex’s connected chat-history and large thematic corpora for exact user-authored evidence.',
-      'Use 1-4 complementary queries per call: literal wording, semantic theme, and contextual situation.',
-      'Results contain user-message previews and opaque resultIds. Assistant replies are never evidence.',
-      'Call stylofact_fetch_context on promising resultIds before quoting or extracting them.',
-    ].join(' '),
-    schema: z.object({
-      queries: z.array(z.object({
-        text: z.string().min(1).max(2000),
-        intent: z.string().max(1000).optional(),
-      })).min(1).max(4),
-      limit: z.number().int().min(1).max(20).optional().default(20),
-    }),
-  },
-);
-
-const stylofact_fetch_context = tool(
-  async (input, config) => {
-    const configurable = config?.configurable || {};
-    const projectId = configurable.stylofact_project_id;
-    const retrievalRunId = configurable.stylofact_retrieval_run_id;
-    if (!stylofactCorpusService || !projectId || !retrievalRunId) {
-      return 'Error: this read-only tool is available only during a Stylofact thematic extraction run.';
-    }
-    try {
-      const result = await stylofactCorpusService.fetchContext({
-        projectId,
-        retrievalRunId,
-        resultIds: input.result_ids,
-        before: input.before ?? 1,
-        after: input.after ?? 1,
-      });
-      return JSON.stringify(result);
-    } catch (error) {
-      logger.error('stylofact.corpus', 'stylofact_fetch_context failed', { error: error?.message, projectId, retrievalRunId });
-      return `Error: ${error?.message || 'Stylofact source context could not be verified'}`;
-    }
-  },
-  {
-    name: 'stylofact_fetch_context',
-    description: [
-      'Fetch and verify exact archived text for resultIds returned by stylofact_search_history.',
-      'The exactText field is Alex-authored evidence. Adjacent role=assistant messages are context only and must never be attributed to Alex.',
-      'Only exactText returned by this tool may be quoted in a Stylofact extraction.',
-    ].join(' '),
-    schema: z.object({
-      result_ids: z.array(z.string().min(1).max(200)).min(1).max(20),
-      before: z.number().int().min(0).max(1).optional().default(1),
-      after: z.number().int().min(0).max(1).optional().default(1),
-    }),
-  },
-);
-
 // =============================================================================
 // Public set used by the lead_agent.
 // =============================================================================
@@ -1686,8 +1559,6 @@ const BASE_TOOLS = [
   briizos_query_organizer,
   briizos_list_placements,
   briizos_query_data,
-  stylofact_search_history,
-  stylofact_fetch_context,
   briizos_search_screen_memory,
   briizos_get_recent_activity,
   ls,
@@ -1717,5 +1588,4 @@ module.exports = {
   formatToolSummary,
   mapReadableVirtualPath,
   setLocalDataService,
-  setStylofactCorpusService,
 };

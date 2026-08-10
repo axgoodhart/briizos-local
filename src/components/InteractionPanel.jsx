@@ -13,13 +13,11 @@ import logger from '../lib/logger';
 import { CHAT_BACKGROUNDS } from '../lib/chatBackgrounds';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
-import StylofactPanel from './stylofact/StylofactPanel';
 
 const MODALITIES = [
 
   { id: 'prioritize', label: 'Prioritize' },
   { id: 'planner', label: 'Day' },
-  { id: 'stylofact', label: 'Stylofact' },
   { id: 'chat', label: 'Chat' },
   { id: 'research', label: 'Research' },
   { id: 'code', label: 'Code' },
@@ -431,9 +429,7 @@ function InteractionPanel() {
   // Drop zone for dragging source files into chat
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: SOURCE_FILE_TYPE,
-    canDrop: () => modality !== 'stylofact',
     drop: async (item) => {
-      if (modality === 'stylofact') return;
       try {
         await window.api.localData.selectedFiles.add({
           path: item.path,
@@ -641,7 +637,7 @@ function InteractionPanel() {
   }[selectedProfile?.provider || provider] || selectedProfile?.provider || provider;
 
   return (
-    <div ref={drop} className={`panel interaction-panel ${modality === 'stylofact' ? 'stylofact-active' : ''} ${isOver && canDrop ? 'drop-active' : ''} ${canDrop ? 'can-drop' : ''}`}>
+    <div ref={drop} className={`panel interaction-panel ${isOver && canDrop ? 'drop-active' : ''} ${canDrop ? 'can-drop' : ''}`}>
       <div className="panel-header" id="chat-header">
         <span
           className="chat-header-label"
@@ -732,7 +728,7 @@ function InteractionPanel() {
       </div>
 
       {/* Files in context indicator */}
-      {modality !== 'stylofact' && filesInContext.length > 0 && (
+      {filesInContext.length > 0 && (
         <div className="files-in-context">
           <span className="context-label">Context:</span>
           <div className="context-files">
@@ -818,7 +814,7 @@ function InteractionPanel() {
         </div>
       )}
 
-      <div className={`chat-container ${modality === 'stylofact' ? 'stylofact-container' : ''} ${collapsed ? 'collapsed' : ''} ${resolvedChatBg ? 'has-custom-bg' : ''}`}>
+      <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${resolvedChatBg ? 'has-custom-bg' : ''}`}>
         {resolvedChatBg ? (
           <div className="chat-bg-frame-container" style={resolvedChatBgBlur ? { filter: `blur(${resolvedChatBgBlur}px)` } : undefined}>
             <iframe
@@ -832,14 +828,6 @@ function InteractionPanel() {
           </div>
         ) : null}
 
-        {modality === 'stylofact' ? (
-          <StylofactPanel
-            models={models}
-            selectedModel={selectedModel}
-            isModelAvailable={isModelAvailable}
-          />
-        ) : (
-          <>
         {showBgPicker && (
           <div className="chat-bg-picker">
             <div className="chat-bg-section-label">Backgrounds</div>
@@ -1123,12 +1111,10 @@ function InteractionPanel() {
             <div ref={messagesEndRef} />
           </div>
         )}
-          </>
-        )}
       </div>
 
       {/* Scroll nav dots */}
-      {modality !== 'stylofact' && userMessageIndexes.length > 2 && !collapsed && (
+      {userMessageIndexes.length > 2 && !collapsed && (
         <div className="chat-nav-track">
           {userMessageIndexes.map((msgIdx, i) => (
             <div
@@ -1144,7 +1130,7 @@ function InteractionPanel() {
       )}
 
       {/* Clarification Bar */}
-      {modality !== 'stylofact' && pendingClarification && !pendingToolConfirmation && (
+      {pendingClarification && !pendingToolConfirmation && (
         <div className="lg-status-bar" style={{
           display: 'flex',
           alignItems: 'center',
@@ -1170,7 +1156,7 @@ function InteractionPanel() {
       )}
 
       {/* Backend status indicator */}
-      {modality !== 'stylofact' && lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
+      {lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
         <div className="lg-status-bar" style={{
           display: 'flex',
           alignItems: 'center',
@@ -1205,8 +1191,7 @@ function InteractionPanel() {
       )}
 
       {/* Input Area */}
-      {(modality !== 'stylofact' || pendingToolConfirmation || pendingConfirmation) && (
-        <div className={`chat-input-area ${pendingToolConfirmation || pendingConfirmation ? 'has-confirmation' : ''}`}>
+      <div className={`chat-input-area ${pendingToolConfirmation || pendingConfirmation ? 'has-confirmation' : ''}`}>
           <ConfirmationToast
             pendingConfirmation={pendingToolConfirmation ? null : pendingConfirmation}
             onConfirm={confirmAction}
@@ -1251,7 +1236,7 @@ function InteractionPanel() {
                 </button>
               </div>
             </section>
-          ) : !pendingConfirmation && modality !== 'stylofact' ? (
+          ) : !pendingConfirmation ? (
             <div className="chat-input-wrapper">
               <textarea
                 ref={textareaRef}
@@ -1282,8 +1267,7 @@ function InteractionPanel() {
               </button>
             </div>
           ) : null}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

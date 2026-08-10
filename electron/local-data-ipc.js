@@ -54,29 +54,6 @@ const CHANNELS = Object.freeze({
   threadsArchive: 'local-data:threads:archive',
   messagesList: 'local-data:messages:list',
   messagesAppend: 'local-data:messages:append',
-  stylofactProjectsList: 'local-data:stylofact:projects:list',
-  stylofactProjectsGet: 'local-data:stylofact:projects:get',
-  stylofactProjectsCreate: 'local-data:stylofact:projects:create',
-  stylofactProjectsUpdate: 'local-data:stylofact:projects:update',
-  stylofactProjectsArchive: 'local-data:stylofact:projects:archive',
-  stylofactSourcesCreate: 'local-data:stylofact:sources:create',
-  stylofactSourcesArchive: 'local-data:stylofact:sources:archive',
-  stylofactArtifactsList: 'local-data:stylofact:artifacts:list',
-  stylofactArtifactsReplace: 'local-data:stylofact:artifacts:replace',
-  stylofactRunsList: 'local-data:stylofact:runs:list',
-  stylofactRunsCreate: 'local-data:stylofact:runs:create',
-  stylofactCorporaChoose: 'local-data:stylofact:corpora:choose',
-  stylofactCorporaList: 'local-data:stylofact:corpora:list',
-  stylofactCorporaStatus: 'local-data:stylofact:corpora:status',
-  stylofactCorporaLink: 'local-data:stylofact:corpora:link',
-  stylofactCorporaUnlink: 'local-data:stylofact:corpora:unlink',
-  stylofactCorporaRefresh: 'local-data:stylofact:corpora:refresh',
-  stylofactCorporaRebuild: 'local-data:stylofact:corpora:rebuild',
-  stylofactCorporaPause: 'local-data:stylofact:corpora:pause',
-  stylofactRetrievalBegin: 'local-data:stylofact:retrieval:begin',
-  stylofactRetrievalComplete: 'local-data:stylofact:retrieval:complete',
-  stylofactRetrievalReceipt: 'local-data:stylofact:retrieval:receipt',
-  stylofactRetrievalSource: 'local-data:stylofact:retrieval:source',
   memorySectionsList: 'local-data:memory:sections:list',
   memorySectionsUpdate: 'local-data:memory:sections:update',
   memoryFactsList: 'local-data:memory:facts:list',
@@ -114,7 +91,7 @@ function serializeError(error) {
   };
 }
 
-function registerLocalDataIPC({ ipcMain, BrowserWindow, dialog, service, corpusService, logger }) {
+function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
   const registrations = [
     [CHANNELS.status, () => service.getStatus()],
     [CHANNELS.revisions, () => service.getDomainRevisions()],
@@ -177,41 +154,6 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, dialog, service, corpusS
     [CHANNELS.threadsArchive, (threadId) => service.archiveThread(threadId)],
     [CHANNELS.messagesList, (threadId) => service.listMessages(threadId)],
     [CHANNELS.messagesAppend, (threadId, input) => service.appendMessage(threadId, input)],
-    [CHANNELS.stylofactProjectsList, (filters) => service.listStylofactProjects(filters)],
-    [CHANNELS.stylofactProjectsGet, (projectId) => service.getStylofactProject(projectId)],
-    [CHANNELS.stylofactProjectsCreate, (input) => service.createStylofactProject(input)],
-    [CHANNELS.stylofactProjectsUpdate, (projectId, expectedRevision, patch) => service.updateStylofactProject(projectId, expectedRevision, patch)],
-    [CHANNELS.stylofactProjectsArchive, (projectId, expectedRevision) => service.archiveStylofactProject(projectId, expectedRevision)],
-    [CHANNELS.stylofactSourcesCreate, (projectId, input) => service.createStylofactSource(projectId, input)],
-    [CHANNELS.stylofactSourcesArchive, (sourceId, expectedRevision) => service.archiveStylofactSource(sourceId, expectedRevision)],
-    [CHANNELS.stylofactArtifactsList, (projectId) => service.listStylofactArtifacts(projectId)],
-    [CHANNELS.stylofactArtifactsReplace, (projectId, artifacts) => service.replaceStylofactArtifacts(projectId, artifacts)],
-    [CHANNELS.stylofactRunsList, (projectId, limit) => service.listStylofactRuns(projectId, limit)],
-    [CHANNELS.stylofactRunsCreate, (projectId, input) => service.createStylofactRun(projectId, input)],
-    [CHANNELS.stylofactCorporaChoose, async (projectId) => {
-      const options = {
-        properties: ['openDirectory'],
-        title: 'Connect a Split or ChatGPT archive',
-        message: 'Choose the folder containing conversations.json or Split New Format.',
-      };
-      const focused = BrowserWindow.getFocusedWindow();
-      const result = focused
-        ? await dialog.showOpenDialog(focused, options)
-        : await dialog.showOpenDialog(options);
-      if (result.canceled || !result.filePaths.length) return null;
-      return corpusService.connectArchive(projectId, result.filePaths[0]);
-    }],
-    [CHANNELS.stylofactCorporaList, () => corpusService.listCorpora()],
-    [CHANNELS.stylofactCorporaStatus, (corpusId) => corpusService.getCorpusStatus(corpusId)],
-    [CHANNELS.stylofactCorporaLink, (projectId, corpusId) => corpusService.linkProjectCorpus(projectId, corpusId)],
-    [CHANNELS.stylofactCorporaUnlink, (projectId, corpusId) => corpusService.unlinkProjectCorpus(projectId, corpusId)],
-    [CHANNELS.stylofactCorporaRefresh, (corpusId) => corpusService.refreshCorpus(corpusId)],
-    [CHANNELS.stylofactCorporaRebuild, (corpusId) => corpusService.rebuildCorpus(corpusId)],
-    [CHANNELS.stylofactCorporaPause, (corpusId, paused) => corpusService.setIndexingPaused(corpusId, paused)],
-    [CHANNELS.stylofactRetrievalBegin, (projectId, queryText) => corpusService.beginRetrieval(projectId, queryText)],
-    [CHANNELS.stylofactRetrievalComplete, (retrievalRunId, input) => corpusService.completeRetrieval(retrievalRunId, input)],
-    [CHANNELS.stylofactRetrievalReceipt, (retrievalRunId) => corpusService.getRetrievalReceipt(retrievalRunId)],
-    [CHANNELS.stylofactRetrievalSource, (locator) => corpusService.getSourceContext(locator)],
     [CHANNELS.memorySectionsList, () => service.listMemorySections()],
     [CHANNELS.memorySectionsUpdate, (key, body) => service.updateMemorySection(key, body)],
     [CHANNELS.memoryFactsList, () => service.listMemoryFacts()],

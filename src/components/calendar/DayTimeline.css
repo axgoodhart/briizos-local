@@ -36,7 +36,6 @@
 
 .day-timeline-viewport {
   position: relative;
-  height: 410px;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(92, 220, 218, 0.25) transparent;

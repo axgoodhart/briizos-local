@@ -1,11 +1,12 @@
 .control-bar-dock {
   display: flex;
-  align-items: center;
   justify-content: center;
 top:0;
  z-index:27;
-  min-height: 58px;
+  min-height: 100%;
+  align-items:flex-end;
 padding:0;  overflow: visible;
+margin-top:-10px;
 }
 
 /* Desktop keeps one continuous visual strip. At compact widths this becomes
@@ -62,7 +63,7 @@ padding:0;  overflow: visible;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 10px;
   min-width: 42px;
   padding: 0;
   background: transparent;
@@ -95,7 +96,7 @@ padding:0;  overflow: visible;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), var(--palette-accent-primary, white), rgba(255, 255, 255, 0));
   opacity: 0;
   transform: translateX(-50%) scaleX(0.72);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: all .2s ease;
   pointer-events: none;
 }
 
@@ -105,6 +106,9 @@ padding:0;  overflow: visible;
 
 .cb-toggle:hover::before {
   opacity: 0.55;
+}
+.cb-toggle:hover::after{
+opacity:0;
 }
 
 .cb-toggle:active {
