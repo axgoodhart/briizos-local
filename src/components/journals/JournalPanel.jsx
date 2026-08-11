@@ -4,6 +4,9 @@ import { api, JOURNALS_CHANGED_EVENT } from './api.js';
 import { TEMPLATES } from './templates.js';
 import { JournalView } from './JournalView.jsx';
 import { COVERS, PAGES, COVER_NAMES, PAGE_NAMES } from './assets.js';
+import {
+  IMPORT_TARGETS, TEXT_FILE_ACCEPT, MAX_FILES, readTextFiles, buildFolios, previewImport,
+} from './import.js';
 import logger from '../../lib/logger';
 
 /* ── Icons (inline SVG, stroke = currentColor) ───────────────────────── */
@@ -38,6 +41,116 @@ const Icon = {
   ),
 };
 
+/* ── Import section ──────────────────────────────────────────────────
+   Pre-fills a new journal from text files. Each file becomes one page:
+   aimed by hand at notes or a list, or left on "sort for me" so import.js
+   reads its shape and decides. Long notes imports paginate themselves the
+   moment the journal opens — the viewer's rebalance engine rolls overflow
+   into continuation pages, so nothing here needs to think about paper. */
+
+function ImportSection({ docs, targets, onDocs, onTarget, onRemove }) {
+  const inputRef = useRef(null);
+  const [skipped, setSkipped] = useState([]);
+  const [reading, setReading] = useState(false);
+
+  const pick = async (fileList) => {
+    if (!fileList?.length) return;
+    setReading(true);
+    try {
+      const result = await readTextFiles(fileList);
+      setSkipped(result.skipped);
+      onDocs(result.docs);
+      if (result.docs.length) {
+        logger.info('journal', 'Import files read', { count: result.docs.length });
+      }
+      if (result.skipped.length) {
+        logger.warn('journal', 'Import skipped files', { count: result.skipped.length });
+      }
+    } catch (err) {
+      logger.error('journal', 'Import read failed', err?.message);
+      setSkipped([{ name: 'those files', reason: 'could not be read' }]);
+    } finally {
+      setReading(false);
+    }
+  };
+
+  return (
+    <div className="jr-field">
+      <span className="jr-field__label">import</span>
+      <div className="jr-import">
+        <input
+          ref={inputRef}
+          className="jr-import__file"
+          type="file"
+          multiple
+          accept={TEXT_FILE_ACCEPT}
+          onChange={(e) => {
+            pick(e.currentTarget.files);
+            e.currentTarget.value = ''; // let the same file be re-picked
+          }}
+        />
+        <div className="jr-import__head">
+          <button type="button" className="jr-btn" disabled={reading} onClick={() => inputRef.current?.click()}>
+            {reading ? 'reading…' : 'choose text files…'}
+          </button>
+          <span className="jr-import__hint">
+            {docs.length
+              ? `${docs.length} file${docs.length === 1 ? '' : 's'} — one page each`
+              : 'Text or markdown. Each file fills its own page.'}
+          </span>
+        </div>
+
+        {docs.length > 0 && (
+          <ul className="jr-import__list">
+            {docs.map((doc) => {
+              const target = targets[doc.id] || 'auto';
+              const preview = previewImport(doc, target);
+              return (
+                <li className="jr-import__row" key={doc.id}>
+                  <div className="jr-import__meta">
+                    <span className="jr-import__name" title={doc.name}>{doc.name}</span>
+                    <span className="jr-import__preview">
+                      → {preview.type === 'todo' ? 'list' : 'notes'} · {preview.label}
+                      {preview.reason ? ` · ${preview.reason}` : ''}
+                    </span>
+                  </div>
+                  <div className="jr-import__targets" role="group" aria-label={`Page type for ${doc.name}`}>
+                    {IMPORT_TARGETS.map((t) => (
+                      <button
+                        type="button"
+                        key={t.id}
+                        className={'jr-import__target' + (target === t.id ? ' is-selected' : '')}
+                        title={t.hint}
+                        aria-pressed={target === t.id}
+                        onClick={() => onTarget(doc.id, t.id)}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="jr-import__drop"
+                    title={`Remove ${doc.name}`}
+                    aria-label={`Remove ${doc.name}`}
+                    onClick={() => onRemove(doc.id)}
+                  >×</button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {skipped.length > 0 && (
+          <p className="jr-import__skipped">
+            Skipped {skipped.map((s) => `${s.name} (${s.reason})`).join(', ')}.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Create modal ────────────────────────────────────────────────────── */
 
 function CreateJournalModal({ onClose, onCreate }) {
@@ -47,6 +160,8 @@ function CreateJournalModal({ onClose, onCreate }) {
   const [cover, setCover] = useState(COVER_NAMES[0] || '');
   const [page, setPage] = useState(PAGE_NAMES[0] || '');
   const [templateId, setTemplateId] = useState('blank');
+  const [importDocs, setImportDocs] = useState([]);
+  const [importTargets, setImportTargets] = useState({}); // docId → 'auto'|'notes'|'todo'
   const [busy, setBusy] = useState(false);
   const titleRef = useRef(null);
 
@@ -74,6 +189,21 @@ function CreateJournalModal({ onClose, onCreate }) {
     }
   };
 
+  /* Files land after the template's prefab pages, in the order they were
+     picked, so a template's dashboard still opens the book. The cap counts
+     across picks, not per pick — re-opening the chooser can't sneak past it. */
+  const addImportDocs = (incoming) => {
+    setImportDocs((prev) => {
+      const seen = new Set(prev.map((d) => d.id));
+      return [...prev, ...incoming.filter((d) => !seen.has(d.id))].slice(0, MAX_FILES);
+    });
+  };
+
+  const removeImportDoc = (docId) => {
+    setImportDocs((prev) => prev.filter((d) => d.id !== docId));
+    setImportTargets(({ [docId]: _dropped, ...rest }) => rest);
+  };
+
   const submit = async () => {
     if (!title.trim() || busy) return;
     setBusy(true);
@@ -82,7 +212,17 @@ function CreateJournalModal({ onClose, onCreate }) {
       const mergedTags = [...new Set([...tags, ...(template.tags || [])])];
       // Deep-copy folios so journals never share template object references.
       const folios = JSON.parse(JSON.stringify(template.folios || []));
-      await onCreate({ title: title.trim(), tags: mergedTags, cover, page, folios });
+      const imported = buildFolios(importDocs, importTargets);
+      await onCreate({
+        title: title.trim(), tags: mergedTags, cover, page, folios: [...folios, ...imported],
+      });
+      if (imported.length) {
+        logger.info('journal', 'Journal pre-filled from files', {
+          files: imported.length,
+          notes: imported.filter((f) => f.type === 'notes').length,
+          lists: imported.filter((f) => f.type === 'todo').length,
+        });
+      }
       onClose();
     } finally {
       setBusy(false);
@@ -126,6 +266,14 @@ function CreateJournalModal({ onClose, onCreate }) {
             ))}
           </div>
         </div>
+
+        <ImportSection
+          docs={importDocs}
+          targets={importTargets}
+          onDocs={addImportDocs}
+          onTarget={(docId, target) => setImportTargets((prev) => ({ ...prev, [docId]: target }))}
+          onRemove={removeImportDoc}
+        />
 
         <label className="jr-field">
           <span className="jr-field__label">globaltags</span>
