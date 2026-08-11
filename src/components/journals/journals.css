@@ -533,6 +533,147 @@ padding: 1px 1px;  cursor: pointer;
   color: rgba(120, 180, 255, 0.75);
 }
 
+/* ── Import section (create modal) ──────────────────────────────────── */
+
+.jr-import {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The real input stays in the layout for a11y but is never seen; the
+   styled button drives it. */
+.jr-import__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.jr-import__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.jr-import__hint {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.jr-import__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jr-import__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.jr-import__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.jr-import__name {
+  font-family: var(--ui-font-main), Jost, 'SF Pro', system-ui, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jr-import__preview {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: rgba(120, 180, 255, 0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Segmented per-file destination control. */
+.jr-import__targets {
+  display: flex;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.jr-import__target {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.13s ease, color 0.13s ease;
+}
+
+.jr-import__target:last-child {
+  border-right: 0;
+}
+
+.jr-import__target:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.jr-import__target.is-selected {
+  background: rgba(70, 130, 255, 0.22);
+  color: #fff;
+  box-shadow: inset 0 0 10px rgba(120, 180, 255, 0.25);
+}
+
+.jr-import__drop {
+  appearance: none;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: color 0.13s ease;
+}
+
+.jr-import__drop:hover {
+  color: #ff8a8a;
+}
+
+.jr-import__skipped {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 190, 120, 0.8);
+}
+
 /* ── Journal viewer — open book ─────────────────────────────────────── */
 
 .jv-root {
