@@ -631,9 +631,9 @@ function InteractionPanel() {
   };
 
   const providerLabel = {
-    openai: 'OpenAI',
-    gemini: 'Gemini',
-    claude: 'Claude',
+    openai: 'OAI',
+    gemini: 'GEM',
+    claude: 'CLD',
   }[selectedProfile?.provider || provider] || selectedProfile?.provider || provider;
 
   return (
@@ -645,37 +645,7 @@ function InteractionPanel() {
         >
           
         </span>
-        {!modelsLoading && models.length > 0 && (
-          <div className="chat-input-toolbar" style={{ display: 'flex', alignItems: 'center', padding: '4px 8px 0', gap: '8px' }}>
-            <ModelPicker
-              models={models}
-              modelsByProvider={modelsByProvider}
-              selectedModel={selectedModel}
-              selectModel={selectModel}
-              isModelAvailable={isModelAvailable}
-              apiKeyStatus={apiKeyStatus}
-            />
-            <div className="modality-selector">
-              {MODALITIES.map(m => (
-                <button
-                  key={m.id}
-                  className={`modality-chip ${modality === m.id ? 'active' : ''}`}
-                  onClick={() => setModality(m.id)}
-                  disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
-                  title={`${m.label} mode`}
-                  style={{
-                    fontWeight: modality === m.id ? 600 : 400,
-                    border: `1px solid ${modality === m.id ? 'rgba(0, 200, 200, 0.5)' : 'rgba(255,255,255,0.15)'}`,
-                    background: modality === m.id ? 'rgba(0, 200, 200, 0.15)' : 'transparent',
-                    color: modality === m.id ? 'var(--palette-accent-cyan-soft, #7dd3fc)' : 'rgba(255,255,255,0.5)',
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
 
 
                 {threadTitle && (
@@ -851,6 +821,37 @@ function InteractionPanel() {
             </div>
           </div>)}
 
+        {!modelsLoading && models.length > 0 && (
+          <div className="chat-input-toolbar" style={{ display: 'flex', alignItems: 'center', padding: '4px 8px 0', gap: '8px' }}>
+            <ModelPicker
+              models={models}
+              modelsByProvider={modelsByProvider}
+              selectedModel={selectedModel}
+              selectModel={selectModel}
+              isModelAvailable={isModelAvailable}
+              apiKeyStatus={apiKeyStatus}
+            />
+            <div className="modality-selector">
+              {MODALITIES.map(m => (
+                <button
+                  key={m.id}
+                  className={`modality-chip ${modality === m.id ? 'active' : ''}`}
+                  onClick={() => setModality(m.id)}
+                  disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
+                  title={`${m.label} mode`}
+                  style={{
+                    fontWeight: modality === m.id ? 600 : 400,
+                    border: `1px solid ${modality === m.id ? 'rgba(0, 200, 200, 0.5)' : 'rgba(255,255,255,0.15)'}`,
+                    background: modality === m.id ? 'rgba(0, 200, 200, 0.15)' : 'transparent',
+                    color: modality === m.id ? 'var(--palette-accent-cyan-soft, #7dd3fc)' : 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showWelcome ? (
           <>

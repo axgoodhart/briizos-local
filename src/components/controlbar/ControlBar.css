@@ -100,19 +100,11 @@ margin-top:-10px;
   pointer-events: none;
 }
 
-.cb-toggle:hover {
-  transform: translateY(-2px);
-}
-
 .cb-toggle:hover::before {
   opacity: 0.55;
 }
 .cb-toggle:hover::after{
 opacity:0;
-}
-
-.cb-toggle:active {
-  transform: translateY(0) scale(0.95);
 }
 
 .cb-toggle.active::before,
@@ -153,7 +145,16 @@ opacity:0;
 .cb-toggle:hover .cb-icon {
   opacity: 1;
   filter: blur(0px) saturate(2);
-    transform: translateY(-1px);
+}
+
+/* Hover motion lives on the glyph alone; the button box (and the activity
+   light anchored to it) never moves, so the row stays aligned. */
+.cb-toggle:hover .cb-icon {
+  transform: translateY(-2px);
+}
+
+.control-bar-dock.control-bar-dock--current:not(.control-bar-dock--vertical) .cb-toggle:active .cb-icon {
+  transform: translateY(0) scale(0.94);
 }
 
 #notes-icon {
@@ -205,23 +206,25 @@ opacity:0;
   opacity: 0;
   pointer-events: none;
   user-select: none;
-  max-height: 0;
+  /* The label slot is always reserved so revealing it never resizes the
+     button — icons stay on one line whether an app is active or not. */
+  max-height: 14px;
   justify-content: center;
   width:60px;
   text-align: center;
   transform: translateY(-6px);
-  transition: opacity 0.25s ease, max-height 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 #controlBar-icon {
 color:var(--palette-accent-primary);
 font-size:25px;
 }
-.cb-toggle.active .cb-label,
+/* Labels are hover/focus-only, matching the App Dock behavior; an active
+   app announces itself with the base light, not a persistent caption. */
 .cb-toggle:focus-visible .cb-label,
 .cb-toggle:hover .cb-label {
   opacity: 1;
-  max-height: 14px;
   transform: translateY(0);
 }
 
@@ -292,6 +295,9 @@ font-size:25px;
 .control-bar-dock.control-bar-dock--current.control-bar-dock--vertical {
   flex-direction: column;
   justify-content: center;
+  /* In a column the cross axis is horizontal: the base flex-end (which seats
+     icons on the header base in horizontal mode) would pack the rail right. */
+  align-items: center;
   gap: clamp(16px, 3vh, 34px);
   width: 100%;
   height: 100%;
@@ -395,6 +401,12 @@ font-size:25px;
   flex-basis: 52px;
   width: 52px;
   height: 52px;
+}
+
+/* The activity light belongs to the header's base, not to the button unit:
+   it glows on beneath a running app and stays put through hover motion. */
+.control-bar-dock.control-bar-dock--current .cb-toggle::after {
+  box-shadow: 0 0 9px 1px color-mix(in oklab, var(--palette-accent-primary, white) 40%, transparent);
 }
 
 .control-bar-dock.control-bar-dock--macos .cb-toggle {
@@ -527,16 +539,20 @@ font-size:25px;
   box-sizing: border-box;
   align-items: flex-end;
   justify-content: center;
-  height: 48px;
-  min-height: 48px;
+  height: 100%;
+  min-height: 0;
   width: 100%;
-  margin-bottom:-2.3%;
+  /* Tabs sit on the header's bottom edge; their feet rest on the shelf line. */
+  margin: 0;
+  padding-bottom: 3px;
 }
 
+/* The shelf line passes in front of resting tabs and behind raised ones,
+   so only active tabs read as pulled through to the page below. */
 .control-bar-dock.control-bar-dock--tabs::after {
   content: '';
   position: absolute;
-  z-index: 0;
+  z-index: 10;
   right: 0;
   bottom: 2px;
   left: 0;
@@ -545,14 +561,14 @@ font-size:25px;
   box-shadow: 0 -1px 8px color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 34%, transparent);
 }
 
+/* Stacking follows click recency (--cb-tab-recency, set inline by the dock):
+   a tab's tails may only rest on tabs raised longer ago. */
 .control-bar-dock.control-bar-dock--tabs .cb-toggle {
-  z-index: 1;
+  z-index: calc(2 + var(--cb-tab-recency, 0));
   width: var(--cb-tab-width);
   min-width: var(--cb-tab-width);
   height: 40px;
-  margin: 0 -5px;
-  margin-left: -8px;
-  margin-right: -8px;
+  margin: 0 -8px;
   flex-direction: row;
   gap: 5px;
   border-radius: 0;
@@ -606,8 +622,8 @@ font-size:25px;
   display: none;
 }
 
+/* Hover brightens but never restacks — tails only move forward on click. */
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:hover {
-  z-index: 3;
   opacity:.7;
 }
 
@@ -616,12 +632,12 @@ font-size:25px;
   stroke: rgba(244, 248, 249, 0.84);
 }
 
-.control-bar-dock.control-bar-dock--tabs .cb-toggle.active,
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
-  z-index: 5;
+  z-index: 40;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle.active {
+  z-index: calc(20 + var(--cb-tab-recency, 0));
   width: var(--cb-tab-active-width);
   min-width: var(--cb-tab-active-width);
   height:48px;
@@ -647,7 +663,7 @@ font-size:25px;
 }
 
 .control-bar-dock.control-bar-dock--tabs .cb-toggle:focus-visible {
-  outline: 2px solid color-mix(in oklab, ∂var(--palette-accent-cyan, #22dce8) 72%, white);
+  outline: 2px solid color-mix(in oklab, var(--palette-accent-cyan, #22dce8) 72%, white);
   outline-offset: -5px;
 }
 

@@ -1718,6 +1718,23 @@ function updateStats() {
   }
 }
 
+// Tags whose bloom has already sprouted. renderTagStrip rebuilds the strip's
+// innerHTML on every render, which would restart CSS animations — so the
+// sprout animation only plays the first render after a tag becomes active.
+const bloomedTags = new Set();
+
+const BLOOM_SPRITE = `
+  <svg class="tag-bloom-sprite" viewBox="0 0 28 72" preserveAspectRatio="none" aria-hidden="true">
+    <path class="bloom-stem" d="M14 70 C 10.5 58, 17.5 46, 13.8 12" fill="none"/>
+    <path class="bloom-leaf left" d="M13.2 44 C 6.4 42.6, 3.2 37.4, 2.6 32 C 8.8 33.4, 12.4 37.8, 13.2 44 Z"/>
+    <path class="bloom-leaf right" d="M14.6 34 C 21.4 32.4, 24.6 27.2, 25.2 21.8 C 19 23.2, 15.4 27.6, 14.6 34 Z"/>
+    <g class="bloom-petals">
+      <ellipse cx="8" cy="13" rx="4.4" ry="2.9" transform="rotate(-35 8 13)"/>
+      <ellipse cx="20" cy="13" rx="4.4" ry="2.9" transform="rotate(35 20 13)"/>
+      <ellipse class="crown" cx="14" cy="10" rx="4.8" ry="3.2"/>
+    </g>
+  </svg>`;
+
 function renderTagStrip() {
   const counts = new Map();
 
@@ -1732,13 +1749,41 @@ function renderTagStrip() {
     .slice(0, 16);
 
   if (!tags.length) {
+    bloomedTags.clear();
     tagStrip.innerHTML = `<div class="tag-strip-empty">Drop files to generate smart tags and quick filters.</div>`;
     return;
   }
 
-  tagStrip.innerHTML = tags.map(([tag, count]) => `
-    <button class="global-tag" data-tag="${escapeAttr(tag)}">#${escapeHtml(tag)} <span>${count}</span></button>
-  `).join('');
+  const activeTags = new Set(parseQuery(state.query).tags);
+  bloomedTags.forEach((tag) => {
+    if (!activeTags.has(tag)) bloomedTags.delete(tag);
+  });
+
+  tagStrip.innerHTML = tags.map(([tag, count]) => {
+    const key = normalizeText(tag);
+    const active = activeTags.has(key);
+    const sprouting = active && !bloomedTags.has(key);
+    if (sprouting) bloomedTags.add(key);
+    const slotClass = `global-tag-slot${active ? ' is-bloomed' : ''}${sprouting ? ' is-sprouting' : ''}`;
+    // Each tag's flower gets a stable personality from its name hash — stem
+    // height, sprout speed, and leaf flutter vary between flowers but never
+    // between re-renders (a random roll would reshuffle on every render).
+    let bloomStyle = '';
+    if (active) {
+      const seed = hashString(key);
+      const lift = 48 + (seed % 13);
+      const sproutMs = 420 + ((seed >>> 4) % 200);
+      const delayMs = ((seed >>> 8) % 5) * 30;
+      const flutterMs = 2600 + ((seed >>> 6) % 1400);
+      bloomStyle = ` style="--bloom-lift:${lift}px;--bloom-dur:${sproutMs}ms;--bloom-delay:${delayMs}ms;--bloom-flutter:${flutterMs}ms"`;
+    }
+    return `
+    <span class="${slotClass}"${bloomStyle}>
+      ${active ? BLOOM_SPRITE : ''}
+      <button class="global-tag" data-tag="${escapeAttr(tag)}" aria-pressed="${active}"
+        title="${active ? 'Clear this tag filter' : 'Filter by this tag'}">#${escapeHtml(tag)} <span>${count}</span></button>
+    </span>`;
+  }).join('');
 }
 
 function renderEmptyState(visibleProjects) {
@@ -2456,14 +2501,38 @@ searchInput.addEventListener('keydown', (event) => {
   }
 });
 
-tagStrip.addEventListener('click', (event) => {
-  const button = event.target.closest('.global-tag');
-  if (!button) return;
-
-  const tag = cleanTag(button.dataset.tag);
-  searchInput.value = `#${tag}`;
-  state.query = searchInput.value;
+// Adds or removes one `#tag` token in the search query without touching the
+// rest of it, so several tag flowers can bloom at once alongside typed terms.
+function setTagFilter(tag, on) {
+  const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(^|\\s)#${escaped}(?=\\s|$)`, 'gi');
+  const without = state.query.replace(pattern, ' ').replace(/\s+/g, ' ').trim();
+  state.query = on ? `${without} #${tag}`.trim() : without;
+  searchInput.value = state.query;
   render();
+}
+
+tagStrip.addEventListener('click', (event) => {
+  const slot = event.target.closest('.global-tag-slot');
+  if (!slot) return;
+
+  const tag = cleanTag(slot.querySelector('.global-tag')?.dataset.tag);
+  if (!tag) return;
+
+  if (!slot.classList.contains('is-bloomed')) {
+    setTagFilter(tag, true);
+    return;
+  }
+
+  // Let the wilt animation play before the re-render removes the flower.
+  if (slot.classList.contains('is-wilting')) return;
+  slot.classList.remove('is-sprouting');
+  slot.classList.add('is-wilting');
+  setTimeout(() => {
+    if (!tagStrip.isConnected) return;
+    bloomedTags.delete(normalizeText(tag));
+    setTagFilter(tag, false);
+  }, 320);
 });
 
 /* ── Tag editing: double-click to edit ──────────────────────────────── */

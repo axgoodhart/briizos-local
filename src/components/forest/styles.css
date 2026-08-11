@@ -279,18 +279,6 @@ top:1.5rem
 .search-wrap input::placeholder{
   color:limegreen;
 }
-.ghost-btn,
-.icon-btn,
-.tiny-btn,
-.global-tag,
-.tag-chip {
-  transition:
-    transform 0.16s ease,
-    background 0.16s ease,
-    border-color 0.16s ease,
-    opacity 0.16s ease,
-    box-shadow 0.16s ease;
-}
 
 .ghost-btn {
   padding:4px 6px;
@@ -710,23 +698,49 @@ top:1.5rem
   line-height: 1.65;
 }
 
+/* The visible grass/dirt bar. The chips live in .tag-strip, a taller
+   transparent scroller layered on top, so bloomed tags can rise above the
+   grass line without being clipped by the strip's horizontal scrolling. */
+.tag-strip-ground {
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  bottom: -1px;
+  height: 48px;
+  z-index: 8;
+  border-radius: var(--ui-border-radius) var(--ui-border-radius) 0 0 ;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.28), inset 0 0 60px black;;
+  background:linear-gradient(to bottom, lightgreen, darkgreen 30%, brown, darkred, rgb(69, 32, 13));
+}
+
 .tag-strip {
   position: absolute;
   left: -10px;
-  padding-left:24px;
   right: -10px;
   bottom: -1px;
    z-index: 8;
   display: flex;
   gap: 10px;
   align-items: center;
-overflow:auto;  min-height: 48px;
-  padding: 0px 14px;
-  border-radius: var(--ui-border-radius) var(--ui-border-radius) 0 0 ;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.28), inset 0 0 60px black;;
+  height: 104px;
+  padding: 56px 14px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  /* Transparent sky above the grass must not swallow canvas clicks. */
+  pointer-events: none;
 }
+
+.tag-strip > * {
+  pointer-events: auto;
+}
+
+.dim-mode .tag-strip-ground {
+  background:linear-gradient(to bottom, lightgreen, teal 30%, darkblue, darkslategray);
+}
+
 .tag-strip::-webkit-scrollbar {
   display: none;
 }
@@ -737,19 +751,19 @@ overflow:auto;  min-height: 48px;
 }
 
 .global-tag {
-    transition: all .5s ease-in;
+    transition: all .15s cubic-bezier(.3, .75, .7, 1.2);
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex-wrap:nowrap;
   text-wrap:nowrap;
-  max-width:80px;
+  width:80px;
   overflow:hidden;
   padding: 2px 5px;
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.94);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border: .5px solid rgba(255, 255, 255, .7) !important;
 }
 
 .global-tag span {
@@ -758,11 +772,140 @@ overflow:auto;  min-height: 48px;
 }
 
 .global-tag:hover {
-  max-width:200px;
+  width:120px;
   transform: translateY(-1px);
 
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* ── Tag blooms: an active filter sprouts out of the grass on a stem ──── */
+
+.global-tag-slot {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.global-tag-slot .global-tag {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+}
+
+/* The chip itself is the flower head: lifted above the grass line on the
+   stem, warmed up, and sized to show the full tag name while active.
+   --bloom-lift/--bloom-dur/--bloom-delay/--bloom-flutter are set per slot
+   from the tag's name hash, so each flower grows a little differently. */
+.global-tag-slot.is-bloomed .global-tag {
+  transform: translateY(calc(-1 * var(--bloom-lift, 56px)));
+  width: auto;
+  min-width: 80px;
+  max-width: 170px;
+  color: #53331f;
+  background: linear-gradient(180deg, #fff3d6, #ffd3e0);
+  border-color: rgba(255, 224, 138, 0.95) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 214, 130, 0.5);
+}
+
+.global-tag-slot.is-bloomed .global-tag span {
+  color: rgba(83, 51, 31, 0.65);
+}
+
+.global-tag-slot.is-bloomed .global-tag:hover {
+  transform: translateY(calc(-3px - var(--bloom-lift, 56px)));
+  background: linear-gradient(180deg, #fff7e2, #ffdfe8);
+  border-color: #ffe08a !important;
+}
+
+.tag-bloom-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 28px;
+  height: calc(var(--bloom-lift, 56px) + 16px);
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+  z-index: 0;
+  cursor: pointer;
+}
+
+.tag-bloom-sprite .bloom-stem {
+  stroke: #3fa34d;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.tag-bloom-sprite .bloom-leaf {
+  fill: #46b258;
+  transform-box: fill-box;
+  animation: bloom-leaf-flutter var(--bloom-flutter, 3.4s) ease-in-out infinite alternate;
+}
+
+.tag-bloom-sprite .bloom-leaf.left {
+  transform-origin: right center;
+}
+
+.tag-bloom-sprite .bloom-leaf.right {
+  fill: #2f8f41;
+  transform-origin: left center;
+  animation-duration: calc(var(--bloom-flutter, 3.4s) * 0.82);
+  animation-delay: 0.4s;
+}
+
+.tag-bloom-sprite .bloom-petals ellipse {
+  fill: #ff9db8;
+}
+
+.tag-bloom-sprite .bloom-petals .crown {
+  fill: #ffb3c7;
+}
+
+.global-tag-slot.is-sprouting .global-tag {
+  animation: bloom-sprout-chip var(--bloom-dur, 0.5s) ease-out var(--bloom-delay, 0s) backwards;
+}
+
+.global-tag-slot.is-sprouting .tag-bloom-sprite {
+  animation: bloom-sprout-stem var(--bloom-dur, 0.5s) ease-out var(--bloom-delay, 0s) backwards;
+}
+
+.global-tag-slot.is-wilting .global-tag {
+  animation: bloom-wilt-chip 0.32s ease-in forwards;
+}
+
+.global-tag-slot.is-wilting .tag-bloom-sprite {
+  animation: bloom-wilt-stem 0.32s ease-in forwards;
+}
+
+@keyframes bloom-sprout-chip {
+  0%   { transform: translateY(0) scale(0.9); }
+  62%  { transform: translateY(calc(var(--bloom-lift, 56px) * -1.12)) scale(1.04); }
+  82%  { transform: translateY(calc(var(--bloom-lift, 56px) * -0.95)) scale(1); }
+  100% { transform: translateY(calc(var(--bloom-lift, 56px) * -1)) scale(1); }
+}
+
+@keyframes bloom-sprout-stem {
+  0%   { transform: translateX(-50%) scaleY(0); }
+  62%  { transform: translateX(-50%) scaleY(1.12); }
+  82%  { transform: translateX(-50%) scaleY(0.95); }
+  100% { transform: translateX(-50%) scaleY(1); }
+}
+
+@keyframes bloom-wilt-chip {
+  0%   { transform: translateY(calc(var(--bloom-lift, 56px) * -1)) rotate(0deg); }
+  35%  { transform: translateY(calc(var(--bloom-lift, 56px) * -1.07)) rotate(-3deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes bloom-wilt-stem {
+  0%   { transform: translateX(-50%) scaleY(1); }
+  35%  { transform: translateX(-50%) scaleY(1.06); }
+  100% { transform: translateX(-50%) scaleY(0); }
+}
+
+@keyframes bloom-leaf-flutter {
+  from { transform: rotate(-4deg); }
+  to   { transform: rotate(7deg); }
 }
 
 .project-card {
@@ -3079,7 +3222,8 @@ box-shadow:
 .dim-mode .search-wrap {
  transform:scale(.9);
 }
-.dim-mode .tag-strip {
+.dim-mode .tag-strip,
+.dim-mode .tag-strip-ground {
   right: 80px;
 }
 .dim-mode .tag-chip {

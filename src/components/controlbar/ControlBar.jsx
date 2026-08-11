@@ -412,6 +412,44 @@ function ControlBar({
 }) {
   const canvasesToggleRef = useRef(null);
 
+  /* Open panels ordered oldest → newest. The skeuomorphic tabs stack by this
+     order, so a tab's tails only rest on tabs raised longer ago. Closing a
+     panel drops it back into the resting pile. */
+  const activeById = {
+    controlBar: controlBarOpen,
+    chat: chatOpen,
+    briiztorm: briiztormOpen,
+    organizer: organizerOpen,
+    calendar: calendarOpen,
+    media: mediaOpen,
+    notes: notesOpen,
+    canvases: canvasesOpen,
+    journal: journalOpen,
+    forest: forestOpen,
+    notefalls: notefallsOpen,
+    sources: sourcesOpen,
+    tasks: tasksOpen,
+  };
+  const [tabOrder, setTabOrder] = useState(() =>
+    Object.keys(activeById).filter((id) => activeById[id])
+  );
+
+  useEffect(() => {
+    setTabOrder((prev) => {
+      const kept = prev.filter((id) => activeById[id]);
+      const opened = Object.keys(activeById).filter(
+        (id) => activeById[id] && !kept.includes(id)
+      );
+      if (kept.length === prev.length && opened.length === 0) return prev;
+      return [...kept, ...opened];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    controlBarOpen, chatOpen, briiztormOpen, organizerOpen, calendarOpen,
+    mediaOpen, notesOpen, canvasesOpen, journalOpen, forestOpen,
+    notefallsOpen, sourcesOpen, tasksOpen,
+  ]);
+
   if (variant === 'bar') {
     return (
       <DockEditor
@@ -434,7 +472,10 @@ function ControlBar({
     const order = dockItems.indexOf(id);
     return {
       hidden: order < 0,
-      style: { '--cb-dock-order': order < 0 ? 99 : order },
+      style: {
+        '--cb-dock-order': order < 0 ? 99 : order,
+        '--cb-tab-recency': tabOrder.indexOf(id) + 1,
+      },
     };
   };
 

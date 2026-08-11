@@ -242,7 +242,7 @@ body {
     -webkit-app-region: no-drag;
     appearance: none;
     position: absolute;
-    top: 4px;
+    bottom: 4px;
     right: 4px;
     z-index: 4000;
     display: grid;
@@ -388,6 +388,7 @@ body {
 
 .header-date {
     font-weight: 400;
+    color:var(--palette-accent-primary);
 }
 
 .header-weather {
@@ -652,8 +653,12 @@ body {
 
 
 .panel-header-actions {
-    display: flex;
-    gap: var(--cc-gap-medium);
+    display: flex;           
+    gap: var(--cc-gap-small);
+    justify-content: space-evenly;
+     align-items: center;
+     width:33%
+        
 }
 
 .panel-header-btn {
@@ -668,6 +673,16 @@ body {
 
 .panel-header-btn:hover {
     color: var(--ui-panel-btn-hover);
+}
+
+.interaction-suggestions-btn {
+    border:.5px solid black;
+    border-radius:999px;
+    background:black;
+}
+
+.disabled-indicator {
+    background:none;
 }
 
 .interaction-header-icon {
@@ -5530,9 +5545,9 @@ body {
     font-size: var(--cc-font-size-small);
     padding: var(--cc-padding-small) var(--cc-padding-small);
     border-radius: var(--cc-radius-slight);
-    background: rgba(0, 229, 229, 0.15);
     color: var(--palette-accent-primary);
     letter-spacing: 0.5px;
+    font-family:var(--ui-font-code);
 }
 
 .chat-confirmation-request,
@@ -5694,8 +5709,7 @@ body {
 }
 
 .model-picker-dropdown {
-    background: rgba(0, 0, 0, 0.84) !important
-}
+padding-left:20px !important;}
 
 .result-toast.success {
     background: linear-gradient(135deg, rgba(0, 255, 155, 0.95), rgba(0, 200, 120, 0.95));
@@ -5856,11 +5870,12 @@ body {
     position: absolute;
     top: 0;
     left: 0%;
-    height: var(--layout-header-height);
+    height: calc(var(--layout-header-height) - 10px);
     border: 1px solid rgba(255, 255, 255, .2);
     opacity: 1;
     background: linear-gradient(black, transparent);
     display: flex;
+    flex-direction: column;
     justify-content: flex-start;
     corner-shape: var(--ui-corner-shape, round);
     border-radius: var(--ui-border-radius);
@@ -5868,28 +5883,30 @@ body {
     z-index: 13;
     width: 165px;
     transition: all .3s;
-    padding: var(--cc-padding-tiny) !important;
+    padding: 0 var(--cc-padding-tiny) !important;
     overflow: hidden;
+    margin-left:-20px;
 }
 
 .chat-input-toolbar:hover,
 .chat-input-toolbar:focus-within {
     backdrop-filter: blur(4px)brightness(.25);
     opacity: 1;
-    height: 60px;
+    height: 75%;
     overflow: visible;
-    width: 100%;
 }
 
 .modality-selector {
-    gap: var(--cc-gap-medium);
+    gap: var(--cc-gap-huge);
     display: flex;
+    flex-direction: column;
     overflow: scroll;
-    padding-right: var(--cc-padding-huge);
     width: fit-content;
     -webkit-overflow-scrolling: touch;
     overflow-x: scroll;
     scrollbar-width: none;
+        justify-content: space-evenly;
+    height: 100%;
 }
 
 
@@ -5905,9 +5922,30 @@ body {
     border: .8px solid var(--palette-accent-primary-soft, #00e5e5);
 }
 
+.modality-chip.active {width:100%;}
+
+.model-picker {
+    width:100%;
+
+}
+
 .model-picker-trigger {
     background: var(--ui-controlbar-bg) !important;
     background-size: 250% 500% !important;
+    background: rgba(0, 100, 100);
+    text-align:center;
+        border: 1px solid var(--border-color, #333);
+        border-radius: 16px;
+        corner-shape: var(--ui-corner-shape, round);
+        padding: var(--cc-padding-small);
+        font-size: 16px;
+        color: var(--text-secondary, #aaa);
+        cursor: pointer;
+        text-align: center;
+        justify-content: center;
+        display: flex;
+        gap: 10px;
+        width: 100%
 }
 
 
@@ -5942,6 +5980,7 @@ body {
 }
 
 :root {
+    --ui-font-code: Courier;
     --ui-border-radius: 16px;
     --ui-corner-shape: round;
     --chat-input-border-color: lime;
@@ -8314,7 +8353,7 @@ body {
     --ui-app-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
     --ui-text-primary: var(--palette-text-main);
     --ui-header-text: gray;
-    --ui-header-bg: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .1)), radial-gradient(rgba(0, 0, 0, .7) 3px, rgba(0, 40, 40.8) .4px) 10px 10px / 5px 5px rgb(0, 20, 21);
+    --ui-header-bg: linear-gradient(to bottom,  rgba(0, 0, 0, 1) 70%, rgba(255, 255, 255, .3)), radial-gradient(rgba(0, 0, 0, .7) 3px, rgba(0, 40, 40.8) .4px) 10px 10px / 5px 5px rgb(0, 20, 21);
     ;
     --ui-title-icon: white;
     --ui-title-icon-glow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -8476,7 +8515,7 @@ body {
     --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: transparent;
     --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #cccccc;
     --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: transparent;
-    --theme-components-controlbar-controlbar-cb-label-color-sqqmz: #888888;
+    --theme-components-controlbar-controlbar-cb-label-color-sqqmz: white;
     --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: none;
     --theme-components-controlbar-controlbar-notes-icon-color-qo8di: #ffffff;
     --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: transparent;
@@ -11758,14 +11797,14 @@ body {
     --ui-title-icon: #e3f1ae;
     --ui-title-icon-glow: 0 0 12px #e3f1ae;
     --ui-title-gradient: linear-gradient(135deg, #e3f1ae 0%, yellow, #a13065 50%, #bc6cb9 100%);
-    --ui-title-stroke: 0.5px rgba(255, 233, 173, 0.2);
+    --ui-title-stroke: 0.5px rgba(255, 233, 173, 0);
     --ui-button-ghost-border-strong: rgba(161, 48, 101, 0.5);
     --ui-button-ghost-text: #d1a675;
     --ui-button-ghost-text-hover: #ffe9ad;
     --ui-button-ghost-bg-hover: rgba(161, 48, 101, 0.15);
     --ui-panel-header-text: #b26fbe;
-    --ui-panel-btn: #593f2a;
-    --ui-panel-btn-hover: #e3f1ae;
+    --ui-panel-btn: #e3ab4a;
+    --ui-panel-btn-hover: #ffffff;
     --ui-chat-header-text: #bc6cb9;
     --ui-chat-header-bg: rgba(57, 54, 52, 0.8);
     --ui-chat-header-border: #a13065;

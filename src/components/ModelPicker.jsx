@@ -34,21 +34,6 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
       <button
         onClick={() => setOpen(!open)}
         className="model-picker-trigger"
-        style={{
-          background: 'rgba(0,100,100)',
-          border: '1px solid var(--border-color, #333)',
-          borderRadius: '16px',
-          cornerShape: 'var(--ui-corner-shape, round)',
-          padding: '10px 0px',
-          fontSize: '16px',
-          color: 'var(--text-secondary, #aaa)',
-          cursor: 'pointer',
-          textAlign: 'center',
-          justifyContent: 'center',
-          display: 'flex',
-          gap: '10px',
-          width:'180px'
-        }}
         title={`Current model: ${displayName}`}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -70,7 +55,7 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
             borderRadius: '8px',
             padding: '6px 0',
             minWidth: '220px',
-            maxHeight: '300px',
+            maxHeight: '400px',
             overflowY: 'auto',
             zIndex: 1000,
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
