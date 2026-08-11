@@ -13,6 +13,7 @@ import logger from '../lib/logger';
 import { CHAT_BACKGROUNDS } from '../lib/chatBackgrounds';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
+import './InteractionToolbar.css';
 
 const MODALITIES = [
 
@@ -822,7 +823,7 @@ function InteractionPanel() {
           </div>)}
 
         {!modelsLoading && models.length > 0 && (
-          <div className="chat-input-toolbar" style={{ display: 'flex', alignItems: 'center', padding: '4px 8px 0', gap: '8px' }}>
+          <div className="chat-input-toolbar">
             <ModelPicker
               models={models}
               modelsByProvider={modelsByProvider}
@@ -839,12 +840,6 @@ function InteractionPanel() {
                   onClick={() => setModality(m.id)}
                   disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
                   title={`${m.label} mode`}
-                  style={{
-                    fontWeight: modality === m.id ? 600 : 400,
-                    border: `1px solid ${modality === m.id ? 'rgba(0, 200, 200, 0.5)' : 'rgba(255,255,255,0.15)'}`,
-                    background: modality === m.id ? 'rgba(0, 200, 200, 0.15)' : 'transparent',
-                    color: modality === m.id ? 'var(--palette-accent-cyan-soft, #7dd3fc)' : 'rgba(255,255,255,0.5)',
-                  }}
                 >
                   {m.label}
                 </button>

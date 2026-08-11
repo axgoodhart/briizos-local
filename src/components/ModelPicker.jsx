@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 
 // Provider display config
 const PROVIDER_LABELS = {
-  claude: 'Claude',
+  claude: 'Anthropic',
   openai: 'OpenAI',
-  gemini: 'Gemini',
+  gemini: 'Google',
   other: 'Other',
 };
 
@@ -16,6 +16,14 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
+  const selected = models.find(m => m.name === selectedModel);
+  const displayName = selected?.display_name || selectedModel || 'Select model';
+  const providers = PROVIDER_ORDER.filter(provider => (
+    modelsByProvider[provider]?.length > 0
+  ));
+  const providerKey = providers.join('|');
+  const [activeProvider, setActiveProvider] = useState(selected?.provider || providers[0] || 'openai');
+
   // Close on click outside
   useEffect(() => {
     function handleClick(e) {
@@ -25,92 +33,76 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  // Find selected model's display name
-  const selected = models.find(m => m.name === selectedModel);
-  const displayName = selected?.display_name || selectedModel || 'Select model';
+  useEffect(() => {
+    setActiveProvider(current => {
+      if (selected?.provider && providers.includes(selected.provider)) return selected.provider;
+      if (!providers.includes(current) && providers[0]) return providers[0];
+      return current;
+    });
+  }, [providerKey, selected?.provider]);
+
+  const activeModels = modelsByProvider[activeProvider] || [];
 
   return (
-    <div ref={ref} className="model-picker" style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={ref} className="model-picker">
       <button
-        onClick={() => setOpen(!open)}
+        type="button"
+        onClick={() => setOpen(current => !current)}
         className="model-picker-trigger"
         title={`Current model: ${displayName}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {displayName}
-        </span>
-        <span style={{ fontSize: '10px', opacity: 0.6 }}>{open ? '\u25B2' : '\u25BC'}</span>
+        <span className="model-picker-trigger-label">{displayName}</span>
+        <span className="model-picker-trigger-arrow" aria-hidden="true">{open ? '\u25B2' : '\u25BC'}</span>
       </button>
 
       {open && (
-        <div
-          className="model-picker-dropdown"
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            marginBottom: '4px',
-            background: 'var(--bg-secondary, #1a1a1a)',
-            border: '1px solid var(--border-color, #333)',
-            borderRadius: '8px',
-            padding: '6px 0',
-            minWidth: '220px',
-            maxHeight: '400px',
-            overflowY: 'auto',
-            zIndex: 1000,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          }}
-        >
-          {PROVIDER_ORDER.map(provider => {
-            const providerModels = modelsByProvider[provider];
-            if (!providerModels || providerModels.length === 0) return null;
-            const hasKey = apiKeyStatus[provider];
-
-            return (
-              <div key={provider}>
-                <div style={{
-                  padding: '4px 12px 2px',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  color: hasKey ? 'var(--text-tertiary, #666)' : '#ff6b6b',
-                  letterSpacing: '0.5px',
-                }}>
+        <div className="model-picker-dropdown" role="dialog" aria-label="Choose AI model">
+          <div className="model-picker-providers" role="tablist" aria-label="AI providers">
+            {providers.map(provider => {
+              const isActive = provider === activeProvider;
+              const hasKey = apiKeyStatus[provider];
+              return (
+                <button
+                  type="button"
+                  key={provider}
+                  className={`model-picker-provider ${isActive ? 'active' : ''} ${hasKey ? '' : 'unavailable'}`}
+                  onClick={() => setActiveProvider(provider)}
+                  role="tab"
+                  aria-selected={isActive}
+                  title={hasKey ? PROVIDER_LABELS[provider] : `${PROVIDER_LABELS[provider]} API key is not configured`}
+                >
                   {PROVIDER_LABELS[provider]}
-                  {!hasKey && ' (no API key)'}
-                </div>
-                {providerModels.map(model => {
-                  const available = isModelAvailable(model);
-                  const isSelected = model.name === selectedModel;
-                  return (
-                    <button
-                      key={model.name}
-                      onClick={() => { selectModel(model.name); setOpen(false); }}
-                      disabled={!available}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        background: isSelected ? 'var(--accent-bg, #2a2a3a)' : 'transparent',
-                        border: 'none',
-                        padding: '6px 12px',
-                        fontSize: '13px',
-                        color: available
-                          ? (isSelected ? 'var(--text-primary, #fff)' : 'var(--text-secondary, #ccc)')
-                          : 'var(--text-disabled, #555)',
-                        cursor: available ? 'pointer' : 'not-allowed',
-                        opacity: available ? 1 : 0.5,
-                      }}
-                      title={!available ? `Set ${model.provider?.toUpperCase()}_API_KEY to use this model` : model.name}
-                    >
-                      {model.display_name || model.name}
-                      {model.supports_vision && <span style={{ marginLeft: '6px', fontSize: '10px', opacity: 0.5 }} title="Supports vision">V</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="model-picker-models" role="listbox" aria-label={`${PROVIDER_LABELS[activeProvider] || 'Provider'} models`}>
+            {activeModels.map(model => {
+              const available = isModelAvailable(model);
+              const isSelected = model.name === selectedModel;
+              return (
+                <button
+                  type="button"
+                  key={model.name}
+                  onClick={() => { selectModel(model.name); setOpen(false); }}
+                  disabled={!available}
+                  className={`model-picker-option ${isSelected ? 'active' : ''}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  title={!available ? `Set ${model.provider?.toUpperCase()}_API_KEY to use this model` : model.name}
+                >
+                  <span>{model.display_name || model.name}</span>
+                  {model.supports_vision && <span className="model-vision-mark" title="Supports vision">V</span>}
+                </button>
+              );
+            })}
+            {activeModels.length === 0 && (
+              <div className="model-picker-empty">No models are available for this provider.</div>
+            )}
+          </div>
         </div>
       )}
     </div>
