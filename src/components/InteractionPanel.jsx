@@ -832,7 +832,11 @@ function InteractionPanel() {
               isModelAvailable={isModelAvailable}
               apiKeyStatus={apiKeyStatus}
             />
-            <div className="modality-selector">
+            <div className="modality-selector" role="group" aria-label="Interaction mode">
+              <div className="interaction-toolbar-section-title" aria-hidden="true">
+                <span>Mode</span>
+                <span>{MODALITIES.length}</span>
+              </div>
               {MODALITIES.map(m => (
                 <button
                   key={m.id}
@@ -840,6 +844,7 @@ function InteractionPanel() {
                   onClick={() => setModality(m.id)}
                   disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
                   title={`${m.label} mode`}
+                  aria-pressed={modality === m.id}
                 >
                   {m.label}
                 </button>
