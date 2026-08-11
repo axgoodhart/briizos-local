@@ -20,7 +20,7 @@ transition:background-color 0.35s ease-in, background-size .95s cubic-bezier(0.7
 .journals-home::-webkit-scrollbar { display:none; }
 
 .journals-home:has(.jr-card.is-selected) {
-  background-color:rgb(0,0,0);
+  background-color:rgb(209, 198, 198);
   background-size:30% 25%;
 }
 
