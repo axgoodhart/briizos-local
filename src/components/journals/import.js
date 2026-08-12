@@ -31,7 +31,7 @@ export const TEXT_FILE_ACCEPT = '.txt,.md,.markdown,.text,.log,.csv,text/plain,t
 /* Guard rails: a journal page is not a place for a 5 MB log dump, and a
    single import shouldn't silently create hundreds of pagegroups. */
 export const MAX_FILE_BYTES = 1024 * 1024; // 1 MB per file
-export const MAX_FILES = 25;
+export const MAX_FILES = 999;
 
 /* ── Text shaping ────────────────────────────────────────────────────── */
 

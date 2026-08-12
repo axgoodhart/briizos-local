@@ -598,7 +598,7 @@ function SourcesPanel() {
         </div>
       </div>
       <div className="panel-content">
-     
+     <div className="source-list">
         {/* LOCAL Section */}
         <div className="source-section">
           <div
@@ -821,7 +821,7 @@ function SourcesPanel() {
             </div>
           )}
         </div>
-
+</div>
         <div className="settings-divider"></div>
 
         <div className="log-section">

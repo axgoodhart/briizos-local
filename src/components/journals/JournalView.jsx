@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api } from './api.js';
 import { TEMPLATES } from './templates.js';
 import {
-  createNotesEditor, EditorToolbar, FONT_FAMILIES, LINE_HEIGHTS, WRENCH_ICON,
+  createNotesEditor, EditorToolbar, FONT_FAMILIES, LINE_HEIGHTS,
   getSystemFonts, loadSystemFonts, canQueryLocalFonts,
 } from './richtext.jsx';
 import logger from '../../lib/logger';
@@ -1366,7 +1366,7 @@ export function JournalView({
   // focused one (or the first visible one).
   const editorsRef = useRef(new Map());
   const [activeEditorId, setActiveEditorId] = useState(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const [toolbarFloating, setToolbarFloating] = useState(false); // docked strip by default
   const [floatTray, setFloatTray] = useState(null); // null | 'format' | 'folio'
 
   // Per-folio rebalance triggers, so typography/font changes can reflow
@@ -1742,7 +1742,6 @@ export function JournalView({
     ? activeEditorId
     : mountedNoteIds[0];
   const toolbarEditor = toolbarId ? editorsRef.current.get(toolbarId) : null;
-  useEffect(() => { setToolbarCollapsed(false); }, [toolbarId]);
   useEffect(() => {
     if (isFloat && floatTray === 'format' && !toolbarEditor) setFloatTray(null);
   }, [isFloat, floatTray, toolbarEditor]);
@@ -2001,8 +2000,8 @@ export function JournalView({
           toolbarId={toolbarId}
           rootRef={rootRef}
           bookRef={bookRef}
-          collapsed={toolbarCollapsed}
-          onToggleCollapsed={() => setToolbarCollapsed((c) => !c)}
+          placement={toolbarFloating ? 'floating' : 'docked'}
+          onTogglePlacement={() => setToolbarFloating((f) => !f)}
         />
       )}
 
@@ -2015,7 +2014,6 @@ export function JournalView({
               toolbarId={toolbarId}
               rootRef={rootRef}
               bookRef={bookRef}
-              collapsed={false}
               placement="tray"
               onDismiss={() => setFloatTray(null)}
             />
@@ -2133,20 +2131,6 @@ export function JournalView({
                   >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
                 )}
                 {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
-                {toolbarEditor && toolbarCollapsed && (
-                  <button
-                    type="button"
-                    className="jv-wrench"
-                    title="Show formatting toolbar"
-                    aria-label="Show formatting toolbar"
-                    onClick={() => {
-                      setToolbarCollapsed(false);
-                      logger.info('journal', 'Toolbar restored from wrench', { folioId: toolbarId });
-                    }}
-                  >
-                    {WRENCH_ICON}
-                  </button>
-                )}
               </div>
             )}
           </div>

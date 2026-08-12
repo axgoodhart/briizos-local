@@ -11,9 +11,11 @@ import logger from '../../lib/logger';
 
 /* ── Rich text for notes folios ──────────────────────────────────────
    TipTap core (no React bindings — this is Preact country) plus Aida's
-   floating toolbar design: a draggable pill with B/I/U, link, code,
-   font family + size, and an expandable second row of headings,
-   alignment, lists, and quote. Documents serialize to JSON and live in
+   toolbar: B/I/U, link, code, font family + size, headings, alignment,
+   lists, quote, and line height. Docked by default as a single-row
+   strip above the book that scrolls horizontally when cramped;
+   double-clicking its handle tears it off into a draggable floating
+   pill (and docks it back). Documents serialize to JSON and live in
    folio.content.doc. */
 
 /* Font size isn't an official extension — tiny custom one on textStyle. */
@@ -221,11 +223,6 @@ const I = {
       <path d="m9 8-5 4 5 4M15 8l5 4-5 4" />
     </svg>
   ),
-  wrench: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17a2 2 0 1 0 3 3l7.7-8.3a4 4 0 0 0 0-5.4Z" />
-    </svg>
-  ),
   quote: <span className="rt-glyph" style={{ fontFamily: 'Georgia,serif', fontWeight: 700 }}>”</span>,
   alignL: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -265,9 +262,7 @@ const I = {
   ),
 };
 
-export const WRENCH_ICON = I.wrench;
-
-/* ── Floating toolbar ────────────────────────────────────────────────── */
+/* ── Editor toolbar (docked strip / floating pill / float tray) ──────── */
 
 function Btn({ active, onClick, title, children, wide }) {
   return (
@@ -288,12 +283,12 @@ export function EditorToolbar({
   toolbarId,
   rootRef,
   bookRef,
-  collapsed,
-  onToggleCollapsed,
   placement = 'floating',
+  onTogglePlacement = null,
   onDismiss = null,
 }) {
   const isTray = placement === 'tray';
+  const isDocked = placement === 'docked';
   const [expanded, setExpanded] = useState(false);
   const [pos, setPos] = useState(null); // non-null once the user drags
   const [autoPos, setAutoPos] = useState(null); // default tracks the book's center
@@ -302,7 +297,7 @@ export function EditorToolbar({
   const toolbarRef = useRef(null);
 
   useEffect(() => {
-    if (isTray || pos || collapsed) return;
+    if (isTray || isDocked || pos) return;
     const rootEl = rootRef?.current;
     const bookEl = bookRef?.current;
     const tbEl = toolbarRef.current;
@@ -322,9 +317,9 @@ export function EditorToolbar({
     ro.observe(bookEl);
     ro.observe(tbEl);
     return () => ro.disconnect();
-  }, [isTray, pos, collapsed, rootRef, bookRef]);
+  }, [isTray, isDocked, pos, rootRef, bookRef]);
 
-  if (!editor || editor.isDestroyed || collapsed) return null;
+  if (!editor || editor.isDestroyed) return null;
 
   const startDrag = (e) => {
     e.preventDefault();
@@ -358,7 +353,7 @@ export function EditorToolbar({
     window.addEventListener('pointerup', up);
   };
 
-  const effectivePos = isTray ? null : (pos || autoPos);
+  const effectivePos = isTray || isDocked ? null : (pos || autoPos);
 
   const c = () => editor.chain().focus();
 
@@ -428,84 +423,154 @@ export function EditorToolbar({
     c().setFontFamily(value).run();
   };
 
-  return (
-    <div
-      ref={toolbarRef}
-      className={'rt-toolbar' + (isTray ? ' rt-toolbar--tray' : '')}
-      style={effectivePos ? { left: `${effectivePos.x}px`, top: `${effectivePos.y}px`, right: 'auto', transform: 'none' } : undefined}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div className="rt-row">
-        {isTray ? (
-          <button
-            type="button"
-            className="rt-btn rt-btn--drag rt-btn--tray-dismiss"
-            title="Hide formatting tools"
-            aria-label="Hide formatting tools"
-            onClick={onDismiss}
-          >
-            {I.drag}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="rt-btn rt-btn--drag"
-            title="Move toolbar (double-click to hide)"
-            aria-label="Move formatting toolbar"
-            onPointerDown={startDrag}
-            onDoubleClick={() => {
-              onToggleCollapsed?.();
-              logger.info('journal', 'Toolbar collapsed to wrench', { folioId: toolbarId });
-            }}
-          >
-            {I.drag}
-          </button>
-        )}
-        <span className="rt-sep" />
-        <Btn active={editor.isActive('bold')} title="Bold (⌘B)" onClick={() => c().toggleBold().run()}>{I.bold}</Btn>
-        <Btn active={editor.isActive('italic')} title="Italic (⌘I)" onClick={() => c().toggleItalic().run()}>{I.italic}</Btn>
-        <Btn active={editor.isActive('underline')} title="Underline (⌘U)" onClick={() => c().toggleUnderline().run()}>{I.underline}</Btn>
-        <Btn active={editor.isActive('link') || !!link} title="Link" onClick={toggleLinkPanel}>{I.link}</Btn>
-        <Btn active={editor.isActive('code')} title="Inline code" onClick={() => c().toggleCode().run()}>{I.code}</Btn>
-        <span className="rt-sep" />
-        <select
-          className="rt-family"
-          title="Font"
-          value={family}
-          onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => onFamilyChange(e.currentTarget.value)}
+  const secondaryTools = (
+    <>
+      {[1, 2, 3].map((lvl) => (
+        <Btn
+          key={lvl}
+          active={editor.isActive('heading', { level: lvl })}
+          title={`Heading ${lvl}`}
+          onClick={() => c().toggleHeading({ level: lvl }).run()}
         >
-          {FONT_FAMILIES.map((f) => (
-            <option key={f.label} value={f.value}>{f.label}</option>
-          ))}
-          {!knownFamily && <option value={family}>{family.replace(/['"]/g, '').split(',')[0]}</option>}
-          {systemFonts === null && canQueryLocalFonts() && (
-            <option value="__load-system">↻ load my computer's fonts…</option>
-          )}
-          {systemFonts?.length > 0 && (
-            <optgroup label="my computer">
-              {systemFonts.map((f) => (
-                <option key={f.label} value={f.value}>{f.label}</option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-        <input
-          className="rt-size"
-          type="number"
-          min="9"
-          max="72"
-          placeholder="14"
-          title="Font size"
-          value={size}
-          onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => c().setFontSize(parseInt(e.currentTarget.value, 10) || null).run()}
-        />
-        <span className="rt-sep" />
+          <span className="rt-glyph rt-glyph--h">H<sub>{lvl}</sub></span>
+        </Btn>
+      ))}
+      <span className="rt-sep" />
+      <Btn active={editor.isActive({ textAlign: 'left' })} title="Align left" onClick={() => c().setTextAlign('left').run()}>{I.alignL}</Btn>
+      <Btn active={editor.isActive({ textAlign: 'center' })} title="Align center" onClick={() => c().setTextAlign('center').run()}>{I.alignC}</Btn>
+      <Btn active={editor.isActive({ textAlign: 'right' })} title="Align right" onClick={() => c().setTextAlign('right').run()}>{I.alignR}</Btn>
+      <span className="rt-sep" />
+      <Btn active={editor.isActive('bulletList')} title="Bullet list" onClick={() => c().toggleBulletList().run()}>{I.bullets}</Btn>
+      <Btn active={editor.isActive('orderedList')} title="Numbered list" onClick={() => c().toggleOrderedList().run()}>{I.numbers}</Btn>
+      <Btn active={editor.isActive('blockquote')} title="Quote" onClick={() => c().toggleBlockquote().run()}>{I.quote}</Btn>
+      <span className="rt-sep" />
+      <select
+        className="rt-family rt-lineheight"
+        title="Line height"
+        value={lineHeight}
+        onMouseDown={(e) => e.stopPropagation()}
+        onChange={(e) => c().setLineHeight(e.currentTarget.value || null).run()}
+      >
+        <option value="">line ↕ auto</option>
+        {LINE_HEIGHTS.map((v) => (
+          <option key={v} value={v}>line ↕ {v}</option>
+        ))}
+      </select>
+    </>
+  );
+
+  /* Docked shows every tool in the one row (no chevron reveal); the pill
+     and the float tray keep the chevron + second row so they stay compact. */
+  const toolsRow = (
+    <div className="rt-row">
+      {isTray ? (
+        <button
+          type="button"
+          className="rt-btn rt-btn--drag rt-btn--tray-dismiss"
+          title="Hide formatting tools"
+          aria-label="Hide formatting tools"
+          onClick={onDismiss}
+        >
+          {I.drag}
+        </button>
+      ) : isDocked ? (
+        <button
+          type="button"
+          className="rt-btn rt-btn--drag rt-btn--dock-handle"
+          title="Double-click to float this toolbar"
+          aria-label="Formatting toolbar handle; double-click to float"
+          onDoubleClick={() => {
+            onTogglePlacement?.();
+            logger.info('journal', 'Toolbar floated from top strip', { folioId: toolbarId });
+          }}
+        >
+          {I.drag}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="rt-btn rt-btn--drag"
+          title="Move toolbar (double-click to dock)"
+          aria-label="Move formatting toolbar"
+          onPointerDown={startDrag}
+          onDoubleClick={() => {
+            onTogglePlacement?.();
+            logger.info('journal', 'Toolbar docked to top strip', { folioId: toolbarId });
+          }}
+        >
+          {I.drag}
+        </button>
+      )}
+      <span className="rt-sep" />
+      <Btn active={editor.isActive('bold')} title="Bold (⌘B)" onClick={() => c().toggleBold().run()}>{I.bold}</Btn>
+      <Btn active={editor.isActive('italic')} title="Italic (⌘I)" onClick={() => c().toggleItalic().run()}>{I.italic}</Btn>
+      <Btn active={editor.isActive('underline')} title="Underline (⌘U)" onClick={() => c().toggleUnderline().run()}>{I.underline}</Btn>
+      <Btn active={editor.isActive('link') || !!link} title="Link" onClick={toggleLinkPanel}>{I.link}</Btn>
+      <Btn active={editor.isActive('code')} title="Inline code" onClick={() => c().toggleCode().run()}>{I.code}</Btn>
+      <span className="rt-sep" />
+      <select
+        className="rt-family"
+        title="Font"
+        value={family}
+        onMouseDown={(e) => e.stopPropagation()}
+        onChange={(e) => onFamilyChange(e.currentTarget.value)}
+      >
+        {FONT_FAMILIES.map((f) => (
+          <option key={f.label} value={f.value}>{f.label}</option>
+        ))}
+        {!knownFamily && <option value={family}>{family.replace(/['"]/g, '').split(',')[0]}</option>}
+        {systemFonts === null && canQueryLocalFonts() && (
+          <option value="__load-system">↻ load my computer's fonts…</option>
+        )}
+        {systemFonts?.length > 0 && (
+          <optgroup label="my computer">
+            {systemFonts.map((f) => (
+              <option key={f.label} value={f.value}>{f.label}</option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+      <input
+        className="rt-size"
+        type="number"
+        min="9"
+        max="72"
+        placeholder="14"
+        title="Font size"
+        value={size}
+        onMouseDown={(e) => e.stopPropagation()}
+        onChange={(e) => c().setFontSize(parseInt(e.currentTarget.value, 10) || null).run()}
+      />
+      <span className="rt-sep" />
+      {isDocked ? (
+        secondaryTools
+      ) : (
         <Btn title={expanded ? 'Fewer tools' : 'More tools'} active={expanded} onClick={() => setExpanded(!expanded)}>
           <span className={'rt-chevron' + (expanded ? ' is-open' : '')}>{I.chevron}</span>
         </Btn>
-      </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      ref={toolbarRef}
+      className={'rt-toolbar' + (isTray ? ' rt-toolbar--tray' : '') + (isDocked ? ' rt-toolbar--docked' : '')}
+      style={effectivePos ? { left: `${effectivePos.x}px`, top: `${effectivePos.y}px`, right: 'auto', transform: 'none' } : undefined}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {isDocked ? (
+        <div
+          className="rt-dockscroll"
+          role="region"
+          tabIndex={0}
+          aria-label="Formatting tools; scroll horizontally for more"
+        >
+          {toolsRow}
+        </div>
+      ) : (
+        toolsRow
+      )}
 
       {link && (
         <div className="rt-linkpanel" onMouseDown={(e) => e.stopPropagation()}>
@@ -536,39 +601,9 @@ export function EditorToolbar({
         </div>
       )}
 
-      {expanded && (
+      {!isDocked && expanded && (
         <div className="rt-row rt-row--secondary">
-          {[1, 2, 3].map((lvl) => (
-            <Btn
-              key={lvl}
-              active={editor.isActive('heading', { level: lvl })}
-              title={`Heading ${lvl}`}
-              onClick={() => c().toggleHeading({ level: lvl }).run()}
-            >
-              <span className="rt-glyph rt-glyph--h">H<sub>{lvl}</sub></span>
-            </Btn>
-          ))}
-          <span className="rt-sep" />
-          <Btn active={editor.isActive({ textAlign: 'left' })} title="Align left" onClick={() => c().setTextAlign('left').run()}>{I.alignL}</Btn>
-          <Btn active={editor.isActive({ textAlign: 'center' })} title="Align center" onClick={() => c().setTextAlign('center').run()}>{I.alignC}</Btn>
-          <Btn active={editor.isActive({ textAlign: 'right' })} title="Align right" onClick={() => c().setTextAlign('right').run()}>{I.alignR}</Btn>
-          <span className="rt-sep" />
-          <Btn active={editor.isActive('bulletList')} title="Bullet list" onClick={() => c().toggleBulletList().run()}>{I.bullets}</Btn>
-          <Btn active={editor.isActive('orderedList')} title="Numbered list" onClick={() => c().toggleOrderedList().run()}>{I.numbers}</Btn>
-          <Btn active={editor.isActive('blockquote')} title="Quote" onClick={() => c().toggleBlockquote().run()}>{I.quote}</Btn>
-          <span className="rt-sep" />
-          <select
-            className="rt-family rt-lineheight"
-            title="Line height"
-            value={lineHeight}
-            onMouseDown={(e) => e.stopPropagation()}
-            onChange={(e) => c().setLineHeight(e.currentTarget.value || null).run()}
-          >
-            <option value="">line ↕ auto</option>
-            {LINE_HEIGHTS.map((v) => (
-              <option key={v} value={v}>line ↕ {v}</option>
-            ))}
-          </select>
+          {secondaryTools}
         </div>
       )}
     </div>

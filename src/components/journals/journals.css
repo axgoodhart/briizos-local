@@ -13,15 +13,15 @@
 background:linear-gradient(45deg, rgba(255,255,255,0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(-45deg, rgba(255,255,255,0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.02) 75%) 0 0 / 20px 20px, linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.02) 75%) 0 0 / 20px 20px;
 background-size: 12.80% 12.80%;
 background-color:var(--ui-modal-header-bg);
-background-position: 50% 50%;
+background-position: 100% 100%;
 scrollbar-width:12px;
-transition:background-color 0.35s ease-in, background-size .95s cubic-bezier(0.75, 0.1, 0.165, 1);}
+transition:background-color 0.35s ease-in, background-position .95s cubic-bezier(0.75, 0.1, 0.165, 1), background-size .95s cubic-bezier(0.75, 0.1, 0.165, 1);}
 
 .journals-home::-webkit-scrollbar { display:none; }
 
 .journals-home:has(.jr-card.is-selected) {
-  background-color:rgb(209, 198, 198);
-  background-size:30% 25%;
+  background-color:rgb(0,0,0,.8);
+  background-size:95% 75%;
 }
 
 .journals-home:has(.jr-card.is-selected) .jr-card:not(.is-selected) {
@@ -1369,9 +1369,12 @@ padding: 1px 1px;  cursor: pointer;
   position: relative;
 }
 
-/* Floating toolbar pill — Aida's design. It is a direct child of
-   .jv-root, so dragging spans the whole panel; JS keeps the untouched
-   default centered over the book as the sidebar or panel resizes. */
+/* Editor toolbar — Aida's design. Docked by default as a single-row
+   strip at the top of the panel (--docked below); double-clicking the
+   handle tears it off into this draggable pill and docks it back. The
+   pill is a direct child of .jv-root, so dragging spans the whole
+   panel; JS keeps the untouched default centered over the book as the
+   sidebar or panel resizes. */
 .rt-toolbar {
   position: absolute;
   top: 12px;
@@ -1410,6 +1413,52 @@ padding: 1px 1px;  cursor: pointer;
 .rt-toolbar--tray .rt-row { min-width: max-content; }
 .rt-toolbar--tray .rt-btn--tray-dismiss { cursor: pointer; }
 .rt-toolbar--tray .rt-btn--tray-dismiss:active { cursor: pointer; }
+
+/* Docked strip — the default. Sits in flow at the top of .jv-root with
+   every tool in the one row; when the panel is narrower than the row,
+   the row scrolls horizontally so no control ever drops or hides. */
+.rt-toolbar--docked {
+  position: relative;
+  inset: auto;
+  left: auto;
+  top: auto;
+  transform: none;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: 14px;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.38);
+}
+
+.rt-toolbar--docked .rt-btn--dock-handle { cursor: pointer; }
+.rt-toolbar--docked .rt-btn--dock-handle:active { cursor: pointer; }
+
+.rt-dockscroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.rt-dockscroll::-webkit-scrollbar { height: 5px; }
+.rt-dockscroll::-webkit-scrollbar-track { background: transparent; }
+.rt-dockscroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+}
+
+.rt-dockscroll:focus-visible {
+  outline: 2px solid rgba(190, 220, 255, 0.78);
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+
+.rt-dockscroll .rt-row { width: max-content; min-width: max-content; }
 
 .rt-row {
   display: flex;
@@ -1921,26 +1970,6 @@ padding: 1px 1px;  cursor: pointer;
   font-size: 12.5px;
 }
 .jvb__taginput::placeholder { color: rgba(255, 255, 255, 0.3); }
-
-.jv-wrench {
-  appearance: none;
-  flex: none;
-  margin-left: auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(38, 38, 44, 0.78);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  color: rgba(255, 255, 255, 0.82);
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-}
-.jv-wrench:hover { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.3); }
-.jv-wrench svg { width: 16px; height: 16px; }
 
 /* ── Floating journal (pop-out) ──────────────────────────────────────
    A journal torn off the shelf. The outer .journal-float is the fixed
