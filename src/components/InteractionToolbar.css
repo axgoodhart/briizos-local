@@ -32,6 +32,13 @@
   transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+.interaction-panel .chat-input-toolbar:not(:has(.model-picker-trigger[aria-expanded='true'])) {
+  height: var(--interaction-bar-height);
+  overflow: hidden;
+  opacity: 0.72;
+  backdrop-filter: none;
+}
+
 .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) {
   grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
   height: 100%;
