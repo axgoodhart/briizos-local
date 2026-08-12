@@ -33,7 +33,6 @@
   transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.interaction-panel .chat-input-toolbar:hover,
 .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) {
   grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
   height: 100%;
@@ -51,8 +50,6 @@
   transition: opacity 160ms cubic-bezier(0.25, 1, 0.5, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
 }
 
-.interaction-panel .chat-input-toolbar:hover .modality-selector,
-.interaction-panel .chat-input-toolbar:hover .model-picker-dropdown,
 .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) .modality-selector,
 .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) .model-picker-dropdown {
   visibility: visible;
@@ -90,11 +87,6 @@
   transition: background-color 120ms linear, color 120ms linear;
 }
 
-.interaction-panel .model-picker-trigger:hover {
-  background: var(--interaction-surface) !important;
-  color: color-mix(in oklch, var(--interaction-text) 90%, var(--interaction-accent));
-}
-
 .interaction-panel .model-picker-trigger:active .model-picker-trigger-label {
   transform: translateY(1px);
 }
@@ -118,7 +110,6 @@
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), color 120ms linear;
 }
 
-.interaction-panel .chat-input-toolbar:hover .model-picker-trigger-arrow,
 .interaction-panel .model-picker-trigger[aria-expanded='true'] .model-picker-trigger-arrow {
   color: var(--interaction-accent);
   transform: translateY(0.12em) rotate(225deg);
@@ -410,7 +401,6 @@
     grid-template-rows: var(--interaction-bar-height) 0fr 0fr;
   }
 
-  .interaction-panel .chat-input-toolbar:hover,
   .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) {
     grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr);
   }
