@@ -100,6 +100,8 @@ transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
   cursor: default;
 }
 
+.jr-action--current:not(:disabled) { cursor: pointer; }
+
 /* Expanding search bar */
 .jr-searchbar {
   overflow: hidden;
@@ -1980,10 +1982,6 @@ padding: 1px 1px;  cursor: pointer;
 .journal-float {
   position: fixed;
   z-index: 30;
-  /* Mins mirror normalizeJournalFloatSize (JournalFloat.jsx) at MIN_W:
-     the frame carries no padding — the shell fills it edge to edge. */
-  min-width: 320px;
-  min-height: 462px;
   box-sizing: border-box;
   animation: jfPopIn 0.2s ease;
 }

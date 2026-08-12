@@ -385,6 +385,7 @@ function JournalCard({ journal, selected, onSelect, onPopOut }) {
 export function JournalPanel({
   onPopOutJournal = null,
   floatingJournalId = null,
+  onFloatingJournalHome = null,
   pendingOpenJournalId = null,
   onPendingOpenHandled = null,
 }) {
@@ -501,8 +502,8 @@ export function JournalPanel({
             onJournalChange={(updated) =>
               setJournals((prev) => prev.map((j) => (j.id === updated.id ? { ...j, ...updated } : j)))}
             onPopOut={onPopOutJournal ? () => {
-              // Pop out and hand the panel back to the shelf; a null seed
-              // reuses the float's persisted rect.
+              // Pop out and hand the panel back to the shelf. The app
+              // places every newly floating journal at its home rect.
               onPopOutJournal(openJournal.id, null, 'book');
               setOpenId(null);
             } : null}
@@ -537,7 +538,14 @@ export function JournalPanel({
               >
                 {Icon.trash}
               </button>
-              <button type="button" className="jr-action jr-action--current" title="Home" disabled>
+              <button
+                type="button"
+                className="jr-action jr-action--current"
+                title={floatingJournalId ? 'Center floating journal' : 'Home'}
+                aria-label={floatingJournalId ? 'Center floating journal' : 'Home'}
+                disabled={!floatingJournalId || !onFloatingJournalHome}
+                onClick={onFloatingJournalHome}
+              >
                 {Icon.home}
               </button>
 

@@ -29,6 +29,8 @@ const FLOAT_SHELL_BORDER_Y = 7;
 const FLOAT_HEADER_HEIGHT = 34;
 const DEFAULT_FLOAT_WIDTH = 620;
 const MIN_W = 320;
+const HOME_HEIGHT_RATIO = 0.75;
+const HOME_VIEWPORT_GUTTER = 12;
 
 /* Click-and-hold drag: the pointer must stay put this long (and this
    still) before the frame grabs the window. Early movement or release
@@ -53,18 +55,42 @@ export function normalizeJournalFloatSize(size = {}) {
 
 const DEFAULT_FLOAT_SIZE = normalizeJournalFloatSize();
 
+export function getJournalFloatHomeRect(
+  viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280,
+  viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800,
+) {
+  const safeViewportWidth = Math.max(1, Number(viewportWidth) || 1280);
+  const safeViewportHeight = Math.max(1, Number(viewportHeight) || 800);
+  const height = Math.round(safeViewportHeight * HOME_HEIGHT_RATIO);
+  const idealWidth = Math.round(
+    FLOAT_SHELL_BORDER_X
+      + Math.max(0, height - FLOAT_SHELL_BORDER_Y - FLOAT_HEADER_HEIGHT) * FLOAT_PAGE_ASPECT,
+  );
+  const availableWidth = Math.max(1, safeViewportWidth - HOME_VIEWPORT_GUTTER * 2);
+  const width = Math.min(availableWidth, Math.max(Math.min(MIN_W, availableWidth), idealWidth));
+
+  return {
+    x: Math.round((safeViewportWidth - width) / 2),
+    y: Math.round((safeViewportHeight - height) / 2),
+    width,
+    height,
+  };
+}
+
 export function JournalFloat({
   journalId,
   onClose = null,
   onDock = null,
-  panelPosition = null,
-  panelDimensions = null,
+  homeRequest = 0,
   onPanelChange = null,
 }) {
+  const initialHomeRect = useRef(getJournalFloatHomeRect()).current;
   const [journal, setJournal] = useState(null); // null = loading
-  const [panelPos, setPanelPos] = useState(panelPosition || null);
-  const [panelSize, setPanelSize] = useState(() =>
-    normalizeJournalFloatSize(panelDimensions || DEFAULT_FLOAT_SIZE));
+  const [panelPos, setPanelPos] = useState({ x: initialHomeRect.x, y: initialHomeRect.y });
+  const [panelSize, setPanelSize] = useState({
+    width: initialHomeRect.width,
+    height: initialHomeRect.height,
+  });
   const [trayHeight, setTrayHeight] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
@@ -85,7 +111,28 @@ export function JournalFloat({
 
   const frameRef = useRef(null);
   const onCloseRef = useRef(onClose);
+  const onPanelChangeRef = useRef(onPanelChange);
   onCloseRef.current = onClose;
+  onPanelChangeRef.current = onPanelChange;
+
+  /* Opening and Home share one canonical runtime-relative placement.
+     Recompute rather than reuse persisted geometry so the result follows
+     the current briizOS window, including after the app window changes. */
+  useEffect(() => {
+    const homeRect = getJournalFloatHomeRect();
+    const nextPos = { x: homeRect.x, y: homeRect.y };
+    const nextSize = { width: homeRect.width, height: homeRect.height };
+    setPanelPos(nextPos);
+    setPanelSize(nextSize);
+    onPanelChangeRef.current?.(nextPos, nextSize);
+    logger.info('journal', 'Floating journal returned home', {
+      journalId,
+      x: homeRect.x,
+      y: homeRect.y,
+      width: homeRect.width,
+      height: homeRect.height,
+    });
+  }, [journalId, homeRequest]);
 
   /* Load the journal row. No single-row IPC exists, so filter the list;
      a miss self-heals a stale persisted id (journal deleted between
@@ -306,20 +353,13 @@ export function JournalFloat({
     };
   }, [dragging, resizing, handleFloatingMove, handleFloatingUp]);
 
-  const fallbackX = typeof window !== 'undefined'
-    ? Math.max(36, window.innerWidth * 0.58 - panelSize.width / 2)
-    : 140;
-  const fallbackY = typeof window !== 'undefined'
-    ? Math.max(72, window.innerHeight * 0.16)
-    : 110;
-
   return (
     <div
       ref={frameRef}
       className={`journal-float ${dragging ? 'dragging' : ''} ${resizing ? 'resizing' : ''} ${grabPulse ? 'grab-pulse' : ''}`}
       style={{
-        left: panelPos?.x ?? fallbackX,
-        top: panelPos?.y ?? fallbackY,
+        left: panelPos.x,
+        top: panelPos.y,
         width: panelSize.width,
         height: panelSize.height + trayHeight,
       }}

@@ -5,7 +5,7 @@ import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
 import MediaPanel from './components/MediaPanel';
 import { JournalPanel } from './components/journals/JournalPanel.jsx';
-import { JournalFloat, normalizeJournalFloatSize } from './components/journals/JournalFloat.jsx';
+import { JournalFloat } from './components/journals/JournalFloat.jsx';
 import { CaptureOnboarding, NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
 import Forest from './components/forest/Forest.jsx';
 import LoginOverlay from './components/LoginOverlay';
@@ -325,6 +325,7 @@ function AppContent({ layout }) {
   // The single journal torn off the shelf (id or null); its rect lives in
   // workspace.journalFloat. One float at a time — a new pop-out replaces it.
   const [floatingJournalId, setFloatingJournalId] = useState(null);
+  const [journalFloatHomeRequest, setJournalFloatHomeRequest] = useState(0);
   // Journal id the JournalPanel should open on next mount (dock hand-off).
   const [pendingOpenJournalId, setPendingOpenJournalId] = useState(null);
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -539,30 +540,23 @@ function AppContent({ layout }) {
     logger.info('journal', 'Journal panel opened');
   }, [journalPanel, togglePanelVisibility, addPanel]);
 
-  /* Tear a journal off the shelf into the floating editor. seedRect (the
-     cover card's screen rect) places the float where the tear happened,
-     keeping the previously persisted size; a null seed reuses the last
-     rect. One float at a time — a second pop-out replaces the first. */
-  const popOutJournal = useCallback((journalId, seedRect = null, source = 'shelf') => {
+  const returnFloatingJournalHome = useCallback(() => {
+    setJournalFloatHomeRequest((request) => request + 1);
+  }, []);
+
+  /* Every pop-out starts from the same runtime-relative home rect. Manual
+     movement and resizing still persist until the journal is opened again
+     or the Journals panel's Home action explicitly recalls it. */
+  const popOutJournal = useCallback((journalId, _seedRect = null, source = 'shelf') => {
     setFloatingJournalId((prev) => {
       if (prev && prev !== journalId) {
         logger.info('journal', 'Floating journal replaced', { from: prev, to: journalId });
       }
       return journalId;
     });
-    if (seedRect) {
-      const { width, height } = normalizeJournalFloatSize(workspace.journalFloat);
-      updateWorkspace({
-        journalFloat: {
-          x: Math.max(12, Math.min(seedRect.left, window.innerWidth - width - 12)),
-          y: Math.max(12, Math.min(seedRect.top, window.innerHeight - height - 12)),
-          width,
-          height,
-        },
-      });
-    }
+    returnFloatingJournalHome();
     logger.info('journal', 'Journal popped out', { journalId, source });
-  }, [updateWorkspace, workspace.journalFloat]);
+  }, [returnFloatingJournalHome]);
 
   const closeJournalFloat = useCallback(() => {
     setFloatingJournalId((prev) => {
@@ -1153,6 +1147,7 @@ function AppContent({ layout }) {
           <JournalPanel
             onPopOutJournal={popOutJournal}
             floatingJournalId={floatingJournalId}
+            onFloatingJournalHome={returnFloatingJournalHome}
             pendingOpenJournalId={pendingOpenJournalId}
             onPendingOpenHandled={() => setPendingOpenJournalId(null)}
           />
@@ -1197,7 +1192,7 @@ function AppContent({ layout }) {
           </div>
         );
     }
-  }, [canvasesHook.canvases, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, pendingOpenJournalId]);
+  }, [canvasesHook.canvases, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, returnFloatingJournalHome, pendingOpenJournalId]);
 
   return (
     <div
@@ -1394,8 +1389,7 @@ function AppContent({ layout }) {
           journalId={floatingJournalId}
           onClose={closeJournalFloat}
           onDock={dockJournalFloat}
-          panelPosition={workspace.journalFloat ? { x: workspace.journalFloat.x, y: workspace.journalFloat.y } : null}
-          panelDimensions={workspace.journalFloat ? normalizeJournalFloatSize(workspace.journalFloat) : null}
+          homeRequest={journalFloatHomeRequest}
           onPanelChange={(pos, size) => {
             updateWorkspace({
               journalFloat: pos
