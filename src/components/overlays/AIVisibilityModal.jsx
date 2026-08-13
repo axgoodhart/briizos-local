@@ -387,7 +387,7 @@ export default function AIVisibilityModal() {
   if (!api) return null;
 
   const nowMs = Date.now();
-  const pillLabel = `AI${counts.active ? ` · ${counts.active} active` : ''}${counts.waiting ? ` · ${counts.waiting} waiting` : ''}`;
+  const pillLabel = `${counts.active ? ` § ${counts.active} ` : ''}${counts.waiting ? `   ${counts.waiting} ` : ''}`;
   const selectedChain = selectedDetail
     ? chains.find((chain) => chain.turnId === selectedDetail.turnId)
     : null;

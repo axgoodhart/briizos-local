@@ -1314,7 +1314,7 @@ function FloatJournalHeader({
       {(chrome?.onDock || chrome?.onClose) && (
         <div className="panel-header-actions journal-float__window-actions">
           {chrome.onDock && (
-            <button type="button" className="panel-header-btn" onClick={chrome.onDock} title="Dock to Journals panel" aria-label="Dock to Journals panel">⤓</button>
+            <button type="button" className="panel-header-btn" onClick={chrome.onDock} title="Dock to Journals panel" aria-label="Dock to Journals panel">↘︎</button>
           )}
           {chrome.onClose && (
             <button type="button" className="panel-header-btn" onClick={chrome.onClose} title="Close" aria-label="Close">×</button>

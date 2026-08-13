@@ -1,23 +1,29 @@
 /* AI visibility — floating activity pill + per-run process-chain timeline. */
 
 .aiviz-pill {
-  align-items: center;
-  background: var(--theme-components-overlays-aivisibility-pill-background, rgba(0, 30, 50, 0.72));
-  border: 1px solid var(--theme-components-overlays-aivisibility-pill-border, rgba(0, 200, 200, 0.35));
+  align-items:center;;
+  background: none;
+  border: none;
   border-radius: 999px;
-  bottom: 18px;
   color: var(--palette-accent-cyan, #35d0d0);
   cursor: pointer;
   display: flex;
-  font: 700 12px/1 var(--ui-font-main, sans-serif);
-  gap: 7px;
+  font:12px/1 var(--ui-font-main, sans-serif);
   letter-spacing: .04em;
-  padding: 8px 14px;
+  padding: 0px;
   position: fixed;
-  right: 18px;
+  top:18px;
+  right: 8px;
   z-index: 1200;
+  width:20px; 
+  height:20px;
+  text-align:center;
+  font-family:courier;
+  opacity:.2;
 }
-.aiviz-pill-dot { background: var(--palette-text-muted, #8aa); border-radius: 50%; height: 7px; width: 7px; }
+.aiviz-pill:hover, .aviz-pill-waiting { opacity:.5 !important; }
+.aiviz-pill-active { opacity:1; }
+.aiviz-pill-dot { background: var(--palette-text-muted, #8aa); border-radius: 10px; height: 7px; width: 7px; }
 .aiviz-pill-active .aiviz-pill-dot { animation: aiviz-pulse 1.2s ease-in-out infinite; background: var(--palette-success, #4cd67f); }
 .aiviz-pill-waiting .aiviz-pill-dot { background: var(--palette-warning, #e7b74a); }
 @keyframes aiviz-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }

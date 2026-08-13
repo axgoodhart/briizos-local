@@ -655,9 +655,8 @@ body {
 .panel-header-actions {
     display: flex;           
     gap: var(--cc-gap-small);
-    justify-content: space-evenly;
+    justify-content: flex-end;
      align-items: center;
-     width:33%
         
 }
 
@@ -669,6 +668,7 @@ body {
     cursor: pointer;
     padding: var(--cc-padding-small);
     font-size: var(--cc-font-size-medium);
+    font-family: SF Pro Display;
 }
 
 .panel-header-btn:hover {
@@ -2043,6 +2043,9 @@ resize:vertical;}
     font-size: var(--cc-font-size-small);
     padding: var(--cc-padding-small) var(--cc-padding-medium);
     cursor: pointer;
+    width:60px;
+    overflow: hidden;
+    overflow-wrap:normal;
     transition: all 0.15s ease;
 }
 
@@ -2348,6 +2351,7 @@ resize:vertical;}
 
 .tasks-section {
     padding: var(--cc-padding-medium);
+    filter:hue-rotate(190deg)brightness(2);
 }
 
 .task-item {
@@ -2689,16 +2693,21 @@ resize:vertical;}
 .task-input {
     flex: 1;
     padding: var(--cc-padding-medium) var(--cc-padding-large);
-    background: rgba(20, 40, 60, 0.6);
-    border: 1px solid rgba(0, 200, 200, 0.2);
+    background: rgba(30, 70, 90, 0.7);
+    border: 1px solid var(--palette-text-faint);
     border-radius: var(--cc-radius-slight);
     color: var(--palette-text-main);
     font-size: var(--cc-font-size-small);
+    transition:border-width .2s linear;
+}
+.task-input::placeholder{
+    color:white !important;
+    opacity:.4 !important;
 }
 
 .task-input:focus {
     outline: none;
-    border-color: rgba(0, 200, 200, 0.4);
+    border-width: 2px;
 }
 
 .task-input::placeholder {
