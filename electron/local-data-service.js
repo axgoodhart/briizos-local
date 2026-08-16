@@ -22,6 +22,7 @@ const SETTING_KEYS = new Set([
   'chat_config',
   'actiondeck_panel_settings',
   'briizify_plan',
+  'briizify_saved_flows',
   'selected_model',
   'suggestions_enabled',
   'agent_config',
@@ -242,7 +243,30 @@ class LocalDataService extends EventEmitter {
     }
     if (key === 'briizify_plan') {
       if (value === null) return null;
-      v.object(value, key, ['version', 'generatedAt', 'date', 'timeframe', 'window', 'channels', 'summary', 'activities', 'threadId']);
+      v.object(value, key, [
+        'version', 'generatedAt', 'date', 'timeframe', 'window', 'channels', 'summary', 'activities', 'threadId',
+        'calendarBlocks', 'targetExtensions', 'savedFlowId',
+      ]);
+      return value;
+    }
+    if (key === 'briizify_saved_flows') {
+      if (!Array.isArray(value) || value.length > 200) {
+        v.fail('INVALID_INPUT', 'briizify_saved_flows must be a list with at most 200 flows');
+      }
+      value.forEach((flow, flowIndex) => {
+        const flowLabel = `briizify_saved_flows[${flowIndex}]`;
+        v.object(flow, flowLabel, [
+          'id', 'savedAt', 'summary', 'timeframe', 'window', 'channels', 'activities',
+        ]);
+        if (!Array.isArray(flow.activities) || flow.activities.length > 48) {
+          v.fail('INVALID_INPUT', `${flowLabel}.activities must be a list with at most 48 activities`);
+        }
+        flow.activities.forEach((activity, activityIndex) => {
+          v.object(activity, `${flowLabel}.activities[${activityIndex}]`, [
+            'kind', 'refId', 'title', 'dayOffset', 'startMinute', 'durationMinutes', 'prep', 'steps', 'support',
+          ]);
+        });
+      });
       return value;
     }
     if (key === 'chat_config') {
