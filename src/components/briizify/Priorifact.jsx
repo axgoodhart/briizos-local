@@ -43,6 +43,17 @@ function fmtShort(minute) {
   return `${display}:${String(mins).padStart(2, '0')}`;
 }
 
+function fmtTimeInput(minute) {
+  return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+}
+
+function parseTimeInput(value) {
+  const [hours, minutes] = String(value).split(':').map(Number);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+  const result = hours * 60 + minutes;
+  return result >= 0 && result <= 1439 ? result : null;
+}
+
 function Priorifact({
   plan,
   onAddBreak,
@@ -50,9 +61,14 @@ function Priorifact({
   onAddToCalendar,
   onSaveFlow,
   onExtendActivity,
+  onUpdateActivity,
+  onSwapActivities,
+  onAddActivity,
+  onTogglePause,
   calendarStatus,
   saveFlowStatus,
   extendingActivityId,
+  scheduleStatus,
   actionError,
   maxTargetExtensions,
   onChangePlan,
@@ -64,7 +80,13 @@ function Priorifact({
   const overrideBaseRef = useRef(null);
   const [activeChannel, setActiveChannel] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [editDraft, setEditDraft] = useState(null);
+  const [draggedActivityId, setDraggedActivityId] = useState(null);
+  const [dropTargetId, setDropTargetId] = useState(null);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [addingActivity, setAddingActivity] = useState(false);
   const idleRef = useRef(null);
+  const cancelEditRef = useRef(false);
 
   useEffect(() => {
     const tick = setInterval(() => {
@@ -85,22 +107,37 @@ function Priorifact({
     }, IDLE_RETURN_MS);
   }, []);
   useEffect(() => () => { if (idleRef.current) clearTimeout(idleRef.current); }, []);
+  useEffect(() => {
+    if (expanded) return;
+    setEditDraft(null);
+    setDraggedActivityId(null);
+    setDropTargetId(null);
+    setDeleteArmed(false);
+  }, [expanded]);
+
+  const paused = !!plan.pauseState;
+  const scheduleDate = paused ? plan.pauseState.anchorDate : today;
+  const scheduleMinute = paused ? plan.pauseState.anchorMinute : nowMinute;
+  const pauseElapsedMinutes = paused
+    ? Math.max(1, Math.ceil((Date.now() - plan.pauseState.startedAt) / 60000))
+    : 0;
+  const scheduleWorking = scheduleStatus === 'working';
 
   const todays = useMemo(() => {
-    const scoped = plan.activities.filter((activity) => activity.date === today);
+    const scoped = plan.activities.filter((activity) => activity.date === scheduleDate);
     return scoped.length ? scoped : plan.activities;
-  }, [plan, today]);
+  }, [plan, scheduleDate]);
   const nonBreak = useMemo(() => todays.filter((activity) => activity.kind !== 'break'), [todays]);
 
   // Clock-driven current activity: the active block, else the next
   // upcoming one, else null (plan complete).
   const clockCurrent = useMemo(() => {
     const active = [...nonBreak].reverse().find((activity) => (
-      activity.startMinute <= nowMinute && nowMinute < activity.startMinute + activity.durationMinutes
+      activity.startMinute <= scheduleMinute && scheduleMinute < activity.startMinute + activity.durationMinutes
     ));
     if (active) return active;
-    return nonBreak.find((activity) => activity.startMinute > nowMinute) || null;
-  }, [nonBreak, nowMinute]);
+    return nonBreak.find((activity) => activity.startMinute > scheduleMinute) || null;
+  }, [nonBreak, scheduleMinute]);
 
   // A chip click overrides "current" until the clock itself moves on.
   useEffect(() => {
@@ -125,18 +162,26 @@ function Priorifact({
   const extensionCount = current ? plan.targetExtensions?.[current.id] || 0 : 0;
   const extensionLimitReached = extensionCount >= maxTargetExtensions;
   const extensionWorking = extendingActivityId === current?.id;
+  const interactionBusy = scheduleWorking
+    || calendarStatus === 'working'
+    || saveFlowStatus === 'working'
+    || !!extendingActivityId;
 
   const remainLabel = useMemo(() => {
     if (!current) return 'plan complete';
-    if (nowMinute < current.startMinute) return `in ${current.startMinute - nowMinute}m`;
-    return `${Math.max(0, current.startMinute + current.durationMinutes - nowMinute)}m more`;
-  }, [current, nowMinute]);
+    if (scheduleMinute < current.startMinute) {
+      const label = `in ${current.startMinute - scheduleMinute}m`;
+      return paused ? `paused · ${label}` : label;
+    }
+    const remaining = Math.max(0, current.startMinute + current.durationMinutes - scheduleMinute);
+    return paused ? `paused · ${remaining}m left` : `${remaining}m more`;
+  }, [current, paused, scheduleMinute]);
 
   const progressOf = useCallback((activity) => {
-    if (nowMinute <= activity.startMinute) return 0;
-    if (nowMinute >= activity.startMinute + activity.durationMinutes) return 100;
-    return Math.round(((nowMinute - activity.startMinute) / activity.durationMinutes) * 100);
-  }, [nowMinute]);
+    if (scheduleMinute <= activity.startMinute) return 0;
+    if (scheduleMinute >= activity.startMinute + activity.durationMinutes) return 100;
+    return Math.round(((scheduleMinute - activity.startMinute) / activity.durationMinutes) * 100);
+  }, [scheduleMinute]);
 
   const cards = useMemo(() => {
     if (!current) return todays;
@@ -165,12 +210,100 @@ function Priorifact({
     setActiveChannel((currentChannel) => (currentChannel === channelId ? null : channelId));
   }, [touch]);
 
+  const beginEdit = useCallback((activity, field) => {
+    if (!expanded || paused || interactionBusy) return;
+    cancelEditRef.current = false;
+    const value = field === 'startMinute'
+      ? fmtTimeInput(activity.startMinute)
+      : String(activity[field]);
+    setEditDraft({ activityId: activity.id, field, value });
+    touch();
+  }, [expanded, interactionBusy, paused, touch]);
+
+  const cancelEdit = useCallback(() => {
+    cancelEditRef.current = true;
+    setEditDraft(null);
+  }, []);
+
+  const commitEdit = useCallback(async () => {
+    if (cancelEditRef.current) {
+      cancelEditRef.current = false;
+      return;
+    }
+    const draft = editDraft;
+    if (!draft) return;
+    setEditDraft(null);
+    let value = draft.value;
+    if (draft.field === 'startMinute') value = parseTimeInput(value);
+    if (draft.field === 'durationMinutes') value = Number(value);
+    await onUpdateActivity(draft.activityId, { [draft.field]: value });
+  }, [editDraft, onUpdateActivity]);
+
+  const handleEditKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEdit();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  }, [cancelEdit]);
+
+  const handleAddActivity = useCallback(async () => {
+    if (paused || interactionBusy || addingActivity) return;
+    setAddingActivity(true);
+    touch();
+    const targetDate = todays[todays.length - 1]?.date || scheduleDate;
+    let activity = null;
+    try {
+      activity = await onAddActivity(targetDate);
+    } finally {
+      setAddingActivity(false);
+    }
+    if (activity) {
+      cancelEditRef.current = false;
+      setEditDraft({ activityId: activity.id, field: 'title', value: activity.title });
+    }
+  }, [addingActivity, interactionBusy, onAddActivity, paused, scheduleDate, todays, touch]);
+
+  const handleDragStart = useCallback((event, activityId) => {
+    if (paused || interactionBusy) {
+      event.preventDefault();
+      return;
+    }
+    setDraggedActivityId(activityId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', activityId);
+  }, [interactionBusy, paused]);
+
+  const handleDrop = useCallback(async (event, targetId) => {
+    event.preventDefault();
+    const sourceId = draggedActivityId || event.dataTransfer.getData('text/plain');
+    setDraggedActivityId(null);
+    setDropTargetId(null);
+    if (!sourceId || sourceId === targetId) return;
+    touch();
+    await onSwapActivities(sourceId, targetId);
+  }, [draggedActivityId, onSwapActivities, touch]);
+
+  const handleSwapKeyDown = useCallback(async (event, activityId) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || paused || interactionBusy) return;
+    const swappable = todays.filter((activity) => activity.kind !== 'break');
+    const index = swappable.findIndex((activity) => activity.id === activityId);
+    const target = swappable[index + (event.key === 'ArrowLeft' ? -1 : 1)];
+    if (!target) return;
+    event.preventDefault();
+    touch();
+    await onSwapActivities(activityId, target.id);
+  }, [interactionBusy, onSwapActivities, paused, todays, touch]);
+
   // Timeline geometry for the expanded view.
   const span = useMemo(() => {
     if (!todays.length) return { start: 0, end: 1 };
-    const start = plan.window?.startMinute ?? Math.min(...todays.map((activity) => activity.startMinute));
-    const end = plan.window?.endMinute
-      ?? Math.max(...todays.map((activity) => activity.startMinute + activity.durationMinutes));
+    const activityStart = Math.min(...todays.map((activity) => activity.startMinute));
+    const activityEnd = Math.max(...todays.map((activity) => activity.startMinute + activity.durationMinutes));
+    const start = Math.min(plan.window?.startMinute ?? activityStart, activityStart);
+    const end = Math.max(plan.window?.endMinute ?? activityEnd, activityEnd);
     return { start, end: Math.max(end, start + 30) };
   }, [todays, plan.window]);
   const spanPct = useCallback(
@@ -180,17 +313,79 @@ function Priorifact({
 
   const hueClass = (index) => `bzf-hue-${Math.min(2, Math.floor(index / 2))}`;
 
+  const renderEditableField = (activity, field, display, className) => {
+    const editing = editDraft?.activityId === activity.id && editDraft.field === field;
+    if (editing) {
+      const inputType = field === 'startMinute' ? 'time' : field === 'durationMinutes' ? 'number' : 'text';
+      return (
+        <input
+          className={`${className} bzf-card-editor`}
+          type={inputType}
+          min={field === 'durationMinutes' ? 1 : undefined}
+          max={field === 'durationMinutes' ? 1440 : undefined}
+          value={editDraft.value}
+          onChange={(event) => {
+            touch();
+            setEditDraft((currentDraft) => ({ ...currentDraft, value: event.target.value }));
+          }}
+          onBlur={commitEdit}
+          onKeyDown={handleEditKeyDown}
+          onFocus={(event) => event.currentTarget.select()}
+          aria-label={`Edit activity ${field === 'title' ? 'name' : field === 'startMinute' ? 'start time' : 'duration'}`}
+          autoFocus
+        />
+      );
+    }
+    return (
+      <button
+        type="button"
+        className={`${className} bzf-card-editable`}
+        onDoubleClick={() => beginEdit(activity, field)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === 'F2') beginEdit(activity, field);
+        }}
+        disabled={paused || interactionBusy}
+        title="Double-click to edit"
+      >
+        {display}
+      </button>
+    );
+  };
+
   const renderCard = (activity, index, { removable = false } = {}) => {
+    const editable = removable;
+    const draggable = editable && activity.kind !== 'break';
+    const isDragging = draggedActivityId === activity.id;
+    const isDropTarget = dropTargetId === activity.id && draggedActivityId !== activity.id;
+    const cardInteractionProps = draggable ? {
+      onDragOver: (event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; },
+      onDragEnter: (event) => { event.preventDefault(); setDropTargetId(activity.id); },
+      onDragLeave: (event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDropTargetId(null);
+      },
+      onDrop: (event) => handleDrop(event, activity.id),
+    } : {};
+
     if (activity.kind === 'break') {
       return (
         <div key={activity.id} className="bzf-card break" title={`${activity.durationMinutes}m break`}>
-          <span className="bzf-card-break-label">break</span>
-          <span className="bzf-card-duration">{activity.durationMinutes}m</span>
+          {editable && (
+            <div className="bzf-card-top break-time">
+              {renderEditableField(activity, 'startMinute', fmtShort(activity.startMinute), 'bzf-card-time')}
+            </div>
+          )}
+          {editable
+            ? renderEditableField(activity, 'title', activity.title, 'bzf-card-break-label')
+            : <span className="bzf-card-break-label">{activity.title}</span>}
+          {editable
+            ? renderEditableField(activity, 'durationMinutes', `${activity.durationMinutes}m`, 'bzf-card-duration')
+            : <span className="bzf-card-duration">{activity.durationMinutes}m</span>}
           {removable && (
             <button
               type="button"
               className="bzf-card-remove"
               onClick={() => { touch(); onRemoveActivity(activity.id); }}
+              disabled={paused || interactionBusy}
               title="Remove break"
             >✕</button>
           )}
@@ -202,20 +397,44 @@ function Priorifact({
     return (
       <div
         key={activity.id}
-        className={`bzf-card ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${hueClass(index)}`}
+        className={`bzf-card ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${hueClass(index)} ${isDragging ? 'dragging' : ''} ${isDropTarget ? 'drop-target' : ''}`}
+        {...cardInteractionProps}
       >
         <div className="bzf-card-top">
-          <span className="bzf-card-time">{fmtShort(activity.startMinute)}</span>
-          <span className="bzf-card-duration">{activity.durationMinutes}<sup>m</sup></span>
+          {editable
+            ? renderEditableField(activity, 'startMinute', fmtShort(activity.startMinute), 'bzf-card-time')
+            : <span className="bzf-card-time">{fmtShort(activity.startMinute)}</span>}
+          {editable
+            ? renderEditableField(activity, 'durationMinutes', <>{activity.durationMinutes}<sup>m</sup></>, 'bzf-card-duration')
+            : <span className="bzf-card-duration">{activity.durationMinutes}<sup>m</sup></span>}
         </div>
-        <div className="bzf-card-title">{activity.title}</div>
+        {editable
+          ? renderEditableField(activity, 'title', activity.title, 'bzf-card-title')
+          : <div className="bzf-card-title">{activity.title}</div>}
         {removable && (
           <button
             type="button"
             className="bzf-card-remove"
             onClick={() => { touch(); onRemoveActivity(activity.id); }}
+            disabled={paused || interactionBusy}
             title="Remove from plan"
           >✕</button>
+        )}
+        {draggable && (
+          <button
+            type="button"
+            className="bzf-card-drag-handle"
+            draggable
+            onDragStart={(event) => handleDragStart(event, activity.id)}
+            onDragEnd={() => { setDraggedActivityId(null); setDropTargetId(null); }}
+            onKeyDown={(event) => handleSwapKeyDown(event, activity.id)}
+            disabled={paused || interactionBusy}
+            aria-label={`Drag ${activity.title} to swap its slot`}
+            title="Drag to swap slots · arrow keys also move this activity"
+          >
+            <span />
+            <span />
+          </button>
         )}
       </div>
     );
@@ -223,7 +442,7 @@ function Priorifact({
 
   return (
     <div
-      className={`priorifact ${expanded ? 'expanded' : ''}`}
+      className={`priorifact ${expanded ? 'expanded' : ''} ${paused ? 'paused' : ''}`}
       onPointerDown={touch}
       onWheel={touch}
     >
@@ -247,9 +466,19 @@ function Priorifact({
           <div className="bzf-flow-actions">
             <button
               type="button"
+              className={`bzf-flow-action pause ${paused ? 'active' : ''}`}
+              onClick={() => { touch(); onTogglePause((clockCurrent || current).id, scheduleMinute); }}
+              disabled={interactionBusy}
+              aria-pressed={paused}
+              title={paused ? 'Resume and move the remaining schedule' : 'Pause this priorifact'}
+            >
+              {scheduleWorking ? 'Working…' : paused ? `▶ Resume · ${pauseElapsedMinutes}m` : 'Ⅱ Pause'}
+            </button>
+            <button
+              type="button"
               className={`bzf-flow-action ${calendarComplete ? 'complete' : ''}`}
               onClick={() => { touch(); onAddToCalendar(); }}
-              disabled={calendarComplete || calendarStatus === 'working'}
+              disabled={interactionBusy || calendarComplete}
               aria-label="Add priorifact blocks to Calendar"
               title={calendarComplete ? 'This priorifact is on your Calendar' : 'Add every block to Calendar'}
             >
@@ -263,7 +492,7 @@ function Priorifact({
               type="button"
               className={`bzf-flow-action ${flowSaved ? 'complete' : ''}`}
               onClick={() => { touch(); onSaveFlow(); }}
-              disabled={flowSaved || saveFlowStatus === 'working'}
+              disabled={interactionBusy || flowSaved}
               aria-label="Save this priorifact as a reusable flow"
               title={flowSaved ? 'This flow is saved for future reuse' : 'Save this flow for another day'}
             >
@@ -277,9 +506,10 @@ function Priorifact({
         <div className="priorifact-rail">
           {nonBreak.map((activity) => {
             const isCurrent = activity.id === current?.id;
-            const isInProgress = isCurrent
-              && activity.startMinute <= nowMinute
-              && nowMinute < activity.startMinute + activity.durationMinutes;
+            const isInProgress = !paused
+              && isCurrent
+              && activity.startMinute <= scheduleMinute
+              && scheduleMinute < activity.startMinute + activity.durationMinutes;
             return (
               <button
                 key={activity.id}
@@ -309,7 +539,7 @@ function Priorifact({
                   type="button"
                   className="priorifact-extend"
                   onClick={() => { touch(); onExtendActivity(current.id); }}
-                  disabled={extensionLimitReached || extensionWorking}
+                  disabled={paused || interactionBusy || extensionLimitReached || extensionWorking}
                   aria-label={`Add five minutes to ${current.title}. ${extensionCount} of ${maxTargetExtensions} extensions used.`}
                   title={extensionLimitReached
                     ? 'Five-minute extension limit reached'
@@ -325,19 +555,20 @@ function Priorifact({
               type="button"
               className="priorifact-header-btn"
               onClick={() => { touch(); if (current) onAddBreak(current.id); }}
-              disabled={!current}
+              disabled={!current || paused || interactionBusy}
             >
               add break
             </button>
             <span className="priorifact-header-sep">•</span>
             {expanded ? (
               <>
-                <button type="button" className="priorifact-header-btn" onClick={() => { touch(); onChangePlan(); }}>
+                <button
+                  type="button"
+                  className="priorifact-header-btn"
+                  onClick={() => { touch(); onChangePlan(); }}
+                  disabled={paused || interactionBusy}
+                >
                   change plan
-                </button>
-                <span className="priorifact-header-sep">•</span>
-                <button type="button" className="priorifact-header-btn danger" onClick={onEndPlan}>
-                  end plan
                 </button>
                 <button
                   type="button"
@@ -355,21 +586,11 @@ function Priorifact({
           </div>
           {actionError && <div className="bzf-action-error" role="status">{actionError}</div>}
 
-          {done ? (
-            <div className="priorifact-done">
-              <span>priorifact complete</span>
-              <button type="button" className="priorifact-header-btn" onClick={() => { touch(); onChangePlan(); }}>
-                new plan
-              </button>
-              <button type="button" className="priorifact-header-btn danger" onClick={onEndPlan}>
-                clear
-              </button>
-            </div>
-          ) : expanded ? (
+          {expanded ? (
             <>
               <div className="bzf-timeline">
                 <div className="bzf-timeline-track" />
-                <div className="bzf-timeline-progress" style={{ width: spanPct(nowMinute) }} />
+                <div className="bzf-timeline-progress" style={{ width: spanPct(scheduleMinute) }} />
                 {todays.map((activity) => (activity.kind === 'break' && activity.durationMinutes >= 20 ? (
                   <div
                     key={activity.id}
@@ -390,8 +611,32 @@ function Priorifact({
               {plan.summary && <div className="priorifact-summary">{plan.summary}</div>}
               <div className="bzf-cards editing">
                 {todays.map((activity, index) => renderCard(activity, index, { removable: true }))}
+                <button
+                  type="button"
+                  className="bzf-add-activity"
+                  onClick={handleAddActivity}
+                  disabled={paused || interactionBusy || addingActivity}
+                  aria-label="Add an activity block"
+                  title={paused ? 'Resume before adding an activity' : 'Add a 30-minute activity'}
+                >
+                  {addingActivity ? '·' : '+'}
+                </button>
               </div>
             </>
+          ) : done ? (
+            <div className="priorifact-done">
+              <span>priorifact complete</span>
+              <button type="button" className="priorifact-header-btn" onClick={() => { touch(); onChangePlan(); }}>
+                new plan
+              </button>
+              <button
+                type="button"
+                className="priorifact-header-btn danger"
+                onClick={() => { setExpanded(true); setDeleteArmed(true); }}
+              >
+                delete
+              </button>
+            </div>
           ) : activeChannel && current ? (
             <div className="bzf-detail">
               {renderCard(current, 0)}
@@ -415,6 +660,26 @@ function Priorifact({
           )}
         </div>
       </div>
+      {expanded && (
+        <div className={`bzf-delete-plan ${deleteArmed ? 'confirming' : ''}`}>
+          {deleteArmed ? (
+            <>
+              <span>Delete this plan? Calendar blocks will stay in Calendar.</span>
+              <button type="button" className="danger" onClick={onEndPlan} disabled={interactionBusy}>Delete plan</button>
+              <button type="button" onClick={() => setDeleteArmed(false)}>Cancel</button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="danger"
+              onClick={() => setDeleteArmed(true)}
+              disabled={interactionBusy}
+            >
+              Delete plan
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -245,7 +245,7 @@ class LocalDataService extends EventEmitter {
       if (value === null) return null;
       v.object(value, key, [
         'version', 'generatedAt', 'date', 'timeframe', 'window', 'channels', 'summary', 'activities', 'threadId',
-        'calendarBlocks', 'targetExtensions', 'savedFlowId',
+        'calendarBlocks', 'targetExtensions', 'savedFlowId', 'pauseState',
       ]);
       return value;
     }

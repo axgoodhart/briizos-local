@@ -73,9 +73,14 @@ function BriizifySection() {
           onAddToCalendar={briizify.addToCalendar}
           onSaveFlow={briizify.saveFlow}
           onExtendActivity={briizify.extendActivity}
+          onUpdateActivity={briizify.updateActivity}
+          onSwapActivities={briizify.swapActivities}
+          onAddActivity={briizify.addActivity}
+          onTogglePause={briizify.togglePause}
           calendarStatus={briizify.calendarStatus}
           saveFlowStatus={briizify.saveFlowStatus}
           extendingActivityId={briizify.extendingActivityId}
+          scheduleStatus={briizify.scheduleStatus}
           actionError={briizify.actionError}
           maxTargetExtensions={briizify.maxTargetExtensions}
           onChangePlan={() => setSetupOpen(true)}

@@ -217,6 +217,11 @@ window.api = {
       },
       update: async (id, revision, patch) => {
         const row = placements.find((entry) => entry.id === id);
+        if (row && patch.date !== undefined) {
+          row.date = patch.date;
+          row.occurrence_date = patch.date;
+        }
+        if (row && patch.startMinute !== undefined) row.start_minute = patch.startMinute;
         if (row && patch.durationMinutes !== undefined) row.duration_minutes = patch.durationMinutes;
         if (row) row.revision = revision + 1;
         notify(['placements']);
@@ -244,6 +249,8 @@ window.api = {
       },
       update: async (id, revision, patch) => {
         const row = organizerItems.find((entry) => entry.id === id);
+        if (row && patch.title !== undefined) row.title = patch.title;
+        if (row && patch.scheduledStartAt !== undefined) row.scheduled_start_at = patch.scheduledStartAt;
         if (row && patch.scheduledEndAt !== undefined) row.scheduled_end_at = patch.scheduledEndAt;
         if (row && patch.durationSeconds !== undefined) row.duration_seconds = patch.durationSeconds;
         if (row) row.revision = revision + 1;
