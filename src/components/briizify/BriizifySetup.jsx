@@ -67,10 +67,14 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
   const [askForDetails, setAskForDetails] = useState(false);
   const [placements, setPlacements] = useState([]);
   const [answerText, setAnswerText] = useState('');
+  const [draggingHandle, setDraggingHandle] = useState(null);
 
   const trackRef = useRef(null);
   const dragRef = useRef(null);
+  const rangeRef = useRef({ start: winStart, end: winEnd });
   const drawerRef = useRef(null);
+
+  rangeRef.current = { start: winStart, end: winEnd };
 
   // Keep the active section (and its PROCEED) visible as steps advance —
   // the drawer scrolls, and the single on-screen PROCEED must never hide.
@@ -200,33 +204,73 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
     return snap(DAY_START + ratio * (DAY_END - DAY_START));
   }, []);
 
-  const handlePointerMove = useCallback((event) => {
-    const minute = minuteFromPointer(event.clientY);
-    if (minute == null || !dragRef.current) return;
-    if (dragRef.current === 'start') {
-      setWinStart(Math.min(Math.max(minute, DAY_START), winEnd - MIN_WINDOW));
-    } else {
-      setWinEnd(Math.max(Math.min(minute, DAY_END), winStart + MIN_WINDOW));
+  const setHandleMinute = useCallback((which, minute) => {
+    if (minute == null) return;
+    const range = rangeRef.current;
+    if (which === 'start') {
+      const next = Math.min(Math.max(snap(minute), DAY_START), range.end - MIN_WINDOW);
+      rangeRef.current = { ...range, start: next };
+      setWinStart(next);
+      return;
     }
-  }, [minuteFromPointer, winStart, winEnd]);
+    const next = Math.max(Math.min(snap(minute), DAY_END), range.start + MIN_WINDOW);
+    rangeRef.current = { ...range, end: next };
+    setWinEnd(next);
+  }, []);
 
-  const stopDrag = useCallback(() => {
-    dragRef.current = null;
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', stopDrag);
-  }, [handlePointerMove]);
-
-  const startDrag = useCallback((which) => (event) => {
+  const handlePointerMove = useCallback((event) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
-    dragRef.current = which;
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', stopDrag);
-  }, [handlePointerMove, stopDrag]);
+    setHandleMinute(drag.which, minuteFromPointer(event.clientY - drag.offsetY));
+  }, [minuteFromPointer, setHandleMinute]);
 
-  useEffect(() => () => {
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', stopDrag);
-  }, [handlePointerMove, stopDrag]);
+  const stopDrag = useCallback((event) => {
+    if (!dragRef.current || (event?.pointerId != null && dragRef.current.pointerId !== event.pointerId)) return;
+    dragRef.current = null;
+    setDraggingHandle(null);
+  }, []);
+
+  const startDrag = useCallback((preferredHandle) => (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.height === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const handleY = (minute) => rect.top + ((minute - DAY_START) / (DAY_END - DAY_START)) * rect.height;
+    const startY = handleY(rangeRef.current.start);
+    const endY = handleY(rangeRef.current.end);
+    const startDistance = Math.abs(event.clientY - startY);
+    const endDistance = Math.abs(event.clientY - endY);
+    const which = startDistance === endDistance
+      ? preferredHandle
+      : startDistance < endDistance ? 'start' : 'end';
+    const boundaryY = which === 'start' ? startY : endY;
+
+    dragRef.current = {
+      which,
+      pointerId: event.pointerId,
+      offsetY: event.clientY - boundaryY,
+    };
+    setDraggingHandle(which);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, []);
+
+  const handleHandleKeyDown = useCallback((which) => (event) => {
+    const current = which === 'start' ? rangeRef.current.start : rangeRef.current.end;
+    const stepSize = event.shiftKey ? 60 : SNAP;
+    let next = null;
+    if (event.key === 'ArrowUp') next = current - stepSize;
+    if (event.key === 'ArrowDown') next = current + stepSize;
+    if (event.key === 'PageUp') next = current - 60;
+    if (event.key === 'PageDown') next = current + 60;
+    if (event.key === 'Home') next = DAY_START;
+    if (event.key === 'End') next = DAY_END;
+    if (next == null) return;
+    event.preventDefault();
+    setHandleMinute(which, next);
+  }, [setHandleMinute]);
 
   // ── steps ─────────────────────────────────────────────────────
   const advance = useCallback(() => {
@@ -392,7 +436,7 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
             {/* 3 · time range miniCal */}
             {!pickTimeForMe && (
               <div className={`bzf-sec bzf-sec-minical ${step === 3 ? 'active' : ''}`}>
-                <div className="bzf-minical-hint">drag sliders to choose time range</div>
+                <div className="bzf-minical-hint">drag handles · arrows fine-tune</div>
                 <div className="bzf-minical">
                   <div className="bzf-minical-track" ref={trackRef}>
                     {todayBlocks.map((block, index) => (
@@ -412,17 +456,43 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
                     />
                     <button
                       type="button"
-                      className="bzf-minical-handle start"
+                      className={`bzf-minical-handle start ${draggingHandle === 'start' ? 'is-dragging' : ''}`}
                       style={{ top: pct(winStart) }}
                       onPointerDown={startDrag('start')}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={stopDrag}
+                      onPointerCancel={stopDrag}
+                      onLostPointerCapture={stopDrag}
+                      onKeyDown={handleHandleKeyDown('start')}
+                      role="slider"
+                      aria-label="Start time"
+                      aria-orientation="vertical"
+                      aria-valuemin={DAY_START}
+                      aria-valuemax={winEnd - MIN_WINDOW}
+                      aria-valuenow={winStart}
+                      aria-valuetext={fmtClock(winStart)}
+                      title="Drag to change start time; arrow keys adjust by 15 minutes"
                     >
                       <span>TIME START · {fmtClock(winStart)}</span>
                     </button>
                     <button
                       type="button"
-                      className="bzf-minical-handle end"
+                      className={`bzf-minical-handle end ${draggingHandle === 'end' ? 'is-dragging' : ''}`}
                       style={{ top: pct(winEnd) }}
                       onPointerDown={startDrag('end')}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={stopDrag}
+                      onPointerCancel={stopDrag}
+                      onLostPointerCapture={stopDrag}
+                      onKeyDown={handleHandleKeyDown('end')}
+                      role="slider"
+                      aria-label="End time"
+                      aria-orientation="vertical"
+                      aria-valuemin={winStart + MIN_WINDOW}
+                      aria-valuemax={DAY_END}
+                      aria-valuenow={winEnd}
+                      aria-valuetext={fmtClock(winEnd)}
+                      title="Drag to change end time; arrow keys adjust by 15 minutes"
                     >
                       <span>TIME END · {fmtClock(winEnd)}</span>
                     </button>

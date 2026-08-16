@@ -472,7 +472,7 @@ function Priorifact({
               aria-pressed={paused}
               title={paused ? 'Resume and move the remaining schedule' : 'Pause this priorifact'}
             >
-              {scheduleWorking ? 'Working…' : paused ? `▶ Resume · ${pauseElapsedMinutes}m` : 'Ⅱ Pause'}
+              {scheduleWorking ? 'Working…' : paused ? `Resume · ${pauseElapsedMinutes}m` : 'Pause'}
             </button>
             <button
               type="button"

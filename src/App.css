@@ -11075,13 +11075,13 @@ padding-left:20px !important;}
     --palette-text-muted: #80897e;
     --palette-text-dim: #737a70;
     --palette-white: #d2d2d2;
-    --ui-body-bg:radial-gradient(circle at 0% -50%, lightblue, #888, navajowhite, #888, palegoldenrod);
+    --ui-body-bg:linear-gradient(to top, black -5%, transparent), linear-gradient(160deg, gray, pink, rgba(255, 255, 255, .7), cyan 200%);
     --ui-app-bg: radial-gradient(circle at 0% -50%, lightblue, #888, navajowhite, #888, palegoldenrod);
     --ui-app-border: 2px solid rgba(155, 155, 197, 0.56);
     --ui-app-shadow: inset 0 1px 10px rgba(210, 210, 210, 0.54), inset 0 -12px 30px rgba(96, 96, 96, 0.7), 0 16px 40px rgba(96, 96, 96, 0.55);
     --ui-text-primary: var(--palette-text-main);
     --ui-header-text: var(--palette-white);
-    --ui-header-bg: linear-gradient(to bottom, black 5%, transparent);
+    --ui-header-bg: linear-gradient(to bottom, black 5%, transparent), radial-gradient(circle at 0% -50%, lightblue, #888, navajowhite, #888, palegoldenrod);;
     --ui-title-icon:white;
     --ui-title-icon-glow: 0 0 12px rgba(198, 187, 147, 0.7), 0 0 22px rgba(137, 173, 152, 0.68);
     --ui-title-gradient: linear-gradient(120deg, deepskyblue 0%, lightblue 12%, pink 32%, palegoldenrod 50%, white 66%, white 82%, deepskyblue 100%);
