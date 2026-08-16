@@ -24,6 +24,8 @@ function notify(domains) {
 }
 
 let taskSeq = 10;
+let placementSeq = 1;
+let eventSeq = 1;
 const tasksRows = [
   {
     id: 'task-1', title: 'Complete SHEIN Returns', description: '', status: 'pending', priority: 'high',
@@ -56,8 +58,10 @@ const forestProjects = [
 
 const organizerItems = [
   {
-    id: 'ev-1', type: 'event', name: 'Lunch', scheduledDate: todayStr,
-    start: 12 * 60 + 30, duration: 45, revision: 1,
+    id: 'ev-1', type: 'event', title: 'Lunch', status: 'pending',
+    scheduled_start_at: new Date(`${todayStr}T12:30:00`).getTime(),
+    scheduled_end_at: new Date(`${todayStr}T13:15:00`).getTime(),
+    duration_seconds: 45 * 60, tags: [], revision: 1,
   },
 ];
 
@@ -191,13 +195,61 @@ window.api = {
       },
     },
     placements: {
-      list: async () => placements.map((row) => ({ ...row })),
-      create: async () => { throw new Error('not in mock'); },
+      list: async (filters = {}) => placements
+        .filter((row) => !filters.id || row.id === filters.id)
+        .map((row) => ({ ...row })),
+      create: async (input) => {
+        const task = tasksRows.find((row) => row.id === input.refId);
+        const row = {
+          id: `pl-${placementSeq += 1}`,
+          ref_id: input.refId,
+          date: input.date,
+          occurrence_date: input.date,
+          start_minute: input.startMinute,
+          duration_minutes: input.durationMinutes,
+          session_completed: false,
+          revision: 1,
+          task: task ? { ...task } : null,
+        };
+        placements.push(row);
+        notify(['placements']);
+        return { row };
+      },
+      update: async (id, revision, patch) => {
+        const row = placements.find((entry) => entry.id === id);
+        if (row && patch.durationMinutes !== undefined) row.duration_minutes = patch.durationMinutes;
+        if (row) row.revision = revision + 1;
+        notify(['placements']);
+        return { row };
+      },
     },
     organizer: {
       list: async () => organizerItems.map((row) => ({ ...row })),
-      create: async () => { throw new Error('not in mock'); },
-      update: async () => { throw new Error('not in mock'); },
+      create: async (input) => {
+        const row = {
+          id: `ev-${eventSeq += 1}`,
+          type: input.type,
+          title: input.title,
+          body: input.body || '',
+          status: input.status || 'pending',
+          scheduled_start_at: input.scheduledStartAt,
+          scheduled_end_at: input.scheduledEndAt,
+          duration_seconds: input.durationSeconds,
+          tags: input.tags || [],
+          revision: 1,
+        };
+        organizerItems.push(row);
+        notify(['organizer']);
+        return { row };
+      },
+      update: async (id, revision, patch) => {
+        const row = organizerItems.find((entry) => entry.id === id);
+        if (row && patch.scheduledEndAt !== undefined) row.scheduled_end_at = patch.scheduledEndAt;
+        if (row && patch.durationSeconds !== undefined) row.duration_seconds = patch.durationSeconds;
+        if (row) row.revision = revision + 1;
+        notify(['organizer']);
+        return { row };
+      },
       archive: async () => { throw new Error('not in mock'); },
     },
     stickyNotes: { archive: async () => { throw new Error('not in mock'); } },

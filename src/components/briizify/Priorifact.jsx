@@ -43,7 +43,21 @@ function fmtShort(minute) {
   return `${display}:${String(mins).padStart(2, '0')}`;
 }
 
-function Priorifact({ plan, onAddBreak, onRemoveActivity, onChangePlan, onEndPlan }) {
+function Priorifact({
+  plan,
+  onAddBreak,
+  onRemoveActivity,
+  onAddToCalendar,
+  onSaveFlow,
+  onExtendActivity,
+  calendarStatus,
+  saveFlowStatus,
+  extendingActivityId,
+  actionError,
+  maxTargetExtensions,
+  onChangePlan,
+  onEndPlan,
+}) {
   const [nowMinute, setNowMinute] = useState(() => nowMinuteOf());
   const [today, setToday] = useState(() => formatDateYMD(new Date()));
   const [overrideId, setOverrideId] = useState(null);
@@ -105,6 +119,12 @@ function Priorifact({ plan, onAddBreak, onRemoveActivity, onChangePlan, onEndPla
   }, [overrideId, nonBreak, clockCurrent]);
 
   const done = !current;
+  const calendarComplete = plan.activities.length > 0
+    && plan.activities.every((activity) => plan.calendarBlocks?.[activity.id]);
+  const flowSaved = !!plan.savedFlowId;
+  const extensionCount = current ? plan.targetExtensions?.[current.id] || 0 : 0;
+  const extensionLimitReached = extensionCount >= maxTargetExtensions;
+  const extensionWorking = extendingActivityId === current?.id;
 
   const remainLabel = useMemo(() => {
     if (!current) return 'plan complete';
@@ -207,19 +227,49 @@ function Priorifact({ plan, onAddBreak, onRemoveActivity, onChangePlan, onEndPla
       onPointerDown={touch}
       onWheel={touch}
     >
-      {toggles.length > 0 && !done && (
+      {!done && (
         <div className="bzf-toggle-row">
-          {toggles.map((toggle) => (
+          <div className="bzf-toggle-channels">
+            {toggles.map((toggle) => (
+              <button
+                key={toggle.id}
+                type="button"
+                className={`bzf-toggle ${activeChannel === toggle.id ? 'active' : ''}`}
+                onClick={() => handleToggle(toggle.id)}
+                aria-pressed={activeChannel === toggle.id}
+              >
+                <span className="bzf-toggle-dot" />
+                {toggle.label}
+              </button>
+            ))}
+          </div>
+          {toggles.length > 0 && <span className="bzf-toggle-divider" aria-hidden="true" />}
+          <div className="bzf-flow-actions">
             <button
-              key={toggle.id}
               type="button"
-              className={`bzf-toggle ${activeChannel === toggle.id ? 'active' : ''}`}
-              onClick={() => handleToggle(toggle.id)}
+              className={`bzf-flow-action ${calendarComplete ? 'complete' : ''}`}
+              onClick={() => { touch(); onAddToCalendar(); }}
+              disabled={calendarComplete || calendarStatus === 'working'}
+              aria-label="Add priorifact blocks to Calendar"
+              title={calendarComplete ? 'This priorifact is on your Calendar' : 'Add every block to Calendar'}
             >
-              <span className="bzf-toggle-dot" />
-              {toggle.label}
+              {calendarComplete
+                ? '✓ Calendar'
+                : calendarStatus === 'working'
+                  ? 'Adding…'
+                  : calendarStatus === 'error' ? '↻ Calendar' : '+Calendar'}
             </button>
-          ))}
+            <button
+              type="button"
+              className={`bzf-flow-action ${flowSaved ? 'complete' : ''}`}
+              onClick={() => { touch(); onSaveFlow(); }}
+              disabled={flowSaved || saveFlowStatus === 'working'}
+              aria-label="Save this priorifact as a reusable flow"
+              title={flowSaved ? 'This flow is saved for future reuse' : 'Save this flow for another day'}
+            >
+              {flowSaved ? '✓ Flow saved' : saveFlowStatus === 'working' ? 'Saving…' : '↓ Save Flow'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -227,11 +277,14 @@ function Priorifact({ plan, onAddBreak, onRemoveActivity, onChangePlan, onEndPla
         <div className="priorifact-rail">
           {nonBreak.map((activity) => {
             const isCurrent = activity.id === current?.id;
+            const isInProgress = isCurrent
+              && activity.startMinute <= nowMinute
+              && nowMinute < activity.startMinute + activity.durationMinutes;
             return (
               <button
                 key={activity.id}
                 type="button"
-                className={`bzf-chip ${isCurrent ? 'current' : ''} ${progressOf(activity) >= 100 && !isCurrent ? 'done' : ''}`}
+                className={`bzf-chip ${isCurrent ? 'current' : ''} ${isInProgress ? 'in-progress' : ''} ${progressOf(activity) >= 100 && !isCurrent ? 'done' : ''}`}
                 onClick={() => handleChip(activity)}
                 title={isCurrent ? `${activity.title} · ${remainLabel}` : `Jump to ${activity.title}`}
               >
@@ -250,7 +303,23 @@ function Priorifact({ plan, onAddBreak, onRemoveActivity, onChangePlan, onEndPla
         <div className="priorifact-main">
           <div className="priorifact-header">
             <span className="priorifact-clock">{fmtClock(nowMinute)}</span>
-            {!done && <span className="priorifact-remaining">{remainLabel}</span>}
+            {!done && (
+              <div className="priorifact-target">
+                <button
+                  type="button"
+                  className="priorifact-extend"
+                  onClick={() => { touch(); onExtendActivity(current.id); }}
+                  disabled={extensionLimitReached || extensionWorking}
+                  aria-label={`Add five minutes to ${current.title}. ${extensionCount} of ${maxTargetExtensions} extensions used.`}
+                  title={extensionLimitReached
+                    ? 'Five-minute extension limit reached'
+                    : `Add 5 minutes · ${maxTargetExtensions - extensionCount} left`}
+                >
+                  {extensionWorking ? '·' : '+'}
+                </button>
+                <span className="priorifact-remaining">{remainLabel}</span>
+              </div>
+            )}
             <span className="priorifact-header-sep">•</span>
             <button
               type="button"
@@ -284,6 +353,7 @@ function Priorifact({ plan, onAddBreak, onRemoveActivity, onChangePlan, onEndPla
               </button>
             )}
           </div>
+          {actionError && <div className="bzf-action-error" role="status">{actionError}</div>}
 
           {done ? (
             <div className="priorifact-done">
