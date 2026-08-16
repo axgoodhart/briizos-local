@@ -13,6 +13,7 @@ const hasApi = typeof window !== 'undefined' && window.api;
 
 function TasksPanel() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [briizifyFocused, setBriizifyFocused] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [openCards, setOpenCards] = useState(new Set());
   const [closingCards, setClosingCards] = useState(new Set());
@@ -450,7 +451,7 @@ function TasksPanel() {
 
   // Main tasks panel UI
   return (
-    <div className="panel tasks-panel">
+    <div className={`panel tasks-panel ${briizifyFocused ? 'briizify-focused' : ''}`}>
       <div className="panel-header">
         <span>Tasks</span>
         <div className="panel-header-actions">
@@ -552,7 +553,10 @@ function TasksPanel() {
 
       {/* Prioritize with briizify — setup drawer + docked priorifact,
           with its corner tab pinned bottom-right over the Phantom row */}
-      <BriizifySection />
+      <BriizifySection
+        focused={briizifyFocused}
+        onFocusedChange={setBriizifyFocused}
+      />
 
       <PhantomSection />
     </div>

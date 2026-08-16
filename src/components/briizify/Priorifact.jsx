@@ -71,6 +71,7 @@ function Priorifact({
   scheduleStatus,
   actionError,
   maxTargetExtensions,
+  focused = false,
   onChangePlan,
   onEndPlan,
 }) {
@@ -107,6 +108,9 @@ function Priorifact({
     }, IDLE_RETURN_MS);
   }, []);
   useEffect(() => () => { if (idleRef.current) clearTimeout(idleRef.current); }, []);
+  useEffect(() => {
+    if (focused) setExpanded(false);
+  }, [focused]);
   useEffect(() => {
     if (expanded) return;
     setEditDraft(null);
@@ -442,7 +446,7 @@ function Priorifact({
 
   return (
     <div
-      className={`priorifact ${expanded ? 'expanded' : ''} ${paused ? 'paused' : ''}`}
+      className={`priorifact ${expanded ? 'expanded' : ''} ${focused ? 'focused' : ''} ${paused ? 'paused' : ''}`}
       onPointerDown={touch}
       onWheel={touch}
     >
@@ -578,6 +582,10 @@ function Priorifact({
                   done
                 </button>
               </>
+            ) : focused ? (
+              <button type="button" className="priorifact-header-btn" onClick={() => { touch(); onChangePlan(); }}>
+                change plan
+              </button>
             ) : (
               <button type="button" className="priorifact-header-btn" onClick={() => { touch(); setExpanded(true); }}>
                 view/edit plan
@@ -586,7 +594,7 @@ function Priorifact({
           </div>
           {actionError && <div className="bzf-action-error" role="status">{actionError}</div>}
 
-          {expanded ? (
+          {expanded || focused ? (
             <>
               <div className="bzf-timeline">
                 <div className="bzf-timeline-track" />
@@ -608,19 +616,23 @@ function Priorifact({
                   />
                 )))}
               </div>
-              {plan.summary && <div className="priorifact-summary">{plan.summary}</div>}
-              <div className="bzf-cards editing">
-                {todays.map((activity, index) => renderCard(activity, index, { removable: true }))}
-                <button
-                  type="button"
-                  className="bzf-add-activity"
-                  onClick={handleAddActivity}
-                  disabled={paused || interactionBusy || addingActivity}
-                  aria-label="Add an activity block"
-                  title={paused ? 'Resume before adding an activity' : 'Add a 30-minute activity'}
-                >
-                  {addingActivity ? '·' : '+'}
-                </button>
+              {expanded && plan.summary && <div className="priorifact-summary">{plan.summary}</div>}
+              <div className={`bzf-cards ${expanded ? 'editing' : 'focused-overview'}`}>
+                {(expanded ? todays : cards).map((activity, index) => (
+                  renderCard(activity, index, { removable: expanded })
+                ))}
+                {expanded && (
+                  <button
+                    type="button"
+                    className="bzf-add-activity"
+                    onClick={handleAddActivity}
+                    disabled={paused || interactionBusy || addingActivity}
+                    aria-label="Add an activity block"
+                    title={paused ? 'Resume before adding an activity' : 'Add a 30-minute activity'}
+                  >
+                    {addingActivity ? '·' : '+'}
+                  </button>
+                )}
               </div>
             </>
           ) : done ? (

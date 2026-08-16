@@ -2349,6 +2349,27 @@ resize:vertical;}
     min-height: 0;
 }
 
+.tasks-panel.briizify-focused > .panel-content {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 6px 8px 0;
+    background: transparent;
+}
+
+.tasks-panel.briizify-focused > .panel-content > :not(.overall-progress) {
+    display: none;
+}
+
+.tasks-panel.briizify-focused .overall-progress {
+    margin: 0;
+    padding: 4px 0;
+    background: transparent;
+}
+
+.tasks-panel.briizify-focused .progress-percent {
+    display: none;
+}
+
 .tasks-section {
     padding: var(--cc-padding-medium);
     filter:hue-rotate(190deg)brightness(2);
