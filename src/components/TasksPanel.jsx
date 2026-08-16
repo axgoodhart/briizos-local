@@ -5,6 +5,7 @@ import { updateTask as updateLocalTask } from '../lib/localTasks';
 import { automateTask, handleUserResponse } from '../lib/taskAutomation';
 import logger from '../lib/logger';
 import PhantomSection from './PhantomSection';
+import BriizifySection from './briizify/BriizifySection';
 
 // Safe API access helper (still needed for studio IPC)
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
@@ -548,7 +549,11 @@ function TasksPanel() {
           )}
         </div>
       </div>
- 
+
+      {/* Prioritize with briizify — setup drawer + docked priorifact,
+          with its corner tab pinned bottom-right over the Phantom row */}
+      <BriizifySection />
+
       <PhantomSection />
     </div>
   );

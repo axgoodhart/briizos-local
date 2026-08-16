@@ -15,9 +15,9 @@ import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
 import './InteractionToolbar.css';
 
+// 'prioritize' left the chat surface: it now lives in the Tasks Panel
+// as briizify (see components/briizify/BriizifySection.jsx).
 const MODALITIES = [
-
-  { id: 'prioritize', label: 'Prioritize' },
   { id: 'planner', label: 'Day' },
   { id: 'chat', label: 'Chat' },
   { id: 'research', label: 'Research' },
@@ -94,39 +94,12 @@ function classifyAssistantMessage(content) {
   return { type: 'normal', body: content };
 }
 
+// Legacy prioritize threads embedded a machine-readable HTML comment;
+// keep stripping it from rendered/copied content so old history stays clean.
 const PRIORITY_ORDER_COMMENT = /<!--\s*briizos-priority-order:\s*(\[[\s\S]*?\])\s*-->/i;
-
-function priorityOrderFromContent(content) {
-  const match = String(content || '').match(PRIORITY_ORDER_COMMENT);
-  if (!match) return [];
-  try {
-    const parsed = JSON.parse(match[1]);
-    if (!Array.isArray(parsed)) return [];
-    const seen = new Set();
-    return parsed.slice(0, 100).map((entry) => {
-      const type = entry?.type === 'project' ? 'forest_project' : entry?.type;
-      const id = typeof entry?.id === 'string' ? entry.id.trim() : '';
-      const label = typeof entry?.label === 'string' ? entry.label.trim().slice(0, 500) : '';
-      if (!id || !['task', 'forest_project'].includes(type)) return null;
-      const key = `${type}:${id}`;
-      if (seen.has(key)) return null;
-      seen.add(key);
-      return { type, id, label };
-    }).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
 
 function visiblePriorityContent(content) {
   return String(content || '').replace(PRIORITY_ORDER_COMMENT, '').trim();
-}
-
-function taskPriorityForRank(rank) {
-  if (rank === 0) return 'urgent';
-  if (rank <= 2) return 'high';
-  if (rank <= 5) return 'medium';
-  return 'normal';
 }
 
 function InteractionPanel() {
@@ -255,16 +228,11 @@ function InteractionPanel() {
     setChatBackground(bgValue);
     setShowBgPicker(false);
   }, [setChatBackground]);
-  const { executeTool, pendingConfirmation, confirmAction, cancelAction } = useTools();
+  const { pendingConfirmation, confirmAction, cancelAction } = useTools();
   const [inputValue, setInputValue] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState(null); // { index, role, x, y }
   const [showBgPicker, setShowBgPicker] = useState(false);
-  const [prioritizeCandidates, setPrioritizeCandidates] = useState([]);
-  const [selectedCandidateKeys, setSelectedCandidateKeys] = useState(() => new Set());
-  const [candidateLoadState, setCandidateLoadState] = useState('idle');
-  const [candidateLoadError, setCandidateLoadError] = useState('');
-  const [priorityActionState, setPriorityActionState] = useState({ busy: null, message: '', tone: 'info' });
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const confirmationPanelRef = useRef(null);
@@ -289,143 +257,6 @@ function InteractionPanel() {
     window.addEventListener('briizos-open-planner-chat', openPlanner);
     return () => window.removeEventListener('briizos-open-planner-chat', openPlanner);
   }, [setModality]);
-
-  const loadPrioritizeCandidates = useCallback(async () => {
-    setCandidateLoadState('loading');
-    setCandidateLoadError('');
-    try {
-      const [forestState, tasks] = await Promise.all([
-        window.api.forestLoadState(),
-        window.api.localData.tasks.list({ limit: 500 }),
-      ]);
-      const projects = (forestState?.projects || []).map((project) => ({
-        key: `project:${project.id}`,
-        kind: 'project',
-        id: project.id,
-        name: project.name || 'Untitled Project',
-        tags: Array.isArray(project.tags) ? project.tags : [],
-        milestones: (project.milestones || []).map((milestone) => ({
-          name: milestone.name || milestone.title || milestone.label || '',
-          completed: !!milestone.completed,
-        })),
-        deadline: project.deadline || null,
-        importance: project.importance ?? null,
-        size: project.size ?? null,
-        relevance: project.relevance || null,
-      })).sort((a, b) => a.name.localeCompare(b.name));
-      const taskCandidates = (tasks || [])
-        .filter((task) => !['completed', 'cancelled'].includes(task.status))
-        .map((task) => ({
-          key: `task:${task.id}`,
-          kind: 'task',
-          id: task.id,
-          title: task.title || 'Untitled Task',
-          description: task.description || '',
-          status: task.status || 'pending',
-          priority: task.priority || 'normal',
-          dueAt: task.due_at == null
-            ? null
-            : typeof task.due_at === 'number'
-              ? new Date(task.due_at).toISOString()
-              : task.due_at,
-          projectId: task.project_id || null,
-          forestProjectId: task.forest_project_id || null,
-          subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
-        }))
-        .sort((a, b) => a.title.localeCompare(b.title));
-      const nextCandidates = [...projects, ...taskCandidates];
-      const availableKeys = new Set(nextCandidates.map((candidate) => candidate.key));
-      setPrioritizeCandidates(nextCandidates);
-      setSelectedCandidateKeys((current) => new Set(
-        [...current].filter((key) => availableKeys.has(key)),
-      ));
-      setCandidateLoadState('ready');
-    } catch (error) {
-      setCandidateLoadState('error');
-      setCandidateLoadError(error?.message || 'Could not load candidates');
-      logger.error('agent.prioritize', 'Candidate picker failed to load', { error: error?.message });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (modality !== 'prioritize') return undefined;
-    loadPrioritizeCandidates();
-    const unsubscribe = window.api.localData.onChanged((change) => {
-      if (change?.domains?.some((domain) => domain === 'tasks' || domain === 'forest')) {
-        loadPrioritizeCandidates();
-      }
-    });
-    return unsubscribe;
-  }, [modality, loadPrioritizeCandidates]);
-
-  const selectedPrioritizeCandidates = useMemo(() => (
-    prioritizeCandidates.filter((candidate) => selectedCandidateKeys.has(candidate.key))
-  ), [prioritizeCandidates, selectedCandidateKeys]);
-
-  const latestPriorityResultIndex = useMemo(() => {
-    if (modality !== 'prioritize') return -1;
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      if (messages[index]?.role === 'assistant' && priorityOrderFromContent(messages[index].content).length) {
-        return index;
-      }
-    }
-    return -1;
-  }, [messages, modality]);
-
-  useEffect(() => {
-    setPriorityActionState({ busy: null, message: '', tone: 'info' });
-  }, [messages.length]);
-
-  const togglePrioritizeCandidate = useCallback((key) => {
-    setSelectedCandidateKeys((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
-  const applyPriorityOrder = useCallback(async (order) => {
-    const assignments = order
-      .map((candidate, rank) => candidate.type === 'task'
-        ? { task_id: candidate.id, priority: taskPriorityForRank(rank) }
-        : null)
-      .filter(Boolean);
-    if (!assignments.length) {
-      setPriorityActionState({ busy: null, message: 'This ranking has no Tasks Panel tasks to update.', tone: 'error' });
-      return;
-    }
-    setPriorityActionState({ busy: 'apply', message: 'Waiting for confirmation…', tone: 'info' });
-    try {
-      const result = await executeTool('applyTaskPriorities', { assignments });
-      setPriorityActionState({
-        busy: null,
-        message: result?.message || 'Task priorities updated.',
-        tone: 'success',
-      });
-      await loadPrioritizeCandidates();
-    } catch (error) {
-      const cancelled = error?.message === 'Action cancelled by user';
-      setPriorityActionState({
-        busy: null,
-        message: cancelled ? 'No task priorities were changed.' : (error?.message || 'Task priorities could not be updated.'),
-        tone: cancelled ? 'info' : 'error',
-      });
-    }
-  }, [executeTool, loadPrioritizeCandidates]);
-
-  const schedulePriorityPick = useCallback((order) => {
-    const candidate = order[0];
-    if (!candidate) return;
-    window.dispatchEvent(new CustomEvent('briizos-plan-priority-today', {
-      detail: { candidate },
-    }));
-    setPriorityActionState({
-      busy: null,
-      message: `Calendar is planning around ${candidate.label || 'the top pick'}.`,
-      tone: 'success',
-    });
-  }, []);
 
   // Drop zone for dragging source files into chat
   const [{ isOver, canDrop }, drop] = useDrop({
@@ -521,9 +352,7 @@ function InteractionPanel() {
 
     setInputValue('');
     if (textareaRef.current) textareaRef.current.style.height = '24px';
-    await sendMessage(message, {
-      prioritizeCandidates: modality === 'prioritize' ? selectedPrioritizeCandidates : [],
-    });
+    await sendMessage(message);
   };
 
   const handleKeyDown = (e) => {
@@ -595,41 +424,6 @@ function InteractionPanel() {
     .filter(idx => idx >= 0);
 
   const showWelcome = messages.length === 0 && !isLoading && !isSwitchingThread && !streamingContent;
-
-  const projectCandidates = prioritizeCandidates.filter((candidate) => candidate.kind === 'project');
-  const taskCandidates = prioritizeCandidates.filter((candidate) => candidate.kind === 'task');
-
-  const renderPrioritizeCandidate = (candidate) => {
-    const selected = selectedCandidateKeys.has(candidate.key);
-    const scoreCount = candidate.kind === 'project'
-      ? ['deadline', 'importance', 'size', 'relevance']
-        .filter((field) => candidate[field] !== null && candidate[field] !== undefined && candidate[field] !== '').length
-      : null;
-    const label = candidate.kind === 'project' ? candidate.name : candidate.title;
-    return (
-      <button
-        type="button"
-        key={candidate.key}
-        className={`prioritize-candidate-chip ${candidate.kind} ${selected ? 'selected' : ''}`}
-        onClick={() => togglePrioritizeCandidate(candidate.key)}
-        aria-pressed={selected}
-        disabled={isLoading || isSwitchingThread}
-        title={candidate.kind === 'project'
-          ? `${label} · ${scoreCount}/4 priority signals set`
-          : `${label} · ${candidate.priority} priority`}
-      >
-        <span className="prioritize-candidate-kind" aria-hidden="true">
-          {candidate.kind === 'project' ? 'F' : 'T'}
-        </span>
-        <span className="prioritize-candidate-name">{label}</span>
-        {candidate.kind === 'project' && (
-          <span className={`prioritize-score-count ${scoreCount < 4 ? 'incomplete' : ''}`}>
-            {scoreCount}/4
-          </span>
-        )}
-      </button>
-    );
-  };
 
   const providerLabel = {
     openai: 'OAI',
@@ -717,65 +511,6 @@ function InteractionPanel() {
             ))}
           </div>
         </div>
-      )}
-
-      {modality === 'prioritize' && (
-        <section className="prioritize-candidate-rail" aria-label="Prioritization candidates">
-          <div className="prioritize-candidate-header">
-            <div>
-              <span className="prioritize-candidate-hint">
-                Pick candidates, or leave empty and briizOS will inspect your active work.
-              </span>
-            </div>
-            <div className="prioritize-candidate-actions">
-              <span className="prioritize-selection-count">
-                {selectedCandidateKeys.size ? `${selectedCandidateKeys.size} chosen` : 'AI chooses'}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedCandidateKeys(new Set(prioritizeCandidates.map((candidate) => candidate.key)))}
-                disabled={!prioritizeCandidates.length || isLoading || isSwitchingThread}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCandidateKeys(new Set())}
-                disabled={!selectedCandidateKeys.size || isLoading || isSwitchingThread}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          {candidateLoadState === 'loading' && (
-            <div className="prioritize-candidate-loading">Reading Forest and Tasks…</div>
-          )}
-          {candidateLoadState === 'error' && (
-            <button type="button" className="prioritize-candidate-error" onClick={loadPrioritizeCandidates}>
-              {candidateLoadError} · Retry
-            </button>
-          )}
-          {candidateLoadState === 'ready' && prioritizeCandidates.length === 0 && (
-            <div className="prioritize-candidate-empty">No active projects or tasks yet.</div>
-          )}
-          {projectCandidates.length > 0 && (
-            <div className="prioritize-candidate-row">
-              <span className="prioritize-candidate-source">Forest</span>
-              <div className="prioritize-candidate-list">
-                {projectCandidates.map(renderPrioritizeCandidate)}
-              </div>
-            </div>
-          )}
-          {taskCandidates.length > 0 && (
-            <div className="prioritize-candidate-row">
-              <span className="prioritize-candidate-source">Tasks</span>
-              <div className="prioritize-candidate-list">
-                {taskCandidates.map(renderPrioritizeCandidate)}
-              </div>
-            </div>
-          )}
-        </section>
       )}
 
       {/* Drop zone overlay */}
@@ -868,9 +603,6 @@ function InteractionPanel() {
               const isUser = msg.role === 'user';
               const visibleContent = isUser ? msg.content : visiblePriorityContent(msg.content);
               const structured = isUser ? null : classifyAssistantMessage(visibleContent);
-              const priorityOrder = isUser ? [] : priorityOrderFromContent(msg.content);
-              const showPriorityActions = index === latestPriorityResultIndex && priorityOrder.length > 0;
-              const hasTaskPriorities = priorityOrder.some((candidate) => candidate.type === 'task');
 
               return (
                 <div
@@ -922,34 +654,6 @@ function InteractionPanel() {
                       </ReactMarkdown>
                     )}
 
-                    {showPriorityActions && (
-                      <div className="prioritize-result-actions" role="group" aria-label="Use this priority order">
-                        {hasTaskPriorities && (
-                          <button
-                            type="button"
-                            className="prioritize-result-action apply"
-                            onClick={() => applyPriorityOrder(priorityOrder)}
-                            disabled={!!priorityActionState.busy || !!pendingConfirmation}
-                            title="Rank 1 → urgent · ranks 2–3 → high · ranks 4–6 → medium · the rest → normal"
-                          >
-                            {priorityActionState.busy === 'apply' ? 'Waiting for confirmation…' : 'Apply as task priorities'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="prioritize-result-action schedule"
-                          onClick={() => schedulePriorityPick(priorityOrder)}
-                          disabled={!!priorityActionState.busy || !!pendingConfirmation}
-                        >
-                          Schedule top pick today
-                        </button>
-                        {priorityActionState.message && (
-                          <span className={`prioritize-result-status ${priorityActionState.tone}`}>
-                            {priorityActionState.message}
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
                   {tooltip && tooltip.index === index && (
                     <div className={`message-tooltip-${isUser ? 'user' : 'assistant'}`}>
@@ -1246,8 +950,6 @@ function InteractionPanel() {
                   ? 'Waiting for AI backend...'
                   : pendingClarification
                     ? 'Answer the clarification...'
-                    : modality === 'prioritize'
-                      ? 'Describe your goals, timing, and available effort… (⌘+Enter)'
                     : modality === 'planner'
                       ? 'Ask about your schedule or shape a day… (⌘+Enter)'
                     : filesInContext.length > 0

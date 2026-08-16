@@ -21,6 +21,7 @@ const SETTING_KEYS = new Set([
   'ui_theme_library',
   'chat_config',
   'actiondeck_panel_settings',
+  'briizify_plan',
   'selected_model',
   'suggestions_enabled',
   'agent_config',
@@ -237,6 +238,11 @@ class LocalDataService extends EventEmitter {
     }
     if (key === 'actiondeck_panel_settings') {
       v.object(value, key, ['filters', 'startAs', 'lastUsedView', 'pinToCurrentLocation', 'pinnedPosition', 'headerBg']);
+      return value;
+    }
+    if (key === 'briizify_plan') {
+      if (value === null) return null;
+      v.object(value, key, ['version', 'generatedAt', 'date', 'timeframe', 'window', 'channels', 'summary', 'activities', 'threadId']);
       return value;
     }
     if (key === 'chat_config') {
