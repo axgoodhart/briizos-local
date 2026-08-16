@@ -22,7 +22,7 @@
   padding-left:6%;
   padding-right:6%;
   scrollbar-width: none;
-  flex:1.1;
+  flex:1;
 }
 
 .briizify-section::-webkit-scrollbar, .bzf-drawer::-webkit-scrollbar { display: none; }
