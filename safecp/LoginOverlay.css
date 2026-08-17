@@ -1,0 +1,222 @@
+/**
+ * LoginOverlay Styles - Matching briizOS-Dev aesthetic
+ */
+
+/* Login Overlay Container */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--theme-components-loginoverlay-login-overlay-background-gradient, linear-gradient(135deg, rgba(106, 58, 90, 0.95), rgba(26, 10, 74, 0.95)));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 32;
+  transition: opacity 1s ease;
+  transition-delay: 0.8s;
+}
+
+.login-overlay.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Login Container */
+.login-container {
+  border-radius: 2rem;
+  padding: 3rem;
+  backdrop-filter: blur(10px);
+  text-align: center;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+/* Logo Styles */
+.login-logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.login-logo-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--theme-components-loginoverlay-login-logo-circle-background-gradient, linear-gradient(135deg, #00ffcc, #ff4da6, var(--palette-accent-cyan)));
+  background-size: 200% 200%;
+  animation: logoGradient 5s ease infinite;
+  box-shadow: 0 0 40px var(--theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k, rgba(0, 255, 204, 0.4)), 0 0 80px var(--theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq, rgba(255, 77, 166, 0.2));
+  margin-bottom: 1rem;
+}
+
+@keyframes logoGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.login-logo-text {
+  font-family: Chillax, 'Josefin Sans', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  background: var(--theme-components-loginoverlay-login-logo-text-background-gradient, linear-gradient(90deg, #00ffcc, #ff4da6));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px var(--theme-components-loginoverlay-login-logo-text-text-shadow-11uwi, rgba(0, 255, 204, 0.3));
+}
+
+/* Subtitle */
+.login-subtitle {
+  font-family: Chillax, 'Josefin Sans', 'Jost', sans-serif;
+  color: var(--theme-components-loginoverlay-login-subtitle-color-sqqmz, rgba(255, 255, 255, 0.8));
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 2rem;
+}
+
+.login-subtitle span {
+  color: var(--theme-components-loginoverlay-login-logo-circle-background-1pjs9, #00ffcc);
+  font-weight: 600;
+}
+
+/* Form */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Input Fields */
+.login-input {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  margin: 0.5rem 0;
+  background: var(--theme-components-loginoverlay-login-input-background-ypdc9, rgba(0, 0, 0, 0.3));
+  border: 1.5px solid var(--theme-components-loginoverlay-login-logo-circle-background-1pjs9, #00ffcc);
+  border-radius: 1rem;
+  color: var(--palette-white);
+  font-family: Chillax, 'Josefin Sans', 'Jost', sans-serif;
+  font-size: 1.1rem;
+  outline: none;
+  box-shadow: 0 0 10px var(--theme-components-loginoverlay-login-input-box-shadow-u3asw, rgba(0, 255, 204, 0.2));
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.login-input::placeholder {
+  color: var(--theme-components-loginoverlay-login-input-placeholder-color-1ll6h, rgba(255, 255, 255, 0.4));
+}
+
+.login-input:focus {
+  border-color: var(--theme-components-loginoverlay-login-logo-circle-background-1mpnj, #ff4da6);
+  box-shadow: 0 0 20px var(--theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u, rgba(255, 77, 166, 0.4));
+}
+
+.login-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error Message */
+.login-error {
+  color: var(--palette-danger);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: var(--theme-components-loginoverlay-login-error-background-1iva2, rgba(255, 107, 107, 0.1));
+  border-radius: 0.5rem;
+  border: 1px solid var(--theme-components-loginoverlay-login-error-border-9dbrq, rgba(255, 107, 107, 0.3));
+}
+
+/* Submit Button */
+.login-btn {
+  width: 100%;
+  padding: 1rem;
+  background: var(--theme-components-loginoverlay-login-btn-background-gradient, linear-gradient(45deg, #00ffcc, #ff4da6));
+  border: none;
+  border-radius: 1rem;
+  color: var(--theme-components-loginoverlay-login-btn-color-1q77m, #000);
+  font-family: Chillax, 'Josefin Sans', sans-serif;
+  font-weight: bold;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+  letter-spacing: 0.1em;
+  box-sizing: border-box;
+}
+
+.login-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px var(--theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir, rgba(0, 255, 204, 0.6));
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Toggle Link */
+.login-toggle {
+  margin-top: 1rem;
+}
+
+.login-toggle-link {
+  color: var(--theme-components-loginoverlay-login-toggle-link-color-tuiqr, rgba(255, 255, 255, 0.6));
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.login-toggle-link:hover {
+  color: var(--theme-components-loginoverlay-login-logo-circle-background-1pjs9, #00ffcc);
+  text-decoration: underline;
+}
+
+/* Info Footer */
+.login-info {
+  font-family: Chillax, 'Josefin Sans', 'Jost', sans-serif;
+  color: var(--theme-components-loginoverlay-login-info-color-1tcs7, rgba(255, 255, 255, 0.5));
+  font-size: 0.85rem;
+  margin-top: 2rem;
+  line-height: 1.6;
+}
+
+.login-footer-author {
+  color: var(--theme-components-loginoverlay-login-logo-circle-background-1pjs9, #00ffcc);
+  opacity: 0.7;
+}
+
+/* Loading State */
+.login-loading {
+  color: var(--theme-components-loginoverlay-login-subtitle-color-sqqmz, rgba(255, 255, 255, 0.8));
+  font-size: 1.2rem;
+  font-family: Chillax, 'Josefin Sans', sans-serif;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .login-container {
+    min-width: 320px;
+    padding: 2rem;
+  }
+
+  .login-logo-text {
+    font-size: 2.5rem;
+  }
+
+  .login-input {
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+  }
+
+  .login-btn {
+    padding: 0.8rem;
+    font-size: 1rem;
+  }
+}

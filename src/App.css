@@ -158,6 +158,7 @@ body {
     position: relative;
     height: 100vh;
     background: linear-gradient(var(--ui-body-bg), var(--ui-app-bg));
+    background-repeat: var(--ui-bg-repeat, no-repeat);
     color: var(--ui-text-primary);
     font-family: BC Alphapipe, Jost, AWeber, Ashemore, Chillax, Aisha Latin, Afacad Flux, 'Forma DJR Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
@@ -8398,8 +8399,8 @@ padding-left:20px !important;}
     --palette-text-muted: #444444;
     --palette-text-dim: #333333;
     --palette-white: #ffffff;
-    --ui-body-bg: radial-gradient(ellipse farthest-corner at top left, rgba(0, 0, 10) 0%, rgba(14, 0, 20) 50%);
-    --ui-app-bg: radial-gradient(ellipse farthest-side at top left, teal 0%, rgba(14, 0, 20) 50%);
+    --ui-body-bg: radial-gradient(ellipse farthest-corner at top left, rgba(0, 0, 10) 0%, rgba(0, 20, 10) 50%);
+    --ui-app-bg: radial-gradient(ellipse farthest-side at top left, black 0%, rgba(0, 10, 10) 50%);
     --ui-app-border: 1px solid rgba(255, 255, 255, 0.08);
     --ui-app-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
     --ui-text-primary: var(--palette-text-main);
@@ -11218,8 +11219,75 @@ padding-left:20px !important;}
     --palette-text-muted: #7a8fa6;
     --palette-text-dim: #5c7086;
     --palette-white: #ffffff;
-    --ui-body-bg: #07111c;
-    --ui-app-bg: #050c15;
+    --ui-bg-repeat: norepeat;
+    --ui-body-bg: var(--ui-app-bg);;
+    --ui-app-bg: repeating-linear-gradient(90deg, #0002 0 1px, #0000 0 5vw) -2.5vw 0 /
+      100% 60%,
+    linear-gradient(#0002, #0000 30% 70%, #0001) 50% 0% / 100% 60%,
+    linear-gradient(hsl(0deg 0% 70%) 0 0) 50% 0% / 5vw 60%,
+    linear-gradient(hsl(0deg 0% 73%) 0 0) 50% 0% / 15vw 60%,
+    linear-gradient(hsl(0deg 0% 76%) 0 0) 50% 0% / 25vw 60%,
+    linear-gradient(hsl(0deg 0% 79%) 0 0) 50% 0% / 35vw 60%,
+    linear-gradient(hsl(0deg 0% 82%) 0 0) 50% 0% / 45vw 60%,
+    linear-gradient(hsl(0deg 0% 85%) 0 0) 50% 0% / 55vw 60%,
+    linear-gradient(hsl(0deg 0% 88%) 0 0) 50% 0% / 65vw 60%,
+    linear-gradient(hsl(0deg 0% 91%) 0 0) 50% 0% / 75vw 60%,
+    linear-gradient(hsl(0deg 0% 94%) 0 0) 50% 0% / 85vw 60%,
+    linear-gradient(hsl(0deg 0% 96%) 0 0) 50% 0% / 95vw 60%,
+    linear-gradient(hsl(0deg 0% 98%) 0 0) 50% 0% / 105vw 60%,
+    radial-gradient(100vw 50vw, #0002, #0000),
+    conic-gradient(
+        from 170.5deg at 50% calc(60% - 14.8vw),
+        hsl(0deg 0% 70%) 19deg,
+        #0000 0
+      )
+      0 100% / 100vw 100%,
+    conic-gradient(
+      from 153deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 73%) 54deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 140deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 76%) 80deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 130deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 79%) 100deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 123deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 82%) 114deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 118.5deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 85%) 123deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 114.5deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 88%) 131deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 111.5deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 91%) 137deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 109.2deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 94%) 141.6deg,
+      #0000 0
+    ),
+    conic-gradient(
+      from 107.3deg at 50% calc(60% - 14.8vw),
+      hsl(0deg 0% 96%) 145.3deg,
+      #0000 0
+    ),
+    hsl(0deg 0% 98%);
     --ui-app-border: 1px solid rgba(190, 228, 255, 0.24);
     --ui-app-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 0 1px rgba(138, 210, 255, 0.12), 0 18px 40px rgba(2, 8, 18, 0.58);
     --ui-text-primary: var(--palette-text-main);
@@ -11303,7 +11371,7 @@ padding-left:20px !important;}
     --ui-controlbar-filter: blur(0px) brightness(1) saturate(1.08) contrast(1.08);
     --ui-controlbar-filter-hover: blur(0px) brightness(1.08) saturate(1.24) contrast(1.12);
     --layout-bg-primary: #06101a;
-    --layout-bg-panel: #0b1726;
+    --layout-bg-panel: transparent;
     --layout-bg-panel-header: #0f1d30;
     --layout-accent-cyan: var(--palette-accent-primary);
     --layout-accent-cyan-dim: rgba(127, 234, 255, 0.34);
