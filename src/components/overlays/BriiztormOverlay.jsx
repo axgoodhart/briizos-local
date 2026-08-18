@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import '../../AppCombined.css';
+import './BriiztormOverlay.css';
 
 /**
  * BriiztormOverlay - Full-screen 3D project visualization

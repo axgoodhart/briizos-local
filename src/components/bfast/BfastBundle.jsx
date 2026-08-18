@@ -28,7 +28,7 @@ import Margerin from './Margerin';
 import Toast from './Toast';
 import Snackbar from './Snackbar';
 
-import '../../AppCombined.css';
+import './bfast.css';
 
 function BfastBundle() {
   const state = useSyncExternalStore(subscribe, getState, getState);

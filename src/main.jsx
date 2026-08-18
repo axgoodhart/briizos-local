@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ThemeProvider } from './theme/ThemeProvider.jsx';
-import './AppCombined.css';
+import './index.css';
 
 document.documentElement.classList.add('theme-runtime-booting');
 

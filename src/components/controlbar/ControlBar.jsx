@@ -1,4 +1,4 @@
-import '../../AppCombined.css';
+import './ControlBar.css';
 import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 import briizyLogoAwake from '../../briizy/assets/briizy-logo-awake.png';
 import briizyLogoAsleep from '../../briizy/assets/briizy-logo-asleep.png';

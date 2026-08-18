@@ -5,7 +5,7 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { determineDropZone } from '../../lib/layoutUtils';
 import logger from '../../lib/logger';
-import '../../AppCombined.css';
+import './layout.css';
 
 // Debug counter
 let tileLayoutRenderCount = 0;

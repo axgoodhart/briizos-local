@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { computeFloatingShellChrome } from '../../lib/floatingShell';
 import logger from '../../lib/logger';
-import '../../AppCombined.css';
+import './NotesWidget.css';
 
 /**
  * NotesWidget - Floating sticky notes system

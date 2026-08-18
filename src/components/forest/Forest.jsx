@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import '../../AppCombined.css'; // legacy board styles — scoped under .forest-shell, see hardening notes
+import './styles.css'; // legacy board styles — scoped under .forest-shell, see hardening notes
 import logger from '../../lib/logger';
 // Legacy markup, injected verbatim so app.js finds the (now forest-prefixed)
 // element IDs it expects.

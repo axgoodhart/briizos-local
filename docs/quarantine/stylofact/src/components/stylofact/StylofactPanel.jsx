@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SOURCE_FILE_TYPE } from '../FileTree';
 import { useStylofact } from './useStylofact';
-import '../../../../../src/AppCombined.css';
+import './StylofactPanel.css';
 
 const PIPELINE_STEPS = [
   { id: 'voice', number: '1', label: 'Voice' },

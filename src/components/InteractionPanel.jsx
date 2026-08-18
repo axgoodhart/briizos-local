@@ -13,7 +13,7 @@ import logger from '../lib/logger';
 import { CHAT_BACKGROUNDS } from '../lib/chatBackgrounds';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
-import '../AppCombined.css';
+import './InteractionToolbar.css';
 
 // 'prioritize' left the chat surface: it now lives in the Tasks Panel
 // as briizify (see components/briizify/BriizifySection.jsx).

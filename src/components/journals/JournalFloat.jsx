@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import '../../AppCombined.css';
+import './journals.css';
 import { api, JOURNALS_CHANGED_EVENT } from './api.js';
 import { COVERS, PAGES } from './assets.js';
 import { JournalView } from './JournalView.jsx';

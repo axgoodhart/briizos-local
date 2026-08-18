@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import '../../AppCombined.css';
+import './notefalls.css';
 import { api, mediaUrl } from './api.js';
 import { briizyApi, describeCaptureState, formatBytes } from './briizyApi.js';
 import { useBriizyCapture } from '../../hooks/useBriizyCapture.js';

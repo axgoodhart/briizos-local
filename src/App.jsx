@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import './AppCombined.css';
+import './App.css';
 import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
@@ -11,7 +11,7 @@ import Forest from './components/forest/Forest.jsx';
 import LoginOverlay from './components/LoginOverlay';
 import { TileLayout } from './components/layout/TileLayout';
 import { useLayout } from './hooks/useLayout';
-import './AppCombined.css';
+import './components/layout/layout.css';
 
 // Auth context
 import { AuthProvider, useAuth } from './context/AuthContext';

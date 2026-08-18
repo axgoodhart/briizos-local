@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import logger from '../../lib/logger';
-import '../../AppCombined.css';
+import './AddFromPicker.css';
 
 const CLOSED_TASK_STATUSES = new Set(['completed', 'cancelled']);
 
