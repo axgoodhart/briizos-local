@@ -7,7 +7,7 @@ import {
   activityMatchesQuery,
   buildLogActivities,
 } from '../lib/logActivities';
-import './SourcesPanel.logs.css';
+import '../AppCombined.css';
 
 /**
  * DraggableGithubFile - A draggable GitHub file item for the source panel

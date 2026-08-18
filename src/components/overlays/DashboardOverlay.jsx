@@ -11,7 +11,7 @@ import {
   HEADER_DOCK_STYLES,
   HEADER_DOCK_STYLE_OPTIONS,
 } from '../controlbar/dockPreferences.js';
-import './DashboardOverlay.css';
+import '../../AppCombined.css';
 
 const DOCK_PREVIEW_ITEMS = [
   { id: 'chat', glyph: '􀌮', accent: '#16df69' },

@@ -8,7 +8,7 @@ import { useDayPlanner } from '../../hooks/useDayPlanner';
 import DayTimeline from '../calendar/DayTimeline';
 import AddFromPicker from '../calendar/AddFromPicker';
 import logger from '../../lib/logger';
-import './CalendarModal.css';
+import '../../AppCombined.css';
 
 /**
  * CalendarModal - Monthly grid calendar with daily detail panel

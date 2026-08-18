@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import './journals.css';
+import '../../AppCombined.css';
 import { api, JOURNALS_CHANGED_EVENT } from './api.js';
 import { TEMPLATES } from './templates.js';
 import { JournalView } from './JournalView.jsx';

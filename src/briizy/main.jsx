@@ -8,6 +8,6 @@
 
 import { createRoot } from 'react-dom/client';
 import { BriizyShell } from './BriizyShell.jsx';
-import './briizy.css';
+import '../AppCombined.css';
 
 createRoot(document.getElementById('briizy-root')).render(<BriizyShell />);

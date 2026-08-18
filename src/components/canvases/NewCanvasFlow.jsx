@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import './NewCanvasFlow.css';
+import '../../AppCombined.css';
 import { buildUrlCanvasHtml, escapeHtml, CANVAS_RENDER_ENGINES } from '../../lib/canvasUtils';
 
 const STEP = {

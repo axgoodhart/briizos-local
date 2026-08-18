@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import './AIVisibilityModal.css';
+import '../../AppCombined.css';
 
 // The five stages of every AI process chain, in transport order. Audit event
 // types map onto them — this component renders the ai_turn_audit_events

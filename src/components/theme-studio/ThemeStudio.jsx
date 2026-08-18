@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_GENERATOR_SETTINGS, surpriseGeneratorSettings } from '../../theme/chromap';
 import { FONT_OPTIONS, GLOBAL_TOKEN_GROUPS, TARGET_REGISTRY } from '../../theme/themeRegistry';
 import { useTheme } from '../../theme/ThemeProvider';
-import './ThemeStudio.css';
+import '../../AppCombined.css';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const FONT_DATALIST_ID = 'theme-studio-font-families';

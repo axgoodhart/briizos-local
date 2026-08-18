@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { briizyApi, describeCaptureState, formatBytes } from '../notefalls/briizyApi.js';
 import { relativeTime } from '../notefalls/dates.js';
 import logger from '../../lib/logger';
-import '../notefalls/notefalls.css';
+import '../../AppCombined.css';
 
 /* ── Assistant settings + "what briizy learned" ─────────────────────── */
 
