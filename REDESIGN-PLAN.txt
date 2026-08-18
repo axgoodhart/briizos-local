@@ -1,0 +1,1935 @@
+BRIIZOS.LOCAL AMBIENT REDESIGN PLAN
+
+
+ARCHITECTURAL OVERVIEW OF BRIIZOS.LOCAL
+
+Plain-language summary
+
+briizOS.local is already made of two broad parts.
+
+The visible part is the control center: the header, launcher, masonry tiles, drawers,
+floating tools, and full-screen views. It is drawn with React, the library used to build
+the visible page.
+
+The local engine is behind that interface. It stores information, runs the assistant,
+opens files, talks to macOS, captures screen memory, and returns results to the visible
+part. The masonry grid is not the engine. This distinction is what makes a relatively
+small first recast possible.
+
+A normal action follows this path:
+
+Person uses the visible interface
+    -> visible interface asks the protected bridge
+    -> protected bridge asks the desktop process
+    -> desktop process uses the local database, macOS, or the assistant
+    -> result returns through the bridge
+    -> visible interface shows the result
+
+The redesign should keep this working local path and replace the presentation controller
+that currently decides whether a feature is a tile, drawer, overlay, or floating surface.
+
+The answer to the first design question is that this can start small. The current visible
+application already has one place where tiled feature content is handed to the masonry
+container. Replacing that container can put several existing features into movable windows
+without changing their database or assistant behavior. It cannot finish the redesign by
+itself because other features live outside that container and several features own their
+own headers, dragging, resizing, full-screen behavior, and saved positions. The detailed
+source evidence appears later under WHY THIS CAN START SMALL BUT CANNOT END AS A WRAPPER.
+
+How to read this file
+
+The explanations are written to stand on their own. Every line beginning with Source is
+supporting code evidence and may be skipped unless a claim needs to be verified. The
+section named PROPOSED AMBIENT EXPERIENCE describes what the redesign will feel like. The
+numbered BUILD ORDER is the implementation appendix for the agent doing the construction.
+
+
+THE CURRENT VISIBLE WORKSPACE
+
+What a person experiences
+
+The main window opens as a control center. A launcher opens Chat, Sources, Tasks,
+Organizer, Calendar, Media, Notes, Canvases, Journals, Forest, Notefalls, briiZtorm,
+and settings. Some features enter the masonry grid. Others appear as drawers, floating
+surfaces, or views that cover most of the application.
+
+What makes it work
+
+App.jsx is the current presentation controller. It owns much more than the application
+start. It decides which surfaces are open, where each kind appears, how launcher actions
+find them, which surface Escape closes, and how canvas and journal presentations change.
+
+The masonry subsystem below App.jsx describes columns and vertical stacks. It moves,
+resizes, hides, restores, loads, and saves tiles. The stored dimensions are percentages
+within columns rather than free positions on the screen.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 317-432
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 482-936
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 1017-1455
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useLayout.js, lines 13-205
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useLayout.js, lines 254-400
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/layoutUtils.js, lines 1-302
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/layout/TileLayout.jsx, lines 37-213
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/layout/TileLayout.jsx, lines 249-430
+
+
+THE PROTECTED BRIDGE
+
+What a person experiences
+
+Features can save and retrieve information, inspect selected files, use the assistant,
+open native pickers, and interact with local resources. They do this without giving the
+visible web interface unrestricted access to the computer.
+
+What makes it work
+
+Electron is the desktop wrapper that keeps the visible page separate from code allowed to
+use macOS and local files. Electron loads preload.js between those two parts in a protected
+context. That file places named operations on window.api and window.briizy. Those operations
+are the existing frontend connector.
+
+The bridge already covers settings, workspace state, tasks, calendar placements,
+organizer entries, notes, journals, conversations, memory, logs, automation, canvases,
+media, Forest, files, GitHub, model configuration, assistant streaming, health information,
+and screen memory.
+
+The redesign should continue to call this bridge. It should not copy v3's Firestore-backed
+data holders or invent a second data route.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js, lines 1-117
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js, lines 119-275
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js, lines 277-458
+
+
+THE DESKTOP PROCESS AND LOCAL STORAGE
+
+What a person experiences
+
+Information remains available between launches. The assistant can use local context.
+The application can read approved files, open other applications, select media, watch
+attached drives, and operate Briizy screen memory.
+
+What makes it work
+
+electron/main.js creates desktop windows and owns operations that the visible interface
+should not perform directly. It starts the database, assistant, automation, system
+integrations, USB watcher, screen-memory runtime, and the separate Briizy avatar window.
+
+The primary structured store is a SQLite database named briizos.db in Electron's
+application-data directory. SQLite is a local database held in a file. LocalDataService
+opens it and applies the ordered database-upgrade files. The database contains workspace
+state and content such as tasks, organizer entries, canvases, journals, conversations,
+assistant memory, screen-memory session records, automation runs, settings, and logs.
+
+There are current storage exceptions that the redesign must preserve before consolidating
+them. Forest's board lives in forest.library.json. Briizy screenshot files live under the
+application-data rewind/frames directory while their searchable records live in SQLite.
+Launcher layout, muted log kinds, and some theme fallbacks still use the visible page's
+private local storage. Inventory those keys in MAP.txt before moving their owners. Move
+them into the local settings store during their workflow step, but do not erase the old
+value until the converted value has been read back successfully.
+
+The Prisma file is only a developer reference describing data. It does not read or write
+the running application database.
+
+The current workspace record stores masonry columns, stacks, and tile sizes. The ambient
+workspace will need a new local record for window position, window size, front-to-back
+order, minimized state, and the application shown in each window. The existing masonry
+save function cannot accept that new shape without a direct extension.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js, lines 121-236
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js, lines 241-461
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js, lines 505-855
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js, lines 857-1137
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data-service.js, lines 62-153
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data-service.js, lines 423-563
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data/schema/001_initial.sql, lines 1-513
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data/schema/008_calendar_placements.sql, lines 1-46
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data/schema/009_rewind.sql, lines 1-120
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data/schema/010_briizy.sql, lines 1-171
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/prisma/schema.prisma, lines 1-7
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/forest-fs.js, lines 1-45
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/rewind/storage.js, lines 20-45
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/controlbar/dockPreferences.js, lines 62-158
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.jsx, lines 198-252
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/theme/ThemeProvider.jsx, lines 65-83
+
+
+CURRENT FEATURES GROUPED BY HUMAN PURPOSE
+
+
+CONVERSATION, SOURCES, AND ASSISTANT ACTIONS
+
+What a person experiences
+
+The Interaction surface supports day planning, general conversation, research, coding,
+and report writing. A person can attach selected source files, receive streamed responses,
+answer clarification questions, approve or reject an action, reopen conversation history,
+choose a model, and inspect what the assistant is doing.
+
+Sources lets a person browse local folders, iCloud Drive, attached USB drives, and GitHub.
+A file can be selected or dragged into a conversation as context. Sources also displays
+activity and evidence records. Google Drive displays connection placeholders, but its
+browsing and download operations are not implemented and must not be described as a
+working feature.
+
+What makes it work
+
+InteractionPanel.jsx draws the conversation. useChat.js restores and saves conversation
+history, sends a turn, and receives streamed output. The assistant runs inside Electron,
+not in the visible React page. ToolContext applies the current allow, confirm, or block
+rules. useToolBridge carries requested interface actions back to the visible application.
+
+SourcesPanel.jsx and FileTree.jsx draw the source browser. The Electron filesystem and
+GitHub modules perform the actual reads. useAppContext supplies a current local snapshot
+of notes, tasks, calendar entries, and projects to the assistant independently of their
+screen position.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 20-133
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 261-363
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 434-535
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 787-971
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useChat.js, lines 202-333
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useChat.js, lines 425-542
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useChat.js, lines 604-1048
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ToolContext.jsx, lines 49-176
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useToolBridge.js, lines 1-78
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useAppContext.js, lines 4-53
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/agent/index.js, lines 1-123
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/agent/models.js, lines 173-313
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/agent/checkpointer.js, lines 27-199
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/AIVisibilityModal.jsx, lines 269-544
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.jsx, lines 152-540
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.jsx, lines 589-990
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/FileTree.jsx, lines 1-176
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/filesystem.js, lines 34-289
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/github.js, lines 1-268
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/gdrive.js, lines 1-157
+
+
+PLANNING AND CARRYING OUT WORK
+
+What a person experiences
+
+Tasks supports parent tasks, smaller steps, status and priority changes, deletion,
+assistant-generated breakdowns, and locally run automation. Deck Maker turns an idea
+into a task with smaller actions. Briizify combines tasks, Forest material, or pasted text
+into a focus plan and can place its activities on the calendar.
+
+Organizer stores projects, events, ideas, notes, and timers. Calendar displays planning
+items and scheduled appearances of tasks. The day planner can propose placements and focus
+blocks. Priorifact is the live form of a Briizify focus plan. It follows the clock, shows
+the current activity and remaining time, reveals preparation, steps, or support notes,
+and can pause or extend the plan. Its expanded view can add, edit, reorder, or remove
+activities and breaks. It can also place the plan on Calendar or save it as a reusable
+flow.
+
+Forest is the visual project field. It displays project cards and files, searches project
+material, finds missing or changed files, opens files, and can gather project files into a
+chosen location.
+
+What makes it work
+
+The planning surfaces call local task, organizer, placement, automation, and Forest
+operations through the bridge. Their information is portable to a new shell.
+
+Forest is a real technical exception. It is an older non-React application whose script
+expects particular document elements and installs global browser listeners. Its React host
+creates and tears down that isolated environment. The first ambient version should host
+Forest whole inside a shared window rather than mixing a Forest rewrite into the shell
+redesign.
+
+Phantom is also an exception because its current surface starts an external Python
+application at one hardcoded machine path. Phantom itself is an active Tasks workflow,
+not a later idea. Preserve its list, playback, record, inspect, run, status, stop, and
+delete actions. Replace the hardcoded path with a local Integration setting and a folder
+picker. Import the present path into that setting if it exists; otherwise show Select
+Phantom Folder. Keep the external Python application separate because it is another
+program, while keeping its visible controls in the Planning section of workspace.jsx.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/TasksPanel.jsx, lines 14-210
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/TasksPanel.jsx, lines 246-562
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useTasks.js, lines 13-215
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useTaskAutomation.js, lines 1-224
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useTaskAutomation.js, lines 551-632
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useDeckMaker.js, lines 1-90
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/briizify/BriizifySection.jsx, lines 9-160
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/briizify/Priorifact.jsx, lines 69-311
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/briizify/Priorifact.jsx, lines 447-695
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useBriizify.js, lines 71-484
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/OrganizerContext.jsx, lines 1-131
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/OrganizerModal.jsx, lines 7-167
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/CalendarModal.jsx, lines 13-273
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/CalendarModal.jsx, lines 313-430
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/usePlacements.js, lines 6-104
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useDayPlanner.js, lines 13-114
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/forest/Forest.jsx, lines 1-69
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/forest/app.js, lines 3469-3624
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/forest-fs.js, lines 240-431
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/forest-fs.js, lines 560-650
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/PhantomSection.jsx, lines 4-170
+
+
+REMEMBERING, FINDING, AND WRITING
+
+What a person experiences
+
+Sticky Notes provides a drawer of notes. A note can be pulled out, moved, resized, and
+returned to the drawer.
+
+Journals provides a bookshelf, templates, pages, rich text, images, trackers, task lists,
+prompts, dashboards, groups, search, linked Forest files, import, and a separately movable
+journal view.
+
+Notefalls combines manually written memory cards with Briizy screen-memory sessions. It
+supports writing, editing, date browsing, searching saved cards and captured text,
+reviewing sessions, opening captured results, and accepting or rejecting proposed actions.
+
+Briizy controls local capture, text recognition, session grouping, search, proposals,
+learning, goals, and daily summaries. Capture remains off until it is explicitly enabled.
+A privacy gate evaluates applications and windows before material is retained.
+
+What makes it work
+
+The written content and search operations use the local bridge and SQLite. The current
+Sticky Notes and Journal Float implementations also own their own outer frames, dragging,
+resizing, and positions. Those presentation behaviors should be removed only after the
+ambient window manager supplies them.
+
+Briizy screen capture uses a native Swift helper, which is a genuine language and process
+boundary. The Briizy avatar is also a separate transparent Electron window with its own
+visible document. Neither should be folded into the main React workspace file.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notes/NotesWidget.jsx, lines 6-146
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notes/NotesWidget.jsx, lines 167-433
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/floatingShell.js, lines 18-96
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalPanel.jsx, lines 44-341
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalPanel.jsx, lines 385-600
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalView.jsx, lines 313-725
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalView.jsx, lines 1083-1149
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalView.jsx, lines 1328-2108
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalFloat.jsx, lines 9-204
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/NotefallsPanel.jsx, lines 117-361
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/NotefallsPanel.jsx, lines 372-808
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/NotefallsPanel.jsx, lines 825-1020
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy/index.js, lines 82-315
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy/index.js, lines 327-651
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/rewind/privacy.js, lines 1-160
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useBriizyCapture.js, lines 1-174
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/briizy/CaptureSettingsPanel.jsx, lines 22-280
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy-helper/BriizyHelper.swift
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/briizy/main.jsx, lines 1-13
+
+
+MEDIA AND VISUAL WORK SURFACES
+
+What a person experiences
+
+Media accepts audio or video through a native picker, browser file selection, or drag and
+drop. It restores the queue and playback state and supports play, remove, volume, repeat,
+and shuffle.
+
+Canvases are saved work surfaces created from generated code, a web address, or a local
+file. Their content appears in an isolated frame or Electron web view. The current shell
+lets a canvas choose tiled or floating presentation.
+
+briiZtorm is a standalone visual application shown inside a full-screen overlay. It passes
+saved state to the React shell through browser messages.
+
+Studio opens configured local applications, folders, or web addresses.
+
+What makes it work
+
+The media queue, canvas records, and native operations are reusable. Their current tile,
+floating, position, dragging, and outer-frame rules belong to the old presentation and
+should move to the ambient window manager.
+
+Canvas content and briiZtorm remain isolated documents because that isolation is how they
+execute. Their host controls belong inside the main workspace file; their documents do not.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/MediaPanel.jsx, lines 96-259
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/MediaPanel.jsx, lines 292-655
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/MediaPanel.jsx, lines 678-1012
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useCanvases.js, lines 38-229
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/canvases/NewCanvasFlow.jsx, lines 5-300
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/canvases/CanvasSurface.jsx, lines 10-79
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/canvases/CanvasTile.jsx, lines 5-128
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/LiveCanvas.jsx, lines 14-406
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/BriiztormOverlay.jsx, lines 14-90
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/public/apps/briiztorm/briiztorm2.html
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/studio.js, lines 12-150
+
+
+APPLICATION CONTROL, SETTINGS, AND THEMES
+
+What a person experiences
+
+The current control surface includes launcher ordering and appearance; time, date, and
+weather; model and credential configuration; Briizy settings; integrations; assistant
+memory; permissions; system health; appearance editing; theme libraries; and login or
+offline entry.
+
+What makes it work
+
+ControlBar has separate launch and active-state wiring for every current surface type.
+Dashboard contains the settings areas. ThemeProvider, its registry, its runtime, and Theme
+Studio together support broad global styling, component-specific styling, individual
+object overrides, live object selection, saved libraries, import, export, duplicate,
+rename, Save As, delete, revert, undo, redo, palette generation, Replace Default, and
+Restore Default.
+
+The feature list is valuable. The surface-specific launcher wiring and selector-by-selector
+theme machinery should not survive the recast.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/controlbar/ControlBar.jsx, lines 36-650
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.jsx, lines 30-1233
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.jsx, lines 1241-1585
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/theme/ThemeProvider.jsx, lines 65-246
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/theme/ThemeProvider.jsx, lines 248-654
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/theme/themeRegistry.js, lines 11-125
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/theme/themeRuntime.js, lines 10-144
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/theme-studio/ThemeStudio.jsx, lines 94-501
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/LoginOverlay.jsx, lines 10-163
+
+
+FIRESTORE'S CURRENT POSITION
+
+Plain-language summary
+
+The working user-data path is local SQLite. Firebase authentication and a cloud gateway are
+mounted, and the current login surface offers an offline path. Direct Firestore modules and
+the Firestore worker hook are not part of the active feature path. The cloud gateway cannot
+perform useful remote continuity until it receives an authenticated session.
+
+The ambient redesign will open locally without login. It will not use Firestore. Remote
+continuity and remote communication will be a later connection to the completed local
+system; they will not shape the current windows, features, or source layout.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/AuthContext.jsx, lines 72-200
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/LoginOverlay.jsx, lines 79-163
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/firestore.js
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useAgentWorkers.js
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/cloud-gateway.js, lines 55-159
+
+
+HOW BRIIZOS.V3'S INTERFACE WORKS
+
+Plain-language summary
+
+briizOS.v3 does not create a separate native Mac window for every visible panel. It creates
+one transparent Electron window that covers the usable screen and remains above ordinary
+application windows while shown. React panels move inside that transparent host. Empty
+parts of the host let clicks pass through to the desktop and other applications underneath.
+
+Each visible panel has one shared record containing what it displays, where it sits, how
+large it is, whether it is minimized, and whether it is in front of or behind another
+panel. The shared frame owns dragging, resizing, focus, minimize, close, title treatment,
+and the resize handle. Application content does not own those behaviors.
+
+The bottom launcher opens an application or focuses an existing one. Minimized panels
+appear in a small dock. The launcher can expand into an assistant input.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/main.js, lines 16-58
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/hooks/useClickThrough.js, lines 4-22
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/context/PanelContext.jsx, lines 5-94
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/context/PanelContext.jsx, lines 129-233
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.jsx, lines 8-42
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.jsx, lines 99-142
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Omnibar/Omnibar.jsx, lines 48-155
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Dock/Dock.jsx, lines 5-20
+
+
+WHAT V3 CONTRIBUTES, AND WHAT IT DOES NOT
+
+Use v3 as the authority for the ambient form:
+
+- one transparent, screen-sized host;
+- desktop clicks passing through empty space;
+- independently movable application windows;
+- one account of open, active, minimized, positioned, and sized windows;
+- one bottom launcher and one minimized-window dock;
+- one shared outer frame;
+- a dark translucent surface, detached capsule title bar, restrained edge, blur, and shadow;
+- a small, coherent color and typography vocabulary.
+
+Do not copy v3's folder structure, layers of shared data wrappers, Firebase login, Firestore storage,
+exact coordinates, arbitrary default dimensions, local-storage choices, icon library, or
+unfinished context-menu actions.
+
+V3 does not currently save its window arrangement. Its panel list begins empty after a
+reload. Firestore save functions exist but are not connected to the panel state. The local
+redesign must add real local persistence rather than claim this is already wired.
+
+V3 also allows windows to be lost beyond the screen edge. Its green title-bar control does
+nothing, pin merely disables dragging, and several context-menu commands are visual only.
+These are reference-code limitations, not behaviors to reproduce.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/App.css, lines 11-23
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.css, lines 2-23
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.css, lines 53-141
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/context/PanelContext.jsx, lines 1-27
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/lib/firestore.js, lines 407-432
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/ContextMenu/ContextMenu.jsx, lines 16-21
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/ContextMenu/ContextMenu.jsx, lines 203-288
+
+
+WHY THIS CAN START SMALL BUT CANNOT END AS A WRAPPER
+
+Direct answer
+
+A small frontend connector adjustment can create the first convincing version. In fact,
+the connector already exists. App.jsx has one function that maps current tiled application
+names to their visible content, and it hands that function to TileLayout in one place. A
+temporary ambient host can replace TileLayout there, call the same content function, and
+continue using the current window.api bridge.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 1134-1195
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 1318-1330
+
+That small change can:
+
+- prove the transparent host and desktop click-through behavior;
+- place current Chat, Sources, Tasks, Forest, Notefalls, and Journal bodies in movable
+  v3-style windows;
+- keep the local database, assistant, files, memory, and other engine behavior working;
+- show the new form without first copying the application into another source tree.
+
+It cannot finish the redesign for the following concrete reasons.
+
+The current grid and the ambient workspace store different facts.
+
+The grid stores columns, stacks, and percentage sizes. The ambient workspace stores a
+screen position, dimensions, front-to-back order, minimized state, and application identity
+for every window. Open, focus, move, resize, minimize, restore, and save need one new
+definition.
+
+Several features draw their own outer frame.
+
+Chat, Sources, Tasks, Journals, Notefalls, Sticky Notes, Journal Float, Media, and canvases
+contain some combination of their own header, backdrop, fixed position, dragging, resizing,
+or full-screen treatment. Wrapping them unchanged would put an old local panel inside a new
+v3 panel. Some would show two headers.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 434-436
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.jsx, lines 589-600
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/TasksPanel.jsx, lines 453-462
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalPanel.jsx, lines 490-495
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/NotefallsPanel.jsx, lines 943-953
+
+The old and new global styles use the same names for different things.
+
+Both codebases define names such as panel and panel-content globally. Loading both style
+systems unchanged would make them alter each other. Existing feature content needs an
+embedded-body presentation while it is being moved, followed by one deliberate restyle.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.css, lines 612-746
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.css, lines 1-23
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.css, lines 113-141
+
+Much of local is outside TileLayout.
+
+Organizer, Calendar, AI Visibility, Notes, Media, Journal Float, Live Canvas, Dashboard,
+Theme Studio, onboarding, login, and notifications are mounted after the masonry container.
+A replacement for TileLayout cannot automatically collect them.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 1332-1454
+
+The assistant's window actions assume the old grid.
+
+The permission-aware tool bridge receives the current layout controller. Open, minimize,
+and restore use grid methods. Free movement and resizing currently report that they are not
+supported. Those actions need direct ambient implementations while keeping the same
+permission and confirmation behavior.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ToolContext.jsx, lines 49-53
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ToolContext.jsx, lines 120-148
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/tools.js, lines 991-1078
+
+The native Electron window must change too.
+
+Local currently creates an ordinary opaque application window. V3 creates a transparent,
+screen-sized, always-available host and toggles whether empty areas accept clicks. A React
+wrapper alone cannot establish that native behavior.
+
+The current Briizy overlay records that an earlier full-screen overlay interfered with
+activation and dragging. This does not forbid the v3 form. It makes a short interaction
+proof the correct first construction step before reorganizing every feature.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js, lines 121-140
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy/shell.js, lines 4-18
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy/shell.js, lines 111-160
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/main.js, lines 16-46
+
+Conclusion:
+
+Use a small temporary ambient host inside the current application to prove the recast.
+Then consolidate all presentation behavior into one ambient window manager and move the
+existing feature bodies into one sectioned workspace source file. Do not build a parallel
+src3 application and do not rewrite the working local engine merely to change the visible
+form.
+
+
+PROPOSED AMBIENT EXPERIENCE
+
+Plain-language summary
+
+The application will feel like v3: the Mac desktop remains visible, local features open as
+independent translucent windows, and one bottom launcher opens, focuses, minimizes, and
+restores them. It will still do what local does. The redesign changes how those features
+are reached and arranged, not what information they own.
+
+
+STARTING AND LEAVING THE WORKSPACE
+
+The ambient workspace opens locally without a login gate. It restores the last locally
+saved arrangement. If no arrangement exists, it shows only the launcher. No feature
+window opens until it is selected.
+
+Extend the existing Briizy menu-bar item with Show or Hide Workspace and add a workspace
+keyboard shortcut for the same action. Use Command-Shift-Space on macOS. V3 uses
+Command-Shift-B, but local already uses that key combination for briiZtorm; the existing
+briiZtorm shortcut must remain unchanged. This keeps one menu-bar icon. Briizy capture and
+avatar actions remain in their own labeled section of that menu. Quitting still shuts down
+the local services cleanly.
+
+Empty screen areas pass clicks to the desktop underneath. Every visible interactive area,
+including menus, launcher expansions, dialogs, notices, resize controls, Briizy controls,
+and detached drawers, must explicitly receive clicks.
+
+
+NATIVE HOST DECISIONS
+
+Use one native workspace window, not one native window per feature and not one workspace
+window per display.
+
+The host covers the usable area of one selected display. At first launch it uses the
+primary display. The existing menu-bar item contains Move Workspace to Current Display. That
+command uses the display containing the pointer, moves the host to that display, and keeps
+every feature window inside it. Store feature positions relative to the host's upper-left
+corner, so a display located to the left of the primary display does not give feature
+windows negative saved positions.
+
+If the selected display disappears, move the host to the primary display and bring every
+feature window back inside its usable area. If display dimensions change, retain relative
+placement where possible and apply Return Home only to windows that no longer fit.
+
+While shown, the host remains above ordinary application windows. Clicking another
+application through empty space does not lower the ambient feature windows. The host hides
+only through the menu-bar command, the workspace keyboard shortcut, or application
+quit; losing keyboard focus does not hide it.
+
+Keep the briizOS Dock icon visible. Make the host visible on ordinary macOS Spaces but not
+over a native full-screen application. Revealing it from the Dock, menu bar, or shortcut brings
+it to the current ordinary Space. Do not copy v3's skipTaskbar setting or use an accessory
+activation mode that hides the Dock icon. Briizy keeps its own independent window and its
+capture controls remain in the shared menu-bar item.
+
+These decisions must be implemented in electron/main.js, not simulated only in the visible
+page. Transparent framing, remaining above other applications, display bounds, Dock
+presence, and macOS Space behavior are native window properties.
+
+
+THE BOTTOM LAUNCHER
+
+The launcher is one bottom-center capsule derived from v3. Its ordinary view shows clearly
+labeled workflow groups rather than a long row of unexplained icons:
+
+- Conversation
+- Planning
+- Memory
+- Making
+- System
+
+Selecting a group reveals its current local features as labeled actions. The most-used
+action may also retain a familiar icon, but the label remains visible. Selecting a feature
+opens it, focuses it if already open, or offers a new instance when multiple instances make
+sense.
+
+The group is only a launcher expansion. It does not open an extra Conversation, Planning,
+Memory, or Making hub window.
+
+The assistant entry remains available from the same launcher. Submitting there opens or
+focuses Conversation and sends the text into the current local assistant path. Command-K
+expands this entry while the ambient host is shown, matching v3.
+
+Minimized windows appear in a small dock immediately above the launcher. The dock uses the
+window title as well as an icon so similar journals, canvases, or conversations remain
+distinguishable.
+
+Use these opening rules rather than inventing them during implementation.
+
+Open or focus one existing window:
+
+- Conversation, with saved threads switched inside that one window;
+- Sources;
+- Tasks;
+- Organizer, including timers;
+- Calendar;
+- Priorifact;
+- Forest;
+- Notes drawer;
+- Journal shelf;
+- Notefalls;
+- Media;
+- briiZtorm;
+- AI Visibility;
+- System settings.
+
+Allow several content windows only where local already presents several distinct items:
+
+- one detached window for each Sticky Note;
+- one open window for each journal, while reopening the same journal focuses its existing
+  window;
+- one ordinary window for each canvas whose old presentation was tile or float;
+- two synchronized windows for a canvas whose old presentation was hybrid, because hybrid
+  currently means tile and float are visible together.
+
+Today is not another application implementation. It opens or focuses Conversation directly
+in Day mode. Forest shown under Making is a shortcut to the same Forest window owned by
+Planning. Studio targets open the configured external application, folder, or address and
+do not create an empty Studio window.
+
+
+AMBIENT CLOCK, DATE, AND WEATHER
+
+Keep the current visible time, date, and weather experience. Present the clock and date as
+a quiet lower-left ambient element and weather as a quiet upper-right element, following
+v3's placement language while using local's current weather request and fallback behavior.
+
+System settings control whether each element is shown. These elements are part of the
+complete click-through list whenever they offer an action or explanation. They do not
+become decorative controls that suggest an action they lack.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx, lines 61-270
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Clock/Clock.jsx, lines 18-39
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Weather/Weather.jsx, lines 18-94
+
+
+THE SHARED WINDOW FRAME
+
+Every ordinary feature window uses the same outer frame. The frame owns:
+
+- title and optional descriptive subtitle;
+- focus and front-to-back order;
+- moving and resizing;
+- minimize, close, Return Home, and Fill Screen;
+- minimum useful dimensions based on the feature's content;
+- screen-edge limits and recovery after display changes;
+- loading, empty, error, and confirmation placement;
+- saved local position and size.
+
+Return Home restores the feature's useful default size and centers it in the selected
+display's usable area. It controls window position only. It does not replace a feature's
+own Back, Back to Shelf, or Dock to Drawer action. A window can never become permanently
+unreachable beyond a screen edge.
+
+Fill Screen expands one feature window to the host's usable area and records its previous
+position and dimensions. Selecting Fill Screen again restores that previous placement.
+This preserves local's current full-screen panel behavior without entering macOS native
+full-screen mode.
+
+Close, minimize, Return Home, and Fill Screen remain perceivable without requiring hover.
+Tooltips use plain verbs. Decorative controls with no action are not included.
+
+Escape first closes the frontmost temporary menu or dialog. If none is open, it closes the
+frontmost window only when that window's current work can be dismissed safely. Unsaved or
+destructive work receives its existing confirmation.
+
+
+CONVERSATION IN THE AMBIENT WORKSPACE
+
+Conversation opens as a regular resizable window. Its day, chat, research, code, and report
+modes remain. Saved threads, model selection, file context, streamed responses,
+clarification, suggestions, permission prompts, and assistant visibility remain.
+
+The saved Conversation background and blur remain, including the different background
+chosen for each named theme. They affect only the Conversation content layer. They are
+separate from the ambient desktop background and must not be removed when the global theme
+system is reduced.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ChatSettingsContext.jsx, lines 8-31
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ChatSettingsContext.jsx, lines 43-68
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ChatSettingsContext.jsx, lines 146-184
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 137-225
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx, lines 453-555
+
+Sources opens as its own window. Dragging a file from Sources onto Conversation attaches it
+through the current selection path. Activity and evidence can remain in Sources or open as
+a detail window from it; they do not become unrelated top-level applications.
+
+AI Visibility opens as a detail window from Conversation and System. Approval requests
+appear above their requesting window and remain inside the shared stacking system.
+
+The assistant's open, focus, minimize, restore, move, and resize actions call the same
+ambient window manager as human input. The current allow, confirm, and block rules remain.
+
+Human result
+
+A person can place conversation beside source material anywhere on the desktop without
+placing the entire old masonry control center inside one larger window.
+
+
+PLANNING IN THE AMBIENT WORKSPACE
+
+The Planning launcher group reveals Today, Tasks, Organizer, Calendar, Priorifact, and
+Forest. Today focuses Conversation in Day mode. The other actions open or focus their
+single windows, which can remain side by side.
+
+Tasks retains steps, status, priority, deletion, Deck Maker, Briizify, and automation.
+Briizify may open a focused detail window while keeping its generated plan connected to
+the same task and placement records. Calendar and Organizer remain views of the same local
+planning information rather than copied stores.
+
+Priorifact opens or focuses one ordinary window instead of remaining attached to the
+bottom of Tasks. Its compact view follows the current activity and time. The same window
+can expand to show and edit the whole plan, pause or extend it, add breaks, send it to
+Calendar, or save it as a reusable flow. Closing the window hides the plan presentation;
+it does not end or delete the plan. Ending the plan remains a separate confirmed action.
+
+Organizer keeps projects, events, ideas, notes, and timers. A person can still filter for
+timers and create, edit, or remove a timer record. Timers are not deferred merely because
+v3 also contains a different timer interface.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/OrganizerModal.jsx, lines 8-67
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/OrganizerModal.jsx, lines 185-315
+
+Forest opens inside a shared ambient frame but initially retains its isolated legacy host.
+Planning is Forest's source and launcher owner. The Making launcher may show a Forest
+shortcut, but that shortcut focuses this same window.
+
+Phantom remains inside Tasks with playback, record, inspect, run, status, stop, and delete.
+Its Integration setting locates the external Python application. A missing path shows a
+folder picker and a plain explanation; it does not remove or defer Phantom.
+
+Human result
+
+A person can arrange Tasks beside Calendar, open a planning detail without losing either,
+and return any planning window to a known position.
+
+
+MEMORY IN THE AMBIENT WORKSPACE
+
+The Memory launcher group reveals Sticky Notes, Journals, and Notefalls. Captured-session
+review, search, and proposed actions live here inside Notefalls. Capture enablement,
+privacy, retention, and avatar appearance live in System so the same Briizy settings are
+not implemented in two sections.
+
+Sticky Notes keeps its drawer workflow because that behavior already exists in local. A
+note pulled from the drawer becomes an ordinary ambient window. Returning it to the notes
+drawer changes its presentation without changing its saved content.
+
+The Journal shelf opens as one window. Opening a journal creates or focuses a journal
+window with its existing templates, pages, rich text, images, trackers, tasks, prompts,
+dashboards, groups, search, imports, and Forest links. Journal-specific home behavior is
+not replaced by the universal Return Home control. Back to Shelf returns from the journal
+to the shelf. Dock to Journals returns a detached journal to the Journals parent. Return
+Home only centers and restores the current window's size.
+
+Notefalls keeps writing, search, screen-memory sessions, result review, and proposal
+acceptance. Session details may open in a second ambient window without creating a second
+data implementation.
+
+Briizy capture remains explicitly off until enabled through System. Privacy rules and the
+separate avatar window remain intact.
+
+Human result
+
+Notes, journals, and captured memory can sit beside the work they describe. Their content
+remains local, and their different homegrown floating frames disappear.
+
+
+MAKING IN THE AMBIENT WORKSPACE
+
+The Making launcher group reveals Canvases, Media, briiZtorm, Studio, and a Forest shortcut.
+The Forest shortcut focuses the Planning-owned Forest window rather than creating another
+implementation or another Forest state.
+
+Creating a canvas from code, a web address, or a local file remains. A canvas whose old
+presentation is tile or float opens one ambient window. A canvas whose old presentation is
+hybrid opens two synchronized ambient windows that refer to the same canvas record, because
+hybrid currently keeps tile and floating views visible together. Closing one hybrid view
+leaves the other open; closing the final view closes the canvas presentation without
+deleting its record.
+
+Keep the old formFactor value in the original canvas record during conversion and mark the
+new ambient view records separately. Do not repeatedly create a second hybrid view on every
+launch. Widget remains pinned for later because its current action explicitly says it is
+not implemented.
+
+Media opens in a shared frame and keeps its queue, restored playback state, drag and drop,
+volume, repeat, shuffle, and native picker.
+
+briiZtorm opens its isolated document inside a normal ambient frame rather than a custom
+full-screen overlay. Studio keeps opening configured local applications, folders, and web
+addresses.
+
+Human result
+
+A person can keep media or a canvas beside another workflow without opening a special
+full-screen overlay.
+
+
+SYSTEM IN THE AMBIENT WORKSPACE
+
+System opens one settings window with plain sections for Model, Briizy, Appearance,
+Integrations, Memory, Permissions, Health, launcher choices, weather, and application
+information. Details that need more space can open as ambient child windows, but they stay
+implemented in the System section of the same workspace source file.
+
+System owns Briizy capture enablement, privacy exclusions, retention, and avatar appearance.
+Memory owns Notefalls search and review of captured sessions. System's Integrations section
+also owns the Phantom application-folder setting and folder picker.
+
+Keep the current settings previews, including assistant-memory summary preview and launcher
+style preview. Restyle the launcher preview to the new bottom capsule choices rather than
+deleting the preview merely because the old ControlBar is gone.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.jsx, lines 610-630
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.jsx, lines 1051-1140
+
+The active local application does not mount Firebase authentication or LoginOverlay. It
+also does not merely hide cloud controls while starting CloudGateway behind the scenes.
+Remove CloudGateway construction and cloud request handlers from electron/main.js, remove
+the cloud operations from electron/preload.js, remove the automation callback that publishes
+changed runs, and remove cloud flush and close calls from application shutdown. Move that
+remote code to the named remote-continuity quarantine after its imports are gone. Keep old
+database-upgrade files because existing databases have already recorded them.
+
+Offline entry is no longer a special path because local operation is the normal path.
+Remote continuity remains named in MAP.txt as later work.
+
+Human result
+
+Settings become one understandable local control window. Starting the application does not
+suggest that a remote account is required for the working local system.
+
+
+VISUAL AND THEME SYSTEM
+
+Plain-language summary
+
+V3 should lead the appearance. Local's ability to choose and save a theme remains, but the
+theme will describe one coherent interface rather than allowing every individual object to
+become a separate design system.
+
+The working v3 vocabulary provides the starting form:
+
+- dark ambient background;
+- translucent dark window surface;
+- cyan primary emphasis;
+- pink and warm yellow secondary emphasis;
+- light primary text and quieter secondary text;
+- thin window edge and restrained shadow;
+- detached capsule title bars and launcher;
+- unevenly rounded main window corners;
+- shared blur and restrained motion;
+- the Chillax, Josefin Sans, and Jost type direction used by v3.
+
+Package these fonts locally. Copy v3's checked-in Chillax file into local assets and add
+local Josefin Sans and Jost font assets or their packaged dependencies. Do not make the
+working interface wait for Google Fonts at runtime. Font files remain binary resources,
+not source modules.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/assets/fonts/Chillax-Variable.ttf
+
+In the style code, which web applications call CSS, corner radius means how rounded a
+rectangle's corners are. V3's main window shape uses different corner roundness on
+different corners. Its launcher and title bar use a long capsule shape. The redesign does
+not adopt an arbitrary number of corner shapes. It uses these two visible families because
+they are the shapes actually responsible for v3's appearance.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/App.css, lines 11-23
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.css, lines 2-23
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Panel/Panel.css, lines 53-141
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Omnibar/Omnibar.css, lines 2-35
+
+Theme values will be named only for visible jobs the interface actually needs. Those jobs
+include desktop background, window surface, raised surface, strong text, quiet text,
+primary emphasis, secondary emphasis, success, warning, destructive action, focus edge,
+type, blur, shadow, motion, main-window corners, and capsule corners.
+
+There is no predetermined target count. If two values do the same visible job, combine
+them. If a real state cannot be communicated correctly with the existing values, add the
+smallest direct value beside the theme map. Do not hide a growing visual system in scattered
+hardcoded colors merely to keep a count low.
+
+Preserve choose, Save, Save As, import, JSON export, style-code export, duplicate, rename,
+delete, revert, undo, redo, palette generation, Replace Default, and Restore Default for
+named themes. Retire live object selection, per-component styling, per-instance styling,
+and generated rules that depend on names from the old masonry interface.
+
+Use this conversion rather than inventing one during implementation:
+
+- old canvas becomes ambient desktop background;
+- old panel becomes window surface;
+- old elevated becomes raised surface;
+- old textStrong or textPrimary becomes strong text;
+- old textSoft or textMuted becomes quiet text;
+- old primary becomes primary emphasis;
+- old secondary becomes secondary emphasis;
+- old success, warning, and danger keep those same status jobs;
+- old border or borderStrong becomes the ordinary edge and focus edge;
+- old fontUi becomes body type and old fontDisplay becomes title type;
+- old glowStrength and shadowDepth become the restrained shared shadow strength;
+- old motionFast, motionNormal, and reducedMotion become shared motion and the reduced-motion
+  choice;
+- old panelRadius sets the overall amount of roundness while retaining v3's uneven main
+  window corner pattern;
+- the per-theme Conversation background and blur copy unchanged to the converted theme.
+
+Old object-specific backgrounds, object-specific fonts, non-round corner styles, control
+corner settings, masonry gaps, masonry header height, and instance overrides have no direct
+ambient equivalent. Keep them in the untouched backup and list their names in the theme's
+plain conversion notes. Use the v3-led default for the new visual job; do not translate an
+old value into an unrelated new role merely to avoid reporting it.
+
+Before converting, copy the complete existing ui_theme_library value to
+ui_theme_library_before_ambient. Never overwrite that backup. Write converted themes to
+ui_theme_library_ambient and set ui_theme_ambient_converted only after the new library is
+read back successfully. If that marker is present, do not convert again on later launches.
+Keep the active theme identity when its conversion succeeds; otherwise select the v3-led
+default and show which theme could not be converted.
+
+Background imagery and filters affect only the background layer. They never reduce the
+legibility of window content. The third-party animated background catalogue from v3 is not
+required for this redesign.
+
+Readable body text, comfortable line lengths, clear group spacing, keyboard focus,
+reduced-motion preferences, and user zoom are part of completion. Critical actions are
+not hover-only. Icons are accompanied by text where recognition would otherwise depend on
+memory. Every asynchronous surface has understandable loading, empty, error, and success
+feedback.
+
+
+END OF THE HUMAN EXPERIENCE PROPOSAL
+
+Everything above this point explains the present system and the proposed experience. The
+remaining sections are construction instructions and a completion checklist. They may be
+skipped when the purpose is only to understand how the redesigned application will work.
+
+
+SOURCE ARCHITECTURE AFTER CONSOLIDATION
+
+Plain-language summary
+
+The destination is not a new directory containing one file for every old panel. The main
+visible application will be one source file with a plain text map and strong internal
+section headings. Separate files remain only where code truly runs in another process,
+another document, another language, an immutable database upgrade, or one of the named
+stateful engine subsystems whose startup would otherwise become circular.
+
+
+PRIMARY VISIBLE APPLICATION
+
+Destination:
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/workspace.jsx
+
+This file is the application entry and the visible application. It contains imports only
+for genuine external packages, genuine process/document boundaries, and binary assets. It
+does not import local helper, hook, type, constant, style, or one-component files.
+
+During construction, workspace.jsx exports Workspace and current App.jsx mounts it only in
+ambient mode. It does not mount a second page at that stage. At the final-start step, move
+the current root mounting, error display, and remaining shared startup-wrapper behavior from
+src/main.jsx and ErrorBoundary.jsx into workspace.jsx under APPLICATION START. Only then
+does workspace.jsx mount the root itself and index.html load it directly. Move src/main.jsx,
+App.jsx, ErrorBoundary.jsx, and other classic-only source to quarantine in that same final
+change. This is one transition, not two maintained entry systems.
+
+Use these exact searchable section headings inside the file:
+
+/* ==================== APPLICATION START ==================== */
+/* ==================== PROTECTED BRIDGE ACCESS ==================== */
+/* ==================== APPLICATION CATALOG ==================== */
+/* ==================== AMBIENT WINDOW STATE ==================== */
+/* ==================== SAVED WORKSPACE ==================== */
+/* ==================== SHARED WINDOW FRAME ==================== */
+/* ==================== LAUNCHER AND MINIMIZED WINDOWS ==================== */
+/* ==================== CONVERSATION AND SOURCES ==================== */
+/* ==================== PLANNING AND TASKS ==================== */
+/* ==================== MEMORY AND WRITING ==================== */
+/* ==================== MEDIA AND VISUAL WORK ==================== */
+/* ==================== SYSTEM AND SETTINGS ==================== */
+/* ==================== CONFIRMATIONS AND FEEDBACK ==================== */
+/* ==================== THEME VALUES AND STYLES ==================== */
+/* ==================== ROOT WORKSPACE ==================== */
+
+The application catalog is one local object in workspace.jsx. It states each application
+name, human label, workflow group, ordinary opening size, whether multiple instances are
+valid, and which local function renders its body. Do not create a separate application-list
+file, registry directory, or separate type file.
+
+Each workflow section contains its visible functions, local state, bridge calls, constants,
+small helpers, and CSS. Styles live in the same file as a single readable style string near
+the feature they serve or in the final theme-and-styles section when they apply to the
+whole workspace. Small repeated code is allowed when removing it would require jumping to
+another file to understand the behavior.
+
+One source section may render several independent windows. Source locality does not mean
+visual confinement. Conversation and Sources can be two windows implemented in one section;
+the Journal shelf and several open journals can be windows implemented in one section.
+
+
+HUMAN-READABLE MAP
+
+Destination:
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+
+MAP.txt uses the same section order as workspace.jsx. For each section it states:
+
+- what a person can do there;
+- the exact heading to search for in workspace.jsx;
+- which window.api or window.briizy operations it calls;
+- which local records it reads or changes;
+- which isolated document or native helper it hosts;
+- whether any incomplete or later feature is visible nearby.
+
+Update MAP.txt in the same change whenever a feature moves, a bridge operation changes, or
+a genuine source boundary is added. Do not wait for a file-length threshold. The map applies
+to the entire application from its first line.
+
+
+GENUINE SEPARATE BOUNDARIES
+
+Keep these separate because they do not run as ordinary sections of the main visible page:
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+
+This runs in Electron's desktop process and owns application windows, lifecycle, native
+operations, and service startup.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js
+
+Electron loads this in an isolated protected context. It is the explicit request bridge.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data-service.js
+
+This owns the running local database connection and database operations.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data/schema/
+
+Existing database-upgrade files remain separate and unchanged because the database records
+their order and checksums. They are historical instructions for upgrading existing local
+data, not organizational component files.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/briizy.jsx
+
+This is justified as a separate visible source because Briizy is a separate transparent
+Electron window. Consolidate its present entry, component, local helpers, and styles into
+this one file when the main ambient shell is stable.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy-helper/BriizyHelper.swift
+
+This is a native Swift program used for screen capture.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/public/apps/briiztorm/briiztorm2.html
+
+This remains an isolated executable document hosted by the main workspace.
+
+Forest's classic script and canvas web documents remain isolated during the shell redesign.
+After the shell is complete, consolidate each isolated subsystem into the smallest file set
+its execution model permits. Do not force them into workspace.jsx merely to lower a count.
+
+Fonts, images, audio, icons, and other binary resources remain resources. They are not
+source sprawl.
+
+The following small build documents also remain because external tools load them by name:
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/package.json
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/vite.config.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/index.html
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/briizy.html
+
+They contain only the package commands, build entries, security policy, and source
+connection those tools require. Feature behavior does not belong in them.
+
+Test documents and their runner entry files may remain separate because a test tool
+executes them outside the application. They must not become a place for runtime helpers or
+a duplicate application architecture. Consolidate tests by the same actual execution
+boundaries when the related subsystem is consolidated.
+
+
+BACKEND LOCALITY PASS
+
+Do not assume the current Electron and assistant file arrangement must remain unchanged.
+Review it after the visible workflows are working. Do not mix a wholesale backend rewrite
+into the window proof.
+
+After each visible workflow is working in workspace.jsx, use this intended backend map:
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+
+Keep application lifecycle and native-window creation here. Fold the ordinary filesystem,
+GitHub, Studio, working media/weather handlers, USB watching, and logger setup into clear
+sections of main.js. Pass the logger and required native objects into the subsystem files
+below. Move the incomplete Google Drive implementation to later-work quarantine.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js
+
+Keep this as the one protected request bridge. Fold bridge operation lists into this file;
+do not create a channel-list or bridge-helper file.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data-service.js
+
+Fold local-data-ipc.js, local database validation, limits, built-in-model validation, theme
+library validation, and database-only Forest records into this file. Keep ordered database
+upgrade documents separate. Move unused older local-db.js and forest-db.js to quarantine
+after confirming no live import or database startup uses them.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/assistant.js
+
+Fold the current agent directory, model creation, model settings, system prompt, tools,
+memory, checkpoints, title creation, data catalog, audit, visible-page bridge, approved file
+and terminal operations, operation receipts, and AutomationRunner into this one assistant
+subsystem. The assistant file receives LocalDataService and the current workspace window
+from main.js. Move direct-Firestore agent jobs to remote-continuity quarantine.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy.js
+
+Fold the current Briizy coordinator, assistants, capture configuration, privacy rules,
+storage coordination, indexer, compactor, protected bridge registrations, and avatar-window
+shell into this one screen-memory subsystem. The native Swift helper remains separate.
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/forest-fs.js
+
+Fold Forest ignore rules, board-file storage, search, repair, open, and consolidation into
+this one Forest filesystem subsystem. Forest's visible host stays in workspace.jsx and its
+temporary classic document stays isolated until separately consolidated.
+
+A backend source survives outside this map only when at least one of these statements is
+true and MAP.txt names which one:
+
+- Electron, the build tool, or the operating system loads that exact file in another
+  protected context;
+- it is another executable document, native language, or operating-system process;
+- it is an existing ordered database upgrade whose checksum must remain unchanged;
+- merging it would create a demonstrated circular startup dependency between two of the
+  named stateful subsystems.
+
+File length, a directory category, possible future reuse, and “can operate independently”
+without a separate lifecycle are not sufficient reasons.
+
+Complete one subsystem at a time. Keep its public bridge names stable while consolidating
+it so the visible application does not need another compatibility layer. Update MAP.txt.
+Move superseded source to a named quarantine location after no live import points to it;
+do not delete and recreate whole files as a cleanup technique.
+
+
+CONSTRUCTION RULES FOR THE IMPLEMENTING AGENT
+
+The numbered build steps below express order only. They are not dates, duration estimates,
+team assignments, source-size goals, or judgments about difficulty.
+
+- Work in the existing briizOS.local repository and current branch. Do not create src3 or
+  another parallel application.
+- While building, the current repo will still be functional.
+- Keep the classic view reachable until the ambient acceptance list is complete.
+- Treat v3 as a behavior and appearance reference. Transcribe the necessary behavior into
+  local source; do not import v3's contexts, Firestore code, or directory structure.
+- Keep the working local database, assistant, and bridge active while replacing presentation.
+- Do not remove, collapse, or rename a user workflow without recording the exact human
+  consequence in MAP.txt and receiving approval when the behavior would actually change.
+- Do not create a file for a helper, hook, type, constant, style, configuration object, or
+  registry when it can live beside the section that uses it.
+- If a package, import, file, bridge operation, prefix, or small connection is absent, add,
+  install, create, rename, or connect the smallest direct piece. Stop only for an unavoidable
+  incompatibility, destructive data action, or behavior choice that requires compromise.
+- Before moving a feature, record its current actions, persistence, empty state, loading
+  state, error state, destructive confirmations, keyboard behavior, and links to other
+  features. After moving it, exercise the same list through the new window.
+- Do not leave permanent connector layers around obsolete presentation rules. Use a
+  temporary connector only while its workflow is actively moving, then remove its live
+  imports.
+- Preserve existing source until its replacement is active and inspected. Then rename or
+  move the old source into quarantine rather than deleting and recreating it.
+- At each working build step, stage the continuous repository state, commit it on the
+  current branch, and push it to the existing GitHub remote. Include changes already present
+  in the repository rather than treating them as someone else's development surface.
+
+
+BUILD ORDER
+
+
+STEP 1 — RECORD THE CURRENT BEHAVIOR AND ADD THE DEVELOPMENT SWITCH
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/package.json
+
+Actions
+
+Create MAP.txt from the feature groups in this plan. Record the current launch action,
+outer presentation, bridge operations, saved data, and exit behavior for every active local
+feature. Mark Google Drive browsing, Journal Chat, recorder import, Firestore workers,
+widget mode, and other dormant placeholders as later or incomplete rather than active.
+Record Forest's JSON board file, Briizy's frame directory, every visible-page local-storage
+key, Organizer timers, Conversation background settings, full-screen behavior, hybrid
+canvases, every Theme Studio action, and every Phantom action explicitly.
+
+Add one development launch choice named --ambient and one package command named dev:ambient
+that uses it. main.js uses that choice when creating the native window and adds
+presentation=ambient to the same page address it already loads. App.jsx reads that page
+value and selects its ambient branch. Keep classic as the default during the interaction
+proof. Do not add a second HTML page or a second source directory.
+
+When complete
+
+The normal launch still opens classic exactly as it did. A launch using --ambient reaches
+the empty ambient branch. MAP.txt gives a person a plain route from each workflow to source.
+
+
+STEP 2 — PROVE THE TRANSPARENT HOST BEFORE MOVING FEATURES
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy/shell.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+
+Actions
+
+For ambient mode, make the main Electron window transparent, frameless, sized to the usable
+display, and kept above ordinary application windows while shown. Add Show or Hide Workspace
+and Move Workspace to Current Display to the existing Briizy menu-bar item, plus a workspace
+keyboard shortcut for show or hide. Register CommandOrControl+Shift+Space globally and
+unregister it when the application quits. If registration fails because macOS or another
+application owns that combination, keep the menu-bar action working and show the failed
+shortcut plainly in System settings. Keep the existing in-page Command-or-Control plus
+Shift plus B shortcut for briiZtorm. Add one direct bridge operation for toggling whether
+empty host areas accept pointer input.
+
+Implement every decision under NATIVE HOST DECISIONS: keep the Dock icon, show the host on
+ordinary macOS Spaces but not above a native full-screen application, keep it above ordinary
+applications while shown, and add Move Workspace to Current Display. Use one host on one
+selected display. Store visible feature positions relative to that host.
+
+In main.js, use alwaysOnTop at creation and setAlwaysOnTop with the floating level after
+creation. Use setVisibleOnAllWorkspaces with ordinary Spaces enabled and native full-screen
+visibility disabled. Keep the host itself non-resizable and non-movable; only the explicit
+display command moves it. Do not set skipTaskbar and retain the existing Dock restoration.
+
+Inside the ambient branch of App.jsx, draw only a small test launcher and two test windows
+using local content. One window must contain text input. One must contain draggable or
+selectable content. Empty desktop space must pass through.
+
+After the interaction proof works, store the ambient/classic choice through the existing
+local settings bridge so it no longer depends on the development launch choice. main.js
+can read that setting after LocalDataService starts and before ensureMainWindow creates the
+workspace window; it then applies the matching native window options and page value. The
+choice takes effect on the next application launch.
+
+Exercise these exact interactions on the actual desktop: focus text, select text, drag and
+resize both windows, click an application underneath through empty space, reveal and hide
+the ambient host, use the Briizy avatar, switch ordinary macOS Spaces, enter and leave a
+native full-screen application, use Move Workspace to Current Display when another display
+is available, disconnect or resize a display when practical, and return to the host without
+an invisible layer blocking clicks.
+
+When complete
+
+The transparent host no longer interferes with ordinary desktop use or Briizy interaction.
+The local setting can open classic or ambient presentation from the same build. If the
+proof fails, fix only the host, click-through selectors, and native window settings before
+touching feature organization.
+
+
+STEP 3 — CREATE ONE AMBIENT WINDOW MANAGER AND LOCAL SAVE RECORD
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ToolContext.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/tools.js
+
+Actions
+
+Implement one in-file ambient window record. It contains an identity, application kind,
+human title, related content identity, host-relative position, dimensions, previous
+dimensions for Fill Screen, front-to-back order, minimized state, Fill Screen state, and
+any unsaved-work indicator. Implement open, focus, move, resize, minimize, restore, close,
+Return Home, and Fill Screen against that record. Apply the single-window and multiple-window
+rules stated under THE BOTTOM LAUNCHER.
+
+Use one shared frame, one launcher, one minimized dock, one stacking rule for menus and
+dialogs, one Escape rule, one display-change recovery rule, and one complete list of
+interactive selectors for click-through.
+
+Use the existing window.api.localData.settings get and set operations. Save one value under
+the key ambient_workspace. It contains the selected display description and the ambient
+window records. Do not add another request channel and do not pass an invented key to the
+old masonry saveLayout operation; its current input validation only accepts column layouts.
+
+Save after meaningful completed movement, resizing, opening, closing, minimizing, Fill
+Screen changes, or title changes. Do not write on every pointer movement. Restore inside
+the selected host. If its display is absent, choose the primary display. If a saved position
+is no longer visible, apply Return Home automatically. If the saved value cannot be read,
+preserve it under ambient_workspace_unreadable before starting with only the launcher.
+
+Adapt the assistant's current window tools to this manager without weakening their existing
+permission decisions.
+
+When complete
+
+Reloading restores ambient windows locally. No window can be permanently lost. Human and
+assistant window actions use the same implementation.
+
+
+STEP 4 — HOST THE EXISTING FEATURE BODIES THROUGH THE CURRENT TILE CONNECTION
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionToolbar.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.logs.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/TasksPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/forest/Forest.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/forest/styles.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/journals.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/NotefallsPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/notefalls.css
+
+Actions
+
+Replace the ambient branch's TileLayout call with the new window manager. Reuse the current
+renderPanel mapping for the first hosted bodies. Add an explicit embedded-body mode to each
+body only where its old header or outer panel would otherwise appear inside the shared frame.
+
+Prefix or locally limit conflicting old panel styles. Do not load v3 Panel.css next to
+local App.css because their identical class names will change each other. Transcribe the
+small required v3 frame style into the ambient section.
+
+Open Chat, Sources, Tasks, Forest, Journals, and Notefalls through the shared manager. Confirm
+that each still reads and changes the same local data.
+
+When complete
+
+The first useful ambient build exists. It may still contain old feature interiors, but it
+does not contain the entire masonry dashboard inside one floating window and it does not
+depend on copied src3 feature files.
+
+
+STEP 5 — COLLECT EVERY OLD OVERLAY, DRAWER, AND FLOAT INTO THE MANAGER
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/floatingShell.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notes/NotesWidget.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/JournalFloat.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/MediaPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/LiveCanvas.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/LiveCanvas.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/OrganizerModal.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/OrganizerModal.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/CalendarModal.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/CalendarModal.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/AIVisibilityModal.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/AIVisibilityModal.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/BriiztormOverlay.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/BriiztormOverlay.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notes/NotesWidget.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/theme-studio/ThemeStudio.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/theme-studio/ThemeStudio.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/ConfirmationToast.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/bfast/
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/controlbar/ControlBar.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/canvases/
+
+Actions
+
+Register Organizer, Calendar, AI Visibility, Sticky Notes, Journal Float, Media, canvases,
+Live Canvas, briiZtorm, Dashboard, Theme Studio, confirmations, notices, and onboarding with
+the one manager. Add the ambient clock, date, and weather to the click-through accounting.
+Give each application an embedded-body presentation. Replace feature-owned dragging,
+resizing, positions, backdrops, full-screen code, and outer frames and controls with shared
+frame operations.
+
+Retain notes drawer behavior and all journal/canvas content behavior. Apply the stated
+canvas conversion: tile or float becomes one ambient view; hybrid becomes two synchronized
+views; widget stays later. Keep the original formFactor value and record whether ambient
+views have already been created so restart cannot duplicate a hybrid view.
+
+Route Escape, launcher activity, assistant window actions, and all focus changes through
+the manager. Remove the ambient branch's hard-coded overlay close order after every listed
+surface is registered.
+
+When complete
+
+Everything visible in the ambient workspace participates in one focus and stacking system.
+No active feature brings a second drag controller or unexplained full-screen backdrop.
+
+
+STEP 6 — CONSOLIDATE CONVERSATION AND PLANNING INTO WORKSPACE.JSX
+
+Files to create and change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/workspace.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/InteractionPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/ConfirmationToast.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/SourcesPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/FileTree.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useChat.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ToolContext.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useToolBridge.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useAppContext.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ChatSettingsContext.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/TasksPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/PhantomSection.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/briizify/BriizifySection.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/OrganizerContext.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/OrganizerModal.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/CalendarModal.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useTasks.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useTaskAutomation.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useDeckMaker.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useBriizify.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/usePlacements.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useDayPlanner.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/briizify.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/forest/Forest.jsx
+
+Actions
+
+Begin workspace.jsx with the shared shell that is now proven in App.jsx. Export the ambient
+Workspace function and import it only in App.jsx's ambient branch. Keep index.html loading
+src/main.jsx so classic mode continues to use its existing entry during construction.
+
+Move Conversation, Sources, AI Visibility, assistant approvals, and their local hooks,
+helpers, constants, and styles into the CONVERSATION AND SOURCES section. Preserve all
+conversation modes, history, source attachment, streaming, clarification, model selection,
+tool approval, activity, evidence, per-theme Conversation background, and blur behavior.
+Move Sources' muted-log preference from visible-page local storage to the existing local
+settings bridge only after copying and reading back its current value.
+
+Then move Tasks, Deck Maker, Briizify, Priorifact, Organizer, timers, Calendar, placements,
+day planning, Phantom, and automation controls into PLANNING AND TASKS. Replace Phantom's
+hardcoded folder with the local Integration setting while preserving all of its current
+actions. Host Forest through its isolated boundary. PLANNING AND TASKS is Forest's canonical
+source; Making only focuses this same Forest window.
+
+Move logic by behavior, not by copying one old component into one new component with the
+same old boundary. Keep helpers immediately above the workflow functions that use them.
+Duplicate a small formatter or control if sharing it would create a new indirection.
+
+After each workflow works from workspace.jsx, remove its live ambient imports from the old
+files. Keep those old files for classic mode until classic is retired.
+
+When complete
+
+Conversation and Planning are each understandable by reading one named section of one file.
+Their existing local data and assistant behavior remain intact.
+
+
+STEP 7 — CONSOLIDATE MEMORY AND MAKING INTO WORKSPACE.JSX
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/workspace.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notes/
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/journals/
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/notefalls/
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/MediaPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/canvases/
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useCanvases.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/LiveCanvas.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/BriiztormOverlay.jsx
+
+Actions
+
+Move Sticky Notes, Journal shelf, Journal view, journal editing, Notefalls, and screen-memory
+session review into MEMORY AND WRITING. Preserve Back to Shelf and Dock to Journals as
+content actions separate from Return Home. Keep capture settings for Step 8. Keep the native
+Swift helper, Briizy desktop process, Briizy avatar's separate visible document, and
+existing database-upgrade history separate.
+
+Move Media, canvas creation and hosting, briiZtorm hosting, and Studio controls into MEDIA
+AND VISUAL WORK. Its Forest launcher action only focuses the Planning-owned Forest window.
+Keep canvas documents and briiZtorm HTML isolated. Apply the one-view and hybrid two-view
+conversion exactly as stated in MAKING IN THE AMBIENT WORKSPACE.
+
+Do not shorten the move by dropping journal templates, dashboards, rich-text behavior,
+trackers, imports, Forest links, Notefalls proposals, media queue restoration, canvas source
+types, or Studio launch targets.
+
+After each workflow works from workspace.jsx, remove its live ambient imports from the old
+files. Update MAP.txt immediately.
+
+When complete
+
+All ordinary visible feature behavior lives in the single workspace source. Remaining
+feature files are used only by classic mode or by a documented technical boundary.
+
+
+STEP 8 — CONSOLIDATE SYSTEM, THEME, AND LOCAL STARTUP
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/workspace.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/App.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/AuthContext.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/LoginOverlay.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/LoginOverlay.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/overlays/DashboardOverlay.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/theme-studio/ThemeStudio.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/theme-studio/ThemeStudio.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/theme/
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/context/ChatSettingsContext.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/cloud-gateway.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/briizy/CaptureSettingsPanel.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useBriizyCapture.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/firebase.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/firestore.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/lib/agentJobsFirestore.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/hooks/useAgentWorkers.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/agent-jobs-firestore.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/package.json
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/public/fonts/
+
+Actions
+
+Move Dashboard behavior, model settings, integrations, assistant memory, permissions,
+health, launcher settings, clock/date/weather settings, theme management, confirmations,
+and global feedback into SYSTEM AND SETTINGS, CONFIRMATIONS AND FEEDBACK, and THEME VALUES
+AND STYLES. System owns Briizy capture enablement, privacy, retention, and avatar appearance;
+Memory continues to own captured-session review. Add the Phantom folder setting and picker
+to Integrations.
+
+Move launcher order/style and old theme fallback values from visible-page local storage to
+the existing local settings bridge. Copy, read back, and only then stop reading the old
+keys. Do not move Briizy image files or Forest board JSON into browser-local storage.
+
+Replace selector-by-selector and per-object theming with the named visual jobs described
+in this plan. Preserve every theme-library action named in VISUAL AND THEME SYSTEM. Apply
+the exact backup keys, field mapping, conversion marker, and fallback rules stated there.
+Package the v3-led fonts locally under public/fonts and declare only a needed font package
+in package.json if a checked-in asset is not available.
+
+Remove AuthProvider, LoginOverlay, and cloud-session startup from both the ambient workspace
+and the still-available classic fallback so both open locally. Remove CloudGateway
+construction and request handlers from main.js, remove cloud methods from preload.js,
+replace AutomationRunner's publish callback with its existing local change notification
+only, and remove cloud flush/close from quit.
+Move dormant Firebase, CloudGateway, and direct-Firestore source to a named
+remote-continuity quarantine only after all live imports are gone. Do not delete it; later
+remote work may inspect it.
+
+After no active source imports Firebase, remove the Firebase package from the active
+package list. Later remote-continuity work can install the version it actually uses.
+
+Consolidate global styles into workspace.jsx. Do not leave shell.css, a theme constants file,
+or a component-style directory merely for tidiness.
+
+When complete
+
+Ambient startup is local and immediate. The interface has v3's reduced visual language,
+named themes remain useful, and the completed workspace no longer depends on style rules
+that name elements from the old interface.
+
+
+STEP 9 — CONSOLIDATE THE SEPARATE BRIIZY WINDOW
+
+Files to create and change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/briizy.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/vite.config.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/briizy.html
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/briizy/main.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/briizy/BriizyShell.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/briizy/briizy.css
+
+Actions
+
+Move the Briizy visible-document entry, avatar component, local helpers, and local styles
+into briizy.jsx. Keep the protected bridge, Electron shell, screen-memory process,
+native Swift helper, and binary sprites outside it because they cross real boundaries.
+
+Update briizy.html to load /src/briizy.jsx and update the existing build configuration's
+Briizy entry to that same document. Fold BriizyShell.jsx, briizy.css, and the document's
+ordinary visual style into briizy.jsx. Leave briizy.html with only its required security
+policy, root element, and source connection. Exercise click, drag, activation, capture
+feedback, and coexistence with the ambient host.
+
+When complete
+
+The only ordinary separate React source is justified by a separate native window and is
+itself consolidated into one understandable file.
+
+
+STEP 10 — PERFORM THE BACKEND LOCALITY PASS
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/preload.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/local-data-service.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/assistant.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/briizy.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/forest-fs.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+
+Actions
+
+Use the backend subsystem order stated earlier. For one subsystem at a time, identify the
+main executable source, move its small helpers, constants, types, registrations, and local
+configuration into clear sections of that file, and preserve its existing bridge names.
+
+Use these source groups literally:
+
+- main.js receives logger.js, filesystem.js, studio.js, github.js, and their ordinary
+  native request handlers;
+- local-data-service.js receives local-data-ipc.js, local-data/validation.js,
+  local-data/limits.js, built-in-models.js, and theme-library-validation.js;
+- assistant.js receives electron/agent/, agent-config.js, agent-fs.js, agent-terminal.js,
+  agent-op-receipts.js, and automation-runner.js;
+- briizy.js receives electron/briizy/, electron/rewind/, and briizy-ipc.js;
+- forest-fs.js receives forest-ignore.js and retains forest.library.json handling.
+
+The present source has no live import of model-config.js, forest-db.js, or local-db.js.
+Confirm that remains true when this step begins, then move them with gdrive.js,
+agent-jobs-firestore.js, and cloud-gateway.js to the applicable later-work or old-data
+quarantine. Do not fold dormant remote code into the active local engine.
+
+Keep main, preload, immutable schema changes, native Swift, isolated HTML documents, and
+genuinely independent service subsystems separate. Do not keep a file merely because the
+old repository had a folder for that category. Do not merge separate processes merely to
+make the tree look smaller.
+
+After imports point only to the consolidated source and the workflow still operates, move
+the superseded source into quarantine. Update MAP.txt with every surviving boundary and its
+reason.
+
+When complete
+
+File locality applies to the local engine as well as the visible application, but the
+working data and process boundaries remain explicit.
+
+
+STEP 11 — MAKE AMBIENT MODE THE NORMAL START
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/index.html
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/workspace.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/main.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/components/ErrorBoundary.jsx
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/src/index.css
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/electron/main.js
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+
+Actions
+
+Walk every item in the acceptance list below with ambient mode. Resolve missing imports,
+names, bridge registrations, local settings, style prefixes, and ordinary glue directly.
+
+While index.html still loads src/main.jsx, make ambient mode the locally saved default and
+keep classic reachable through the explicit local preference. Complete the same acceptance
+walk after a clean application restart. Do not move the old source while this fallback is
+still active.
+
+After that walk succeeds, make workspace.jsx mount itself and update index.html to load it
+directly. Move the root mounting behavior, the visible error fallback, and remaining index
+styles from main.jsx, ErrorBoundary.jsx, and index.css into the documented sections of
+workspace.jsx. Move classic-only visible source into a clearly named quarantine directory
+and remove the classic preference from active startup. Preserve the quarantine in Git so
+it remains recoverable.
+
+When complete
+
+The normal application opens directly into the ambient workspace. There is no parallel
+maintained frontend, no false classic fallback, and no copied v3 source-file arrangement.
+
+
+STEP 12 — FINAL HUMAN WALKTHROUGH AND SOURCE HANDOFF
+
+Files to change
+
+/Users/alex/Documents/Cufolio/briizOS/briizOS.local/MAP.txt
+
+Actions
+
+Read MAP.txt from top to bottom without opening code. Confirm that it explains where every
+current feature lives, what local information it uses, and why every remaining source
+boundary exists. Remove obsolete paths and add any construction decision that changed the
+human experience.
+
+Perform the acceptance walk as an end user. Record only unresolved behavior, not source
+counts, target counts, dates, or estimates. Resolve all ordinary missing glue before
+calling the redesign complete.
+
+Stage the complete continuous repository state, commit on the current branch, and push to
+the existing remote.
+
+When complete
+
+A person without coding literacy can use MAP.txt to understand the system. A simple agent
+can follow the same map from a visible feature to its source section, bridge request, and
+local data. Git contains the completed application and its recoverable history.
+
+
+ACCEPTANCE LIST
+
+Workspace form
+
+- The Mac desktop remains visible behind the ambient host.
+- Clicking empty host space reaches the desktop or application underneath.
+- Every interactive surface still receives clicks.
+- The whole ambient layer can be hidden and restored without losing current window state.
+- Every window can move, resize, focus, minimize, restore, close, Return Home, and Fill
+  Screen, and Fill Screen returns to the prior placement when toggled off.
+- Reloading restores the locally saved arrangement.
+- A display change cannot leave a window permanently unreachable.
+- Move Workspace to Current Display transfers the one host and keeps feature positions
+  inside it.
+- The host stays above ordinary applications while shown, retains its Dock access, appears
+  on ordinary Mac Spaces, and does not cover a native full-screen application.
+- The launcher and minimized dock use readable labels, not icon memory alone.
+- First launch shows only the launcher. The single-window and multiple-window rules match
+  the explicit application list in this plan.
+- Clock, date, and weather remain visible when enabled.
+
+Conversation and sources
+
+- Day, chat, research, code, and report modes remain.
+- Conversation history restores and saves locally.
+- Source selection and drag-to-conversation remain.
+- Local, iCloud, USB, and GitHub browsing remain.
+- Streaming, clarification, suggestions, model selection, approvals, and assistant
+  visibility remain.
+- Per-theme Conversation background and blur remain and do not alter the ambient desktop.
+- Human and assistant window actions use the same ambient manager and permission rules.
+
+Planning
+
+- Tasks, smaller steps, status, priority, deletion, Deck Maker, Briizify, Priorifact,
+  Organizer, timers, Calendar, placements, day planning, and automation remain reachable.
+- Generated plans still connect to local tasks and calendar placement.
+- Forest opens, searches, locates, opens, and consolidates project material as before.
+- Phantom can list, play, record, inspect, run, report status, stop, and delete. Its local
+  folder setting replaces the old hardcoded path and clearly asks for a folder when absent.
+
+Memory and writing
+
+- Sticky Notes drawer and detached-note behavior remain.
+- Journal shelf, templates, pages, rich text, images, trackers, task lists, prompts,
+  dashboards, groups, search, Forest links, and import remain.
+- Journal Back to Shelf and Dock to Journals remain distinct from Return Home.
+- Notefalls writing, editing, searching, sessions, captured results, and proposal decisions
+  remain.
+- Briizy capture remains opt-in and its privacy evaluation remains active.
+- The Briizy avatar coexists with the ambient host without blocking desktop interaction.
+
+Media and visual work
+
+- Media adding, queue restoration, playback restoration, remove, volume, repeat, shuffle,
+  and drag and drop remain.
+- Canvas creation from generated code, a web address, and a local file remains.
+- Existing tile and float canvases open one ambient view. Existing hybrid canvases open two
+  synchronized views only once, and the original formFactor remains recoverable.
+- briiZtorm state still crosses its isolated-document bridge.
+- The existing Command-or-Control plus Shift plus B action still opens or closes briiZtorm;
+  Command-Shift-Space shows or hides the ambient workspace.
+- Studio still opens configured applications, folders, and web addresses.
+
+System and appearance
+
+- Model, Briizy capture/privacy/retention/avatar, integrations, memory, permissions, health,
+  launcher, clock, date, weather, and application settings remain reachable.
+- Assistant-memory summary preview and launcher-style preview remain useful in the new form.
+- The application opens locally without a Firebase login gate.
+- CloudGateway is not constructed, cloud request handlers are not registered, changed
+  automation runs are not published remotely, and quit does not flush a remote service.
+- Existing named themes remain available through a documented non-destructive conversion.
+- Theme choose, Save, Save As, import, both exports, duplicate, rename, delete, revert, undo,
+  redo, palette generation, Replace Default, and Restore Default remain.
+- The complete old theme library backup remains untouched, conversion runs only once, and
+  every unmapped old value appears in plain conversion notes.
+- Background treatment never reduces window-content legibility.
+- Keyboard focus is visible, reduced motion is respected, user zoom works, and critical
+  actions never require hover.
+- Loading, empty, error, success, unsaved-work, and destructive-confirmation states are
+  understandable in every workflow.
+
+Source locality
+
+- Ordinary visible behavior lives in workspace.jsx under the documented section headings.
+- No ordinary local helper, hook, type, constant, style, configuration, or component file
+  exists solely for organization.
+- Every separate source boundary is named and justified in MAP.txt.
+- There is no maintained src3 application and no permanent copy of the old feature tree.
+- Firestore, remote authentication, and remote continuity do not shape the active local path.
+- Forest board JSON, Briizy frame files, SQLite records, and former visible-page local
+  preferences all remain accounted for during storage consolidation.
+
+
+PINNED FOR LATER CONSIDERATION
+
+These are not part of the ambient redesign unless they are separately selected. They are
+recorded so v3 ideas and incomplete local ideas are not mistaken for lost requirements.
+
+V3-only ideas
+
+- Generic drawers that group any same-type windows. Sticky Notes keeps its existing drawer
+  now; generic window grouping is a separate behavior.
+- Generic per-window color, duplicate, and pin commands.
+- Subject-area world controls that dim unrelated windows.
+- An embedded web browser.
+- A dedicated timer countdown window beyond local's current Organizer timer records.
+- Drawing, moving, and resizing time blocks directly on a daily timeline beyond local's
+  current placement workflow.
+- V3's separate project-dashboard fields, filters, milestones, progress display, and JSON
+  export beyond the current Forest and Organizer workflows.
+- A browser-message kit that allows arbitrary external applications to save, resize, close,
+  or open another ambient window.
+- V3's large third-party animated-background catalogue.
+- V3's unfinished context-menu commands and decorative green title-bar button are not
+  candidates until they have a defined human purpose.
+
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/context/PanelContext.jsx, lines 100-227
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/WorldSelector/WorldSelector.jsx, lines 5-45
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/PanelTypes/BrowserPanel.jsx, lines 4-160
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/PanelTypes/TimerPanel.jsx, lines 70-190
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/PanelTypes/TodayPanel.jsx, lines 23-175
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/PanelTypes/ProjectsPanel.jsx, lines 259-774
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/PanelTypes/ExternalPanel.jsx, lines 22-132
+Source: /Users/alex/Documents/Cufolio/briizOS/briizOS.v3/electron/src/renderer/components/Background/Background.jsx, lines 11-140
+
+Incomplete or dormant local ideas
+
+- Google Drive browsing and downloads.
+- Journal Chat.
+- Recorder importing.
+- Direct-Firestore agent workers.
+- Widget mode.
+- The legacy Action Deck surface.
+
+Remote continuity
+
+- Firestore setup.
+- Remote light continuity maintenance.
+- Remote communication.
+- Authentication required by a future remote service.
+
+When remote continuity is later selected, connect it behind the existing local bridge or a
+single new continuity subsystem. Do not make the visible workspace depend on network state,
+do not replace SQLite as the immediate local authority, and do not recreate a second set of
+feature interfaces.
