@@ -1,6 +1,6 @@
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import logger from '../../lib/logger';
-import './DayTimeline.css';
+import '../../AppCombined.css';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 24 * 60;

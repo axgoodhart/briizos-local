@@ -382,6 +382,14 @@ contextBridge.exposeInMainWorld('api', {
   getModelConfig: (name) => ipcRenderer.invoke('models-get-config', name),
   checkApiKeys: () => ipcRenderer.invoke('models-check-api-keys'),
   setProviderApiKey: (provider, apiKey) => ipcRenderer.invoke('models-set-api-key', provider, apiKey),
+  getCodexAuthStatus: () => ipcRenderer.invoke('codex-auth-status'),
+  connectCodex: () => ipcRenderer.invoke('codex-auth-login'),
+  disconnectCodex: () => ipcRenderer.invoke('codex-auth-logout'),
+  onCodexAuthChanged: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('codex-auth-changed', handler);
+    return () => ipcRenderer.removeListener('codex-auth-changed', handler);
+  },
   isAIConfigured: () => ipcRenderer.invoke('ai-is-configured'),
 
   // Tool execution bridge

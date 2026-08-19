@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import logger from '../../lib/logger';
-import './LiveCanvas.css';
+import '../../AppCombined.css';
 import CanvasSurface from '../canvases/CanvasSurface';
 import { CANVAS_RENDER_ENGINES } from '../../lib/canvasUtils';
 import {

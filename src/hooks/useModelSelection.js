@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 export function useModelSelection() {
   const [models, setModels] = useState([]);
-  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false });
+  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false, codex: false });
   const [selectedModel, setSelectedModel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,6 +39,14 @@ export function useModelSelection() {
       }
     }
     load();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window.api?.onCodexAuthChanged !== 'function') return undefined;
+    return window.api.onCodexAuthChanged(async () => {
+      const status = await window.api.checkApiKeys();
+      setApiKeyStatus(status || {});
+    });
   }, []);
 
   // Select a model — persist to briizos.db.

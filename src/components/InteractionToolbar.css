@@ -385,6 +385,38 @@
   line-height: 1.45;
 }
 
+.codex-provider-auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.codex-provider-auth-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.codex-provider-auth-copy strong {
+  color: var(--palette-text-soft, #d5dcdf);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.codex-provider-auth-copy span {
+  color: var(--palette-text-muted, #899499);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+@media (max-width: 560px) {
+  .codex-provider-auth-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .interaction-panel .model-picker-empty {
   max-width: 28ch;
   padding: 32px 24px;

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useId } from 'react';
 
 // Provider display config
 const PROVIDER_LABELS = {
+  codex: 'Codex',
   claude: 'Anthropic',
   openai: 'OpenAI',
   gemini: 'Google',
@@ -10,7 +11,7 @@ const PROVIDER_LABELS = {
 };
 
 // Provider order
-const PROVIDER_ORDER = ['claude', 'openai', 'gemini', 'other'];
+const PROVIDER_ORDER = ['codex', 'claude', 'openai', 'gemini', 'other'];
 
 function moveRovingFocus(event, selectOnFocus = false) {
   const direction = {
@@ -117,7 +118,7 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
                 tabIndex={isActive ? 0 : -1}
                 aria-selected={isActive}
                 aria-controls={`${pickerId}-models`}
-                title={hasKey ? PROVIDER_LABELS[provider] : `${PROVIDER_LABELS[provider]} API key is not configured`}
+                title={hasKey ? PROVIDER_LABELS[provider] : provider === 'codex' ? 'Connect ChatGPT in Settings' : `${PROVIDER_LABELS[provider]} API key is not configured`}
               >
                 <span>{PROVIDER_LABELS[provider]}</span>
                 <span className="model-picker-provider-count">{modelsByProvider[provider].length}</span>
@@ -132,7 +133,9 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
             <span>{activeModels.length} models</span>
           </div>
           {!apiKeyStatus[activeProvider] && (
-            <div className="model-picker-provider-note">Add an API key in Settings to use these models.</div>
+            <div className="model-picker-provider-note">
+              {activeProvider === 'codex' ? 'Connect ChatGPT in Settings to use your Codex subscription.' : 'Add an API key in Settings to use these models.'}
+            </div>
           )}
           {activeModels.map(model => {
             const available = isModelAvailable(model);
@@ -148,7 +151,7 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
                 className={`model-picker-option ${isSelected ? 'active' : ''}`}
                 role="option"
                 aria-selected={isSelected}
-                title={!available ? `Set ${model.provider?.toUpperCase()}_API_KEY to use this model` : model.name}
+                title={!available ? model.provider === 'codex' ? 'Connect ChatGPT in Settings' : `Set ${model.provider?.toUpperCase()}_API_KEY to use this model` : model.name}
               >
                 <span className="model-picker-option-name">{model.display_name || model.name}</span>
                 {model.supports_vision && <span className="model-vision-mark" title="Supports vision">Vision</span>}

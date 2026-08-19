@@ -1,4 +1,5 @@
 const BUILT_IN_MODELS = Object.freeze([
+  { name: 'codex-subscription', displayName: 'Codex Subscription', provider: 'codex', model: 'codex', maxTokens: null, supportsVision: true, supportsThinking: true },
   { name: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6', provider: 'claude', model: 'claude-sonnet-4-6', maxTokens: 64000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled' } },
   { name: 'claude-opus-4-6', displayName: 'Claude Opus 4.6', provider: 'claude', model: 'claude-opus-4-6', maxTokens: 32000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled', budget_tokens: 10000 } },
   { name: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5', provider: 'claude', model: 'claude-sonnet-4-5-20250929', maxTokens: 64000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled' } },

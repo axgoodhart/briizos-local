@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import './ActionDeckColumn.legacy.css';
+import '../../AppCombined.css';
 import {
   buildPanelFilter,
   DEFAULT_ACTIONDECK_PANEL_SETTINGS,

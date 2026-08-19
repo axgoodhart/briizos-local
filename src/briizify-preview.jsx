@@ -9,8 +9,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OrganizerProvider } from './context/OrganizerContext';
 import TasksPanel from './components/TasksPanel';
-import './index.css';
-import './App.css';
+import './AppCombined.css';
+import './AppCombined.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

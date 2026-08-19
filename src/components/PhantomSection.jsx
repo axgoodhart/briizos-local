@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import './PhantomSection.css';
+import '../AppCombined.css';
 
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 

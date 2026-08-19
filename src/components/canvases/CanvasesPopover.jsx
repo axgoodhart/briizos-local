@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CanvasCard from './CanvasCard';
 import NewCanvasFlow from './NewCanvasFlow';
-import './CanvasesPopover.css';
+import '../../AppCombined.css';
 
 function CanvasesPopover({
   isOpen,

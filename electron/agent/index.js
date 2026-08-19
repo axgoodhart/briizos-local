@@ -27,6 +27,7 @@ const crypto = require('crypto');
 const { logger } = require('../logger');
 const bridge = require('./bridge');
 const leadAgent = require('./lead-agent');
+const codexProvider = require('../codex-provider');
 const { getCheckpointerStatus } = require('./checkpointer');
 
 const state = {
@@ -40,6 +41,12 @@ function setMainWindow(win) {
 
 function setLocalDataService(service) {
   leadAgent.setLocalDataService(service);
+  codexProvider.setLocalDataService(service);
+}
+
+function isCodexConfig(config = {}) {
+  const modelName = config.model_name || config.model || null;
+  return leadAgent.getLocalDataService()?.getModelProfile?.(modelName)?.provider === 'codex';
 }
 
 async function start() {
@@ -55,6 +62,7 @@ async function start() {
 function stop() {
   state.status = 'stopped';
   leadAgent.resetCache();
+  codexProvider.stop();
   logger.info('agent', 'The local AI request engine stopped; no new model requests can start until briizOS reopens.');
 }
 
@@ -92,7 +100,9 @@ async function streamMessage(threadId, message, config, onEvent) {
   if (typeof onEvent !== 'function') onEvent = () => {};
   const safeConfig = config || {};
   return withConfiguredActivity(threadId, safeConfig, () => (
-    leadAgent.streamTurn({ threadId, message, config: safeConfig, onEvent })
+    isCodexConfig(safeConfig)
+      ? codexProvider.streamTurn(threadId, message, safeConfig, onEvent)
+      : leadAgent.streamTurn({ threadId, message, config: safeConfig, onEvent })
   ));
 }
 
@@ -106,13 +116,18 @@ async function resumeRun(threadId, response, config, onEvent) {
 
 async function sendMessage(threadId, message, config) {
   const safeConfig = config || {};
-  return withConfiguredActivity(threadId, safeConfig, () => (
-    leadAgent.sendTurn({ threadId, message, config: safeConfig })
-  ));
+  return withConfiguredActivity(threadId, safeConfig, () => {
+    if (!isCodexConfig(safeConfig)) return leadAgent.sendTurn({ threadId, message, config: safeConfig });
+    let content = '';
+    return codexProvider.streamTurn(threadId, message, safeConfig, (type, payload) => {
+      if (type === 'text') content += payload?.content || '';
+    }).then((result) => ({ ...result, content }));
+  });
 }
 
 async function fetchSuggestions(recentMessages, n = 3, config = {}, threadId = null) {
   const safeConfig = config || {};
+  if (isCodexConfig(safeConfig)) return [];
   return withConfiguredActivity(threadId, safeConfig, () => (
     leadAgent.generateSuggestions({
       threadId,

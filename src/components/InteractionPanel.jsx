@@ -13,7 +13,7 @@ import logger from '../lib/logger';
 import { CHAT_BACKGROUNDS } from '../lib/chatBackgrounds';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
-import './InteractionToolbar.css';
+import '../AppCombined.css';
 
 // 'prioritize' left the chat surface: it now lives in the Tasks Panel
 // as briizify (see components/briizify/BriizifySection.jsx).
@@ -426,6 +426,7 @@ function InteractionPanel() {
   const showWelcome = messages.length === 0 && !isLoading && !isSwitchingThread && !streamingContent;
 
   const providerLabel = {
+    codex: 'CDX',
     openai: 'OAI',
     gemini: 'GEM',
     claude: 'CLD',
@@ -593,7 +594,7 @@ function InteractionPanel() {
             <div className="briiz-logo">briizOS</div>
             {!isConfigured && (
               <div className="config-warning">
-                No AI provider configured. Add API keys in Settings.
+                No AI provider configured. Connect ChatGPT or add an API key in Settings.
               </div>
             )}
           </>

@@ -4,7 +4,7 @@ import { useBriizify } from '../../hooks/useBriizify';
 import logger from '../../lib/logger';
 import BriizifySetup from './BriizifySetup';
 import Priorifact from './Priorifact';
-import './Briizify.css';
+import '../../AppCombined.css';
 
 /**
  * BriizifySection — the Tasks Panel home of the prioritize feature

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useOrganizer } from '../../context/OrganizerContext';
 import { formatDateYMD } from '../../lib/dates';
 import logger from '../../lib/logger';
-import './OrganizerModal.css';
+import '../../AppCombined.css';
 
 /**
  * OrganizerModal - Unified item manager (notes, events, timers, projects)

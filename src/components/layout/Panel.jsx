@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import './layout.css';
+import '../../AppCombined.css';
 
 /**
  * Panel wrapper component with header controls for minimize/maximize/close

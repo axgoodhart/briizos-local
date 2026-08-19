@@ -11,7 +11,8 @@ import {
   HEADER_DOCK_STYLES,
   HEADER_DOCK_STYLE_OPTIONS,
 } from '../controlbar/dockPreferences.js';
-import './DashboardOverlay.css';
+import '../../AppCombined.css';
+import '../InteractionToolbar.css';
 
 const DOCK_PREVIEW_ITEMS = [
   { id: 'chat', glyph: '􀌮', accent: '#16df69' },
@@ -28,7 +29,9 @@ const DOCK_PREVIEW_TAB_PATH = 'M 0 32 C 4 32 7 29 7 24 L 7 14 Q 7 1 20 1 L 36 1 
 
 function ModelTab({ isOpen }) {
   const [modelList, setModelList] = useState([]);
-  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false });
+  const [apiKeyStatus, setApiKeyStatus] = useState({ anthropic: false, openai: false, google: false, codex: false });
+  const [codexAuth, setCodexAuth] = useState({ installed: true, connected: false });
+  const [codexAuthBusy, setCodexAuthBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState(null);
   const [keyDrafts, setKeyDrafts] = useState({ openai: '', claude: '', gemini: '' });
@@ -42,10 +45,11 @@ function ModelTab({ isOpen }) {
   const loadModels = async () => {
     setLoading(true);
     try {
-      const [models, keys, savedModel] = await Promise.all([
+      const [models, keys, savedModel, codexStatus] = await Promise.all([
         window.api.getModels(),
         window.api.checkApiKeys(),
         window.api.localData.settings.get('selected_model'),
+        window.api.getCodexAuthStatus(),
       ]);
       setModelList(models || []);
       setSelectedModel(savedModel?.value || null);
@@ -60,10 +64,29 @@ function ModelTab({ isOpen }) {
         google: (keys && (keys.google ?? keys.gemini)) ?? false,
       };
       setApiKeyStatus(normalized);
+      setCodexAuth(codexStatus || { installed: false, connected: false });
     } catch (err) {
       logger.error('config', 'Failed to load models', err?.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || typeof window.api?.onCodexAuthChanged !== 'function') return undefined;
+    return window.api.onCodexAuthChanged(() => loadModels());
+  }, [isOpen]);
+
+  const toggleCodexAuth = async () => {
+    setCodexAuthBusy(true);
+    try {
+      if (codexAuth.connected) await window.api.disconnectCodex();
+      else await window.api.connectCodex();
+      if (codexAuth.connected) await loadModels();
+    } catch (error) {
+      setCodexAuth((current) => ({ ...current, error: error?.message || 'ChatGPT sign-in could not be started.' }));
+    } finally {
+      setCodexAuthBusy(false);
     }
   };
 
@@ -146,6 +169,25 @@ function ModelTab({ isOpen }) {
       <div className="settings-divider" />
 
       <h3 className="settings-section-title">Provider Credentials</h3>
+      <div className="settings-field codex-provider-auth">
+        <label className="settings-label">
+          Codex Subscription{codexAuth.connected ? ` · ${codexAuth.planType || 'connected'}` : ''}
+        </label>
+        <div className="codex-provider-auth-row">
+          <div className="codex-provider-auth-copy">
+            <strong>{codexAuth.connected ? codexAuth.email || 'ChatGPT connected' : 'Use ChatGPT plan inference'}</strong>
+            <span>{codexAuth.error || (codexAuth.connected ? 'Codex is available as a chat provider.' : codexAuth.installed ? 'Sign in through OpenAI to add Codex beside your API providers.' : 'Install the Codex CLI to enable subscription sign-in.')}</span>
+          </div>
+          <button
+            type="button"
+            className="settings-btn"
+            disabled={codexAuthBusy || (!codexAuth.installed && !codexAuth.connected)}
+            onClick={toggleCodexAuth}
+          >
+            {codexAuthBusy ? 'Opening…' : codexAuth.connected ? 'Disconnect' : 'Connect ChatGPT'}
+          </button>
+        </div>
+      </div>
       {['openai', 'claude', 'gemini'].map(provider => (
         <div className="settings-field" key={`key-${provider}`}>
           <label className="settings-label">
@@ -175,12 +217,13 @@ function ModelTab({ isOpen }) {
       <div className="settings-divider" />
 
       {/* Models grouped by provider */}
-      {['claude', 'openai', 'gemini', 'other'].map(provider => {
+      {['codex', 'claude', 'openai', 'gemini', 'other'].map(provider => {
         const models = modelsByProvider[provider];
         if (!models || models.length === 0) return null;
         const hasKey = apiKeyStatus[provider];
         const providerLabel =
           provider === 'claude' ? 'Claude' :
+          provider === 'codex' ? 'Codex' :
           provider === 'openai' ? 'OpenAI' :
           provider === 'gemini' ? 'Gemini' : 'Other';
         return (
@@ -205,7 +248,7 @@ function ModelTab({ isOpen }) {
                   fontSize: 11,
                   color: '#ff6b6b',
                   fontWeight: 500,
-                }}>(no API key)</span>
+                }}>({provider === 'codex' ? 'not connected' : 'no API key'})</span>
               )}
               <span style={{
                 fontSize: 11,

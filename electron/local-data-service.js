@@ -24,6 +24,7 @@ const SETTING_KEYS = new Set([
   'briizify_plan',
   'briizify_saved_flows',
   'selected_model',
+  'codex_thread_map',
   'suggestions_enabled',
   'agent_config',
   'skills_config',
@@ -337,7 +338,8 @@ class LocalDataService extends EventEmitter {
       const row = existing.get(profile.name);
       const settings = JSON.stringify({
         displayName: profile.displayName,
-        adapter: profile.provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
+        adapter: profile.provider === 'codex' ? 'openai_codex:AppServer'
+          : profile.provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
           : profile.provider === 'openai' ? 'langchain_openai:ChatOpenAI'
             : 'langchain_google_genai:ChatGoogleGenerativeAI',
         maxTokens: profile.maxTokens,
@@ -360,7 +362,8 @@ class LocalDataService extends EventEmitter {
             updated_at = excluded.updated_at, revision = model_profiles.revision + 1, deleted_at = NULL
         `).run(`builtin:${profile.name}`, profile.name, profile.provider, profile.model, JSON.stringify({
           displayName: profile.displayName,
-          adapter: profile.provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
+          adapter: profile.provider === 'codex' ? 'openai_codex:AppServer'
+            : profile.provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
             : profile.provider === 'openai' ? 'langchain_openai:ChatOpenAI'
               : 'langchain_google_genai:ChatGoogleGenerativeAI',
           maxTokens: profile.maxTokens,

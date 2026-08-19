@@ -16,6 +16,7 @@ const agentTerminal = require('./agent-terminal');
 // directly (LangChain.js + LangGraph.js). No Python subprocess, no
 // localhost HTTP tool-bridge; the renderer is reached via IPC.
 const langgraph = require('./agent');
+const codexProvider = require('./codex-provider');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
 const { CloudGateway } = require('./cloud-gateway');
@@ -770,6 +771,7 @@ ipcMain.handle('models-get-list', async () => localDataService.listModelProfiles
 ipcMain.handle('models-get-config', async (_, name) => localDataService.getModelProfile(name));
 ipcMain.handle('models-check-api-keys', async () => {
   const local = localDataService.getProviderKeyStatus();
+  const codex = await codexProvider.getAuthStatus();
   return {
     ...local,
     openai: local.openai || !!process.env.OPENAI_API_KEY,
@@ -777,6 +779,7 @@ ipcMain.handle('models-check-api-keys', async () => {
     anthropic: local.claude || !!process.env.ANTHROPIC_API_KEY,
     gemini: local.gemini || !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY,
     google: local.gemini || !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY,
+    codex: codex.connected,
   };
 });
 ipcMain.handle('models-set-api-key', async (_event, provider, apiKey) => {
@@ -785,11 +788,21 @@ ipcMain.handle('models-set-api-key', async (_event, provider, apiKey) => {
 });
 ipcMain.handle('ai-is-configured', async () => {
   const status = localDataService.getProviderKeyStatus();
+  const codex = await codexProvider.getAuthStatus();
   return Object.values(status).some(Boolean)
     || !!process.env.OPENAI_API_KEY
     || !!process.env.ANTHROPIC_API_KEY
     || !!process.env.GEMINI_API_KEY
-    || !!process.env.GOOGLE_API_KEY;
+    || !!process.env.GOOGLE_API_KEY
+    || codex.connected;
+});
+ipcMain.handle('codex-auth-status', async () => codexProvider.getAuthStatus({ refresh: true }));
+ipcMain.handle('codex-auth-login', async () => codexProvider.login((url) => shell.openExternal(url)));
+ipcMain.handle('codex-auth-logout', async () => codexProvider.logout());
+codexProvider.on('auth-changed', (status) => {
+  BrowserWindow.getAllWindows().forEach((window) => {
+    if (!window.isDestroyed()) window.webContents.send('codex-auth-changed', status);
+  });
 });
 
 // === LangGraph Agent Backend IPC ===

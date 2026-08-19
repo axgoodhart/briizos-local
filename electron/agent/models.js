@@ -78,6 +78,7 @@ function setLocalDataService(service) {
 
 function detectProvider(name) {
   const m = String(name || '').toLowerCase();
+  if (m.includes('openai_codex') || m.includes('codex-subscription') || m === 'codex') return 'codex';
   if (m.includes('anthropic') || m.includes('claude')) return 'claude';
   if (m.includes('langchain_openai') || m.includes('gpt') || m.includes('o1') || m.includes('o3') || m.includes('openai')) return 'openai';
   if (m.includes('langchain_google_genai') || m.includes('google') || m.includes('gemini')) return 'gemini';
@@ -181,7 +182,8 @@ function resolveChatModelRequest({
   const resolved = resolveModelConfig(name);
   const modelName = resolved.model;
   const provider = resolved.provider;
-  const adapter = provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
+  const adapter = provider === 'codex' ? 'openai_codex:AppServer'
+    : provider === 'claude' ? 'langchain_anthropic:ChatAnthropic'
     : provider === 'openai' ? 'langchain_openai:ChatOpenAI'
       : 'langchain_google_genai:ChatGoogleGenerativeAI';
   if (resolved.adapter && resolved.adapter !== adapter) {
@@ -201,6 +203,10 @@ function resolveChatModelRequest({
 
   let constructorOptions;
   switch (provider) {
+    case 'codex': {
+      constructorOptions = { streaming: true, subscriptionAuth: true };
+      break;
+    }
     case 'claude': {
       constructorOptions = { ...common };
       if (outputTokens != null) constructorOptions.maxTokens = outputTokens;
@@ -268,6 +274,9 @@ function resolveChatModelRequest({
 function createChatModel(options = {}) {
   const request = resolveChatModelRequest(options);
   const resolved = resolveModelConfig(options.name);
+  if (request.provider === 'codex') {
+    throw new Error('Codex Subscription turns must use the Codex app-server provider path.');
+  }
   const apiKey = getApiKey(request.provider, resolved.raw);
   if (!apiKey) {
     throw new Error(`No encrypted API credential is configured for ${request.provider}`);
