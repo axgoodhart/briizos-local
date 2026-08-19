@@ -3513,26 +3513,6 @@ body {
     min-height: 0;
 }
 
-.tasks-panel.briizify-focused>.panel-content {
-    flex: 0 0 auto;
-    overflow: visible;
-    padding: 6px 8px 0;
-    background: transparent;
-}
-
-.tasks-panel.briizify-focused>.panel-content> :not(.overall-progress) {
-    display: none;
-}
-
-.tasks-panel.briizify-focused .overall-progress {
-    margin: 0;
-    padding: 4px 0;
-    background: transparent;
-}
-
-.tasks-panel.briizify-focused .progress-percent {
-    display: none;
-}
 
 .tasks-section {
     padding: var(--cc-padding-medium);
@@ -4351,7 +4331,7 @@ body {
     color: var(--ui-modal-tab-text);
     font-size: var(--cc-font-size-small);
     font-weight: 500;
-        font-family: var(--ui-font-main);
+    font-family: var(--ui-font-main);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: pointer;
@@ -14149,8 +14129,8 @@ body {
     right: 0;
     bottom: 0;
     z-index: 12;
-    
-    }
+
+}
 
 .drop-zone {
     position: absolute;
@@ -14642,6 +14622,28 @@ body {
    fallbacks); the glassy translucent card language echoes the
    rest of briizOS rather than any external reference. */
 
+
+.tasks-panel.briizify-focused>.panel-content {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 6px 8px 0;
+    background: transparent;
+}
+
+.tasks-panel.briizify-focused>.panel-content> :not(.overall-progress) {
+    display: none;
+}
+
+.tasks-panel.briizify-focused .overall-progress {
+    margin: 0;
+    padding: 4px 0;
+    background: transparent;
+}
+
+.tasks-panel.briizify-focused .progress-percent {
+    display: none;
+}
+
 .briizify-section {
     --bzf-accent: var(--palette-accent-primary, #00e5e5);
     --bzf-glow: var(--palette-neon-accent, #00ff88);
@@ -14694,7 +14696,7 @@ body {
 
 .briizify-tab-dock:hover:not(.engaged) {
     height: 35px;
-    width:50%;
+    width: 50%;
 }
 
 .briizify-tab-dock.engaged {
@@ -14776,14 +14778,15 @@ body {
 .briizify-logo {
     font-family: var(--ui-font-main, inherit);
     font-weight: 600;
-    font-size: var(--cc-font-size-small);;
+    font-size: var(--cc-font-size-small);
+    ;
     background: var(--ui-header-bg);
-    color:transparent;
+    color: transparent;
     background-clip: text;
-    filter:hue-rotate(180deg)invert(1);
+    filter: hue-rotate(180deg)invert(1);
     letter-spacing: 0.01em;
     user-select: none;
-    margin:0;
+    margin: 0;
 
 }
 
@@ -14871,7 +14874,7 @@ body {
 .bzf-frame-chip.active {
     color: black;
     border-color: color-mix(in srgb, var(--bzf-warn) 55%, transparent);
-    background:var(--bzf-orange);
+    background: var(--bzf-orange);
 }
 
 .bzf-check {
@@ -19724,7 +19727,8 @@ body {
     background: var(--interaction-surface-deep) !important;
     color: var(--interaction-text);
     font-family: var(--ui-font-main, inherit);
-    font-size: var(--cc-font-size-small) !important;  font-weight: 450;
+    font-size: var(--cc-font-size-small) !important;
+    font-weight: 450;
     letter-spacing: -0.025em;
     cursor: pointer;
     transition: background-color 120ms linear, color 120ms linear;
@@ -35315,9 +35319,23 @@ video.project-cover-img {
 *:hover {}
 
 
-html {scrollbar-width:none;-webkit-overflow-scrolling: touch; overflow:hidden}
+html {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overflow: hidden
+}
 
-button {font-family: var(--ui-font-main) !important; outline:none !important}
-*:focus, *:focus-within, *::after:focus {outline: none !important;}
+button {
+    font-family: var(--ui-font-main) !important;
+    outline: none !important
+}
 
-body {margin: 0px !important;}
+*:focus,
+*:focus-within,
+*::after:focus {
+    outline: none !important;
+}
+
+body {
+    margin: 0px !important;
+}

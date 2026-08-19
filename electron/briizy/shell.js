@@ -1,5 +1,5 @@
 /**
- * briizy shell — the roaming avatar overlay and the menu-bar item (§9).
+ * briizy shell — the roaming avatar overlay (§9).
  *
  * A small, transparent, frameless, always-on-top BrowserWindow sized to the
  * avatar (like OpenPets/Codex pets). The window itself moves across the display
@@ -62,7 +62,6 @@ class BriizyShell {
     this.devServerUrl = devServerUrl;
 
     this.window = null;
-    this.tray = null;
     this.interactive = false;
     this.visible = false;
     this.getMainWindow = () => null;
@@ -230,7 +229,6 @@ class BriizyShell {
     this.visible = true;
     this._log('info', 'Avatar shown');
     this.pushState();
-    this._refreshTray();
   }
 
   hide() {
@@ -238,14 +236,6 @@ class BriizyShell {
     this.window.hide();
     this.visible = false;
     this._log('info', 'Avatar hidden');
-    // With the avatar gone the menu-bar icon is the only way back into briizy
-    // (and, with the main window closed, into briizOS). Recreate it if
-    // anything took it down; hiding must never cost the icon.
-    if (!this.tray) {
-      this._log('warn', 'Menu bar icon was missing while hiding the avatar — recreating it');
-      this.createTray();
-    }
-    this._refreshTray();
   }
 
   toggle() {
@@ -372,107 +362,6 @@ class BriizyShell {
     });
   }
 
-  // ------------------------------------------------------------------
-  // Menu-bar item
-  // ------------------------------------------------------------------
-
-  createTray() {
-    if (this.tray) return this.tray;
-    const { Tray, nativeImage } = this.electron;
-    const iconPath = path.join(__dirname, '..', 'icon.png');
-    let icon = nativeImage.createFromPath(iconPath);
-    if (!icon.isEmpty()) {
-      icon = icon.resize({ width: 18, height: 18 });
-      // Template images follow the menu bar's light/dark appearance.
-      icon.setTemplateImage(true);
-    }
-    this.tray = new Tray(icon);
-    this.tray.setToolTip('briizy');
-    this._refreshTray();
-    this._log('debug', 'The screen-memory menu-bar controls were created. This does not start screenshot capture.');
-    return this.tray;
-  }
-
-  _refreshTray() {
-    if (!this.tray) return;
-    const { Menu, app } = this.electron;
-    const status = this.briizy.getStatus();
-    const storage = status.storage;
-
-    const menu = Menu.buildFromTemplate([
-      {
-        label: `briizy — ${this._statusLabel(status)}`,
-        enabled: false,
-      },
-      ...(storage ? [{
-        label: `  ${this._formatBytes(storage.bytes)} of ${this._formatBytes(storage.retentionBytes)} · ${storage.frames.toLocaleString()} frames`,
-        enabled: false,
-      }] : []),
-      { type: 'separator' },
-      {
-        label: this.visible ? 'Hide briizy' : 'Show briizy',
-        click: () => this.setAvatarVisible(!this.visible),
-      },
-      {
-        label: status.paused ? 'Resume capture' : 'Pause capture',
-        enabled: status.enabled,
-        click: () => {
-          if (status.paused) this.briizy.resume('tray');
-          else this.briizy.pause('tray');
-        },
-      },
-      { type: 'separator' },
-      {
-        // Runs inside the app, which is where the Screen Recording grant lives.
-        // Captures only a window it creates itself — see self-test.js.
-        label: 'Run capture self-test…',
-        enabled: status.helper?.state === 'ready',
-        click: () => this.runSelfTest(),
-      },
-      {
-        label: 'Open briizOS…',
-        click: () => this.focusMainWindow(),
-      },
-      {
-        label: 'Settings…',
-        click: () => this.focusMainWindow({ route: 'briizy-settings' }),
-      },
-      { type: 'separator' },
-      {
-        // Closing the main window only hides it and monitoring continues; this
-        // is the one action that flushes and stops the helper (§9).
-        label: 'Quit briizOS',
-        click: () => app.quit(),
-      },
-    ]);
-    this.tray.setContextMenu(menu);
-  }
-
-  _statusLabel(status) {
-    switch (status?.state) {
-      case 'capturingWindow':
-        return status.captureStrategy === 'alternate' && status.session?.kind !== 'display'
-          ? 'next: active window'
-          : 'watching the active window';
-      case 'capturingDisplay':
-        return status.captureStrategy === 'alternate' && status.session?.kind !== 'display'
-          ? 'next: full display'
-          : 'recording this display';
-      case 'paused': return status.enabled ? 'paused' : 'off';
-      case 'permissionRequired': return 'needs Screen Recording permission';
-      case 'unavailable': return 'helper unavailable';
-      case 'error': return 'error';
-      default: return 'idle';
-    }
-  }
-
-  _formatBytes(bytes) {
-    const value = Number(bytes) || 0;
-    if (value < 1024 ** 2) return `${Math.round(value / 1024)} KB`;
-    if (value < 1024 ** 3) return `${Math.round(value / 1024 ** 2)} MB`;
-    return `${(value / 1024 ** 3).toFixed(1)} GB`;
-  }
-
   /**
    * Verify the capture path end to end, from inside the app that holds the
    * Screen Recording grant. Reads only a window it creates; see self-test.js for
@@ -585,10 +474,9 @@ class BriizyShell {
     ipcMain.handle(SHELL_CHANNELS.decide, decideHandler);
     this.unsubscribers.push(() => ipcMain.removeHandler(SHELL_CHANNELS.decide));
 
-    // Pipeline events drive the avatar and keep the tray honest.
+    // Pipeline events drive the avatar.
     const onStatus = () => {
       this.pushState();
-      this._refreshTray();
     };
     const onSuggestion = (suggestion) => this.showSuggestion(suggestion);
     // Focus is ambient: it tints the overlay edge, it does not open a bubble
@@ -605,8 +493,10 @@ class BriizyShell {
       this.briizy.off('focus', onFocus);
     });
 
-    this.createTray();
-    this._log('debug', 'The screen-memory avatar and menu-bar control wiring started. Capture status is reported separately.');
+    this._log('info', 'The screen-memory avatar wiring started without a menu-bar icon.', {
+      appRecovery: 'briizOS remains available from its Dock icon',
+      captureStatus: 'reported separately',
+    });
   }
 
   stop() {
@@ -618,10 +508,6 @@ class BriizyShell {
     this.unsubscribers = [];
     if (this.window && !this.window.isDestroyed()) this.window.destroy();
     this.window = null;
-    if (this.tray) {
-      this.tray.destroy();
-      this.tray = null;
-    }
     this._log('info', 'Shell stopped');
   }
 }

@@ -42,6 +42,44 @@ let unregisterBriizyIPC = null;
 let mainWindow = null;
 let shutdownStarted = false;
 
+function ensureMacOSDockPresence(reason, { report = false } = {}) {
+  if (process.platform !== 'darwin') return;
+
+  // A regular activation policy is the durable guarantee. app.dock.show()
+  // repairs the visible symptom if any native window behavior hid the icon.
+  if (typeof app.setActivationPolicy === 'function') {
+    app.setActivationPolicy('regular');
+  }
+
+  const wasVisible = typeof app.dock?.isVisible === 'function'
+    ? app.dock.isVisible()
+    : null;
+  if (wasVisible === false) {
+    Promise.resolve(app.dock.show()).catch((error) => {
+      logger.error('app', 'The briizOS Dock icon could not be restored.', {
+        reason,
+        error: error?.message || String(error),
+        nextStep: 'Quit and reopen briizOS; the app remains configured as a regular macOS application.',
+      });
+    });
+  }
+
+  if (report || wasVisible === false) {
+    logger[wasVisible === false ? 'warn' : 'info'](
+      'app',
+      wasVisible === false
+        ? 'The briizOS Dock icon had disappeared and was restored.'
+        : 'briizOS is running as a regular macOS app with its Dock icon kept visible.',
+      {
+        reason,
+        activationPolicy: 'regular',
+        dockIcon: wasVisible === false ? 'restored' : 'visible',
+        menuBarIcon: 'disabled',
+      },
+    );
+  }
+}
+
 function redactUrlApiKey(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
@@ -1016,6 +1054,7 @@ app.whenReady().then(() => {
     node: process.versions.node,
     startedAt: new Date().toISOString(),
   });
+  ensureMacOSDockPresence('app-startup', { report: true });
 
   // Generation-2 structured state is owned by this one Main-process service.
   // Existing feature stores remain untouched until their reviewed cutover phase.
@@ -1090,7 +1129,7 @@ app.whenReady().then(() => {
   unregisterBriizyIPC = registerBriizyIPC({ ipcMain, BrowserWindow, briizy, logger });
   briizy.start();
 
-  // Avatar overlay + menu bar item. Its on-screen presence is intentionally
+  // Avatar overlay. Its on-screen presence is intentionally
   // independent of capture: someone can hide the character while their local
   // screen memory runs, or leave it visibly asleep while capture is off.
   briizyShell = new BriizyShell({
@@ -1099,8 +1138,6 @@ app.whenReady().then(() => {
     electron: require('electron'),
     isDev,
   });
-  // "Open briizOS…" from the menu bar must work even after the workspace window
-  // has been closed — monitoring lives in main and outlives any window (§9).
   briizyShell.start({ getMainWindow: () => ensureMainWindow() });
   const syncBriizyAvatarPresentation = (config = briizy.getConfig()) => {
     briizyShell?.applyPresentation(config);
@@ -1119,15 +1156,6 @@ app.whenReady().then(() => {
   });
 
   ensureMainWindow();
-
-  // The overlay's former 'panel' window type could flip macOS activation to
-  // accessory mode, which removes the Dock icon. The type is gone, but the Dock
-  // icon is asserted here anyway so no window configuration can silently take
-  // it away again — briizOS must always be reachable from the Dock.
-  if (process.platform === 'darwin' && app.dock && !app.dock.isVisible()) {
-    app.dock.show();
-    logger.warn('app', 'Dock icon was hidden at startup — restored it');
-  }
 
   langgraph.start().then((ok) => {
     const status = langgraph.getStatus();
@@ -1150,6 +1178,7 @@ app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
+    ensureMacOSDockPresence('app-activated');
     // Not `getAllWindows().length === 0` any more: the briizy overlay is also a
     // BrowserWindow, so that test would never be true once the shell is up.
     ensureMainWindow();

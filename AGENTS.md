@@ -1,5 +1,24 @@
 # briizOS.Local — Development Rules: *Claude, Codex, Mistral, Muse, and Kimi  must verbally acknowledge reading this file at the start of every session.*
 
+
+
+## important note:
+[user] is not a software dev, they are a product designer. Their input comes from time spent working to conceptualize function+form factor. Your work must:
+
+– Verify that the input is sufficient to understand the entire scope of what is being requested by articulating your understanding.
+– Consider the current stack for implementation that maintains fluid reliable interaction.
+– Appraise the user in specific but technically-bite-sized terms of the implementation choices and what that means for the reliability/visibility/footprint of the feature.
+
+--> When a task is completed, inform them of what works differently in the app ***so that they can check to make sure it does indeed work by using it themselves.*** Then briefly explain how it was implemented and what files contain those changes.
+
+Provide explanations in succinct bullet lists, but never use insider shorthand.
+
+
+
+
+
+
+
 ## General Design Principles
 
 – Style
@@ -8,11 +27,14 @@
 >> Visual density is a defining characteristic of BriizOS. Space is valuable. Do not increase padding, margins, gutters, row heights, or control sizes unless the mockup explicitly calls for it or there is a demonstrated usability issue.
 >> Use glyph fonts for icons, preferably SF Symbols. There is a folder in the briizos repo root called "SFSymbiols" for you to reference. If you notice any svg rendered icons, change them to an SF Symbol icon. 
 
-
-
 - Specifications, Plans, and Execution
 >> The user's Photoshop mockups are the canonical design specification. Match their spacing, proportions, density, and hierarchy faithfully. Do not reinterpret or "improve" the layout using generic UI best practices.
 >>> When the implementation and the mockup differ, assume the implementation is wrong until proven otherwise.
+>> There is no v1. There is no "first iteration". There is no 'working example.' Requests need to be achieved in full as the first goal. 
+>>> Spec logic that is based on ideas of "simplicity," "lightweight", "no additional dependencies" are the wrong direction. You do not prioritize NOT doing things just because it adds to the codebase.
+
+
+
 ## Hard Rules
 
 ### 1. Everything gets logged to the Log Panel
@@ -31,16 +53,6 @@ weather.location | Location Services did not answer within 8 seconds, so only th
 >>>>> Next Step:  No action is required unless exact local weather matters; macOS Location Services can be reviewed in System Settings.`
 
 
-### 2. ~~Honor the SyncContract~~ [IGNORE FOR NOW]
-
-~~The SyncContract defines how ~~data flows between Firestore and the local app. It lives at~~
-
-~~`/Users/alex/Documents/Cufolio/briizOS/SyncContract.md` (parent directory, shared between Local and Web repos)~~
-
-~~It is referenced by `src/lib/firestore.js` and `src/lib/syncAdapters.js`.~~
-
-~~**At the start of every session**, read the SyncContract before making changes to any sync, Firestore, or data persistence code. Any change to tasks, organizer, calendar, notes, or app state must comply with it. See §2 (hard invariants, incl. prohibited legacy aliases) and §§4–5 (read/write rules) for compliance gates.~~
-
 ### 3. Two-layer problem resolution
 
 Every bug or error must be addressed at two levels:
@@ -50,14 +62,6 @@ Every bug or error must be addressed at two levels:
 
 A fix that only addresses layer 1 is incomplete. If the deeper fix is too large for the current scope, document it as a TODO with rationale.
 
-## gstack
-
-Use /browse from gstack for all web browsing. Never use mcp**claude-in-chrome**\* tools.
-Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
-/design-consultation, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse,
-/qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /retro,
-/investigate, /document-release, /codex, /cso, /autoplan, /careful, /freeze, /guard,
-/unfreeze, /gstack-upgrade.
 
 -----------------------------------------------------------------------
 
@@ -106,13 +110,17 @@ The MCP server returns "not initialized." Ask the user: *"I notice this project 
 
 
 
-## important note:
-[user] is not a software dev, they are a product designer. Their input comes from time spent working to conceptualize function+form factor. Your work must:
 
-– Verify that the input is sufficient to understand the entire scope of what is being requested by articulating your understanding.
-– Consider the current stack for implementation that maintains fluid reliable interaction.
-– Appraise the user in specific but technically-bite-sized terms of the implementation choices and what that means for the reliability/visibility/footprint of the feature.
 
---> When a task is completed, inform them of what works differently in the app ***so that they can check to make sure it does indeed work by using it themselves.*** Then briefly explain how it was implemented and what files contain those changes.
 
-Provide explanations in succinct bullet lists, but never use insider shorthand.
+
+<ignore> ### 2. ~~Honor the SyncContract~~ [IGNORE FOR NOW]
+
+~~The SyncContract defines how ~~data flows between Firestore and the local app. It lives at~~
+
+~~`/Users/alex/Documents/Cufolio/briizOS/SyncContract.md` (parent directory, shared between Local and Web repos)~~
+
+~~It is referenced by `src/lib/firestore.js` and `src/lib/syncAdapters.js`.~~
+
+~~**At the start of every session**, read the SyncContract before making changes to any sync, Firestore, or data persistence code. Any change to tasks, organizer, calendar, notes, or app state must comply with it. See §2 (hard invariants, incl. prohibited legacy aliases) and §§4–5 (read/write rules) for compliance gates.~~
+</ignore>
