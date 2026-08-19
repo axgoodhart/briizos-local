@@ -14149,8 +14149,8 @@ body {
     right: 0;
     bottom: 0;
     z-index: 12;
-    margin: 8px;
-}
+    
+    }
 
 .drop-zone {
     position: absolute;
@@ -19724,7 +19724,7 @@ body {
     background: var(--interaction-surface-deep) !important;
     color: var(--interaction-text);
     font-family: var(--ui-font-main, inherit);
-    font-size: var(--cc-font-size-small);    font-weight: 450;
+    font-size: var(--cc-font-size-small) !important;  font-weight: 450;
     letter-spacing: -0.025em;
     cursor: pointer;
     transition: background-color 120ms linear, color 120ms linear;
@@ -35319,3 +35319,5 @@ html {scrollbar-width:none;-webkit-overflow-scrolling: touch; overflow:hidden}
 
 button {font-family: var(--ui-font-main) !important; outline:none !important}
 *:focus, *:focus-within, *::after:focus {outline: none !important;}
+
+body {margin: 0px !important;}
