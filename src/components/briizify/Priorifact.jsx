@@ -88,6 +88,7 @@ function Priorifact({
   const [addingActivity, setAddingActivity] = useState(false);
   const idleRef = useRef(null);
   const cancelEditRef = useRef(false);
+  const editing = expanded && !focused;
 
   useEffect(() => {
     const tick = setInterval(() => {
@@ -109,15 +110,12 @@ function Priorifact({
   }, []);
   useEffect(() => () => { if (idleRef.current) clearTimeout(idleRef.current); }, []);
   useEffect(() => {
-    if (focused) setExpanded(false);
-  }, [focused]);
-  useEffect(() => {
-    if (expanded) return;
+    if (editing) return;
     setEditDraft(null);
     setDraggedActivityId(null);
     setDropTargetId(null);
     setDeleteArmed(false);
-  }, [expanded]);
+  }, [editing]);
 
   const paused = !!plan.pauseState;
   const scheduleDate = paused ? plan.pauseState.anchorDate : today;
@@ -215,14 +213,14 @@ function Priorifact({
   }, [touch]);
 
   const beginEdit = useCallback((activity, field) => {
-    if (!expanded || paused || interactionBusy) return;
+    if (!editing || paused || interactionBusy) return;
     cancelEditRef.current = false;
     const value = field === 'startMinute'
       ? fmtTimeInput(activity.startMinute)
       : String(activity[field]);
     setEditDraft({ activityId: activity.id, field, value });
     touch();
-  }, [expanded, interactionBusy, paused, touch]);
+  }, [editing, interactionBusy, paused, touch]);
 
   const cancelEdit = useCallback(() => {
     cancelEditRef.current = true;
@@ -446,7 +444,7 @@ function Priorifact({
 
   return (
     <div
-      className={`priorifact ${expanded ? 'expanded' : ''} ${focused ? 'focused' : ''} ${paused ? 'paused' : ''}`}
+      className={`priorifact ${editing ? 'expanded' : ''} ${focused ? 'focused' : ''} ${paused ? 'paused' : ''}`}
       onPointerDown={touch}
       onWheel={touch}
     >
@@ -564,7 +562,7 @@ function Priorifact({
               add break
             </button>
             <span className="priorifact-header-sep">•</span>
-            {expanded ? (
+            {editing ? (
               <>
                 <button
                   type="button"
@@ -594,7 +592,7 @@ function Priorifact({
           </div>
           {actionError && <div className="bzf-action-error" role="status">{actionError}</div>}
 
-          {expanded || focused ? (
+          {editing || focused ? (
             <>
               <div className="bzf-timeline">
                 <div className="bzf-timeline-track" />
@@ -616,12 +614,12 @@ function Priorifact({
                   />
                 )))}
               </div>
-              {expanded && plan.summary && <div className="priorifact-summary">{plan.summary}</div>}
-              <div className={`bzf-cards ${expanded ? 'editing' : 'focused-overview'}`}>
-                {(expanded ? todays : cards).map((activity, index) => (
-                  renderCard(activity, index, { removable: expanded })
+              {editing && plan.summary && <div className="priorifact-summary">{plan.summary}</div>}
+              <div className={`bzf-cards ${editing ? 'editing' : 'focused-overview'}`}>
+                {(editing ? todays : cards).map((activity, index) => (
+                  renderCard(activity, index, { removable: editing })
                 ))}
-                {expanded && (
+                {editing && (
                   <button
                     type="button"
                     className="bzf-add-activity"
@@ -672,7 +670,7 @@ function Priorifact({
           )}
         </div>
       </div>
-      {expanded && (
+      {editing && (
         <div className={`bzf-delete-plan ${deleteArmed ? 'confirming' : ''}`}>
           {deleteArmed ? (
             <>

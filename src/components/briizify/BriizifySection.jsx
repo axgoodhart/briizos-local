@@ -26,18 +26,9 @@ function BriizifySection({ focused = false, onFocusedChange }) {
   const showSetup = setupOpen || busy;
   const artifactEngaged = hasPlan && !artifactHidden && !showSetup;
 
-  const closeFocus = useCallback((reason) => {
-    if (!focused) return;
-    onFocusedChange?.(false);
-    logger.info('tasks.briizify', 'Priorifact focus mode closed', {
-      presentation: 'ambient',
-      reason,
-    });
-  }, [focused, onFocusedChange]);
-
   useEffect(() => {
-    if (focused && !artifactEngaged) closeFocus('priorifact unavailable');
-  }, [artifactEngaged, closeFocus, focused]);
+    if (focused && !artifactEngaged) onFocusedChange?.(false);
+  }, [artifactEngaged, focused, onFocusedChange]);
 
   const handleTab = useCallback(() => {
     if (showSetup) {
@@ -46,12 +37,12 @@ function BriizifySection({ focused = false, onFocusedChange }) {
       return;
     }
     if (hasPlan) {
-      if (!artifactHidden) closeFocus('priorifact hidden');
+      if (!artifactHidden) onFocusedChange?.(false);
       setArtifactHidden((hidden) => !hidden);
       return;
     }
     setSetupOpen(true);
-  }, [showSetup, busy, hasPlan, briizify, artifactHidden, closeFocus]);
+  }, [showSetup, busy, hasPlan, briizify, artifactHidden, onFocusedChange]);
 
   const handleGenerate = useCallback(async (payload) => {
     const plan = await briizify.generate(payload);
@@ -75,26 +66,26 @@ function BriizifySection({ focused = false, onFocusedChange }) {
   }, [busy, briizify]);
 
   const handleEndPlan = useCallback(async () => {
-    closeFocus('plan ended');
+    onFocusedChange?.(false);
     await briizify.endPlan();
     setArtifactHidden(false);
-  }, [briizify, closeFocus]);
+  }, [briizify, onFocusedChange]);
 
   const handleChangePlan = useCallback(() => {
-    closeFocus('plan change opened');
+    onFocusedChange?.(false);
     setSetupOpen(true);
-  }, [closeFocus]);
+  }, [onFocusedChange]);
 
   const handleFocus = useCallback(() => {
     if (!artifactEngaged) return;
     const nextFocused = !focused;
-    if (!nextFocused) {
-      closeFocus('focus button');
-      return;
-    }
-    onFocusedChange?.(true);
-    logger.info('tasks.briizify', 'Priorifact focus mode opened', { presentation: 'focused' });
-  }, [artifactEngaged, closeFocus, focused, onFocusedChange]);
+    onFocusedChange?.(nextFocused);
+    logger.info(
+      'tasks.briizify',
+      nextFocused ? 'Priorifact focus mode opened' : 'Priorifact focus mode closed',
+      { presentation: nextFocused ? 'focused' : 'ambient' },
+    );
+  }, [artifactEngaged, focused, onFocusedChange]);
 
   return (
     <div className={`briizify-section ${focused ? 'focused' : ''}`}>

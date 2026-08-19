@@ -1423,7 +1423,7 @@ body {
     color: var(--palette-accent-primary, #42dbe8);
     box-shadow: 0 0 0 1px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 20%, transparent), 0 0 10px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 24%, transparent);
     cursor: pointer;
-    font-family: 'SF Pro Display', 'SF Pro Symbols', 'Apple Symbols', sans-serif;
+    font-family: 'SF Pro Display', 'SF Pro Symbols', 'Apple Symbols', sans-serif !important;
     font-size: 19px;
     line-height: 1;
     text-shadow: 0 0 7px currentColor;
@@ -1828,7 +1828,7 @@ body {
     cursor: pointer;
     padding: var(--cc-padding-small);
     font-size: var(--cc-font-size-medium);
-    font-family: SF Pro Display;
+    font-family: SF Pro Display !important;
 }
 
 .panel-header-btn:hover {
@@ -1846,7 +1846,7 @@ body {
 }
 
 .interaction-header-icon {
-    font-family: 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .interaction-collapse-btn {
@@ -1855,7 +1855,7 @@ body {
 }
 
 .interaction-clear-btn {
-    font-family: 'SF Pro', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'SF Pro', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .canvas-tile-header {
@@ -13825,7 +13825,6 @@ body {
     right: 0;
     bottom: 0;
     z-index: 12;
-    margin: 8px;
     border-color: var(--layout-accent-cyan);
     box-shadow: 0 0 30px rgba(0, 200, 200, 0.2);
 }
@@ -14695,6 +14694,7 @@ body {
 
 .briizify-tab-dock:hover:not(.engaged) {
     height: 35px;
+    width:50%;
 }
 
 .briizify-tab-dock.engaged {
@@ -14704,7 +14704,7 @@ body {
 
 .briizify-tab {
     flex: 1;
-    min-width: 0;
+    min-width: 30% !important;
     display: inline-flex;
     align-items: baseline;
     gap: 6px;
@@ -14734,7 +14734,7 @@ body {
 
 .briizify-tab-soft {
     font-weight: 400;
-    font-size: var(--cc-font-size-small);
+    font-size: var(--cc-font-size-tiny);
     opacity: 0.85;
     color: darkred;
 }
@@ -14776,10 +14776,15 @@ body {
 .briizify-logo {
     font-family: var(--ui-font-main, inherit);
     font-weight: 600;
-    font-size: 17px;
+    font-size: var(--cc-font-size-small);;
+    background: var(--ui-header-bg);
+    color:transparent;
+    background-clip: text;
+    filter:hue-rotate(180deg)invert(1);
     letter-spacing: 0.01em;
-    color: var(--palette-accent-briizlogo, #f0e2d0);
     user-select: none;
+    margin:0;
+
 }
 
 .briizify-logo.rail {
@@ -14807,7 +14812,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 6px;
 }
 
 .bzf-close {
@@ -14865,10 +14869,9 @@ body {
 }
 
 .bzf-frame-chip.active {
-    color: var(--bzf-warn);
+    color: black;
     border-color: color-mix(in srgb, var(--bzf-warn) 55%, transparent);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    background:var(--bzf-orange);
 }
 
 .bzf-check {
@@ -14906,8 +14909,8 @@ body {
 
 .bzf-switch {
     position: relative;
-    width: 52px;
-    height: 22px;
+    width: 60px;
+    height: 12px;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--bzf-glow) 45%, transparent);
     background: rgba(0, 0, 0, 0.4);
@@ -14921,7 +14924,7 @@ body {
 
 .bzf-switch-knob {
     position: absolute;
-    top: 1px;
+    top: -4px;
     left: 2px;
     display: inline-flex;
     align-items: center;
@@ -14938,7 +14941,7 @@ body {
 }
 
 .bzf-switch.on .bzf-switch-knob {
-    transform: translateX(28px);
+    transform: translateX(40px);
 }
 
 .bzf-switch:not(.on) .bzf-switch-knob {
@@ -15323,7 +15326,9 @@ body {
    the task header, overall progress, and Phantom dock in place. */
 
 .briizify-section.focused {
-    flex: 100;
+    flex: 100 1 0;
+    position: relative;
+    isolation: isolate;
     display: flex;
     align-items: center;
     min-height: 0;
@@ -15331,11 +15336,21 @@ body {
     padding: 0 6%;
 }
 
+.briizify-section.focused::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 4% 2% 7%;
+    background: radial-gradient(ellipse at 18% 52%, color-mix(in srgb, var(--bzf-warn) 9%, transparent), transparent 46%), radial-gradient(ellipse at 78% 52%, color-mix(in srgb, var(--bzf-violet) 11%, transparent), transparent 52%);
+    opacity: 0.8;
+    pointer-events: none;
+}
+
 .briizify-section.focused .priorifact {
-    width: 100%;
-    min-height: clamp(260px, 40vh, 360px);
+    width: min(100%, 1180px);
+    min-height: clamp(280px, 46vh, 420px);
     box-sizing: border-box;
-    margin: 0;
+    margin: 0 auto;
     padding: clamp(52px, 9vh, 80px) clamp(28px, 3.5vw, 40px);
     transform: scale(1.03);
     transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease-out;
@@ -16175,6 +16190,10 @@ body {
         align-items: flex-start;
         overflow-y: auto;
         padding: 34px 12px 82px;
+    }
+
+    .briizify-section.focused::before {
+        inset: 0;
     }
 
     .briizify-section.focused .priorifact {
