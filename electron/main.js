@@ -1,7 +1,43 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, powerMonitor, nativeImage } = require('electron');
-const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+
+function readLocalEnvironmentValue(name) {
+  try {
+    const contents = fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8');
+    const prefix = `${name}=`;
+    const line = contents.split(/\r?\n/).find((entry) => entry.trimStart().startsWith(prefix));
+    if (!line) return '';
+    let value = line.trimStart().slice(prefix.length).trim();
+    if ((value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    return value;
+  } catch {
+    return '';
+  }
+}
+
+// Electron's navigator.geolocation implementation uses Google Cloud's
+// Geolocation web service. Supply its required process variable before
+// Electron initializes; never expose the credential to the renderer or logs.
+if (process.env.GOOGLE_API_KEY) {
+  process.env.BRIIZOS_GEOLOCATION_CREDENTIAL_SOURCE = 'GOOGLE_API_KEY environment';
+} else {
+  const localGoogleKey = readLocalEnvironmentValue('GOOGLE_API_KEY');
+  const compatibleGeminiKey = process.env.GEMINI_API_KEY
+    || readLocalEnvironmentValue('GEMINI_API_KEY');
+  const geolocationKey = localGoogleKey || compatibleGeminiKey;
+  if (geolocationKey) {
+    process.env.GOOGLE_API_KEY = geolocationKey;
+    process.env.BRIIZOS_GEOLOCATION_CREDENTIAL_SOURCE = localGoogleKey
+      ? 'GOOGLE_API_KEY local environment'
+      : 'existing Google Gemini credential';
+  }
+}
+
+const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, powerMonitor, nativeImage } = require('electron');
 const yaml = require('js-yaml');
 const { pathToFileURL, fileURLToPath } = require('url');
 const { logger, registerLoggerIPC, setLogPersistence } = require('./logger');
@@ -1064,6 +1100,22 @@ app.whenReady().then(() => {
     node: process.versions.node,
     startedAt: new Date().toISOString(),
   });
+  logger[process.env.GOOGLE_API_KEY ? 'info' : 'warn'](
+    'weather.location',
+    process.env.GOOGLE_API_KEY
+      ? 'Electron received a Google credential for its geolocation provider. This enables a location attempt but does not yet prove that Google Cloud accepted the request.'
+      : 'Electron has no Google credential for its geolocation provider, so exact header-weather coordinates are unavailable.',
+    {
+      provider: 'Electron Google Cloud geolocation',
+      credentialConfigured: !!process.env.GOOGLE_API_KEY,
+      credentialSource: process.env.BRIIZOS_GEOLOCATION_CREDENTIAL_SOURCE || 'none',
+      credentialValueExposedByBridge: false,
+      permissionsPolicyRequired: false,
+      nextStep: process.env.GOOGLE_API_KEY
+        ? 'The weather location result will report whether the provider answered.'
+        : 'Set GOOGLE_API_KEY to a Google Cloud key with the Geolocation API enabled and billing attached.',
+    },
+  );
   ensureMacOSDockPresence('app-startup', { report: true });
 
   // Generation-2 structured state is owned by this one Main-process service.

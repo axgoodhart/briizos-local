@@ -119,6 +119,10 @@ contextBridge.exposeInMainWorld('briizy', {
 contextBridge.exposeInMainWorld('api', {
   // Platform info
   platform: process.platform,
+  weatherLocationProvider: {
+    configured: !!process.env.GOOGLE_API_KEY,
+    credentialSource: process.env.BRIIZOS_GEOLOCATION_CREDENTIAL_SOURCE || 'none',
+  },
 
   // Generation-2 local data. Each method maps to one validated Main-process
   // command; the renderer never receives a SQL or filesystem escape hatch.

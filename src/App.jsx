@@ -86,19 +86,50 @@ function getFallbackWeatherCoords() {
 }
 
 async function getWeatherCoords() {
+  const locationProvider = typeof window !== 'undefined'
+    ? window.api?.weatherLocationProvider
+    : null;
+  const isElectronRenderer = typeof window !== 'undefined' && !!window.api?.platform;
+  if (isElectronRenderer && locationProvider?.configured === false) {
+    const fallback = getFallbackWeatherCoords();
+    logger.warn(
+      'weather.location',
+      `Electron has no Google geolocation credential, so only the header weather will use approximate coordinates for ${fallback.timezone}.`,
+      {
+        provider: 'Electron Google Cloud geolocation',
+        credentialConfigured: false,
+        permissionsPolicyRequired: false,
+        fallbackLatitude: fallback.latitude,
+        fallbackLongitude: fallback.longitude,
+        nextStep: 'Set GOOGLE_API_KEY to a Google Cloud key with the Geolocation API enabled and billing attached.',
+      },
+    );
+    return fallback;
+  }
   if (typeof navigator !== 'undefined' && navigator.geolocation) {
     try {
       const pos = await new Promise((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: false,
-          timeout: 8000,
-          maximumAge: 10 * 60 * 1000
+          timeout: 15000,
+          maximumAge: 30 * 60 * 1000
         })
+      );
+      logger.info(
+        'weather.location',
+        'Electron geolocation returned coordinates for the header weather.',
+        {
+          provider: isElectronRenderer ? 'Electron Google Cloud geolocation' : 'browser geolocation',
+          credentialConfigured: locationProvider?.configured ?? null,
+          credentialSource: locationProvider?.credentialSource || null,
+          accuracyMeters: Number.isFinite(pos.coords.accuracy) ? Math.round(pos.coords.accuracy) : null,
+          coordinatesStoredInLog: false,
+        },
       );
       return {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
-        source: 'macOS location',
+        source: isElectronRenderer ? 'Electron geolocation' : 'browser geolocation',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
     } catch (error) {
@@ -106,16 +137,20 @@ async function getWeatherCoords() {
       const locationReason = error?.code === 1
         ? 'Location permission was denied'
         : error?.code === 2
-          ? 'Location Services could not determine a position'
+          ? 'The geolocation provider could not determine a position'
           : error?.code === 3
-            ? 'Location Services did not answer within 8 seconds'
-            : 'Location Services returned an unknown error';
+            ? 'The geolocation provider did not answer within 15 seconds'
+            : 'The geolocation provider returned an unknown error';
       logger.warn(
         'weather.location',
         `${locationReason}, so only the header weather will use approximate coordinates for ${fallback.timezone}. Chat, files, screen memory, and task automation are unaffected.`,
         {
           locationError: error?.message || 'No location response',
           locationErrorCode: error?.code ?? null,
+          provider: isElectronRenderer ? 'Electron Google Cloud geolocation' : 'browser geolocation',
+          credentialConfigured: locationProvider?.configured ?? null,
+          credentialSource: locationProvider?.credentialSource || null,
+          permissionsPolicyRequired: false,
           locationFailureKind: error?.code === 1
             ? 'permission_denied'
             : error?.code === 2
@@ -125,7 +160,9 @@ async function getWeatherCoords() {
                 : 'unknown',
           fallbackLatitude: fallback.latitude,
           fallbackLongitude: fallback.longitude,
-          nextStep: 'No action is required unless exact local weather matters; macOS Location Services can be reviewed in System Settings.',
+          nextStep: isElectronRenderer
+            ? 'Confirm that the Google Cloud Geolocation API is enabled for the configured key and that its project has billing attached.'
+            : 'Review this browser’s location permission and operating-system Location Services.',
         },
       );
       return fallback;
