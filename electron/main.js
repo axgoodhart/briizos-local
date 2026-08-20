@@ -43,41 +43,51 @@ let mainWindow = null;
 let shutdownStarted = false;
 
 function ensureMacOSDockPresence(reason, { report = false } = {}) {
-  if (process.platform !== 'darwin') return;
+  if (process.platform !== 'darwin') return Promise.resolve();
 
-  // A regular activation policy is the durable guarantee. app.dock.show()
-  // repairs the visible symptom if any native window behavior hid the icon.
+  // Keep the workspace reachable even if a native window operation changed
+  // the process type. The avatar prevents that transformation at its own call
+  // site; this remains the recovery boundary whenever the workspace is opened.
+  let activationPolicyApplied = null;
   if (typeof app.setActivationPolicy === 'function') {
-    app.setActivationPolicy('regular');
+    activationPolicyApplied = app.setActivationPolicy('regular');
   }
 
   const wasVisible = typeof app.dock?.isVisible === 'function'
     ? app.dock.isVisible()
     : null;
   if (wasVisible === false) {
-    Promise.resolve(app.dock.show()).catch((error) => {
-      logger.error('app', 'The briizOS Dock icon could not be restored.', {
-        reason,
-        error: error?.message || String(error),
-        nextStep: 'Quit and reopen briizOS; the app remains configured as a regular macOS application.',
+    return Promise.resolve(app.dock.show())
+      .then(() => {
+        logger.warn('app', 'The briizOS Dock icon had disappeared and was restored.', {
+          reason,
+          activationPolicy: 'regular',
+          activationPolicyApplied,
+          dockIcon: 'restored',
+          menuBarIcon: 'disabled',
+        });
+      })
+      .catch((error) => {
+        logger.error('app', 'The briizOS Dock icon could not be restored.', {
+          reason,
+          activationPolicy: 'regular',
+          activationPolicyApplied,
+          error: error?.message || String(error),
+          nextStep: 'Quit and reopen briizOS; the workspace process is still running.',
+        });
       });
-    });
   }
 
-  if (report || wasVisible === false) {
-    logger[wasVisible === false ? 'warn' : 'info'](
-      'app',
-      wasVisible === false
-        ? 'The briizOS Dock icon had disappeared and was restored.'
-        : 'briizOS is running as a regular macOS app with its Dock icon kept visible.',
-      {
-        reason,
-        activationPolicy: 'regular',
-        dockIcon: wasVisible === false ? 'restored' : 'visible',
-        menuBarIcon: 'disabled',
-      },
-    );
+  if (report) {
+    logger.info('app', 'briizOS is running as a regular macOS app with its Dock icon visible.', {
+      reason,
+      activationPolicy: 'regular',
+      activationPolicyApplied,
+      dockIcon: wasVisible === true ? 'visible' : 'visibility unavailable',
+      menuBarIcon: 'disabled',
+    });
   }
+  return Promise.resolve();
 }
 
 function redactUrlApiKey(rawUrl) {
@@ -1190,6 +1200,7 @@ app.whenReady().then(() => {
  * bridge, which needs a live renderer to reach the tool registry.
  */
 function ensureMainWindow() {
+  void ensureMacOSDockPresence('workspace-window-ensured');
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (!mainWindow.isVisible()) mainWindow.show();
     return mainWindow;

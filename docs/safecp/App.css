@@ -8682,7 +8682,8 @@ padding-left:20px !important;}
     --theme-components-overlays-organizermodal-to-box-shadow-n09w3: none;
 }
 
-:root[data-theme='navy-brockman'] {
+:root[data-theme='sunbrocksen'] {
+    --ui-font-main: Quiche Stencil Regular, 'Quiche Stencil';
     --glass-bg-light: linear-gradient(to bottom, rgba(10, 18, 32, 0.52), rgba(255, 240, 246, 0.06) 22%, transparent 50%, rgba(174, 233, 255, 0.14) 130%);
     --holo-blue: #AEE9FF;
     --text-primary: #F5F7FA;
@@ -9013,7 +9014,6 @@ padding-left:20px !important;}
     --ui-title-weight: 600;
     --ui-title-size: 20px;
     --ui-title-duration: 30s;
-    ;
     --ui-title-icon-glow: 0 0 8px darkblue;
     --ui-title-gradient: linear-gradient(120deg, white, blue, rgb(203, 98, 12), deeppink, white);
     --ui-title-stroke: 1px var(--ui-header-titlecolor);

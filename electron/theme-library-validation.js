@@ -3,7 +3,7 @@ const v = require('./local-data/validation');
 const BUILT_IN_THEME_IDS = new Set([
   'default', 'antarctic-teafog', 'postlinear-glassos', 'neon-orbi', 'winterbloom',
   'mint-icecube', 'great-wave', 'sherbert-sakura', 'burnt-chestnut', 'verdigris',
-  'space-glass', 'navy-brockman', 'peppermint-foil', 'transparent', 'medieval-taurus', 'mistic',
+  'space-glass', 'sunbrocksen', 'peppermint-foil', 'transparent', 'medieval-taurus', 'mistic',
 ]);
 const CURATED_VARIABLES = new Set([
   '--layout-bg-primary', '--ui-body-bg', '--ui-app-bg', '--layout-bg-secondary', '--log-section-bg',

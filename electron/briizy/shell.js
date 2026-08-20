@@ -146,7 +146,12 @@ class BriizyShell {
     // still appears on every Space. pop-up-menu would also work, but floating
     // is the least intrusive that still stays forefront.
     this.window.setAlwaysOnTop(true, 'floating');
-    this.window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    this.window.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+      // Electron otherwise temporarily changes the whole application into a
+      // UIElement process, which removes briizOS from the Dock after startup.
+      skipTransformProcessType: true,
+    });
     // Click-through by default; forward:true still delivers mousemove so the
     // renderer can hit-test the avatar. With a small window this only affects
     // the avatar rect, not the whole desktop.

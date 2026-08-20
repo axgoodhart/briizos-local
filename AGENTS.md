@@ -66,7 +66,7 @@ A fix that only addresses layer 1 is incomplete. If the deeper fix is too large 
 -----------------------------------------------------------------------
 
 # Agent Preferences
-- Do not run build, test, lint, or other check commands unless explicitly requested by the user.
+- Do not run build, test, lint, or other invocations / commands intended to double check work unless explicitly requested by the user.
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
