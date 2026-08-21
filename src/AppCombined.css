@@ -14654,10 +14654,10 @@ body {
 
 .briizify-section.focused .priorifact {
   width: min(100%, 1180px);
-  min-height: clamp(280px, 46vh, 420px);
+  min-height: clamp(480px, 88%, 720px);
   box-sizing: border-box;
   margin: 0 auto;
-  padding: clamp(52px, 9vh, 80px) clamp(28px, 3.5vw, 40px);
+  padding: clamp(22px, 4vh, 20px) clamp(18px, 1.5vw, 20px);
   transform: scale(1.03);
   transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease-out;
 }
