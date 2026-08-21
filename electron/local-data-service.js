@@ -6,7 +6,7 @@ const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
 const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT } = require('./local-data/limits');
-const { BUILT_IN_MODELS } = require('./built-in-models');
+const { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES } = require('./built-in-models');
 const { validateThemeLibrary } = require('./theme-library-validation');
 
 const TASK_STATUSES = [
@@ -333,7 +333,6 @@ class LocalDataService extends EventEmitter {
     const existing = new Map(this.db.prepare(`
       SELECT name, provider, model, settings_json, deleted_at FROM model_profiles
     `).all().map((row) => [row.name, row]));
-    const obsoleteSeeds = ['gemini-2.5-flash', 'claude-sonnet-4-5', 'gpt-5.4'];
     const needsUpdate = BUILT_IN_MODELS.some((profile) => {
       const row = existing.get(profile.name);
       const settings = JSON.stringify({
@@ -349,9 +348,9 @@ class LocalDataService extends EventEmitter {
       });
       return !row || row.deleted_at != null || row.provider !== profile.provider
         || row.model !== profile.model || row.settings_json !== settings;
-    }) || obsoleteSeeds.some((name) => existing.get(name)?.deleted_at == null);
+    }) || RETIRED_BUILT_IN_MODEL_NAMES.some((name) => existing.get(name)?.deleted_at == null);
     if (!needsUpdate) return this.listModelProfiles();
-    return this._write('settings', (timestamp) => {
+    const result = this._write('settings', (timestamp) => {
       BUILT_IN_MODELS.forEach((profile, index) => {
         this.db.prepare(`
           INSERT INTO model_profiles (
@@ -372,11 +371,17 @@ class LocalDataService extends EventEmitter {
           thinking: profile.thinking || null,
         }), index === 0 ? 1 : 0, timestamp, timestamp);
       });
+      const retiredPlaceholders = RETIRED_BUILT_IN_MODEL_NAMES.map(() => '?').join(', ');
       this.db.prepare(`UPDATE model_profiles SET deleted_at = ?, updated_at = ?, revision = revision + 1
-        WHERE name IN ('gemini-2.5-flash', 'claude-sonnet-4-5', 'gpt-5.4') AND deleted_at IS NULL`)
-        .run(timestamp, timestamp);
+        WHERE name IN (${retiredPlaceholders}) AND deleted_at IS NULL`)
+        .run(timestamp, timestamp, ...RETIRED_BUILT_IN_MODEL_NAMES);
       return { rows: this.listModelProfiles() };
     });
+    this.logger?.info?.('agent.models', 'The built-in AI model catalog was updated in the local database.', {
+      availableModels: BUILT_IN_MODELS.map((profile) => profile.name),
+      retiredModels: RETIRED_BUILT_IN_MODEL_NAMES,
+    });
+    return result;
   }
 
   listModelProfiles() {

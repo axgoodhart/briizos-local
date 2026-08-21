@@ -18,11 +18,24 @@ const BUILT_IN_MODELS = Object.freeze([
   { name: 'o3', displayName: 'o3', provider: 'openai', model: 'o3', maxTokens: 100000, supportsVision: true, supportsThinking: false },
   { name: 'o3-mini', displayName: 'o3-mini', provider: 'openai', model: 'o3-mini', maxTokens: 65536, supportsVision: false, supportsThinking: false },
   { name: 'o1', displayName: 'o1', provider: 'openai', model: 'o1', maxTokens: 100000, supportsVision: true, supportsThinking: false },
-  { name: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro Preview', provider: 'gemini', model: 'gemini-3.1-pro-preview', maxTokens: 65536, supportsVision: true, supportsThinking: false },
-  { name: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', provider: 'gemini', model: 'gemini-2.5-pro', maxTokens: 65536, supportsVision: true, supportsThinking: false },
-  { name: 'gemini-2.5-flash-preview-05-20', displayName: 'Gemini 2.5 Flash', provider: 'gemini', model: 'gemini-2.5-flash-preview-05-20', maxTokens: 65536, supportsVision: true, supportsThinking: false },
-  { name: 'gemini-flash-latest', displayName: 'Gemini Flash Latest', provider: 'gemini', model: 'gemini-flash-latest', maxTokens: 65536, supportsVision: true, supportsThinking: false },
-  { name: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', provider: 'gemini', model: 'gemini-2.0-flash', maxTokens: 8192, supportsVision: true, supportsThinking: false },
+  { name: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro', provider: 'gemini', model: 'gemini-3.1-pro-preview', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash', provider: 'gemini', model: 'gemini-3-flash-preview', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-omni-flash', displayName: 'Gemini Omni Flash', provider: 'gemini', model: 'gemini-omni-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', provider: 'gemini', model: 'gemini-2.5-pro', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.7-flash', displayName: 'Gemini 3.7 Flash', provider: 'gemini', model: 'gemini-3.7-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', provider: 'gemini', model: 'gemini-3.6-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', provider: 'gemini', model: 'gemini-3.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.5-flash-lite', displayName: 'Gemini 3.5 Flash-Lite', provider: 'gemini', model: 'gemini-3.5-flash-lite', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.1-flash-lite', displayName: 'Gemini 3.1 Flash-Lite', provider: 'gemini', model: 'gemini-3.1-flash-lite', maxTokens: 65536, supportsVision: true, supportsThinking: true },
 ]);
 
-module.exports = { BUILT_IN_MODELS };
+const RETIRED_BUILT_IN_MODEL_NAMES = Object.freeze([
+  'gemini-2.5-flash-preview-05-20',
+  'gemini-flash-latest',
+  'gemini-2.0-flash',
+  'claude-sonnet-4-5',
+  'gpt-5.4',
+]);
+
+module.exports = { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES };
