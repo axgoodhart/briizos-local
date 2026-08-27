@@ -34,10 +34,12 @@ function CanvasesPopover({
       const bounds = anchor.getBoundingClientRect();
       const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
       const isVertical = Boolean(anchor.closest('.control-bar-dock--vertical'));
+      const isDock = Boolean(anchor.closest('.fdock'));
 
       if (isVertical) {
         setAnchorPlacement({
           isVertical,
+          isDock: false,
           style: {
             position: 'fixed',
             top: `${Math.round(bounds.top + (bounds.height / 2))}px`,
@@ -51,10 +53,36 @@ function CanvasesPopover({
 
       const popoverWidth = Math.min(360, Math.max(0, viewportWidth - 16));
       const maxLeft = Math.max(8, viewportWidth - popoverWidth - 8);
+
+      if (isDock) {
+        // Launched from the floating dock: anchor by bottom so the popover
+        // opens (and grows) upward, resting on the dock capsule. The offset
+        // rides the --fdock-height token, so a resized dock keeps the
+        // popover seated on it.
+        const left = Math.min(
+          Math.max(8, bounds.left + bounds.width / 2 - popoverWidth / 2),
+          maxLeft,
+        );
+        setAnchorPlacement({
+          isVertical: false,
+          isDock: true,
+          style: {
+            position: 'fixed',
+            top: 'auto',
+            bottom: 'calc(var(--fdock-height, 52px) + 26px)',
+            left: `${Math.round(left)}px`,
+            right: 'auto',
+            transform: 'none',
+          },
+        });
+        return;
+      }
+
       const left = Math.min(Math.max(8, bounds.right - popoverWidth), maxLeft);
 
       setAnchorPlacement({
         isVertical,
+        isDock: false,
         style: {
           position: 'fixed',
           top: `${Math.round(bounds.bottom + 12)}px`,
@@ -111,11 +139,11 @@ function CanvasesPopover({
   const popover = (
     <div
       ref={popoverRef}
-      className={`canvases-popover ${newFlowOpen ? 'is-creating' : ''} ${isPortaled ? 'canvases-popover--portaled' : ''} ${anchorPlacement?.isVertical ? 'canvases-popover--vertical' : ''}`}
+      className={`canvases-popover ${newFlowOpen ? 'is-creating' : ''} ${isPortaled ? 'canvases-popover--portaled' : ''} ${anchorPlacement?.isVertical ? 'canvases-popover--vertical' : ''} ${anchorPlacement?.isDock ? 'canvases-popover--dock' : ''}`}
       style={isPortaled
         ? anchorPlacement?.style || {
           position: 'fixed',
-          top: 0,
+          bottom: 0,
           left: 0,
           right: 'auto',
           visibility: 'hidden',

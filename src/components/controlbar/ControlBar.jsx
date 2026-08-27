@@ -33,7 +33,7 @@ function FolderTabShape() {
   );
 }
 
-const EDITABLE_DOCK_ITEMS = Object.freeze([
+export const EDITABLE_DOCK_ITEMS = Object.freeze([
   { id: 'chat', label: 'Chats', glyph: '􀌮', accent: '#16df69' },
   { id: 'briiztorm', label: 'briiZtorm', glyph: '􁅥', accent: '#f54ba3' },
   { id: 'organizer', label: 'Organizer', glyph: '􀱢', accent: '#2bff36' },
@@ -54,7 +54,7 @@ const DEFAULT_HEADER_DOCK_ITEM_IDS = Object.freeze([
 
 const DOCK_ITEMS_BY_ID = new Map(EDITABLE_DOCK_ITEMS.map((item) => [item.id, item]));
 
-function DockGlyph({ item, className, id, style }) {
+export function DockGlyph({ item, className, id, style }) {
   const props = { className, id, style, 'aria-hidden': 'true' };
 
   if (!item.icon) return <span {...props}>{item.glyph}</span>;

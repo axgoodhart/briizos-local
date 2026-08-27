@@ -36,7 +36,11 @@ const SETTING_KEYS = new Set([
   'studio_ideogram_url',
   'studio_myaudio_url',
   'studio_briizclerk_url',
+  'shell_mode',
+  'ambient_workspace',
 ]);
+const SHELL_MODES = ['grid', 'windowed', 'hybrid'];
+const AMBIENT_WINDOW_FIELDS = ['id', 'app', 'title', 'x', 'y', 'width', 'height', 'z', 'minimized', 'filled', 'prevBounds'];
 const BRIIZTORM_KEYS = new Set(['projects', 'theme', 'flightSettings', 'flightPresets']);
 const COMMAND_STATUSES = ['accepted', 'queued', 'running', 'waiting_for_user', 'completed', 'failed', 'cancelled', 'expired', 'rejected'];
 const RUN_STATUSES = new Set(COMMAND_STATUSES);
@@ -195,6 +199,24 @@ class LocalDataService extends EventEmitter {
   _validateSetting(key, value) {
     if (!SETTING_KEYS.has(key)) v.fail('INVALID_INPUT', 'Unsupported setting key');
     if (key === 'ui_theme') return v.string(value, key, { required: true, max: 100 });
+    if (key === 'shell_mode') return v.oneOf(value, key, SHELL_MODES);
+    if (key === 'ambient_workspace') {
+      if (value === null) return null;
+      v.object(value, key, ['version', 'windows']);
+      if (!Array.isArray(value.windows) || value.windows.length > 80) {
+        v.fail('INVALID_INPUT', 'ambient_workspace.windows must be a list with at most 80 windows');
+      }
+      value.windows.forEach((win, index) => {
+        const label = `ambient_workspace.windows[${index}]`;
+        v.object(win, label, AMBIENT_WINDOW_FIELDS);
+        v.string(win.app, `${label}.app`, { required: true, max: 100 });
+        v.string(win.title, `${label}.title`, { max: 200 });
+        ['x', 'y', 'width', 'height', 'z'].forEach((field) => {
+          if (win[field] !== undefined) v.number(win[field], `${label}.${field}`, { min: -100000, max: 100000 });
+        });
+      });
+      return value;
+    }
     if (key === 'ui_theme_library') return validateThemeLibrary(value);
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
     if (key === 'suggestions_enabled') return v.boolean(value, key);

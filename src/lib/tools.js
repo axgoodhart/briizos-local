@@ -992,16 +992,34 @@ const tools = {
 
   movePanel: {
     requiresConfirmation: false,
-    description: 'Move panel to specific coordinates',
+    description: 'Move panel to specific coordinates (floating windows only)',
     parameters: { panel_id: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' } },
-    handler: async () => ({ success: false, message: 'Panel layout is managed automatically in briizOS.2. Panels cannot be freely positioned.' }),
+    handler: async (params, context, layoutHook) => {
+      // Free positioning exists only on the floating window surface; the
+      // shell bridge exposes moveFloatWindow when that surface is active.
+      if (typeof layoutHook?.moveFloatWindow === 'function') {
+        const panel = resolvePanel(layoutHook, params.panel_id);
+        if (panel && layoutHook.moveFloatWindow(panel.id, Number(params.x), Number(params.y))) {
+          return { success: true, message: `Moved window "${panel.id}" to ${Math.round(params.x)}, ${Math.round(params.y)}` };
+        }
+      }
+      return { success: false, message: 'Only floating windows can be freely positioned. Grid tiles are arranged automatically.' };
+    },
   },
 
   resizePanel: {
     requiresConfirmation: false,
-    description: 'Resize panel',
+    description: 'Resize panel (floating windows only)',
     parameters: { panel_id: { type: 'string' }, width: { type: 'number' }, height: { type: 'number' } },
-    handler: async () => ({ success: false, message: 'Panel layout is managed automatically in briizOS.2. Use the panel resize handles instead.' }),
+    handler: async (params, context, layoutHook) => {
+      if (typeof layoutHook?.resizeFloatWindow === 'function') {
+        const panel = resolvePanel(layoutHook, params.panel_id);
+        if (panel && layoutHook.resizeFloatWindow(panel.id, Number(params.width), Number(params.height))) {
+          return { success: true, message: `Resized window "${panel.id}" to ${Math.round(params.width)}×${Math.round(params.height)}` };
+        }
+      }
+      return { success: false, message: 'Only floating windows can be freely resized. Grid tiles use the tile resize handles.' };
+    },
   },
 
   openPanel: {

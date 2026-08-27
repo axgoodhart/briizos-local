@@ -30,10 +30,10 @@ export const MyComponent: React.FC<Props> = () => {
     <>
       <CanvasImage
         src={staticFile("Screenshot 2026-08-20 at 7.48.16 AM.png")}
-        from={0}
+        from={-46}
         style={{
           position: "absolute",
-          translate: "-383px -704px",
+          translate: "-417.5px -702.8px",
           scale: 0.334,
         }}
       />

@@ -165,10 +165,11 @@ export const getSystemFonts = () => systemFontsCache;
 export const canQueryLocalFonts = () => typeof window.queryLocalFonts === 'function';
 
 export function createNotesEditor(element, doc, {
-  onSave, onTick, onFocus, onUpdate, onAttachmentRequest,
+  onSave, onTick, onFocus, onUpdate, onAttachmentRequest, editable = true,
 }) {
   return new Editor({
     element,
+    editable,
     extensions: [
       StarterKit,
       Underline,

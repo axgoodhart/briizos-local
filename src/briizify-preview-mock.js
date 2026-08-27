@@ -117,8 +117,10 @@ function buildMockPlan(payload) {
       kind: pick.kind, refId: pick.refId, title: pick.title,
       date: payload.date, startMinute: cursor, durationMinutes: duration,
     };
-    if (channels.preparation) entry.prep = PREP;
-    if (channels.steps) entry.steps = STEPS;
+    // Tag the first bullet with the activity title so the harness can
+    // demonstrate that prep/steps belong to the selected activity.
+    if (channels.preparation) entry.prep = PREP.map((line, lineIndex) => (lineIndex === 0 ? `${pick.title} — ${line}` : line));
+    if (channels.steps) entry.steps = STEPS.map((line, lineIndex) => (lineIndex === 0 ? `${pick.title} — ${line}` : line));
     if (channels.support) entry.support = SUPPORT;
     activities.push(entry);
     cursor += duration + 5;

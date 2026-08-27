@@ -1,8 +1,7 @@
 import React, { useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useDrag, useDrop } from 'react-dnd';
 import { determineDropZone } from '../../lib/layoutUtils';
 import logger from '../../lib/logger';
 import '../../AppCombined.css';
@@ -34,7 +33,7 @@ const toPercentSize = (value, fallbackPercent) => {
 /**
  * DraggablePanel - Wrapper with zone-based drop detection and visual overlay.
  */
-function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, onToggleFullscreen, onActivate }) {
+function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, onToggleFullscreen, onActivate, onPopOut }) {
   const wrapperRef = useRef(null);
   const [dropZone, setDropZone] = useState(null);
 
@@ -113,6 +112,20 @@ function DraggablePanel({ panelId, componentId, children, onDrop, isFullscreen, 
       onDoubleClick={handleDoubleClick}
     >
       {children}
+      {onPopOut && !isFullscreen && (
+        <button
+          type="button"
+          className="panel-popout-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            onPopOut();
+          }}
+          title="Pop out to a floating window"
+          aria-label="Pop out to a floating window"
+        >
+          ❐
+        </button>
+      )}
       {isOver && dropZone && (
         <div className={`drop-zone-overlay drop-zone-${dropZone}`} />
       )}
@@ -153,6 +166,7 @@ function RelocatablePanel({
   onDrop,
   onToggleFullscreen,
   onActivate,
+  onPopOut,
 }) {
   const slotRef = useRef(null);
   const carrierRef = useRef(null);
@@ -202,6 +216,7 @@ function RelocatablePanel({
           isFullscreen={isFullscreen}
           onToggleFullscreen={onToggleFullscreen}
           onActivate={onActivate}
+          onPopOut={onPopOut}
         >
           {children}
         </DraggablePanel>,
@@ -232,6 +247,8 @@ export function TileLayout({
   fullscreenPanelId,
   onTogglePanelFullscreen,
   onActivatePanel,
+  onPopOutPanel,
+  canPopOutPanel,
   className = ''
 }) {
   const fullscreenHostRef = useRef(null);
@@ -274,6 +291,14 @@ export function TileLayout({
     if (onMovePanel) onMovePanel(draggedId, targetId, dropZone);
   }, [onMovePanel]);
 
+  // Per-panel pop-out handler for the floating window shell (undefined when
+  // the panel type cannot float, which hides the affordance entirely).
+  const popOutFor = useCallback((panel) => {
+    if (!onPopOutPanel) return undefined;
+    if (canPopOutPanel && !canPopOutPanel(panel)) return undefined;
+    return () => onPopOutPanel(panel);
+  }, [onPopOutPanel, canPopOutPanel]);
+
   const columns = layoutRow?.columns ?? [];
 
   // Default layout for the horizontal Group
@@ -302,8 +327,9 @@ export function TileLayout({
     .flatMap((column) => column.panels)
     .find((panel) => panel.panelId === fullscreenPanelId);
 
+  // NOTE: the react-dnd provider lives at the App root (shared with the
+  // floating window layer) — TileLayout no longer mounts its own backend.
   return (
-    <DndProvider backend={HTML5Backend}>
       <div className={`tile-layout ${className}`}>
         <div
           className="tile-layout-grid"
@@ -333,6 +359,7 @@ export function TileLayout({
                       onDrop={handleDrop}
                       onToggleFullscreen={onTogglePanelFullscreen}
                       onActivate={onActivatePanel}
+                      onPopOut={popOutFor(column.panels[0])}
                     >
                       {renderPanel ? renderPanel(column.panels[0]) : (
                         <div className="panel-content">
@@ -350,6 +377,7 @@ export function TileLayout({
                       fullscreenHostRef={fullscreenHostRef}
                       onTogglePanelFullscreen={onTogglePanelFullscreen}
                       onActivatePanel={onActivatePanel}
+                      popOutFor={popOutFor}
                     />
                   )}
                 </Panel>
@@ -370,7 +398,6 @@ export function TileLayout({
           aria-hidden={fullscreenPanelId ? undefined : 'true'}
         />
       </div>
-    </DndProvider>
   );
 }
 
@@ -386,6 +413,7 @@ function StackColumn({
   fullscreenHostRef,
   onTogglePanelFullscreen,
   onActivatePanel,
+  popOutFor,
 }) {
   const defaultStackLayout = useMemo(() => {
     const layout = {};
@@ -426,6 +454,7 @@ function StackColumn({
               fullscreenHostRef={fullscreenHostRef}
               onToggleFullscreen={onTogglePanelFullscreen}
               onActivate={onActivatePanel}
+              onPopOut={popOutFor ? popOutFor(panel) : undefined}
             >
               {renderPanel ? renderPanel(panel) : (
                 <div className="panel-content">

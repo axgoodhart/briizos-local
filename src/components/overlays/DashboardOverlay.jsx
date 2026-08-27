@@ -1512,6 +1512,7 @@ function DashboardOverlay({
         {/* Header */}
         <div className="modal-header">
           <h2 className="modal-title" id="dashboard-title">Dashboard</h2>
+          <div className="modal-header-drag"></div>
           <div className="modal-header-actions">
             {saveStatus !== 'idle' && (
               <div

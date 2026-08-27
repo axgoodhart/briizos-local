@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { formatDateYMD } from '../../lib/dates';
 
 /**
@@ -16,6 +16,13 @@ import { formatDateYMD } from '../../lib/dates';
  * "view/edit plan" expands into the full plan: a proportional
  * timeline (long breaks render as labeled dividers), every card,
  * and per-card removal.
+ *
+ * Focus mode: the card row stays anchored to the CLOCK (clicks never
+ * remove or reshuffle cards), and the viewed activity's prep + steps
+ * render below the row automatically, joined to its card by a
+ * hue-matched path. Clicking a card peeks at that activity's prep +
+ * steps without moving the plan's "current" anchor; chips keep their
+ * existing "proceed to this activity" meaning.
  */
 
 const IDLE_RETURN_MS = 25000;
@@ -79,6 +86,12 @@ function Priorifact({
   const [today, setToday] = useState(() => formatDateYMD(new Date()));
   const [overrideId, setOverrideId] = useState(null);
   const overrideBaseRef = useRef(null);
+  // Focus-mode peek: which activity's prep/steps are on display. View-only —
+  // never re-anchors "current", so the card row cannot reflow from a click.
+  const [viewedId, setViewedId] = useState(null);
+  const [connectorX, setConnectorX] = useState(26);
+  const cardRowRef = useRef(null);
+  const cardNodesRef = useRef(new Map());
   const [activeChannel, setActiveChannel] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [editDraft, setEditDraft] = useState(null);
@@ -105,6 +118,7 @@ function Priorifact({
       setActiveChannel(null);
       setExpanded(false);
       setOverrideId(null);
+      setViewedId(null);
       overrideBaseRef.current = null;
     }, IDLE_RETURN_MS);
   }, []);
@@ -157,6 +171,22 @@ function Priorifact({
     return clockCurrent;
   }, [overrideId, nonBreak, clockCurrent]);
 
+  // The activity whose prep/steps the focus view displays: an explicit
+  // card peek wins, otherwise it follows "current" (clock or chip jump).
+  const viewed = useMemo(() => {
+    if (viewedId) {
+      const peeked = nonBreak.find((activity) => activity.id === viewedId);
+      if (peeked) return peeked;
+    }
+    return current;
+  }, [viewedId, nonBreak, current]);
+
+  // When the clock moves on to a new activity (or focus is entered or
+  // left), return the peek to the actual current activity.
+  useEffect(() => {
+    setViewedId(null);
+  }, [clockCurrent?.id, focused]);
+
   const done = !current;
   const calendarComplete = plan.activities.length > 0
     && plan.activities.every((activity) => plan.calendarBlocks?.[activity.id]);
@@ -185,19 +215,54 @@ function Priorifact({
     return Math.round(((scheduleMinute - activity.startMinute) / activity.durationMinutes) * 100);
   }, [scheduleMinute]);
 
+  // The visible card row. Anchored to the CLOCK current, never the
+  // clicked one — looking at another activity must not drop or
+  // reshuffle the cards already on screen.
   const cards = useMemo(() => {
-    if (!current) return todays;
-    const index = todays.indexOf(current);
+    if (!clockCurrent) return todays;
+    const index = todays.indexOf(clockCurrent);
     return index >= 0 ? todays.slice(index) : todays;
-  }, [todays, current]);
+  }, [todays, clockCurrent]);
 
-  const toggles = CHANNEL_TOGGLES.filter((toggle) => plan.channels?.[toggle.id]);
+  // Focus mode auto-shows prep and steps, so only the support toggle
+  // stays there; the docked view keeps all three.
+  const toggles = CHANNEL_TOGGLES
+    .filter((toggle) => plan.channels?.[toggle.id])
+    .filter((toggle) => !focused || toggle.id === 'support');
   const detailBullets = activeChannel && current
     ? current[CHANNEL_TOGGLES.find((toggle) => toggle.id === activeChannel)?.field] || []
     : [];
 
-  const handleChip = useCallback((activity) => {
+  // Focus mode shows the viewed activity's prep and steps together
+  // (plus support while its toggle is on), read straight off that
+  // activity so the bullets always belong to the selected activity.
+  const focusSections = viewed
+    ? [
+      { id: 'preparation', label: 'prep:', bullets: viewed.prep || [] },
+      { id: 'steps', label: 'steps:', bullets: viewed.steps || [] },
+      ...(activeChannel === 'support'
+        ? [{ id: 'support', label: 'support:', bullets: viewed.support || [] }]
+        : []),
+    ].filter((section) => section.bullets.length > 0)
+    : [];
+  const viewedCardIndex = viewed ? Math.max(0, cards.indexOf(viewed)) : 0;
+
+  // Focus mode: clicking a card or chip peeks at that activity's
+  // prep/steps; clicking it again returns the view to the current
+  // activity. A peek never re-anchors the plan and never moves,
+  // removes, or resizes the cards on screen.
+  const handleCardPeek = useCallback((activity) => {
     touch();
+    setViewedId((currentPeekId) => (currentPeekId === activity.id ? null : activity.id));
+  }, [touch]);
+
+  const handleChip = useCallback((activity) => {
+    if (focused) {
+      handleCardPeek(activity);
+      return;
+    }
+    touch();
+    setViewedId(null);
     if (activity.id === clockCurrent?.id) {
       setOverrideId(null);
       overrideBaseRef.current = null;
@@ -205,7 +270,27 @@ function Priorifact({
     }
     setOverrideId(activity.id);
     overrideBaseRef.current = clockCurrent?.id || null;
-  }, [clockCurrent, touch]);
+  }, [clockCurrent, focused, handleCardPeek, touch]);
+
+  // Aim the connector's drop line at the viewed activity's card (a
+  // little inside its left edge). Reads rendered positions, so it
+  // runs after layout, not during render. The prep/steps text itself
+  // stays anchored left; only the connector moves.
+  useLayoutEffect(() => {
+    if (!focused || editing || !viewed) {
+      setConnectorX(26);
+      return;
+    }
+    const row = cardRowRef.current;
+    const node = cardNodesRef.current.get(viewed.id);
+    if (!row || !node) {
+      setConnectorX(26);
+      return;
+    }
+    const offset = node.getBoundingClientRect().left - row.getBoundingClientRect().left + 24;
+    const limit = Math.max(26, row.clientWidth - 12);
+    setConnectorX(Math.round(Math.max(26, Math.min(offset, limit))));
+  }, [focused, editing, viewed, cards]);
 
   const handleToggle = useCallback((channelId) => {
     touch();
@@ -396,11 +481,33 @@ function Priorifact({
     }
     const isCurrent = activity.id === current?.id;
     const isDone = progressOf(activity) >= 100 && !isCurrent;
+    const peekable = focused && !removable;
+    const isPeeked = peekable && viewedId === activity.id;
+    const peekProps = peekable ? {
+      role: 'button',
+      tabIndex: 0,
+      onClick: () => handleCardPeek(activity),
+      onKeyDown: (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleCardPeek(activity);
+        }
+      },
+      'aria-pressed': isPeeked,
+      title: isPeeked
+        ? 'Click to show the current activity again'
+        : `Click to show preparation and steps for ${activity.title}`,
+    } : {};
     return (
       <div
         key={activity.id}
-        className={`bzf-card ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${hueClass(index)} ${isDragging ? 'dragging' : ''} ${isDropTarget ? 'drop-target' : ''}`}
+        ref={(node) => {
+          if (node) cardNodesRef.current.set(activity.id, node);
+          else cardNodesRef.current.delete(activity.id);
+        }}
+        className={`bzf-card ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${hueClass(index)} ${isDragging ? 'dragging' : ''} ${isDropTarget ? 'drop-target' : ''} ${peekable ? 'peekable' : ''} ${isPeeked ? 'peeked' : ''}`}
         {...cardInteractionProps}
+        {...peekProps}
       >
         <div className="bzf-card-top">
           {editable
@@ -516,9 +623,13 @@ function Priorifact({
               <button
                 key={activity.id}
                 type="button"
-                className={`bzf-chip ${isCurrent ? 'current' : ''} ${isInProgress ? 'in-progress' : ''} ${progressOf(activity) >= 100 && !isCurrent ? 'done' : ''}`}
+                className={`bzf-chip ${isCurrent ? 'current' : ''} ${isInProgress ? 'in-progress' : ''} ${progressOf(activity) >= 100 && !isCurrent ? 'done' : ''} ${focused && viewedId === activity.id ? 'peeked' : ''}`}
                 onClick={() => handleChip(activity)}
-                title={isCurrent ? `${activity.title} · ${remainLabel}` : `Jump to ${activity.title}`}
+                title={isCurrent
+                  ? `${activity.title} · ${remainLabel}`
+                  : focused
+                    ? `Show preparation and steps for ${activity.title}`
+                    : `Jump to ${activity.title}`}
               >
                 {isCurrent && (
                   <span className="bzf-chip-fill" style={{ width: `${progressOf(activity)}%` }} />
@@ -615,7 +726,7 @@ function Priorifact({
                 )))}
               </div>
               {editing && plan.summary && <div className="priorifact-summary">{plan.summary}</div>}
-              <div className={`bzf-cards ${editing ? 'editing' : 'focused-overview'}`}>
+              <div ref={cardRowRef} className={`bzf-cards ${editing ? 'editing' : 'focused-overview'}`}>
                 {(editing ? todays : cards).map((activity, index) => (
                   renderCard(activity, index, { removable: editing })
                 ))}
@@ -632,6 +743,25 @@ function Priorifact({
                   </button>
                 )}
               </div>
+              {focused && !editing && viewed && (
+                <div
+                  className={`bzf-focus-detail ${hueClass(viewedCardIndex)} ${viewed.id === current?.id ? 'is-current' : ''}`}
+                  style={{ '--bzf-card-x': `${connectorX}px` }}
+                >
+                  {focusSections.length ? focusSections.map((section) => (
+                    <div key={section.id} className="bzf-focus-section">
+                      <div className="bzf-focus-label">{section.label}</div>
+                      <ul className="bzf-detail-list">
+                        {section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}
+                      </ul>
+                    </div>
+                  )) : (
+                    <div className="bzf-focus-section">
+                      <div className="bzf-muted">nothing noted for this activity</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           ) : done ? (
             <div className="priorifact-done">

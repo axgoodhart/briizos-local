@@ -588,7 +588,7 @@ function PromptsFolio({ folio, onSave }) {
 
 function NotesFolio({
   folio, onSave, onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick,
-  onAttachmentRequest,
+  onAttachmentRequest, selecting = false,
 }) {
   const hostRef = useRef(null);
   const edRef = useRef(null);
@@ -600,12 +600,14 @@ function NotesFolio({
   const readyRef = useRef(onEditorReady);
   const attachmentRef = useRef(onAttachmentRequest);
   const contentRef = useRef(folio.content);
+  const selectingRef = useRef(selecting);
   saveRef.current = onSave;
   rebalRef.current = onRebalanced;
   pullRef.current = pullSource;
   readyRef.current = onEditorReady;
   attachmentRef.current = onAttachmentRequest;
   contentRef.current = folio.content;
+  selectingRef.current = selecting;
 
   useEffect(() => {
     /* Persist only when the doc actually changed since the last write. */
@@ -655,6 +657,7 @@ function NotesFolio({
     // Older notes stored a plain `body` string; seed the editor with it once.
     const initial = folio.content?.doc || folio.content?.body || '';
     const ed = createNotesEditor(hostRef.current, initial, {
+      editable: !selectingRef.current,
       onSave: persist, // blur
       onTick,
       onFocus: () => registerEditor(folio.id, ed, { focus: true }),
@@ -700,6 +703,16 @@ function NotesFolio({
       readyRef.current?.(folio.id, ed);
     }
   }, [folio.content?.doc]);
+
+  /* Select mode: the editor parks read-only. A read-only page is plain
+     text to the browser — no editing boundary — so one selection can run
+     across page edges. The second argument suppresses the update event,
+     which would otherwise schedule a pointless rebalance pass. */
+  useEffect(() => {
+    const ed = edRef.current;
+    if (!ed || ed.isDestroyed || ed.isEditable === !selecting) return;
+    ed.setEditable(!selecting, false);
+  }, [selecting]);
 
   return (
     <div className="rt-host">
@@ -976,6 +989,7 @@ function FolioTitle({ folio, onRename }) {
 function FolioPage({
   folio, siblings, pageUrl, onSave, onDelete, onRename,
   onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick, onAttachmentRequest,
+  selecting,
 }) {
   if (!folio) return <div className="jv-page jv-page--empty" />;
   const Renderer = RENDERERS[folio.type] || NotesFolio;
@@ -1005,6 +1019,7 @@ function FolioPage({
             onEditorReady={onEditorReady}
             onTick={onTick}
             onAttachmentRequest={onAttachmentRequest}
+            selecting={selecting}
           />
         </div>
       </div>
@@ -1020,7 +1035,7 @@ function FolioPage({
    identical to the paginated view and the rebalance engine is untouched.
    Only pages near the viewport mount live editors; the rest are ghosts. */
 
-function ScrollStack({ group, pageUrl, cursorFolioId, folioPageProps, onVisiblePage, registerScrollApi }) {
+function ScrollStack({ group, pageUrl, cursorFolioId, folioPageProps, onVisiblePage, registerScrollApi, selecting }) {
   const scrollRef = useRef(null);
   const pages = group.folios;
   const step = PAGE_H + STACK_GAP;
@@ -1061,10 +1076,15 @@ function ScrollStack({ group, pageUrl, cursorFolioId, folioPageProps, onVisibleP
     onVisiblePage?.(pages[eye]);
   };
 
+  // Select mode mounts every page: a ghost holds no text, so a drag that
+  // crossed one would cut the selection short there.
+  const from = selecting ? 0 : win.from;
+  const to = selecting ? pages.length - 1 : win.to;
+
   return (
     <div className="jv-scrollstack" ref={scrollRef} onScroll={onScroll} style={{ rowGap: `${STACK_GAP}px` }}>
       {pages.map((f, i) =>
-        i >= win.from && i <= win.to ? (
+        i >= from && i <= to ? (
           <div className="jv-scrollstack__page" key={f.id} style={{ height: `${PAGE_H}px` }}>
             <FolioPage {...folioPageProps(f)} />
           </div>
@@ -1350,6 +1370,7 @@ export function JournalView({
   const [narrow, setNarrow] = useState(false); // <800px: one page at a time
   const [scale, setScale] = useState(1);
   const [, setTick] = useState(0); // re-renders the shared toolbar on editor transactions
+  const [selecting, setSelecting] = useState(false); // select-across-pages mode: notes editors read-only
 
   // Async handlers (rebalance) need the current list without stale closures.
   const foliosRef = useRef(null);
@@ -1494,6 +1515,7 @@ export function JournalView({
   const curFolio = folios?.[cur];
 
   const groups = useMemo(() => computeGroups(folios), [folios]);
+  const hasNotes = (folios || []).some((f) => f.type === 'notes');
   const isScrolled = (g) => g.type === 'notes' && !!g.folios[0]?.content?.groupScroll;
   const slots = useMemo(() => {
     const out = [];
@@ -1743,8 +1765,8 @@ export function JournalView({
     : mountedNoteIds[0];
   const toolbarEditor = toolbarId ? editorsRef.current.get(toolbarId) : null;
   useEffect(() => {
-    if (isFloat && floatTray === 'format' && !toolbarEditor) setFloatTray(null);
-  }, [isFloat, floatTray, toolbarEditor]);
+    if (isFloat && floatTray === 'format' && (!toolbarEditor || selecting)) setFloatTray(null);
+  }, [isFloat, floatTray, toolbarEditor, selecting]);
 
   const toggleFloatTray = (next) => {
     setFloatTray((current) => (current === next ? null : next));
@@ -1882,13 +1904,20 @@ export function JournalView({
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       if (el?.closest?.('.jv-float-tray')) return; // arrows scroll/navigate the open tray
-      if (!isFloat && e.key === 'Escape') onBack();
+      if (!isFloat && e.key === 'Escape') {
+        // Select mode swallows the first Escape; the second leaves the book.
+        if (selecting) {
+          setSelecting(false);
+          return;
+        }
+        onBack();
+      }
       if (e.key === 'ArrowLeft') goPrev();
       if (e.key === 'ArrowRight') goNext();
     };
     target.addEventListener('keydown', onKey);
     return () => target.removeEventListener('keydown', onKey);
-  }, [leftSlotIdx, slots.length, single, onBack, isFloat]);
+  }, [leftSlotIdx, slots.length, single, onBack, isFloat, selecting]);
 
   const renderSlot = (slot, emptyKey) => {
     if (!slot) return <div className="jv-page jv-page--empty" key={emptyKey} />;
@@ -1902,6 +1931,7 @@ export function JournalView({
           folioPageProps={folioPageProps}
           onVisiblePage={onStackEye}
           registerScrollApi={registerScrollApi}
+          selecting={selecting}
         />
       );
     }
@@ -1922,6 +1952,7 @@ export function JournalView({
     onEditorReady: consumePendingCaret,
     onTick: onEditorTick,
     onAttachmentRequest: requestAttachment,
+    selecting,
   });
 
   return (
@@ -1932,7 +1963,7 @@ export function JournalView({
           coverUrl={coverUrl}
           tray={floatTray}
           hasFolios={folios?.length > 0}
-          hasEditor={!!toolbarEditor}
+          hasEditor={!!toolbarEditor && !selecting}
           canPrev={canPrev}
           canNext={canNext}
           onToggleTray={toggleFloatTray}
@@ -1942,7 +1973,7 @@ export function JournalView({
         />
       )}
       <div
-        className={'jv-root' + (narrowMode ? ' is-narrow' : '') + (isFloat ? ' is-float' : '')}
+        className={'jv-root' + (narrowMode ? ' is-narrow' : '') + (isFloat ? ' is-float' : '') + (selecting ? ' is-selecting' : '')}
         ref={rootRef}
         tabIndex={-1}
         style={{
@@ -1993,7 +2024,7 @@ export function JournalView({
         </>
       )}
 
-      {toolbarEditor && !isFloat && (
+      {toolbarEditor && !isFloat && !selecting && (
         <EditorToolbar
           editor={toolbarEditor}
           key={toolbarId}
@@ -2005,7 +2036,7 @@ export function JournalView({
         />
       )}
 
-      {isFloat && folios?.length > 0 && floatTray === 'format' && toolbarEditor && (
+      {isFloat && folios?.length > 0 && floatTray === 'format' && toolbarEditor && !selecting && (
         <div ref={floatTrayRef} className="jv-float-tray jv-float-tray--format" id="journal-float-tools">
           <div className="jv-float-tray__scroll" role="region" tabIndex={0} aria-label="Formatting tools; scroll horizontally for more">
             <EditorToolbar
@@ -2037,6 +2068,16 @@ export function JournalView({
                     : 'Read this folio as one continuous scroll'}
                   onClick={toggleActiveScroll}
                 >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+              )}
+              {hasNotes && (
+                <button
+                  type="button"
+                  className={'jvb__scrolltoggle' + (selecting ? ' is-on' : '')}
+                  title={selecting
+                    ? 'Back to editing'
+                    : 'Select text across pages (editing pauses while this is on)'}
+                  onClick={() => setSelecting((s) => !s)}
+                >{selecting ? '✎ edit' : '⬚ select'}</button>
               )}
             </div>
           </div>
@@ -2129,6 +2170,16 @@ export function JournalView({
                       : 'Read this folio as one continuous scroll'}
                     onClick={toggleActiveScroll}
                   >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+                )}
+                {hasNotes && (
+                  <button
+                    type="button"
+                    className={'jvb__scrolltoggle' + (selecting ? ' is-on' : '')}
+                    title={selecting
+                      ? 'Back to editing'
+                      : 'Select text across pages (editing pauses while this is on)'}
+                    onClick={() => setSelecting((s) => !s)}
+                  >{selecting ? '✎ edit' : '⬚ select'}</button>
                 )}
                 {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
               </div>

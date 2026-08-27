@@ -13,6 +13,16 @@ import { TileLayout } from './components/layout/TileLayout';
 import { useLayout } from './hooks/useLayout';
 import './AppCombined.css';
 
+// Chameleon shell — grid / windowed / hybrid presentation
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { FloatWindow, FloatDock, ShellModeSwitch, AmbientBackground, DOCK_FLOAT_APP_BY_ITEM } from './components/shell';
+import './components/shell/shell.css';
+import { useShellMode, SHELL_MODES } from './hooks/useShellMode';
+import { useFloatWindows, FLOAT_APPS } from './hooks/useFloatWindows';
+import { createShellLayoutBridge } from './lib/shellLayoutBridge';
+
 // Auth context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OrganizerProvider } from './context/OrganizerContext';
@@ -309,7 +319,7 @@ function HeaderDateTimeWeather() {
 }
 
 // Inner app component that uses auth context
-function AppContent({ layout }) {
+function AppContent({ layout, shell, floats }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { executeTool } = useTools();
   const appContext = useAppContext();
@@ -350,6 +360,17 @@ function AppContent({ layout }) {
     layoutRow,
     isLoading: layoutLoading
   } = layout;
+
+  // Chameleon shell: which presentation surfaces are visible.
+  const {
+    mode: shellMode,
+    setMode: setShellMode,
+    cycleMode: cycleShellMode,
+    isLoading: shellModeLoading,
+    gridActive,
+    floatActive,
+  } = shell;
+  const windowedOnly = !gridActive;
 
   // Workspace-persisted overlay states
   const workspace = layoutRow.workspace || {};
@@ -700,6 +721,112 @@ function AppContent({ layout }) {
     openSourcesPanel,
     openTasksPanel,
     toggleInteractionPanel,
+  ]);
+
+  // ----- Chameleon shell: pop-out, dock-back, and the floating dock -----
+
+  /* A tile leaves the masonry and becomes an ambient window. Media reuses
+     its existing floating implementation instead of the new frame. */
+  const popOutPanel = useCallback((panel) => {
+    const panelId = panel.panelId || panel.id;
+    if (!panelId) return;
+    if (panel.type === 'media') {
+      removePanel(panelId);
+      setMediaOpen(true);
+      logger.info('ui', 'Media tile popped out to its floating panel');
+      return;
+    }
+    if (!FLOAT_APPS[panel.type]) return;
+    removePanel(panelId);
+    floats.openWindow(panel.type);
+    if (shellMode === SHELL_MODES.GRID) setShellMode(SHELL_MODES.HYBRID);
+    logger.info('ui', 'Tile popped out to a float window', { type: panel.type });
+  }, [removePanel, floats, shellMode, setShellMode]);
+
+  const canPopOutPanel = useCallback(
+    (panel) => !!FLOAT_APPS[panel.type] || panel.type === 'media',
+    [],
+  );
+
+  /* An ambient window docks back into the masonry as a tile. */
+  const sendFloatToGrid = useCallback((win) => {
+    floats.closeWindow(win.id);
+    addPanel({ id: win.app, type: win.app, size: 22, visible: true });
+    if (shellMode === SHELL_MODES.WINDOWED) setShellMode(SHELL_MODES.HYBRID);
+    logger.info('ui', 'Float window docked into the grid', { app: win.app });
+  }, [floats, addPanel, shellMode, setShellMode]);
+
+  const floatOpen = useCallback((app) => {
+    const win = floats.getWindow(app);
+    return !!win && !win.minimized;
+  }, [floats]);
+
+  /* One launch path for every dock item: float-capable apps cycle
+     open → focus → minimize (and adopt a visible grid tile by popping it
+     out); overlay items reuse the classic launcher; settings opens the
+     Dashboard. */
+  const launchDockItem = useCallback((itemId) => {
+    if (itemId === 'settings') {
+      setShowSettings(true);
+      return;
+    }
+    const app = DOCK_FLOAT_APP_BY_ITEM[itemId];
+    if (!app) {
+      launchControlBarItem(itemId);
+      return;
+    }
+    const win = floats.getWindow(app);
+    if (win) {
+      if (win.minimized) floats.restoreWindow(win.id);
+      else if (floats.topWindowId === win.id) floats.minimizeWindow(win.id);
+      else floats.focusWindow(win.id);
+      return;
+    }
+    const gridPanel = getPanelByType(app);
+    if (gridActive && gridPanel?.visible) {
+      popOutPanel({ ...gridPanel, panelId: gridPanel.id });
+      return;
+    }
+    floats.openWindow(app);
+  }, [floats, getPanelByType, gridActive, popOutPanel, launchControlBarItem]);
+
+  /* An app must never be mounted twice (its data hooks would fight over the
+     same records). Whenever both surfaces are visible, duplicates resolve in
+     favor of the surface the user was just in. */
+  const prevShellModeRef = useRef(null);
+  useEffect(() => {
+    if (shellModeLoading || floats.isLoading || layoutLoading) return;
+    const cameFromWindowed = prevShellModeRef.current === SHELL_MODES.WINDOWED;
+    prevShellModeRef.current = shellMode;
+    if (!gridActive || !floatActive) return;
+    const duplicates = floats.windows.filter((win) => {
+      const panel = getPanelByType(win.app);
+      return panel && panel.visible;
+    });
+    if (!duplicates.length) return;
+    if (cameFromWindowed) {
+      duplicates.forEach((win) => {
+        const panel = getPanelByType(win.app);
+        if (panel) togglePanelVisibility(panel.id);
+      });
+      logger.info('ui', 'Hybrid entry: duplicated grid tiles hidden, float windows keep those apps', {
+        apps: duplicates.map((win) => win.app),
+      });
+    } else {
+      duplicates.forEach((win) => floats.closeWindow(win.id));
+      logger.info('ui', 'Duplicated float windows closed, grid tiles keep those apps', {
+        apps: duplicates.map((win) => win.app),
+      });
+    }
+  }, [
+    shellMode,
+    shellModeLoading,
+    layoutLoading,
+    gridActive,
+    floatActive,
+    floats,
+    getPanelByType,
+    togglePanelVisibility,
   ]);
 
   // ----- Canvases (folder library of saved mini-apps) -----
@@ -1076,6 +1203,7 @@ function AppContent({ layout }) {
     { key: 'j', label: 'Toggle Journal', run: () => openJournalPanel() },
     { key: 'l', label: 'Toggle Notefalls', run: () => openNotefallsPanel() },
     { key: 'f', label: 'Toggle Forest', run: () => openForestPanel() },
+    { key: 'g', label: 'Cycle layout mode (grid → duo → windowed)', run: () => cycleShellMode() },
     {
       key: 'x',
       label: 'Toggle active panel fullscreen',
@@ -1084,7 +1212,7 @@ function AppContent({ layout }) {
         else if (activePanelId) togglePanelFullscreen(activePanelId);
       },
     },
-  ], [openJournalPanel, openNotefallsPanel, openForestPanel, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
+  ], [openJournalPanel, openNotefallsPanel, openForestPanel, cycleShellMode, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
 
   useEffect(() => {
     // Don't hijack Cmd/Ctrl+Shift+<letter> while the user is typing —
@@ -1231,16 +1359,41 @@ function AppContent({ layout }) {
     }
   }, [canvasesHook.canvases, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, returnFloatingJournalHome, pendingOpenJournalId]);
 
+  // Open-state highlights for the floating dock (float windows, grid tiles,
+  // and overlays all count as "open").
+  const dockActiveById = {
+    chat: floatOpen('interaction') || interactionPanel?.visible === true,
+    briiztorm: briiztormOpen,
+    organizer: organizerOpen,
+    calendar: calendarOpen,
+    media: mediaOpen,
+    notes: notesOpen,
+    canvases: canvasesPopoverOpen,
+    journal: floatOpen('journal') || journalPanel?.visible === true,
+    forest: floatOpen('forest') || forestPanel?.visible === true,
+    notefalls: floatOpen('notefalls') || notefallsPanel?.visible === true,
+    sources: floatOpen('sources') || sourcesPanel?.visible === true,
+    tasks: floatOpen('tasks') || tasksPanel?.visible === true,
+    settings: showSettings,
+  };
+
   return (
+    <DndProvider backend={HTML5Backend}>
     <div
-      className={`app ${themeStudioOpen ? 'theme-studio-docked' : ''} ${verticalHeaderActive ? 'app--vertical-header' : ''}`}
+      className={`app ${themeStudioOpen ? 'theme-studio-docked' : ''} ${verticalHeaderActive ? 'app--vertical-header' : ''} ${windowedOnly ? 'app--windowed' : ''}`}
       style={{
         ...(themeStudioOpen ? { '--theme-studio-width': `${themeStudioWidth}px` } : {}),
         ...(headerCollapsed ? { '--cc-app-header-height': '14px' } : {}),
+        '--fw-fill-top': windowedOnly ? '10px' : 'calc(var(--cc-app-header-height, 70px) + 10px)',
       }}
       data-theme-role="canvas"
       data-theme-component="Application"
     >
+      {/* With the grid hidden, the Conversation background paints the whole
+          app window instead of staying confined to the chat panel. */}
+      {windowedOnly && <AmbientBackground />}
+
+      {!windowedOnly && (<>
       <button
         type="button"
         className={`header-shrink-toggle ${headerShrunk ? 'is-active' : ''}`}
@@ -1272,6 +1425,7 @@ function AppContent({ layout }) {
             title="Settings"
           />
           <span className="title-text" data-theme-role="wordmark" data-theme-component="Application">briizOS</span>
+          <ShellModeSwitch mode={shellMode} onChange={setShellMode} compact />
         </div>
 
         <div className="header-dock-slot" data-theme-role="control-dock" data-theme-component="Application">
@@ -1351,8 +1505,10 @@ function AppContent({ layout }) {
           />
         )}
       </div>
+      </>)}
 
-      {/* Main Content */}
+      {/* Main Content — the masonry grid surface */}
+      {gridActive && (
       <main className="app-main">
         <TileLayout
           layoutRow={getLayoutRow()}
@@ -1363,8 +1519,55 @@ function AppContent({ layout }) {
           fullscreenPanelId={fullscreenPanelId}
           onTogglePanelFullscreen={togglePanelFullscreen}
           onActivatePanel={setActivePanelId}
+          onPopOutPanel={popOutPanel}
+          canPopOutPanel={canPopOutPanel}
         />
       </main>
+      )}
+
+      {/* Floating window surface (windowed & hybrid modes) */}
+      {floatActive && floats.windows.filter((win) => !win.minimized).map((win) => (
+        <FloatWindow
+          key={win.id}
+          win={win}
+          manager={floats}
+          focused={floats.topWindowId === win.id}
+          onSendToGrid={() => sendFloatToGrid(win)}
+        >
+          {/* One broken body must not take down the whole shell. */}
+          <ErrorBoundary>
+            {renderPanel({ panelId: `float:${win.app}`, type: win.app })}
+          </ErrorBoundary>
+        </FloatWindow>
+      ))}
+      {floatActive && (
+        <FloatDock
+          floats={floats}
+          shellMode={shellMode}
+          onShellModeChange={setShellMode}
+          activeById={dockActiveById}
+          onLaunchItem={launchDockItem}
+          canvasesPopoverSlot={windowedOnly ? (
+            <CanvasesPopover
+              isOpen={canvasesPopoverOpen}
+              onClose={() => setCanvasesPopoverOpen(false)}
+              canvases={canvasesHook.canvases}
+              isLoading={canvasesHook.isLoading}
+              onOpenCanvas={handleOpenCanvas}
+              onCreateCanvas={handleCreateCanvas}
+              onDeleteCanvas={handleDeleteCanvas}
+              onRenameCanvas={handleRenameCanvas}
+              onSetFormFactor={handleSetCanvasFormFactor}
+              onSetRenderEngine={handleSetCanvasRenderEngine}
+            />
+          ) : null}
+        />
+      )}
+      {windowedOnly && (
+        <div className="fshell-clock">
+          <HeaderDateTimeWeather />
+        </div>
+      )}
 
       {/* Overlays */}
       <BriiztormOverlay
@@ -1490,19 +1693,32 @@ function AppContent({ layout }) {
       {/* Bfast Bundle — toasts, snackbars, and margerin intent holds */}
       <BfastBundle />
     </div>
+    </DndProvider>
   );
 }
 
 // Main App component with AuthProvider wrapper
 function App() {
   const layout = useLayout();
+  const shell = useShellMode();
+  // Keep float windows (and their detached titlebars) below the grid header
+  // whenever the grid chrome is on screen.
+  const floats = useFloatWindows({ topInset: shell.gridActive ? 78 : 8 });
+
+  // Assistant window tools reach the layout through this bridge so they keep
+  // working when the grid surface is hidden (windowed mode routes panel
+  // actions to the float manager).
+  const toolLayoutBridge = useMemo(
+    () => createShellLayoutBridge(layout, shell, floats),
+    [layout, shell, floats],
+  );
 
   return (
     <AuthProvider>
       <OrganizerProvider>
         <ChatSettingsProvider>
-          <ToolProvider layoutHook={layout}>
-            <AppContent layout={layout} />
+          <ToolProvider layoutHook={toolLayoutBridge}>
+            <AppContent layout={layout} shell={shell} floats={floats} />
           </ToolProvider>
         </ChatSettingsProvider>
       </OrganizerProvider>

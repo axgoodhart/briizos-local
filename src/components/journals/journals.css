@@ -871,6 +871,22 @@ padding: 1px 1px;  cursor: pointer;
   color: #eaf3ff;
 }
 
+/* ── Select-across-pages mode ─────────────────────────────────────────
+   The bottom-bar select toggle parks every notes editor read-only. A
+   read-only page is plain text to the browser — no editing boundary — so
+   one drag can select across pages, seams, and the spine. The chrome
+   around the paper opts out of selection here, so a copy that crosses a
+   page boundary never picks up titles or the "notes ×" header. */
+.jv-root.is-selecting .jv-page__head,
+.jv-root.is-selecting .jv-page__head *,
+.jv-root.is-selecting .jvb,
+.jv-root.is-selecting .jvs,
+.jv-root.is-selecting .jv-nav {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.jv-root.is-selecting .rt-prose .ProseMirror { cursor: text; }
+
 .jv-root.is-narrow { padding: 8px 10px 12px; }
 .jv-root.is-narrow .jvs-toggle { display: none; }
 .jv-root.is-narrow .jv-topbar { gap: 10px; }
