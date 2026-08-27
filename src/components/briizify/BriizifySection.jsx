@@ -133,8 +133,8 @@ function BriizifySection({ focused = false, onFocusedChange }) {
           aria-expanded={showSetup || artifactEngaged}
           title={hasPlan ? 'Show or hide the priorifact' : 'Prioritize with briizify'}
         >
-          <span className="briizify-tab-strong">Prioritize</span>
-          <span className="briizify-tab-soft">with briizify</span>
+          <span className="briizify-tab-strong">briizify</span>
+          <span className="briizify-tab-soft">prioritize</span>
         </button>
         {artifactEngaged && (
           <button
