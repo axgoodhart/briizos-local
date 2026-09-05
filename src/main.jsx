@@ -4,6 +4,7 @@ import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ThemeProvider } from './theme/ThemeProvider.jsx';
 import './AppCombined.css';
+import './App.css';
 
 document.documentElement.classList.add('theme-runtime-booting');
 

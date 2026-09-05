@@ -14137,7 +14137,7 @@ height:110%;
 .briizify-tab-soft {
   font-weight: 200;
   font-size: var(--cc-font-size-small);
-
+  
 }
 
 .briizify-focus-btn {
@@ -33890,12 +33890,14 @@ button, input, textarea, select {
 .fdock-scroll::-webkit-scrollbar { display: none; }
 
 .fdock-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 5px 10px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
   border-radius: 12px;
   border: none;
   background: transparent;
@@ -33922,18 +33924,41 @@ button, input, textarea, select {
 }
 
 .fdock-glyph {
-  font-size: 15px;
-  width: 17px;
-  height: 17px;
+  font-size: 17px;
+  width: 19px;
+  height: 19px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* The icon is the resting state; the name fades in under it on hover,
+   mirroring the header dock's .cb-label behaviour. Absolutely positioned so
+   the dock keeps its height and nothing shifts. */
 .fdock-label {
-  font-size: 0.55rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3px;
+  text-align: center;
+  font-size: 0.5rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fdock-item:hover .fdock-glyph,
+.fdock-item:focus-visible .fdock-glyph { transform: translateY(-6px); }
+
+.fdock-item:hover .fdock-label,
+.fdock-item:focus-visible .fdock-label {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .fdock-canvases-wrap {
@@ -34036,23 +34061,27 @@ button, input, textarea, select {
   border-radius: 999px;
   border: none;
   background: transparent;
-  color: var(--fw-text-soft);
+  color: var(--fw-text);
+  opacity: 0.5;
   font-size: 0.6rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   font-family: var(--ui-font-main, Chillax), sans-serif;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 
-.shell-mode-option:hover { color: var(--fw-text); }
+.shell-mode-option:hover { opacity: 0.75; }
 
-.shell-mode-option.on {
-  background: color-mix(in srgb, var(--fw-accent) 28%, transparent);
-  color: var(--fw-text);
+/* Active state is opacity alone: 100% vs 50%. */
+.shell-mode-option.on { opacity: 1; }
+
+/* SF Symbols glyphs (rectangle.split.3x1 / dock.rectangle) from SF Pro. */
+.shell-mode-glyph {
+  font-family: 'SF Pro Display', 'SF Pro', 'SF Pro Symbols', 'Apple Symbols', -apple-system, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1;
 }
-
-.shell-mode-glyph { font-size: 0.7rem; line-height: 1; }
 
 .shell-mode-switch.is-compact .shell-mode-label { display: none; }
 .shell-mode-switch.is-compact .shell-mode-option { padding: 3px 7px; }
@@ -34145,6 +34174,8 @@ button, input, textarea, select {
   .fw,
   .fw-btn,
   .fdock-item,
+  .fdock-glyph,
+  .fdock-label,
   .fdock-mini,
   .shell-mode-option,
   .panel-popout-btn {

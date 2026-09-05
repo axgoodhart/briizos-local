@@ -103,7 +103,7 @@ function visiblePriorityContent(content) {
   return String(content || '').replace(PRIORITY_ORDER_COMMENT, '').trim();
 }
 
-function InteractionPanel() {
+function InteractionPanel({ showPanelBackground = true }) {
   const { provider, setProvider, currentSettings, chatBackground, setChatBackground, chatBgBlur, setChatBgBlur, getThemeChatBackground } = useChatSettings();
   const { models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus, loading: modelsLoading } = useModelSelection();
   const selectedProfile = models.find((model) => model.name === selectedModel) || null;
@@ -477,8 +477,8 @@ function InteractionPanel() {
         </div>
       )}
 
-      <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${resolvedChatBg ? 'has-custom-bg' : ''}`}>
-        {resolvedChatBg ? (
+      <div className={`chat-container ${collapsed ? 'collapsed' : ''} ${showPanelBackground && resolvedChatBg ? 'has-custom-bg' : ''}`}>
+        {showPanelBackground && resolvedChatBg ? (
           <div className="chat-bg-frame-container" style={resolvedChatBgBlur ? { filter: `blur(${resolvedChatBgBlur}px)` } : undefined}>
             <iframe
               ref={bgIframeRef}

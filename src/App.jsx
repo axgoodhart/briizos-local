@@ -1302,7 +1302,7 @@ function AppContent({ layout, shell, floats }) {
       case 'sources':
         return <SourcesPanel />;
       case 'interaction':
-        return <InteractionPanel />;
+        return <InteractionPanel showPanelBackground={!windowedOnly} />;
       case 'tasks':
         return <TasksPanel />;
       case 'media':
@@ -1320,7 +1320,7 @@ function AppContent({ layout, shell, floats }) {
       case 'notefalls':
         return <NotefallsPanel />;
       case 'forest':
-        return <Forest />;
+        return <Forest instanceId={panel.panelId || panel.id || 'forest'} />;
       case 'canvas': {
         const canvasFilename = String(panel.panelId || panel.id || '').replace(/^canvas:/, '');
         const canvasEntry = canvasesHook.canvases.find((entry) => entry.filename === canvasFilename);
@@ -1357,7 +1357,7 @@ function AppContent({ layout, shell, floats }) {
           </div>
         );
     }
-  }, [canvasesHook.canvases, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, returnFloatingJournalHome, pendingOpenJournalId]);
+  }, [canvasesHook.canvases, closeCanvasPanel, handlePromoteCanvasToBrowser, handleToggleCanvasMount, openCanvases, popOutJournal, floatingJournalId, returnFloatingJournalHome, pendingOpenJournalId, windowedOnly]);
 
   // Open-state highlights for the floating dock (float windows, grid tiles,
   // and overlays all count as "open").

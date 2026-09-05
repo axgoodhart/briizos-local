@@ -1,36 +1,39 @@
-// The Forest root container — used instead of document.body/documentElement
-// for state classes (is-panning) and theme toggling, so they stay scoped to
-// this panel instead of leaking onto the rest of briizOS.local's shared page.
-const forestShell = document.querySelector('.forest-shell');
+import logger from '../../lib/logger';
 
-// This file runs as a raw injected <script>, not an ES module, so it can't
-// `import logger from '../../lib/logger'` directly. Dispatch a DOM event
-// instead — Forest.jsx listens for it and forwards to the real logger, so
-// these still end up in the Log Overlay/SQLite/Firestore per project rule
-// (CLAUDE.md hard rule #1), not just the terminal.
+// A reopened board must read after the previous instance's final save.
+let pendingSaves = Promise.resolve();
+
+// Each mount owns its DOM references, listeners, and state. A classic script
+// cannot be reinjected safely: its top-level lexical declarations survive removal.
+export function mountForest(host) {
+let destroyed = false;
+let loaded = false;
+const forestShell = host.querySelector('.forest-shell');
+
 function dispatchForestLog(level, message, data) {
-  window.dispatchEvent(new CustomEvent('forest:log', { detail: { level, message, data } }));
+  const log = logger[level] || logger.info;
+  log('forest', message, data);
 }
-const stage = document.getElementById('forest-stage');
-const world = document.getElementById('forest-world');
-const grid = document.getElementById('forest-grid');
-const dropOverlay = document.getElementById('forest-dropOverlay');
-const emptyState = document.getElementById('forest-emptyState');
-const searchInput = document.getElementById('forest-searchInput');
-const collapseAllBtn = document.getElementById('forest-collapseAllBtn');
-const resetViewBtn = document.getElementById('forest-resetViewBtn');
-const fitBtn = document.getElementById('forest-fitBtn');
-const projectCountEl = document.getElementById('forest-projectCount');
-const fileCountEl = document.getElementById('forest-fileCount');
-const zoomReadoutEl = document.getElementById('forest-zoomReadout');
-const saveStateEl = document.getElementById('forest-saveState');
-const tagStrip = document.getElementById('forest-tagStrip');
-const projectViewer = document.getElementById('forest-projectViewer');
-const hunterPanel = document.getElementById('forest-hunterPanel');
-const filehawkPanel = document.getElementById('forest-filehawkPanel');
-const filehawkBtn = document.getElementById('forest-filehawkBtn');
-const sortActivityBtn = document.getElementById('forest-sortActivityBtn');
-const dimToggle = document.getElementById('forest-dimToggle');
+const stage = host.querySelector('#forest-stage');
+const world = host.querySelector('#forest-world');
+const grid = host.querySelector('#forest-grid');
+const dropOverlay = host.querySelector('#forest-dropOverlay');
+const emptyState = host.querySelector('#forest-emptyState');
+const searchInput = host.querySelector('#forest-searchInput');
+const collapseAllBtn = host.querySelector('#forest-collapseAllBtn');
+const resetViewBtn = host.querySelector('#forest-resetViewBtn');
+const fitBtn = host.querySelector('#forest-fitBtn');
+const projectCountEl = host.querySelector('#forest-projectCount');
+const fileCountEl = host.querySelector('#forest-fileCount');
+const zoomReadoutEl = host.querySelector('#forest-zoomReadout');
+const saveStateEl = host.querySelector('#forest-saveState');
+const tagStrip = host.querySelector('#forest-tagStrip');
+const projectViewer = host.querySelector('#forest-projectViewer');
+const hunterPanel = host.querySelector('#forest-hunterPanel');
+const filehawkPanel = host.querySelector('#forest-filehawkPanel');
+const filehawkBtn = host.querySelector('#forest-filehawkBtn');
+const sortActivityBtn = host.querySelector('#forest-sortActivityBtn');
+const dimToggle = host.querySelector('#forest-dimToggle');
 
 
 
@@ -458,22 +461,27 @@ function setSaveStatus(text) {
 }
 
 function scheduleSave(immediate = false) {
+  if (destroyed || !loaded) return;
   clearTimeout(saveTimer);
   setSaveStatus('Saving…');
   saveTimer = setTimeout(saveNow, immediate ? 60 : 550);
 }
 
 async function saveNow() {
+  saveTimer = null;
+  const snapshot = serializeState();
+  const saving = pendingSaves.then(() => window.api.forestSaveState(snapshot));
+  pendingSaves = saving.catch(() => {});
   try {
-    await window.api.forestSaveState(serializeState());
+    await saving;
     lastSaveErrorMessage = null;
-    setSaveStatus(`Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-    dispatchForestLog('debug', 'Board state saved', { projectCount: state.projects.length });
+    if (!destroyed) setSaveStatus(`Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+    dispatchForestLog('debug', 'Board state saved', { projectCount: snapshot.projects.length });
   } catch (error) {
     console.error(error);
     const message = error?.message || 'Unknown error';
     const rejected = /INVALID_INPUT|too large|too long|max \d|must be/i.test(message);
-    setSaveStatus(rejected ? 'Save rejected — board exceeds size limits' : 'Save failed');
+    if (!destroyed) setSaveStatus(rejected ? 'Save rejected — board exceeds size limits' : 'Save failed');
     // Log each distinct failure once at error level; identical repeats
     // (autosaves of the same unsaveable state) drop to debug so the
     // error log doesn't flood.
@@ -1407,7 +1415,7 @@ function openHunterRelocate(projectId, file) {
 
 async function runHunterSearch() {
   const project = getProject(state.hunterProjectId);
-  if (!project || state.hunterRelocate) return;
+  if (destroyed || !project || state.hunterRelocate) return;
 
   state.hunterLoading = true;
   state.hunterSelected = new Set();
@@ -1422,6 +1430,7 @@ async function runHunterSearch() {
       ? { query: q, types, excludePaths, customDirs: state.hunterDirs, limit: 80 }
       : { keywords: hunterSuggestKeywords(project), types, excludePaths, customDirs: state.hunterDirs, limit: 40 };
     const results = await window.api.forestHunterQuery(opts);
+    if (destroyed) return;
     state.hunterResults = results || [];
   } catch (err) {
     console.error('Hunter query failed:', err);
@@ -1474,7 +1483,8 @@ function hunterResultsMarkup() {
 }
 
 function refreshHunterResults() {
-  const el = document.getElementById('hunterResults');
+  if (destroyed) return;
+  const el = host.querySelector('#hunterResults');
   if (el) el.innerHTML = hunterResultsMarkup();
   else renderHunterPanel();
 }
@@ -1554,6 +1564,7 @@ async function consolidateFiles(projectId) {
   try {
     const filePaths = project.files.map((f) => f.path);
     const result = await window.api.forestConsolidateProject(project.name, filePaths);
+    if (destroyed) return;
     project.consolidated = true;
     render();
     scheduleSave(true);
@@ -1567,7 +1578,7 @@ async function consolidateFiles(projectId) {
 /* ── FileHawk: periodic scan ───────────────────────────────────────── */
 
 async function filehawkScan() {
-  if (!state.projects.length) return;
+  if (destroyed || !state.projects.length) return;
 
   const allPaths = state.projects.flatMap((p) => p.files.map((f) => f.path));
   if (!allPaths.length) return;
@@ -1577,6 +1588,7 @@ async function filehawkScan() {
 
   try {
     const results = await window.api.forestFilehawkCheck(allPaths);
+    if (destroyed) return;
     const statMap = new Map(results.map((r) => [r.path, r]));
     const status = {};
     let changed = false;
@@ -1607,7 +1619,7 @@ async function filehawkScan() {
     console.error('FileHawk scan error:', err);
   } finally {
     state.filehawkScanning = false;
-    if (state.filehawkOpen) renderFilehawkPanel();
+    if (!destroyed && state.filehawkOpen) renderFilehawkPanel();
   }
 }
 
@@ -1816,6 +1828,7 @@ function renderEmptyState(visibleProjects) {
 }
 
 function render() {
+  if (destroyed) return;
   if (state.selectedProjectId && !state.projects.some((project) => project.id === state.selectedProjectId)) {
     state.selectedProjectId = null;
   }
@@ -2106,6 +2119,7 @@ async function handleDrop(event) {
 
   try {
     const imported = await window.api.forestImportPaths(paths);
+    if (destroyed) return;
 
     if (imported?.rejected) {
       setSaveStatus(`Import rejected: ${imported.rejected.message}`);
@@ -2157,6 +2171,9 @@ function selectProjectCard(card) {
 
 stage.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
+  if (!event.target.closest('input, textarea, button, select, a, [contenteditable]')) {
+    stage.focus({ preventScroll: true });
+  }
 
   const card = event.target.closest('.project-card');
   if (card) {
@@ -2529,7 +2546,7 @@ tagStrip.addEventListener('click', (event) => {
   slot.classList.remove('is-sprouting');
   slot.classList.add('is-wilting');
   setTimeout(() => {
-    if (!tagStrip.isConnected) return;
+    if (destroyed || !tagStrip.isConnected) return;
     bloomedTags.delete(normalizeText(tag));
     setTagFilter(tag, false);
   }, 320);
@@ -2614,6 +2631,7 @@ async function commitProjectScoringField(project, field, rawValue) {
   project[field] = value;
   try {
     const latestState = await window.api.forestLoadState();
+    if (destroyed) return;
     const latest = (latestState?.projects || []).find((candidate) => candidate.id === project.id);
     if (!latest?.revision) throw new Error('Could not resolve the latest project revision');
     const result = await window.api.localData.forestProjects.updateScoring(
@@ -3375,7 +3393,7 @@ hunterPanel.addEventListener('click', async (event) => {
     case 'hunter-add-dir': {
       event.stopPropagation();
       const dir = await window.api.forestOpenDirectoryDialog();
-      if (!dir) return;
+      if (destroyed || !dir) return;
       if (!state.hunterDirs.includes(dir)) {
         state.hunterDirs.push(dir);
         renderHunterPanel();
@@ -3537,6 +3555,7 @@ function onForestResize() {
 window.addEventListener('resize', onForestResize);
 
 function onForestKeyDown(event) {
+  if (!host.isConnected || !host.contains(event.target)) return;
   const active = document.activeElement;
   const typingInInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') && active !== searchInput;
 
@@ -3572,12 +3591,15 @@ function onForestKeyDown(event) {
 window.addEventListener('keydown', onForestKeyDown);
 
 // ── Teardown ────────────────────────────────────────────────────────────
-// Removes every global (window/document) listener and the FileHawk interval
-// this script registered, so briizOS.local's panel system can unmount and
-// remount this component without leaking listeners or double-firing them.
-// Exposed on window because this file is injected as a classic (non-module)
-// <script> tag, fresh on every mount — Forest.jsx calls this in its cleanup.
-window.__forestDestroy = function forestDestroy() {
+// Dispose only this mount; late loads cannot revive a closed board.
+function forestDestroy() {
+  if (destroyed) return;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    if (loaded) void saveNow();
+  }
+  destroyed = true;
+  clearTimeout(hunterDebounce);
   window.removeEventListener('pointermove', onForestPointerMove);
   window.removeEventListener('pointerup', onForestPointerUp);
   window.removeEventListener('blur', onForestWindowBlur);
@@ -3593,11 +3615,17 @@ window.__forestDestroy = function forestDestroy() {
     clearInterval(filehawkTimer);
     filehawkTimer = null;
   }
-};
+}
 
 async function init() {
+  setSaveStatus('Loading…');
   try {
+    // Let React finish releasing any previous mount before capturing its saves.
+    await Promise.resolve();
+    await pendingSaves;
+    if (destroyed) return;
     const saved = await window.api.forestLoadState();
+    if (destroyed) return;
 
     state.viewport = {
       ...state.viewport,
@@ -3611,14 +3639,31 @@ async function init() {
       resetView(false);
     }
 
+    loaded = true;
     render();
+    setSaveStatus('Ready');
     startFileHawk();
     dispatchForestLog('info', 'Forest panel loaded', { projectCount: state.projects.length });
   } catch (error) {
+    if (destroyed) return;
     console.error(error);
-    render();
+    setSaveStatus('Load failed — retry below');
+    emptyState.hidden = false;
+    emptyState.replaceChildren();
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'forest-action-btn';
+    retry.textContent = 'Forest could not load. Retry';
+    retry.addEventListener('click', () => {
+      retry.disabled = true;
+      dispatchForestLog('info', 'Retrying Forest board load');
+      void init();
+    }, { once: true });
+    emptyState.appendChild(retry);
     dispatchForestLog('error', 'Forest panel failed to load', error?.message);
   }
 }
 
 init();
+return forestDestroy;
+}

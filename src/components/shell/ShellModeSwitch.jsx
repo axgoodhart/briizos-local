@@ -1,10 +1,17 @@
 import { SHELL_MODES } from '../../hooks/useShellMode';
 
+/* Glyphs are SF Symbols from the SF Pro font (private-use codepoints):
+   U+1003DF rectangle.split.3x1 and U+1003DE dock.rectangle. */
 const MODE_OPTIONS = [
-  { id: SHELL_MODES.GRID, label: 'Grid', glyph: '▦', hint: 'Masonry grid only' },
-  { id: SHELL_MODES.HYBRID, label: 'Duo', glyph: '◧', hint: 'Grid + floating windows' },
-  { id: SHELL_MODES.WINDOWED, label: 'Float', glyph: '❐', hint: 'Floating windows only' },
+  { id: SHELL_MODES.GRID, label: 'Grid', glyph: '\u{1003DF}', hint: 'Masonry grid only' },
+  { id: SHELL_MODES.HYBRID, label: 'Duo', glyph: '\u{1003DE}', hint: 'Grid + floating windows' },
+  { id: SHELL_MODES.WINDOWED, label: 'Float', glyph: '\u{1003DE}', hint: 'Floating windows only' },
 ];
+
+/* Hybrid stays wired up (useShellMode, cycleMode, App handlers) but is not
+   offered in the control for now. */
+const HIDDEN_MODES = new Set([SHELL_MODES.HYBRID]);
+const VISIBLE_OPTIONS = MODE_OPTIONS.filter((option) => !HIDDEN_MODES.has(option.id));
 
 /**
  * ShellModeSwitch — the chameleon control. One segmented control rendered in
@@ -18,7 +25,7 @@ export function ShellModeSwitch({ mode, onChange, compact = false }) {
       role="group"
       aria-label="Layout mode"
     >
-      {MODE_OPTIONS.map((option) => (
+      {VISIBLE_OPTIONS.map((option) => (
         <button
           key={option.id}
           type="button"

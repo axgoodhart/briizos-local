@@ -1,11 +1,15 @@
 const { EventEmitter } = require('events');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { logger } = require('./logger');
+
+// `app` is undefined when this module is loaded outside a full Electron main
+// process (tests, utility scripts), hence the optional chaining below.
+const { app } = require('electron');
 
 const CLIENT_INFO = {
   name: 'briizos',
@@ -32,15 +36,82 @@ function executableCandidates() {
   return [...new Set(candidates)];
 }
 
+// `codex app-server --stdio` first shipped well after 0.39; older CLIs exit with
+// code 2 ("unexpected argument '--stdio'"). Anything below this is skipped.
+const MIN_APP_SERVER_VERSION = [0, 100, 0];
+
+function isExecutable(candidate) {
+  try {
+    fs.accessSync(candidate, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readCodexVersion(candidate) {
+  try {
+    const output = execFileSync(candidate, ['--version'], {
+      encoding: 'utf8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const match = String(output).match(/(\d+)\.(\d+)\.(\d+)/);
+    return match ? match.slice(1, 4).map(Number) : null;
+  } catch {
+    return null;
+  }
+}
+
+function compareVersions(a, b) {
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
+let resolvedBinary;
+
+// Picks the newest installed Codex CLI rather than the first one on PATH.
+// Electron's PATH (especially when launched from Finder) often lacks nvm's bin
+// directory, so a stale Homebrew install would otherwise win and crash on
+// `app-server --stdio`.
 function resolveCodexBinary() {
-  return executableCandidates().find((candidate) => {
-    try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return true;
-    } catch {
-      return false;
+  if (resolvedBinary !== undefined) return resolvedBinary;
+  if (app?.isPackaged) {
+    // See docs/shipping-debt.md item 1: a distributed build must bundle Codex
+    // instead of borrowing whatever is installed on the user's machine.
+    logger.warn('codex', 'This packaged build is still resolving Codex from the user\'s PATH. Bundle the binary before shipping (docs/shipping-debt.md, item 1).');
+  }
+  if (process.env.CODEX_BINARY && isExecutable(process.env.CODEX_BINARY)) {
+    resolvedBinary = process.env.CODEX_BINARY;
+    return resolvedBinary;
+  }
+
+  let best = null;
+  const rejected = [];
+  for (const candidate of executableCandidates()) {
+    if (!isExecutable(candidate)) continue;
+    const version = readCodexVersion(candidate);
+    if (!version) {
+      rejected.push({ candidate, reason: 'version unreadable' });
+      continue;
     }
-  }) || null;
+    if (compareVersions(version, MIN_APP_SERVER_VERSION) < 0) {
+      rejected.push({ candidate, reason: `version ${version.join('.')} is too old for app-server` });
+      continue;
+    }
+    if (!best || compareVersions(version, best.version) > 0) best = { candidate, version };
+  }
+
+  if (rejected.length) {
+    logger.warn('codex', 'Some Codex installs were skipped because they cannot run app-server.', { rejected });
+  }
+  if (best) {
+    logger.info('codex', `Using Codex CLI ${best.version.join('.')} at ${best.candidate}.`);
+  }
+  resolvedBinary = best?.candidate || null;
+  return resolvedBinary;
 }
 
 class CodexProvider extends EventEmitter {
@@ -51,6 +122,7 @@ class CodexProvider extends EventEmitter {
     this.pending = new Map();
     this.turns = new Map();
     this.nextRequestId = 1;
+    this.recentStderr = [];
     this.localDataService = null;
     this.workspaceRoot = path.resolve(__dirname, '..');
   }
@@ -83,9 +155,13 @@ class CodexProvider extends EventEmitter {
     });
     this.process.once('error', (error) => this._handleProcessError(error));
     this.process.once('exit', (code, signal) => this._handleExit(code, signal));
+    this.recentStderr = [];
     this.process.stderr.on('data', (chunk) => {
       const message = String(chunk || '').trim();
-      if (message) logger.debug('codex', message);
+      if (!message) return;
+      logger.debug('codex', message);
+      this.recentStderr.push(message);
+      if (this.recentStderr.length > 20) this.recentStderr.shift();
     });
 
     const lines = readline.createInterface({ input: this.process.stdout });
@@ -223,7 +299,12 @@ class CodexProvider extends EventEmitter {
   }
 
   _handleExit(code, signal) {
-    const error = new Error(`Codex app-server stopped${code != null ? ` with code ${code}` : ''}${signal ? ` (${signal})` : ''}.`);
+    const stderrTail = (this.recentStderr || []).join('\n').trim();
+    const detail = stderrTail ? ` ${stderrTail.split('\n')[0]}` : '';
+    const error = new Error(`Codex app-server stopped${code != null ? ` with code ${code}` : ''}${signal ? ` (${signal})` : ''}.${detail}`);
+    if (code) {
+      logger.warn('codex', 'The Codex app-server exited unexpectedly.', { code, signal, stderr: stderrTail || null });
+    }
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timeout);
       pending.reject(error);
