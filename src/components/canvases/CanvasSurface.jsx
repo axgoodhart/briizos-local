@@ -63,7 +63,7 @@ function CanvasSurface({
         src={url}
         useragent={BROWSER_LIKE_UA}
         allowpopups="true"
-        style={{ width: '100%', height: '100%', display: 'inline-flex', background: '#000' }}
+        data-theme-inline="canvas-surface-webview-1" style={{ width: '100%', height: '100%', display: 'inline-flex' }}
       />
     );
   }
@@ -74,7 +74,7 @@ function CanvasSurface({
       sandbox="allow-scripts allow-same-origin allow-forms"
       className={className}
       title={title}
-      style={{ width: '100%', height: '100%', border: 0, background: '#000' }}
+      data-theme-inline="canvas-surface-iframe-1" style={{ width: '100%', height: '100%' }}
     />
   );
 }

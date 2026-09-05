@@ -1,8 +1,13 @@
 import { BUILT_IN_THEME_IDS } from './builtInThemes';
-import { COMPONENT_IDS, CURATED_VARIABLES, EDITABLE_PROPERTIES, TARGET_IDS, TARGET_REGISTRY } from './themeRegistry';
+import { COMPONENT_IDS, EDITABLE_PROPERTIES, TARGET_IDS, TARGET_REGISTRY } from './themeRegistry';
+import { materializeThemeCss, parseThemeSource } from './themeSource';
+import themeContract from './themeContract.json';
+import postcss from 'postcss';
+import { BUILT_IN_THEME_FILES } from '../themes/themeFiles';
 
-export const THEME_SCHEMA_VERSION = 1;
-export const EMPTY_THEME_LIBRARY = Object.freeze({ schemaVersion: 1, themes: [] });
+export const THEME_SCHEMA_VERSION = themeContract.version;
+export const EMPTY_THEME_LIBRARY = Object.freeze({ schemaVersion: THEME_SCHEMA_VERSION, themes: [] });
+export const MAX_THEME_CSS_LENGTH = themeContract.maxCssLength;
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const UNSAFE_CSS = /url\s*\(|javascript\s*:|expression\s*\(|<\/?script|@import|behavior\s*:/i;
@@ -123,11 +128,11 @@ function validateStructuredStyle(value, property, label) {
 
 export function validateThemeDocument(input) {
   assertObject(input, 'theme');
-  assertExactKeys(input, ['schemaVersion', 'id', 'name', 'baseThemeId', 'mode', 'createdAt', 'updatedAt', 'generator', 'variables', 'overrides'], 'theme');
-  assertion(input.schemaVersion === THEME_SCHEMA_VERSION, 'Theme schema version must be 1.');
+  assertExactKeys(input, themeContract.documentKeys, 'theme');
+  assertion(input.schemaVersion === 1 || input.schemaVersion === THEME_SCHEMA_VERSION, 'Theme schema version must be 1 or 2.');
   assertion(typeof input.id === 'string' && SAFE_ID.test(input.id) && input.id.length <= 128, 'Theme ID is invalid.');
   assertion(typeof input.name === 'string' && input.name.trim().length >= 1 && input.name.length <= 80, 'Theme name must be 1–80 characters.');
-  assertion(BUILT_IN_THEME_IDS.has(input.baseThemeId), 'Theme base does not exist.');
+  assertion(input.schemaVersion === 1 ? Object.hasOwn(BUILT_IN_THEME_FILES, input.baseThemeId) : isSafeIdentifier(input.baseThemeId), 'Theme selector context is invalid.');
   assertion(input.mode === 'dark' || input.mode === 'light', 'Theme mode is invalid.');
   assertion(Number.isSafeInteger(input.createdAt) && input.createdAt >= 0, 'Theme createdAt is invalid.');
   assertion(Number.isSafeInteger(input.updatedAt) && input.updatedAt >= 0, 'Theme updatedAt is invalid.');
@@ -138,16 +143,22 @@ export function validateThemeDocument(input) {
     validateGeneratorSettings(input.generator, 'theme.generator');
   }
 
-  assertObject(input.variables, 'theme.variables');
-  assertion(Object.keys(input.variables).length <= 512, 'A theme can contain at most 512 variable overrides.');
-  Object.entries(input.variables).forEach(([variable, value]) => {
-    assertion(CURATED_VARIABLES.includes(variable), `Unknown curated variable: ${variable}.`);
+  const variables = input.variables || {};
+  const overrides = input.overrides || [];
+  if (input.schemaVersion === THEME_SCHEMA_VERSION) {
+    assertion(input.variables && Object.keys(input.variables).length === 0, 'Version 2 theme values belong in cssText.');
+    assertion(Array.isArray(input.overrides) && input.overrides.length === 0, 'Version 2 theme rules belong in cssText.');
+  }
+  assertObject(variables, 'theme.variables');
+  assertion(Object.keys(variables).length <= 8192, 'A theme can contain at most 8192 variable overrides.');
+  Object.entries(variables).forEach(([variable, value]) => {
+    assertion(/^--[A-Za-z0-9_-]+$/.test(variable), `Invalid custom property name: ${variable}.`);
     assertSafeString(value, `theme.variables.${variable}`, 1000);
     assertion(!/[{};]/.test(value), `theme.variables.${variable} contains invalid CSS.`);
   });
 
-  assertion(Array.isArray(input.overrides) && input.overrides.length <= 256, 'A theme can contain at most 256 scoped overrides.');
-  input.overrides.forEach((override, index) => {
+  assertion(Array.isArray(overrides) && overrides.length <= 256, 'A theme can contain at most 256 scoped overrides.');
+  overrides.forEach((override, index) => {
     const label = `theme.overrides[${index}]`;
     assertObject(override, label);
     assertExactKeys(override, ['id', 'targetId', 'scope', 'componentId', 'instanceId', 'styles'], label);
@@ -163,14 +174,30 @@ export function validateThemeDocument(input) {
       validateStructuredStyle(value, property, `${label}.styles.${property}`);
     });
   });
-  return structuredClone(input);
+  const cssText = input.schemaVersion === 1
+    ? materializeThemeCss({ ...input, variables, overrides })
+    : input.cssText;
+  validateThemeCss(cssText);
+  // CSS is the sole appearance source after migration. Keeping old override
+  // objects would make later source edits silently reappear on save or export.
+  return { ...structuredClone(input), schemaVersion: THEME_SCHEMA_VERSION, cssText, variables: {}, overrides: [] };
+}
+
+export function validateThemeCss(cssText) {
+  assertion(typeof cssText === 'string' && cssText.length <= MAX_THEME_CSS_LENGTH, 'Theme CSS must be text no larger than 3 million characters.');
+  const root = postcss.parse(cssText, { from: undefined });
+  root.walkAtRules((rule) => assertion(!themeContract.blockedAtRules.includes(rule.name.toLowerCase()), 'Include the appearance rules directly instead of importing another stylesheet.'));
+  const blockedValue = new RegExp(themeContract.blockedValuePattern, 'i');
+  root.walkDecls((declaration) => assertion(!themeContract.blockedDeclarationProperties.includes(declaration.prop.toLowerCase()) && !blockedValue.test(declaration.value), 'Theme CSS cannot contain executable values.'));
+  parseThemeSource(cssText);
+  return cssText;
 }
 
 export function validateThemeLibrary(input) {
   assertObject(input, 'theme library');
-  assertExactKeys(input, ['schemaVersion', 'themes'], 'theme library');
-  assertion(input.schemaVersion === THEME_SCHEMA_VERSION, 'Theme library schema version must be 1.');
-  assertion(Array.isArray(input.themes) && input.themes.length <= 64, 'Theme library can contain at most 64 custom themes.');
+  assertExactKeys(input, themeContract.libraryKeys, 'theme library');
+  assertion(input.schemaVersion === 1 || input.schemaVersion === THEME_SCHEMA_VERSION, 'Theme library schema version must be 1 or 2.');
+  assertion(Array.isArray(input.themes) && input.themes.length <= themeContract.maxThemes, `Theme library can contain at most ${themeContract.maxThemes} custom themes.`);
   const themes = input.themes.map(validateThemeDocument);
   assertion(new Set(themes.map((theme) => theme.id)).size === themes.length, 'Theme IDs must be unique.');
   return { schemaVersion: THEME_SCHEMA_VERSION, themes };
@@ -178,26 +205,30 @@ export function validateThemeLibrary(input) {
 
 export function safeThemeLibrary(input) {
   try {
-    return { library: validateThemeLibrary(input || EMPTY_THEME_LIBRARY), warning: null, invalidThemeBases: {} };
+    return { library: validateThemeLibrary(input || EMPTY_THEME_LIBRARY), warning: null, invalidThemeBases: {}, migrated: input?.schemaVersion === 1 || input?.themes?.some((theme) => theme.schemaVersion === 1) };
   } catch (error) {
-    if (input?.schemaVersion === 1 && Array.isArray(input.themes) && input.themes.length <= 64) {
+    if ([1, THEME_SCHEMA_VERSION].includes(input?.schemaVersion) && Array.isArray(input.themes) && input.themes.length <= themeContract.maxThemes) {
       const themes = [];
       const invalidThemeBases = {};
       input.themes.forEach((candidate) => {
-        try { themes.push(validateThemeDocument(candidate)); }
+        try {
+          const valid = validateThemeDocument(candidate);
+          assertion(!themes.some((theme) => theme.id === valid.id), 'Theme IDs must be unique.');
+          themes.push(valid);
+        }
         catch {
           if (isSafeIdentifier(candidate?.id) && BUILT_IN_THEME_IDS.has(candidate?.baseThemeId)) {
             invalidThemeBases[candidate.id] = candidate.baseThemeId;
           }
         }
       });
-      return { library: { schemaVersion: 1, themes }, warning: error.message, invalidThemeBases };
+      return { library: { schemaVersion: THEME_SCHEMA_VERSION, themes }, warning: error.message, invalidThemeBases, migrated: input.schemaVersion === 1 };
     }
     return { library: { ...EMPTY_THEME_LIBRARY, themes: [] }, warning: error.message, invalidThemeBases: {} };
   }
 }
 
-export function createThemeDocument({ name, baseThemeId, mode, variables = {}, overrides = [], generator = null, id, now = Date.now() }) {
+export function createThemeDocument({ name, baseThemeId = 'default', mode = 'dark', variables = {}, overrides = [], generator = null, cssText, id, now = Date.now() }) {
   const slug = String(id || name || 'custom-theme')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 54) || 'custom-theme';
   return {
@@ -209,11 +240,12 @@ export function createThemeDocument({ name, baseThemeId, mode, variables = {}, o
     createdAt: now,
     updatedAt: now,
     generator,
-    variables: { ...variables },
-    overrides: structuredClone(overrides),
+    cssText: typeof cssText === 'string' ? cssText : materializeThemeCss(Object.keys(variables).length || overrides.length ? { baseThemeId, variables, overrides } : { id: baseThemeId }),
+    variables: {},
+    overrides: [],
   };
 }
 
 export function isSafeIdentifier(value) {
-  return typeof value === 'string' && SAFE_ID.test(value);
+  return typeof value === 'string' && value.length <= 128 && SAFE_ID.test(value);
 }

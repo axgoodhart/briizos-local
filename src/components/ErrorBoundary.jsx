@@ -39,20 +39,11 @@ export class ErrorBoundary extends Component {
 
     return (
       <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 999999,
-          padding: 32,
-          fontFamily: "'Roboto Mono', monospace",
-          color: '#e0e0e0',
-          background: '#0a0a0a',
-          overflow: 'auto',
-        }}
+        data-theme-inline="error-boundary-div-1" style={{ position: 'fixed', inset: 0, zIndex: 999999, padding: 32, overflow: 'auto' }}
       >
-        <h2 style={{ color: '#ef4444', marginTop: 0 }}>Something crashed</h2>
-        <p style={{ fontSize: 14 }}>{String(error?.message || error)}</p>
-        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, opacity: 0.75, lineHeight: 1.5 }}>
+        <h2 data-theme-inline="error-boundary-h2-1" style={{ marginTop: 0 }}>Something crashed</h2>
+        <p data-theme-inline="error-boundary-p-1">{String(error?.message || error)}</p>
+        <pre data-theme-inline="error-boundary-pre-1" style={{ whiteSpace: 'pre-wrap' }}>
           {error?.stack}
         </pre>
         <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>

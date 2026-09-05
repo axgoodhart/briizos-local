@@ -125,20 +125,8 @@ function ModelTab({ isOpen }) {
 
       {/* Summary */}
       <div className="settings-field">
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '10px 14px',
-          background: 'rgba(0, 200, 200, 0.06)',
-          borderRadius: 8,
-          border: '1px solid rgba(0, 200, 200, 0.15)',
-        }}>
-          <span style={{
-            fontSize: 13,
-            color: 'var(--palette-accent-cyan, #00c8c8)',
-            fontWeight: 600,
-          }}>{providerCount} providers, {modelList.length} models configured</span>
+        <div data-theme-inline="dashboard-overlay-div-1" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
+          <span data-theme-inline="dashboard-overlay-span-1">{providerCount} providers, {modelList.length} models configured</span>
         </div>
       </div>
 
@@ -146,22 +134,9 @@ function ModelTab({ isOpen }) {
       {selectedModelObj && (
         <div className="settings-field">
           <label className="settings-label">Currently Selected</label>
-          <div style={{
-            padding: '8px 12px',
-            background: 'rgba(255,255,255,0.03)',
-            borderRadius: 6,
-            border: '1px solid rgba(255,255,255,0.06)',
-          }}>
-            <span style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--palette-text-soft, #ccc)',
-            }}>{selectedModelObj.display_name}</span>
-            <span style={{
-              fontSize: 11,
-              color: 'var(--palette-text-muted, #888)',
-              marginLeft: 8,
-            }}>({selectedModelObj.provider})</span>
+          <div data-theme-inline="dashboard-overlay-div-2" style={{ padding: '8px 12px' }}>
+            <span data-theme-inline="dashboard-overlay-span-2">{selectedModelObj.display_name}</span>
+            <span data-theme-inline="dashboard-overlay-span-3" style={{ marginLeft: 8 }}>({selectedModelObj.provider})</span>
           </div>
         </div>
       )}
@@ -234,71 +209,30 @@ function ModelTab({ isOpen }) {
               gap: 8,
               marginBottom: 8,
             }}>
-              <span style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: hasKey ? 'var(--palette-accent-cyan, #00c8c8)' : '#ff6b6b',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              }}>
+              <span data-theme-inline="dashboard-overlay-span-4" data-theme-state-color={(hasKey ? '0' : '1')}>
                 {providerLabel}
               </span>
               {!hasKey && (
-                <span style={{
-                  fontSize: 11,
-                  color: '#ff6b6b',
-                  fontWeight: 500,
-                }}>({provider === 'codex' ? 'not connected' : 'no API key'})</span>
+                <span data-theme-inline="dashboard-overlay-span-5">({provider === 'codex' ? 'not connected' : 'no API key'})</span>
               )}
-              <span style={{
-                fontSize: 11,
-                color: 'var(--palette-text-muted, #888)',
-              }}>({models.length} models)</span>
+              <span data-theme-inline="dashboard-overlay-span-6">({models.length} models)</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {models.map(model => (
                 <div
                   key={model.name}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    background: 'rgba(255,255,255,0.03)',
-                    borderRadius: 6,
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    opacity: hasKey ? 1 : 0.5,
-                  }}
+                  data-theme-inline="dashboard-overlay-div-3" data-theme-state-opacity={(hasKey ? '0' : '1')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: 'var(--palette-text-soft, #ccc)',
-                    }}>{model.display_name}</span>
-                    <span style={{
-                      fontSize: 11,
-                      color: 'var(--palette-text-muted, #888)',
-                    }}>{model.model}</span>
+                    <span data-theme-inline="dashboard-overlay-span-7">{model.display_name}</span>
+                    <span data-theme-inline="dashboard-overlay-span-8">{model.model}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {model.max_tokens && (
-                      <span style={{
-                        fontSize: 10,
-                        color: 'var(--palette-text-muted, #888)',
-                        background: 'rgba(255,255,255,0.05)',
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                      }}>{(model.max_tokens / 1000).toFixed(0)}k tokens</span>
+                      <span data-theme-inline="dashboard-overlay-span-9" style={{ padding: '2px 6px' }}>{(model.max_tokens / 1000).toFixed(0)}k tokens</span>
                     )}
                     {model.supports_thinking && (
-                      <span style={{
-                        fontSize: 10,
-                        color: 'var(--palette-accent-cyan, #00c8c8)',
-                        background: 'rgba(0, 200, 200, 0.1)',
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                      }}>thinking</span>
+                      <span data-theme-inline="dashboard-overlay-span-10" style={{ padding: '2px 6px' }}>thinking</span>
                     )}
                   </div>
                 </div>
@@ -310,7 +244,7 @@ function ModelTab({ isOpen }) {
 
       <div className="settings-divider" />
 
-      <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+      <p className="settings-hint" data-theme-inline="dashboard-overlay-settings-hint-1">
         Model selection and provider credentials are stored locally in briizos.db.
       </p>
     </div>
@@ -583,7 +517,7 @@ function MemoryTab({ isOpen }) {
       {/* Agent Context Editor */}
       <h3 className="settings-section-title">Agent Context</h3>
       <div className="settings-field">
-        <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+        <p className="settings-hint" data-theme-inline="dashboard-overlay-settings-hint-2">
           This local context is included in every AI request as persistent memory.
         </p>
         {contextLoading ? (
@@ -764,7 +698,7 @@ function PermissionsTab({ isOpen }) {
 
   return (
     <div className="settings-section">
-      <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+      <p className="settings-hint" data-theme-inline="dashboard-overlay-settings-hint-3">
         Two independent permission policies. The agent cannot bypass these.
         <strong> Task agents</strong> run headless &mdash; if a tool needs
         confirmation the run can&rsquo;t grant, that task pauses for you.
@@ -902,7 +836,7 @@ function HealthTab({ isOpen }) {
         <div className="dashboard-blacklist-table">
           {Object.entries(healthData.directories).map(([name, exists]) => (
             <div className="dashboard-blacklist-row" key={name}>
-              <span style={{ marginRight: 8, color: exists ? '#4ade80' : '#f87171' }}>
+              <span data-theme-inline="dashboardoverlay-span-state-8" data-theme-state-color={(exists ? '0' : '1')} style={{ marginRight: 8 }}>
                 {exists ? '\u2713' : '\u2717'}
               </span>
               <span className="dashboard-blacklist-value">{name}</span>
@@ -920,7 +854,7 @@ function HealthTab({ isOpen }) {
           <div className="dashboard-blacklist-table">
             {healthData.aiProviders.map(provider => (
               <div className="dashboard-blacklist-row" key={provider}>
-                <span style={{ marginRight: 8, color: '#4ade80' }}>{'\u2713'}</span>
+                <span data-theme-inline="dashboard-overlay-span-11" style={{ marginRight: 8 }}>{'\u2713'}</span>
                 <span className="dashboard-blacklist-value">{provider}</span>
               </div>
             ))}
@@ -964,7 +898,7 @@ function HealthTab({ isOpen }) {
       {/* Timestamp */}
       <h3 className="settings-section-title">Timestamp</h3>
       <div className="settings-field">
-        <p className="settings-hint" style={{ fontStyle: 'normal' }}>
+        <p className="settings-hint" data-theme-inline="dashboard-overlay-settings-hint-4">
           {new Date(healthData.timestamp).toLocaleString()}
         </p>
       </div>

@@ -22,7 +22,7 @@ Provide explanations in succinct bullet lists, but never use insider shorthand.
 ## General Design Principles
 
 – Style
->> One CSS file: App.css. Do not add styling anywhere else.
+>> Keep one structural CSS monolith: src/AppCombined.css. Complete appearance stylesheets live in src/themes/AppCombined-THEMEVALUES-<id>.css; exactly one theme is active. Preserve matching selectors, cascade order, states, and conditions. Do not split styles into per-component files or add literal appearance values inline. src/App.css is only a compatibility entry. Theme Studio and Chromap edit the same complete CSS documents. See docs/theme-authoring.md.
 >>> Do not "normalize" BriizOS toward Material Design, Fluent, macOS, iOS, or common web dashboard aesthetics. BriizOS has its own visual language.
 >> Visual density is a defining characteristic of BriizOS. Space is valuable. Do not increase padding, margins, gutters, row heights, or control sizes unless the mockup explicitly calls for it or there is a demonstrated usability issue.
 >> Use glyph fonts for icons, preferably SF Symbols. There is a folder in the briizos repo root called "SFSymbiols" for you to reference. If you notice any svg rendered icons, change them to an SF Symbol icon. 

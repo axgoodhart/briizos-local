@@ -1,4 +1,5 @@
 import { COMPONENT_SELECTOR_MAP, ROLE_SELECTOR_MAP, TARGET_REGISTRY } from './themeRegistry';
+import { materializeThemeCss } from './themeSource';
 
 const RUNTIME_STYLE_ID = 'briizos-theme-runtime-rules';
 const annotatedElements = new Set();
@@ -56,28 +57,24 @@ export function createThemeRuntime(doc = document) {
   };
 
   const apply = (theme) => {
-    cleanup();
     const root = doc.documentElement;
+    appliedVariables.forEach((variable) => root.style.removeProperty(variable));
+    appliedVariables = new Set();
     const baseThemeId = theme?.baseThemeId || theme?.id || 'default';
     if (!baseThemeId || baseThemeId === 'default') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', baseThemeId);
 
-    if (!theme?.variables || !theme?.overrides) return;
-    root.setAttribute('data-custom-theme', theme.id);
-    const variables = { ...theme.variables };
-    if (variables['--theme-corner-style'] && !variables['--ui-corner-shape']) {
-      const legacyCornerShapes = { soft: 'squircle', rounded: 'round', square: 'square' };
-      variables['--ui-corner-shape'] = legacyCornerShapes[variables['--theme-corner-style']] || variables['--theme-corner-style'];
+    const cssText = materializeThemeCss(theme || { id: 'default' });
+    if (/\/\*\s*briizOS legacy-custom\s*\*\//.test(cssText)) root.setAttribute('data-custom-theme', theme.id);
+    else root.removeAttribute('data-custom-theme');
+    let style = doc.getElementById(RUNTIME_STYLE_ID);
+    if (!style) {
+      style = doc.createElement('style');
+      style.id = RUNTIME_STYLE_ID;
+      doc.head.appendChild(style);
     }
-    Object.entries(variables).forEach(([variable, value]) => {
-      root.style.setProperty(variable, value);
-      appliedVariables.add(variable);
-    });
-    const style = doc.createElement('style');
-    style.id = RUNTIME_STYLE_ID;
-    style.dataset.themeRuntime = theme.id;
-    style.textContent = rulesForOverrides(theme.overrides);
-    doc.head.appendChild(style);
+    style.dataset.themeRuntime = theme?.id || 'default';
+    if (style.textContent !== cssText) style.textContent = cssText;
   };
 
   return { apply, cleanup, getAppliedVariables: () => new Set(appliedVariables) };

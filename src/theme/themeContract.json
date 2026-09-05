@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "maxCssLength": 3000000,
+  "maxThemes": 64,
+  "blockedAtRules": ["import"],
+  "blockedDeclarationProperties": ["behavior", "-moz-binding"],
+  "blockedValuePattern": "javascript\\s*:|expression\\s*\\(|<\\/?script",
+  "documentKeys": ["schemaVersion", "id", "name", "baseThemeId", "mode", "createdAt", "updatedAt", "generator", "variables", "overrides", "cssText"],
+  "libraryKeys": ["schemaVersion", "themes"]
+}

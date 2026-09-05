@@ -1,0 +1,3188 @@
+{
+  "version": 1,
+  "variables": {
+    "--bg-0": [
+      {
+        "property": "--bg-0",
+        "value": "#08170f",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --bg-0: #08170f;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29431
+        }
+      }
+    ],
+    "--bg-1": [
+      {
+        "property": "--bg-1",
+        "value": "#04100a",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --bg-1: #04100a;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29432
+        }
+      }
+    ],
+    "--bg-2": [
+      {
+        "property": "--bg-2",
+        "value": "#103324",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --bg-2: #103324;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29433
+        }
+      }
+    ],
+    "--darktext": [
+      {
+        "property": "--darktext",
+        "value": "#e0a352",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --darktext: #e0a352;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29439
+        }
+      }
+    ],
+    "--dna-frame-border-width": [
+      {
+        "property": "--dna-frame-border-width",
+        "value": "1px",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --dna-frame-border-width: 1px;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9970
+        }
+      }
+    ],
+    "--glass-2": [
+      {
+        "property": "--glass-2",
+        "value": "rgba(255, 255, 255, 0.05)",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --glass-2: rgba(255, 255, 255, 0.05);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29435
+        }
+      }
+    ],
+    "--radius": [
+      {
+        "property": "--radius",
+        "value": "24px",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --radius: 24px;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29443
+        }
+      }
+    ],
+    "--shadowtop": [
+      {
+        "property": "--shadowtop",
+        "value": "0 24px 80px rgba(23, 217, 138, 0.22)",
+        "important": false,
+        "selector": ".forest-shell",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".forest-shell {\n  --shadowtop: 0 24px 80px rgba(23, 217, 138, 0.22);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 29441
+        }
+      }
+    ],
+    "--stylofact-shadow": [
+      {
+        "property": "--stylofact-shadow",
+        "value": "var(--ui-button-ghost-border-strong)",
+        "important": false,
+        "selector": ".stylofact-panel",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".stylofact-panel {\n  --stylofact-shadow: var(--ui-button-ghost-border-strong);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 21932
+        }
+      }
+    ],
+    "--stylofact-space-md": [
+      {
+        "property": "--stylofact-space-md",
+        "value": "16px",
+        "important": false,
+        "selector": ".stylofact-panel",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".stylofact-panel {\n  --stylofact-space-md: 16px;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 21958
+        }
+      }
+    ],
+    "--stylofact-space-xl": [
+      {
+        "property": "--stylofact-space-xl",
+        "value": "32px",
+        "important": false,
+        "selector": ".stylofact-panel",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".stylofact-panel {\n  --stylofact-space-xl: 32px;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 21960
+        }
+      }
+    ],
+    "--stylofact-space-xs": [
+      {
+        "property": "--stylofact-space-xs",
+        "value": "4px",
+        "important": false,
+        "selector": ".stylofact-panel",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".stylofact-panel {\n  --stylofact-space-xs: 4px;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 21956
+        }
+      }
+    ],
+    "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l": [
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(0, 200, 200, 0.2)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(0, 200, 200, 0.2); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1334
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(193, 203, 191, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(193, 203, 191, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7292
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(255, 113, 212, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(255, 113, 212, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7595
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "0 0 10px rgba(123, 44, 191, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: 0 0 10px rgba(123, 44, 191, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7902
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "0 0 15px rgba(0, 0, 0, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: 0 0 15px rgba(0, 0, 0, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8209
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(222, 155, 149, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(222, 155, 149, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8517
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "0 0 15px rgba(0, 43, 54, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: 0 0 15px rgba(0, 43, 54, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8831
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "none",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: none;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9256
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(255, 200, 215, 0.08)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(255, 200, 215, 0.08);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9557
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(126, 6, 255, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(126, 6, 255, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9859
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "transparent, inset 0px 0px 11px lime",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: transparent, inset 0px 0px 11px lime;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10153
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(135, 191, 138, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(135, 191, 138, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10456
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(0, 200, 200, 0.2)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(0, 200, 200, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10756
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(126, 6, 255, 0.2), inset 0px 0px 11px lime",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(126, 6, 255, 0.2), inset 0px 0px 11px lime;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11048
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(250, 128, 114, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(250, 128, 114, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11343
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(127, 234, 255, 0.18)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(127, 234, 255, 0.18);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12171
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "rgba(171, 168, 129, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: rgba(171, 168, 129, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12477
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "0 0 10px rgba(161, 48, 101, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: 0 0 10px rgba(161, 48, 101, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12783
+        }
+      },
+      {
+        "property": "--theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l",
+        "value": "0 0 15px rgba(71, 71, 71, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: 0 0 15px rgba(71, 71, 71, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13088
+        }
+      }
+    ],
+    "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub": [
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(0, 200, 200, 0.3)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(0, 200, 200, 0.3); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1390
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(193, 203, 191, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(193, 203, 191, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7348
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(255, 113, 212, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(255, 113, 212, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7651
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(123, 44, 191, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(123, 44, 191, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7958
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(212, 163, 115, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(212, 163, 115, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8265
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(222, 155, 149, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(222, 155, 149, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8573
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(147, 161, 161, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(147, 161, 161, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8887
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(255, 255, 255, 0.1)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(255, 255, 255, 0.1);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9312
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(174, 233, 255, 0.08)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(174, 233, 255, 0.08);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9614
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(1, 247, 255, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(1, 247, 255, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9915
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10209
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(135, 191, 138, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(135, 191, 138, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10512
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(0, 200, 200, 0.3)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(0, 200, 200, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10812
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(0, 83, 226, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(0, 83, 226, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11104
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(250, 128, 114, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(250, 128, 114, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11399
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(169, 225, 255, 0.34)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(169, 225, 255, 0.34);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12227
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(171, 168, 129, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(171, 168, 129, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12533
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(161, 48, 101, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(161, 48, 101, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12839
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-modal-border-1jdub",
+        "value": "rgba(255, 255, 255, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(255, 255, 255, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13144
+        }
+      }
+    ],
+    "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3": [
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1393
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7351
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7654
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.85)",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.85);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7961
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8268
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8576
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 43, 54, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 43, 54, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8890
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9315
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(4, 8, 18, 0.42)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(4, 8, 18, 0.42);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9617
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgb(0, 34, 41)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgb(0, 34, 41);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9918
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10212
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10515
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10815
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgb(12, 34, 24)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgb(12, 34, 24);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11107
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(0, 0, 0, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11402
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(4, 10, 19, 0.42)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(4, 10, 19, 0.42);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12230
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(8, 16, 18, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(8, 16, 18, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12536
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(53, 53, 51, 0.85)",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(53, 53, 51, 0.85);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12842
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3",
+        "value": "rgba(71, 71, 71, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(71, 71, 71, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13147
+        }
+      }
+    ],
+    "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43": [
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(0, 150, 180, 0.5)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(0, 150, 180, 0.5); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1399
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(136, 136, 126, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(136, 136, 126, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7357
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(43, 120, 255, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(43, 120, 255, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7660
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "#7b2cbf",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: #7b2cbf;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7967
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "#4fd1c5",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: #4fd1c5;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8274
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(179, 115, 113, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(179, 115, 113, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8582
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "#93a1a1",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: #93a1a1;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8896
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(255, 255, 255, 0.1)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(255, 255, 255, 0.1);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9321
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(255, 140, 185, 0.12)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(255, 140, 185, 0.12);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9623
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgb(26, 26, 26)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgb(26, 26, 26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9924
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10218
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(99, 150, 97, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(99, 150, 97, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10521
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(0, 150, 180, 0.5)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(0, 150, 180, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10821
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgb(26, 26, 26)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgb(26, 26, 26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11113
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(250, 128, 114, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(250, 128, 114, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11408
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "linear-gradient(135deg, rgba(127, 234, 255, 0.20) 0%, rgba(205, 191, 255, 0.12) 100%)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: linear-gradient(135deg, rgba(127, 234, 255, 0.20) 0%, rgba(205, 191, 255, 0.12) 100%);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12236
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "rgba(89, 139, 141, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: rgba(89, 139, 141, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12542
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "#a13065",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: #a13065;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12848
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43",
+        "value": "#ffffff",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: #ffffff;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13153
+        }
+      }
+    ],
+    "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2": [
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(0, 180, 200, 0.6)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(0, 180, 200, 0.6); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1400
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(193, 203, 191, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(193, 203, 191, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7358
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(255, 104, 199, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(255, 104, 199, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7661
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "#9d4edd",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #9d4edd;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7968
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "#81e6d9",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #81e6d9;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8275
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(206, 140, 136, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(206, 140, 136, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8583
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "#93a1a1",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #93a1a1;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8897
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(255, 255, 255, 0.2)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(255, 255, 255, 0.2);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9322
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(255, 140, 185, 0.16)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(255, 140, 185, 0.16);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9624
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgb(26, 26, 26)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(26, 26, 26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9925
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10219
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(122, 176, 123, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(122, 176, 123, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10522
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(0, 180, 200, 0.6)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(0, 180, 200, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10822
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgb(26, 26, 26)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgb(26, 26, 26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11114
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(250, 128, 114, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(250, 128, 114, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11409
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "linear-gradient(135deg, rgba(127, 234, 255, 0.28) 0%, rgba(205, 191, 255, 0.16) 100%)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: linear-gradient(135deg, rgba(127, 234, 255, 0.28) 0%, rgba(205, 191, 255, 0.16) 100%);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12237
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "rgba(156, 154, 116, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: rgba(156, 154, 116, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12543
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "#b26fbe",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #b26fbe;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12849
+        }
+      },
+      {
+        "property": "--theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2",
+        "value": "#ffffff",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #ffffff;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13154
+        }
+      }
+    ],
+    "--theme-components-overlays-organizermodal-organizer-modal-border-d763t": [
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(0, 200, 200, 0.7)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(0, 200, 200, 0.7); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1434
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(193, 203, 191, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(193, 203, 191, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7392
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(255, 113, 212, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(255, 113, 212, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7695
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(123, 44, 191, 0.8)",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(123, 44, 191, 0.8);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8002
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "#4fd1c5",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: #4fd1c5;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8309
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(222, 155, 149, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(222, 155, 149, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8617
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "#93a1a1",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: #93a1a1;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8931
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(255, 255, 255, 0.15)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(255, 255, 255, 0.15);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9356
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(174, 233, 255, 0.18)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(174, 233, 255, 0.18);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9658
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(1, 247, 255, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(1, 247, 255, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9959
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10253
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(135, 191, 138, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(135, 191, 138, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10556
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(0, 200, 200, 0.7)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(0, 200, 200, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10856
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(0, 83, 226, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(0, 83, 226, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11148
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(250, 128, 114, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(250, 128, 114, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11443
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(184, 245, 255, 0.54)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(184, 245, 255, 0.54);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12271
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(171, 168, 129, 0.7)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(171, 168, 129, 0.7);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12577
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "rgba(161, 48, 101, 0.8)",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(161, 48, 101, 0.8);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12883
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-d763t",
+        "value": "#ffffff",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-d763t: #ffffff;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13188
+        }
+      }
+    ],
+    "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1": [
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(0, 100, 100, 0.6)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(0, 100, 100, 0.6); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1435
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(94, 82, 71, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(94, 82, 71, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7393
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(76, 51, 138, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(76, 51, 138, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7696
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(123, 44, 191, 0.4)",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(123, 44, 191, 0.4);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8003
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(142, 84, 49, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(142, 84, 49, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8310
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(126, 67, 65, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(126, 67, 65, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8618
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(88, 110, 117, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(88, 110, 117, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8932
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(255, 255, 255, 0.05)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(255, 255, 255, 0.05);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9357
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(20, 70, 80, 0.26)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(20, 70, 80, 0.26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9659
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(1, 247, 255, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(1, 247, 255, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9960
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10254
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(52, 100, 48, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(52, 100, 48, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10557
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(0, 100, 100, 0.6)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(0, 100, 100, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10857
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(0, 83, 226, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(0, 83, 226, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11149
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(180, 120, 110, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(180, 120, 110, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11444
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(205, 191, 255, 0.26)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(205, 191, 255, 0.26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12272
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(39, 91, 60, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(39, 91, 60, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12578
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(161, 48, 101, 0.4)",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(161, 48, 101, 0.4);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12884
+        }
+      },
+      {
+        "property": "--theme-components-overlays-organizermodal-organizer-modal-border-eerk1",
+        "value": "rgba(255, 255, 221, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(255, 255, 221, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13189
+        }
+      }
+    ],
+    "--theme-components-phantomsection-root-app-b5mm4": [
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "green",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-phantomsection-root-app-b5mm4: green; \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1327
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#665a4e",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-phantomsection-root-app-b5mm4: #665a4e;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7285
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#005aff",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-phantomsection-root-app-b5mm4: #005aff;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7588
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#9d4edd",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-phantomsection-root-app-b5mm4: #9d4edd;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7895
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-phantomsection-root-app-b5mm4: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8202
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#925558",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-phantomsection-root-app-b5mm4: #925558;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8510
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#002b36",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-phantomsection-root-app-b5mm4: #002b36;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8824
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#888888",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-phantomsection-root-app-b5mm4: #888888;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9249
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#CFF0E1",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-phantomsection-root-app-b5mm4: #CFF0E1;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9550
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "green",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-phantomsection-root-app-b5mm4: green;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9852
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "green",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-phantomsection-root-app-b5mm4: green;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10148
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#477743",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-phantomsection-root-app-b5mm4: #477743;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10449
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "green",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-phantomsection-root-app-b5mm4: green;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10749
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "green",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-phantomsection-root-app-b5mm4: green;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11043
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "var(--palette-success)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-phantomsection-root-app-b5mm4: var(--palette-success);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11336
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#9fffe7",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-phantomsection-root-app-b5mm4: #9fffe7;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12164
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#93535a",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-phantomsection-root-app-b5mm4: #93535a;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12470
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#b26fbe",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-phantomsection-root-app-b5mm4: #b26fbe;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12776
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-b5mm4",
+        "value": "#474747",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-phantomsection-root-app-b5mm4: #474747;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13081
+        }
+      }
+    ],
+    "--theme-components-phantomsection-root-app-o0md2": [
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --theme-components-phantomsection-root-app-o0md2: black; \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1328
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7286
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7589
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#020205",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --theme-components-phantomsection-root-app-o0md2: #020205;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7896
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#050808",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --theme-components-phantomsection-root-app-o0md2: #050808;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8203
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8511
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#002b36",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --theme-components-phantomsection-root-app-o0md2: #002b36;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8825
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#000000",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --theme-components-phantomsection-root-app-o0md2: #000000;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9250
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#041023",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --theme-components-phantomsection-root-app-o0md2: #041023;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9551
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9853
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10149
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10450
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10750
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "black",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --theme-components-phantomsection-root-app-o0md2: black;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11044
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "var(--palette-burnt-chestnut-dark)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --theme-components-phantomsection-root-app-o0md2: var(--palette-burnt-chestnut-dark);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11337
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#040913",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --theme-components-phantomsection-root-app-o0md2: #040913;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12165
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#081012",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --theme-components-phantomsection-root-app-o0md2: #081012;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12471
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#343635",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --theme-components-phantomsection-root-app-o0md2: #343635;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12777
+        }
+      },
+      {
+        "property": "--theme-components-phantomsection-root-app-o0md2",
+        "value": "#5b5d4f",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --theme-components-phantomsection-root-app-o0md2: #5b5d4f;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13082
+        }
+      }
+    ],
+    "--ui-header-bag": [
+      {
+        "property": "--ui-header-bag",
+        "value": "linear-gradient(135deg, rgb(32, 2, 24), #000000 30%, rgb(2, 25, 24) 50%, #000000 70%, rgb(2, 35, 34))",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --ui-header-bag: linear-gradient(135deg, rgb(32, 2, 24), #000000 30%, rgb(2, 25, 24) 50%, #000000 70%, rgb(2, 35, 34));\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8047
+        }
+      }
+    ],
+    "--ui-logo-font": [
+      {
+        "property": "--ui-logo-font",
+        "value": "World Discovery Five PERSONAL",
+        "important": false,
+        "selector": ":root[data-theme='rose-petal']",
+        "conditions": [],
+        "themeContexts": [
+          "rose-petal"
+        ],
+        "cssText": ":root[data-theme='rose-petal'] {\n    --ui-logo-font: World Discovery Five PERSONAL;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11863
+        }
+      }
+    ],
+    "--ui-master-filter": [
+      {
+        "property": "--ui-master-filter",
+        "value": "saturate(.93)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --ui-master-filter: saturate(.93);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7102
+        }
+      },
+      {
+        "property": "--ui-master-filter",
+        "value": "blur(0px) saturate(1)",
+        "important": false,
+        "selector": ":root[data-theme='pearlescence']",
+        "conditions": [],
+        "themeContexts": [
+          "pearlescence"
+        ],
+        "cssText": ":root[data-theme='pearlescence'] {\n    --ui-master-filter: blur(0px) saturate(1);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11738
+        }
+      },
+      {
+        "property": "--ui-master-filter",
+        "value": "blur(0px) saturate(1)",
+        "important": false,
+        "selector": ":root[data-theme='rose-petal']",
+        "conditions": [],
+        "themeContexts": [
+          "rose-petal"
+        ],
+        "cssText": ":root[data-theme='rose-petal'] {\n    --ui-master-filter: blur(0px) saturate(1);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11861
+        }
+      }
+    ],
+    "--ui-modal-border": [
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(0, 200, 200, 0.3)",
+        "important": false,
+        "selector": ":root",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ":root {\n  --ui-modal-border: rgba(0, 200, 200, 0.3); \n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 1192
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(193, 203, 191, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='glacial-dusk']",
+        "conditions": [],
+        "themeContexts": [
+          "glacial-dusk"
+        ],
+        "cssText": ":root[data-theme='glacial-dusk'] {\n  --ui-modal-border: rgba(193, 203, 191, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7150
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(255, 113, 212, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --ui-modal-border: rgba(255, 113, 212, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7453
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(123, 44, 191, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='winterbloom']",
+        "conditions": [],
+        "themeContexts": [
+          "winterbloom"
+        ],
+        "cssText": ":root[data-theme='winterbloom'] {\n  --ui-modal-border: rgba(123, 44, 191, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 7760
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(163, 247, 229, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='antarctic-teafog']",
+        "conditions": [],
+        "themeContexts": [
+          "antarctic-teafog"
+        ],
+        "cssText": ":root[data-theme='antarctic-teafog'] {\n  --ui-modal-border: rgba(163, 247, 229, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8068
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(222, 155, 149, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='medieval-taurus']",
+        "conditions": [],
+        "themeContexts": [
+          "medieval-taurus"
+        ],
+        "cssText": ":root[data-theme='medieval-taurus'] {\n  --ui-modal-border: rgba(222, 155, 149, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8372
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(147, 161, 161, 0.25)",
+        "important": false,
+        "selector": ":root[data-theme='mistic']",
+        "conditions": [],
+        "themeContexts": [
+          "mistic"
+        ],
+        "cssText": ":root[data-theme='mistic'] {\n  --ui-modal-border: rgba(147, 161, 161, 0.25);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8690
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(255, 220, 225, 0.18)",
+        "important": false,
+        "selector": ":root[data-theme='space-ss']",
+        "conditions": [],
+        "themeContexts": [
+          "space-ss"
+        ],
+        "cssText": ":root[data-theme='space-ss'] {\n  --ui-modal-border: rgba(255, 220, 225, 0.18);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 8986
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(255, 255, 255, 0.1)",
+        "important": false,
+        "selector": ":root[data-theme='postlinear-glassos']",
+        "conditions": [],
+        "themeContexts": [
+          "postlinear-glassos"
+        ],
+        "cssText": ":root[data-theme='postlinear-glassos'] {\n  --ui-modal-border: rgba(255, 255, 255, 0.1);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9113
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(255, 200, 215, 0.06)",
+        "important": false,
+        "selector": ":root[data-theme='sunbrocksen']",
+        "conditions": [],
+        "themeContexts": [
+          "sunbrocksen"
+        ],
+        "cssText": ":root[data-theme='sunbrocksen'] {\n  --ui-modal-border: rgba(255, 200, 215, 0.06);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9415
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(1, 247, 255, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='neon-orbi']",
+        "conditions": [],
+        "themeContexts": [
+          "neon-orbi"
+        ],
+        "cssText": ":root[data-theme='neon-orbi'] {\n  --ui-modal-border: rgba(1, 247, 255, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 9720
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "transparent",
+        "important": false,
+        "selector": ":root[data-theme='transparent']",
+        "conditions": [],
+        "themeContexts": [
+          "transparent"
+        ],
+        "cssText": ":root[data-theme='transparent'] {\n  --ui-modal-border: transparent;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10016
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(135, 191, 138, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='peppermint-foil']",
+        "conditions": [],
+        "themeContexts": [
+          "peppermint-foil"
+        ],
+        "cssText": ":root[data-theme='peppermint-foil'] {\n  --ui-modal-border: rgba(135, 191, 138, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10314
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(0, 200, 200, 0.3)",
+        "important": false,
+        "selector": ".dark",
+        "conditions": [],
+        "themeContexts": [],
+        "cssText": ".dark {\n  --ui-modal-border: rgba(0, 200, 200, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10614
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(0, 83, 226, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='sherbert-sakura']",
+        "conditions": [],
+        "themeContexts": [
+          "sherbert-sakura"
+        ],
+        "cssText": ":root[data-theme='sherbert-sakura'] {\n  --ui-modal-border: rgba(0, 83, 226, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 10911
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(250, 128, 114, 0.4)",
+        "important": false,
+        "selector": ":root[data-theme='burnt-chestnut']",
+        "conditions": [],
+        "themeContexts": [
+          "burnt-chestnut"
+        ],
+        "cssText": ":root[data-theme='burnt-chestnut'] {\n  --ui-modal-border: rgba(250, 128, 114, 0.4);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11204
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "#72ddd93d",
+        "important": false,
+        "selector": ":root[data-theme='great-wave']",
+        "conditions": [],
+        "themeContexts": [
+          "great-wave"
+        ],
+        "cssText": ":root[data-theme='great-wave'] {\n  --ui-modal-border: #72ddd93d;\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11512
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(220, 230, 255, 0.18)",
+        "important": false,
+        "selector": ":root[data-theme='space-glass']",
+        "conditions": [],
+        "themeContexts": [
+          "space-glass"
+        ],
+        "cssText": ":root[data-theme='space-glass'] {\n  --ui-modal-border: rgba(220, 230, 255, 0.18);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11660
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(165, 167, 164, 0.58)",
+        "important": false,
+        "selector": ":root[data-theme='pearlescence']",
+        "conditions": [],
+        "themeContexts": [
+          "pearlescence"
+        ],
+        "cssText": ":root[data-theme='pearlescence'] {\n    --ui-modal-border: rgba(165, 167, 164, 0.58);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11782
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(172, 152, 159, 0.58)",
+        "important": false,
+        "selector": ":root[data-theme='rose-petal']",
+        "conditions": [],
+        "themeContexts": [
+          "rose-petal"
+        ],
+        "cssText": ":root[data-theme='rose-petal'] {\n    --ui-modal-border: rgba(172, 152, 159, 0.58);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 11905
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(169, 225, 255, 0.36)",
+        "important": false,
+        "selector": ":root[data-theme='mint-icecube']",
+        "conditions": [],
+        "themeContexts": [
+          "mint-icecube"
+        ],
+        "cssText": ":root[data-theme='mint-icecube'] {\n  --ui-modal-border: rgba(169, 225, 255, 0.36);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12029
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(171, 168, 129, 0.3)",
+        "important": false,
+        "selector": ":root[data-theme='vineyard-gloom']",
+        "conditions": [],
+        "themeContexts": [
+          "vineyard-gloom"
+        ],
+        "cssText": ":root[data-theme='vineyard-gloom'] {\n  --ui-modal-border: rgba(171, 168, 129, 0.3);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12335
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(161, 48, 101, 0.6)",
+        "important": false,
+        "selector": ":root[data-theme='autumn-candle']",
+        "conditions": [],
+        "themeContexts": [
+          "autumn-candle"
+        ],
+        "cssText": ":root[data-theme='autumn-candle'] {\n  --ui-modal-border: rgba(161, 48, 101, 0.6);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12641
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(10, 0, 20, 0.5)",
+        "important": false,
+        "selector": ":root[data-theme='caspian-sea']",
+        "conditions": [],
+        "themeContexts": [
+          "caspian-sea"
+        ],
+        "cssText": ":root[data-theme='caspian-sea'] {\n  --ui-modal-border: rgba(10, 0, 20, 0.5);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 12947
+        }
+      },
+      {
+        "property": "--ui-modal-border",
+        "value": "rgba(124, 149, 94, 0.26)",
+        "important": false,
+        "selector": ":root[data-theme='verdigris']",
+        "conditions": [],
+        "themeContexts": [
+          "verdigris"
+        ],
+        "cssText": ":root[data-theme='verdigris'] {\n  --ui-modal-border: rgba(124, 149, 94, 0.26);\n}",
+        "source": {
+          "file": "docs/theme-archive/AppCombined.before-theme-split.css",
+          "line": 13262
+        }
+      }
+    ]
+  }
+}

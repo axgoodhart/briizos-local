@@ -424,7 +424,7 @@ function InteractionPanel({ showPanelBackground = true }) {
               ? 'Follow-up suggestions: ON (click to disable)'
               : 'Follow-up suggestions: OFF (click to enable)'}
             aria-pressed={suggestionsEnabled}
-            style={{ opacity: suggestionsEnabled ? 0.8 : 0.4 }}
+            data-theme-inline="interactionpanel-button-state-2" data-theme-state-opacity={(suggestionsEnabled ? '0' : '1')}
           >
             􀌴
           </button>
@@ -645,14 +645,7 @@ function InteractionPanel({ showPanelBackground = true }) {
                   {toolCalls && toolCalls.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                       {toolCalls.map((tc) => (
-                        <div key={tc.id} style={{
-                          borderLeft: `2px solid ${tc.status === 'running' ? '#fbbf24' : '#4ade80'}`,
-                          padding: '6px 10px',
-                          margin: '4px 0',
-                          fontSize: '12px',
-                          background: 'rgba(255,255,255,0.03)',
-                          borderRadius: '0 4px 4px 0',
-                        }}>
+                        <div key={tc.id} data-theme-inline="interaction-panel-div-1" data-theme-state-border-left={(tc.status === 'running' ? '0' : '1')} style={{ padding: '6px 10px', margin: '4px 0' }}>
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -666,27 +659,15 @@ function InteractionPanel({ showPanelBackground = true }) {
                             }}>
                               {tc.status === 'running' ? '\u27F3' : '\u2713'}
                             </span>
-                            <span style={{
-                              fontWeight: 600,
-                              color: '#94a3b8',
-                            }}>
+                            <span data-theme-inline="interaction-panel-span-1">
                               {tc.name}
                             </span>
-                            <span style={{
-                              fontSize: '11px',
-                              opacity: 0.7,
-                            }}>
+                            <span data-theme-inline="interaction-panel-span-2">
                               {tc.status === 'running' ? 'Running...' : 'Done'}
                             </span>
                           </div>
                           {tc.status === 'done' && tc.result && (
-                            <div style={{
-                              marginTop: '4px',
-                              fontSize: '12px',
-                              opacity: 0.85,
-                              maxHeight: '120px',
-                              overflowY: 'auto',
-                            }}>
+                            <div data-theme-inline="interaction-panel-div-2" style={{ marginTop: '4px', maxHeight: '120px', overflowY: 'auto' }}>
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result, null, 2)}
                               </ReactMarkdown>
@@ -701,35 +682,23 @@ function InteractionPanel({ showPanelBackground = true }) {
                   {subAgentTasks && subAgentTasks.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                       {subAgentTasks.map((task) => (
-                        <div key={task.id} style={{
-                          borderLeft: `2px solid ${
-                            task.status === 'running' ? '#818cf8' :
-                            task.status === 'completed' ? '#4ade80' :
-                            '#ef4444'
-                          }`,
-                          padding: '6px 10px',
-                          marginBottom: '4px',
-                          fontSize: '12px',
-                          color: 'var(--text-secondary, #94a3b8)',
-                          background: 'rgba(255,255,255,0.03)',
-                          borderRadius: '0 4px 4px 0',
-                        }}>
-                          <span style={{ fontWeight: 500, color: 'var(--text-primary, #e2e8f0)' }}>
+                        <div key={task.id} data-theme-inline="interaction-panel-div-3" data-theme-state-border-left={(task.status === 'running' ? '0' : (task.status === 'completed' ? '1' : '2'))} style={{ padding: '6px 10px', marginBottom: '4px' }}>
+                          <span data-theme-inline="interaction-panel-span-3">
                             {task.status === 'running' ? '\u27F3' : task.status === 'completed' ? '\u2713' : '\u2717'}
                             {' '}{task.description}
                           </span>
                           {task.status === 'running' && task.messageCount > 0 && (
-                            <span style={{ marginLeft: '8px', opacity: 0.7 }}>
+                            <span data-theme-inline="interaction-panel-span-4" style={{ marginLeft: '8px' }}>
                               ({task.messageCount} steps)
                             </span>
                           )}
                           {task.status === 'failed' && task.error && (
-                            <div style={{ marginTop: '2px', color: '#ef4444', fontSize: '11px' }}>
+                            <div data-theme-inline="interaction-panel-div-4" style={{ marginTop: '2px' }}>
                               {task.error}
                             </div>
                           )}
                           {task.status === 'timed_out' && (
-                            <div style={{ marginTop: '2px', color: '#f59e0b', fontSize: '11px' }}>
+                            <div data-theme-inline="interaction-panel-div-5" style={{ marginTop: '2px' }}>
                               Timed out
                             </div>
                           )}
@@ -793,25 +762,9 @@ function InteractionPanel({ showPanelBackground = true }) {
 
       {/* Clarification Bar */}
       {pendingClarification && !pendingToolConfirmation && (
-        <div className="lg-status-bar" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
-          fontSize: '12px',
-          color: '#93c5fd',
-          background: 'rgba(59, 130, 246, 0.08)',
-          borderTop: '1px solid rgba(59, 130, 246, 0.2)',
-        }}>
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            flexShrink: 0,
-            background: '#93c5fd',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }} />
-          <span style={{ flex: 1, lineHeight: '1.3' }}>
+        <div className="lg-status-bar" data-theme-inline="interaction-panel-lg-status-bar-1" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px' }}>
+          <span data-theme-inline="interaction-panel-span-5" style={{ width: '6px', height: '6px', flexShrink: 0, animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <span data-theme-inline="interaction-panel-span-6" style={{ flex: 1 }}>
             <strong>Clarify:</strong> {pendingClarification.question}
           </span>
         </div>
@@ -819,30 +772,8 @@ function InteractionPanel({ showPanelBackground = true }) {
 
       {/* Backend status indicator */}
       {lgStatus && lgStatus !== 'running' && lgStatus !== 'unknown' && lgStatus !== 'unavailable' && (
-        <div className="lg-status-bar" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 12px',
-          fontSize: '11px',
-          color: lgStatus === 'failed' ? '#f87171'
-            : lgStatus === 'env_missing' ? '#fb923c'
-            : lgStatus === 'crashed' || lgStatus === 'error' ? '#f87171'
-            : '#fbbf24',
-          background: 'rgba(10, 22, 40, 0.7)',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
-        }}>
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            flexShrink: 0,
-            background: lgStatus === 'starting' ? '#fbbf24'
-              : lgStatus === 'failed' ? '#f87171'
-              : lgStatus === 'env_missing' ? '#fb923c'
-              : '#f87171',
-            animation: lgStatus === 'starting' ? 'pulse 1.5s ease-in-out infinite' : 'none',
-          }} />
+        <div className="lg-status-bar" data-theme-inline="interaction-panel-lg-status-bar-2" data-theme-state-color={(lgStatus === 'failed' ? '0' : (lgStatus === 'env_missing' ? '1' : (lgStatus === 'crashed' || lgStatus === 'error' ? '0' : '2')))} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 12px' }}>
+          <span data-theme-inline="interaction-panel-span-7" data-theme-state-background={(lgStatus === 'starting' ? '0' : (lgStatus === 'failed' ? '1' : (lgStatus === 'env_missing' ? '2' : '1')))} style={{ width: '6px', height: '6px', flexShrink: 0, animation: lgStatus === 'starting' ? 'pulse 1.5s ease-in-out infinite' : 'none' }} />
           <span>
             {lgStatus === 'starting' && 'Starting...'}
             {(lgStatus === 'crashed' || lgStatus === 'error') && 'Reconnecting...'}

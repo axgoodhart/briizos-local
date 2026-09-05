@@ -1,4 +1,6 @@
 const v = require('./local-data/validation');
+const postcss = require('postcss');
+const themeContract = require('../src/theme/themeContract.json');
 
 const BUILT_IN_THEME_IDS = new Set([
   'default', 'antarctic-teafog', 'postlinear-glassos', 'neon-orbi', 'winterbloom',
@@ -160,6 +162,30 @@ function structuredStyle(input, property, label) {
 }
 
 function validateThemeDocument(input, label = 'theme') {
+  if (input?.schemaVersion === themeContract.version) {
+    v.object(input, label, themeContract.documentKeys);
+    const id = v.identifier(input.id, `${label}.id`);
+    const name = v.string(input.name, `${label}.name`, { required: true, max: 80 });
+    // A context identifies selectors in this document, not a parent theme to load.
+    const baseThemeId = v.identifier(input.baseThemeId, `${label}.baseThemeId`);
+    const mode = v.oneOf(input.mode, `${label}.mode`, ['dark', 'light']);
+    const createdAt = v.integer(input.createdAt, `${label}.createdAt`, { min: 0 });
+    const updatedAt = v.integer(input.updatedAt, `${label}.updatedAt`, { min: 0 });
+    if (typeof input.cssText !== 'string' || input.cssText.length > themeContract.maxCssLength) v.fail('INVALID_INPUT', `${label}.cssText must be CSS text with at most ${themeContract.maxCssLength} characters`);
+    let sheet;
+    try { sheet = postcss.parse(input.cssText, { from: undefined }); }
+    catch (error) { v.fail('INVALID_INPUT', `${label}.cssText: ${error.reason || error.message} at line ${error.line || 1}`); }
+    sheet.walkAtRules((rule) => {
+      if (themeContract.blockedAtRules.includes(rule.name.toLowerCase())) v.fail('INVALID_INPUT', `${label}.cssText must include its own rules instead of importing another stylesheet`);
+    });
+    sheet.walkDecls((declaration) => {
+      if (themeContract.blockedDeclarationProperties.includes(declaration.prop.toLowerCase()) || new RegExp(themeContract.blockedValuePattern, 'i').test(declaration.value)) v.fail('INVALID_INPUT', `${label}.cssText contains an executable value`);
+    });
+    if (!input.variables || typeof input.variables !== 'object' || Array.isArray(input.variables) || Object.keys(input.variables).length) v.fail('INVALID_INPUT', `${label}.variables must be empty; values are stored in cssText`);
+    if (!Array.isArray(input.overrides) || input.overrides.length) v.fail('INVALID_INPUT', `${label}.overrides must be empty; rules are stored in cssText`);
+    const generator = input.generator == null ? null : generatorSettings(input.generator, `${label}.generator`);
+    return { schemaVersion: themeContract.version, id, name, baseThemeId, mode, createdAt, updatedAt, generator, variables: {}, overrides: [], cssText: input.cssText };
+  }
   v.object(input, label, ['schemaVersion', 'id', 'name', 'baseThemeId', 'mode', 'createdAt', 'updatedAt', 'generator', 'variables', 'overrides']);
   if (input.schemaVersion !== 1) v.fail('INVALID_INPUT', `${label}.schemaVersion must be 1`);
   const themeId = v.identifier(input.id, `${label}.id`);
@@ -210,12 +236,12 @@ function validateThemeDocument(input, label = 'theme') {
 }
 
 function validateThemeLibrary(input) {
-  v.object(input, 'ui_theme_library', ['schemaVersion', 'themes']);
-  if (input.schemaVersion !== 1) v.fail('INVALID_INPUT', 'ui_theme_library.schemaVersion must be 1');
-  if (!Array.isArray(input.themes) || input.themes.length > 64) v.fail('INVALID_INPUT', 'ui_theme_library.themes must contain at most 64 themes');
+  v.object(input, 'ui_theme_library', themeContract.libraryKeys);
+  if (![1, themeContract.version].includes(input.schemaVersion)) v.fail('INVALID_INPUT', 'ui_theme_library.schemaVersion must be 1 or 2');
+  if (!Array.isArray(input.themes) || input.themes.length > themeContract.maxThemes) v.fail('INVALID_INPUT', `ui_theme_library.themes must contain at most ${themeContract.maxThemes} themes`);
   const themes = input.themes.map((theme, index) => validateThemeDocument(theme, `ui_theme_library.themes[${index}]`));
   if (new Set(themes.map((theme) => theme.id)).size !== themes.length) v.fail('INVALID_INPUT', 'ui_theme_library theme IDs must be unique');
-  return { schemaVersion: 1, themes };
+  return { schemaVersion: input.schemaVersion, themes };
 }
 
 module.exports = { validateThemeDocument, validateThemeLibrary };

@@ -25,7 +25,7 @@ function DraggableGithubFile({ item, githubPath, isSelected, onNavigateFolder })
     <div
       ref={!item.isDirectory ? drag : undefined}
       className={`github-file-item ${item.isDirectory ? 'folder' : 'file'} ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
-      style={{ opacity: isDragging ? 0.4 : 1 }}
+      data-theme-inline="sourcespanel-div-state-1" data-theme-state-opacity={(isDragging ? '0' : '1')}
       onClick={() => item.isDirectory ? onNavigateFolder(item) : null}
     >
       <span className="file-icon">

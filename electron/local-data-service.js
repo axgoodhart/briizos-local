@@ -8,6 +8,7 @@ const v = require('./local-data/validation');
 const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT } = require('./local-data/limits');
 const { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES } = require('./built-in-models');
 const { validateThemeLibrary } = require('./theme-library-validation');
+const themeContract = require('../src/theme/themeContract.json');
 
 const TASK_STATUSES = [
   'pending', 'created', 'running', 'in_progress', 'active', 'waiting',
@@ -19,6 +20,7 @@ const CONTINUITY_DOMAINS = new Set(['tasks', 'organizer', 'retainedText']);
 const SETTING_KEYS = new Set([
   'ui_theme',
   'ui_theme_library',
+  'ui_theme_library_backup',
   'chat_config',
   'actiondeck_panel_settings',
   'briizify_plan',
@@ -198,7 +200,7 @@ class LocalDataService extends EventEmitter {
 
   _validateSetting(key, value) {
     if (!SETTING_KEYS.has(key)) v.fail('INVALID_INPUT', 'Unsupported setting key');
-    if (key === 'ui_theme') return v.string(value, key, { required: true, max: 100 });
+    if (key === 'ui_theme') return v.identifier(value, key);
     if (key === 'shell_mode') return v.oneOf(value, key, SHELL_MODES);
     if (key === 'ambient_workspace') {
       if (value === null) return null;
@@ -218,6 +220,8 @@ class LocalDataService extends EventEmitter {
       return value;
     }
     if (key === 'ui_theme_library') return validateThemeLibrary(value);
+    // Preserve the original payload even when recovery cannot validate a theme.
+    if (key === 'ui_theme_library_backup') return value;
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
     if (key === 'suggestions_enabled') return v.boolean(value, key);
     if (key.endsWith('_url')) {
@@ -319,7 +323,13 @@ class LocalDataService extends EventEmitter {
   setSetting(key, value) {
     key = v.string(key, 'setting key', { required: true, max: 100 });
     const normalized = this._validateSetting(key, value);
-    const valueJson = this._jsonValue(normalized, key, 2000000);
+    // Complete CSS libraries have a per-document contract; the old 2 MB generic
+    // settings limit rejected a fifth ordinary theme. Allow JSON's worst-case
+    // escaping plus metadata for every document that the shared contract accepts.
+    const maxBytes = key === 'ui_theme_library' || key === 'ui_theme_library_backup'
+      ? themeContract.maxThemes * (themeContract.maxCssLength * 6 + 10000)
+      : 2000000;
+    const valueJson = this._jsonValue(normalized, key, maxBytes);
     this._assertReady();
     const existing = this.db.prepare(`
       SELECT key, value_json, revision, updated_at

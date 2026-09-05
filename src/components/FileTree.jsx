@@ -56,7 +56,7 @@ function FileTreeItem({ item, level = 0, selectedFiles, onExpand, expandedPaths 
       <div
         ref={drag}
         className={`file-tree-item ${item.isDirectory ? 'folder' : 'file'} ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
-        style={{ paddingLeft: `${indent + 8}px`, opacity: isDragging ? 0.4 : 1 }}
+        data-theme-inline="filetree-div-state-1" data-theme-state-opacity={(isDragging ? '0' : '1')} style={{ paddingLeft: `${indent + 8}px` }}
         onClick={item.isDirectory ? handleExpand : undefined}
       >
         {item.isDirectory && (
