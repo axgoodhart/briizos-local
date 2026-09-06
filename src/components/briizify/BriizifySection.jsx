@@ -25,6 +25,7 @@ function BriizifySection({ focused = false, onFocusedChange }) {
   const hasPlan = !!briizify.plan && briizify.status !== 'loading';
   const showSetup = setupOpen || busy;
   const artifactEngaged = hasPlan && !artifactHidden && !showSetup;
+  const engaged = showSetup || artifactEngaged;
 
   useEffect(() => {
     if (focused && !artifactEngaged) onFocusedChange?.(false);
@@ -88,7 +89,7 @@ function BriizifySection({ focused = false, onFocusedChange }) {
   }, [artifactEngaged, focused, onFocusedChange]);
 
   return (
-    <div className={`briizify-section ${focused ? 'focused' : ''}`}>
+    <div className={`briizify-section${engaged ? ' engaged' : ''}${focused ? ' focused' : ''}`}>
       {hasPlan && !artifactHidden && !showSetup && (
         <Priorifact
           plan={briizify.plan}
@@ -125,7 +126,7 @@ function BriizifySection({ focused = false, onFocusedChange }) {
         />
       )}
 
-      <div className={`briizify-tab-dock ${showSetup || artifactEngaged ? 'engaged' : ''} ${focused ? 'focused' : ''}`}>
+      <div className={`briizify-tab-dock${engaged ? ' engaged' : ''}${focused ? ' focused' : ''}`}>
         <button
           type="button"
           className="briizify-tab"
