@@ -1,3 +1,6 @@
+import BriizyCompanion from './components/briizy/BriizyCompanion';
+import { useInterfacePreferences } from './lib/interfacePreferences';
+import { useNativeDragSelectionLock } from './lib/dragSelection';
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import './AppCombined.css';
 import SourcesPanel from './components/SourcesPanel';
@@ -326,6 +329,8 @@ function AppContent({ layout, shell, floats }) {
   useToolBridge(executeTool, appContext);
   useTaskAutomation();
   const theme = useTheme();
+  useNativeDragSelectionLock();
+  const [interfacePreferences] = useInterfacePreferences();
   const briizyCapture = useBriizyCapture();
 
   // Tool execution context (appContext + layoutHook) flows through
@@ -1392,6 +1397,19 @@ function AppContent({ layout, shell, floats }) {
       {/* With the grid hidden, the Conversation background paints the whole
           app window instead of staying confined to the chat panel. */}
       {windowedOnly && <AmbientBackground />}
+      <BriizyCompanion
+        visible={briizyCapture.config?.avatarVisible ?? true}
+        onOpenSettings={() => { setDashboardTab('briizy'); setShowSettings(true); }}
+        onOpenChat={() => {
+          const win = floats.getWindow('interaction');
+          if (floatActive && win) floats.restoreWindow(win.id);
+          else if (gridActive) {
+            const panel = getPanelByType('interaction');
+            if (panel && !panel.visible) togglePanelVisibility(panel.id);
+            else if (!panel) layout.addPanel({ id: 'interaction', type: 'interaction' });
+          } else floats.openWindow('interaction');
+        }}
+      />
 
       {!windowedOnly && (<>
       <button
@@ -1428,7 +1446,7 @@ function AppContent({ layout, shell, floats }) {
           <ShellModeSwitch mode={shellMode} onChange={setShellMode} compact />
         </div>
 
-        <div className="header-dock-slot" data-theme-role="control-dock" data-theme-component="Application">
+        <div className="header-dock-slot" data-dock-colors={interfacePreferences.dockColors} data-theme-role="control-dock" data-theme-component="Application">
           <ControlBar
             variant="dock"
             dockStyle={headerDockStyle}

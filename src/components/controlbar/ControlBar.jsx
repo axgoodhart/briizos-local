@@ -55,57 +55,8 @@ const DEFAULT_HEADER_DOCK_ITEM_IDS = Object.freeze([
 const DOCK_ITEMS_BY_ID = new Map(EDITABLE_DOCK_ITEMS.map((item) => [item.id, item]));
 
 export function DockGlyph({ item, className, id, style }) {
-  const props = { className, id, style, 'aria-hidden': 'true' };
-
-  if (!item.icon) return <span {...props}>{item.glyph}</span>;
-
-  if (item.icon === 'journal') {
-    return (
-      <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 4.5h10.2A3.8 3.8 0 0 1 19 8.3v11.2H8.8A3.8 3.8 0 0 0 5 23V4.5Z" />
-        <path d="M5 19.5h10.2A3.8 3.8 0 0 1 19 23" />
-        <path d="M9 8h6M9 11.5h6" />
-      </svg>
-    );
-  }
-
-  if (item.icon === 'forest') {
-    return (
-      <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m12 3 4.2 6H14.5l4.3 5.4h-3.1l3.3 4.1H5.1l3.3-4.1H5.3L9.6 9H7.8L12 3Z" />
-        <path d="M12 18.5V22" />
-      </svg>
-    );
-  }
-
-  if (item.icon === 'notefalls') {
-    return (
-      <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 3.5h10l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V3.5Z" />
-        <path d="M15 3.5V8h4M8.5 12h7M8.5 15.5h5" />
-      </svg>
-    );
-  }
-
-  if (item.icon === 'sources') {
-    return (
-      <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="2.1" />
-        <circle cx="6" cy="6.5" r="2" />
-        <circle cx="18" cy="6.5" r="2" />
-        <circle cx="6" cy="17.5" r="2" />
-        <circle cx="18" cy="17.5" r="2" />
-        <path d="m7.5 8 3 2.4m3 0 3-2.4m-9 8 3-2.4m3 0 3 2.4" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="3.5" width="16" height="17" rx="2" />
-      <path d="m7.5 9 1.5 1.5L11.5 8M13 9h3.5M7.5 15l1.5 1.5 2.5-2.5M13 15h3.5" />
-    </svg>
-  );
+  const glyph = item.glyph || DOCK_ITEMS_BY_ID.get(item.id)?.glyph || '􀷾';
+  return <span className={className} id={id} style={style} aria-hidden="true">{glyph}</span>;
 }
 
 function HeaderDockButton({ item, active, onLaunch, dockItemProps }) {

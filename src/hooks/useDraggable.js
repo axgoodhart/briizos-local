@@ -1,3 +1,4 @@
+import { useDragSelectionLock } from '../lib/dragSelection';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
@@ -10,6 +11,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 export default function useDraggable({ onDragEnd, onResizeEnd } = {}) {
   const [draggingId, setDraggingId] = useState(null);
   const [resizingId, setResizingId] = useState(null);
+
+  useDragSelectionLock(!!(draggingId || resizingId));
 
   // Live position/size stored in refs to avoid re-rendering everything
   const dragRef = useRef(null);   // { id, offsetX, offsetY, x, y }
@@ -95,9 +98,13 @@ export default function useDraggable({ onDragEnd, onResizeEnd } = {}) {
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('blur', onMouseUp);
+      window.addEventListener('pointercancel', onMouseUp);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+        window.removeEventListener('blur', onMouseUp);
+        window.removeEventListener('pointercancel', onMouseUp);
     };
   }, [draggingId, resizingId, onDragEnd, onResizeEnd]);
 

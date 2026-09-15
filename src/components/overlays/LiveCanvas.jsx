@@ -1,3 +1,4 @@
+import { useDragSelectionLock } from '../../lib/dragSelection';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import logger from '../../lib/logger';
 import '../../AppCombined.css';
@@ -25,6 +26,7 @@ function LiveCanvas({
 }) {
   const [position, setPosition] = useState({ x: 100, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
+  useDragSelectionLock(!!(isDragging));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [panelSettings, setPanelSettings] = useState(() => normalizePanelSettings(
     canvasData?.meta?.panelSettings || {},
@@ -109,9 +111,13 @@ function LiveCanvas({
     };
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
+      window.addEventListener('blur', handleUp);
+      window.addEventListener('pointercancel', handleUp);
     return () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
+        window.removeEventListener('blur', handleUp);
+        window.removeEventListener('pointercancel', handleUp);
     };
   }, [isDragging, panelSettings.pinToCurrentLocation, updatePanelSettings]);
 

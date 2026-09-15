@@ -1,3 +1,5 @@
+import BriizyBehaviorSettings from '../briizy/BriizyBehaviorSettings';
+import DockAppearanceSettings from '../controlbar/DockAppearanceSettings';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useChatSettings } from '../../context/ChatSettingsContext';
@@ -1099,6 +1101,7 @@ function AppearanceTab({
     <div className="settings-section">
       <div className="appearance-interface-block">
         <h3 className="settings-section-title">Interface</h3>
+        <DockAppearanceSettings />
         <fieldset className="dock-style-options">
           <legend className="appearance-visually-hidden">Header dock style</legend>
           {HEADER_DOCK_STYLE_OPTIONS.map((option) => (
@@ -1199,6 +1202,7 @@ function BriizyTab() {
   if (!capture.available) {
     return (
       <div className="settings-section">
+        <BriizyBehaviorSettings />
         <h3 className="settings-section-title">briizy — screen memory</h3>
         <p className="settings-hint">briizy is not available in this build.</p>
       </div>
@@ -1206,6 +1210,7 @@ function BriizyTab() {
   }
   return (
     <div className="settings-section">
+      <BriizyBehaviorSettings />
       <CaptureSettingsPanel capture={capture} />
     </div>
   );

@@ -85,6 +85,7 @@ function normalizeStored(raw, topInset = 8) {
       height: Number(row.height) || FLOAT_APPS[app].height,
       z: Number.isFinite(row.z) ? row.z : Z_BASE,
       minimized: row.minimized === true,
+      closed: row.closed === true,
       filled: row.filled === true,
       prevBounds: row.prevBounds && typeof row.prevBounds === 'object' ? row.prevBounds : null,
     }, topInset));
@@ -161,8 +162,8 @@ export function useFloatWindows({ topInset = 8 } = {}) {
     saveTimerRef.current = setTimeout(() => {
       const payload = {
         version: 1,
-        windows: windows.map(({ id, app, title, x, y, width, height, z, minimized, filled, prevBounds }) => ({
-          id, app, title, x, y, width, height, z, minimized, filled, prevBounds,
+        windows: windows.map(({ id, app, title, x, y, width, height, z, minimized, closed, filled, prevBounds }) => ({
+          id, app, title, x, y, width, height, z, minimized, closed, filled, prevBounds,
         })),
       };
       try {
@@ -210,8 +211,9 @@ export function useFloatWindows({ topInset = 8 } = {}) {
     setWindows((prev) => {
       const existing = prev.find((win) => win.app === app);
       if (existing) {
+        logger.info('ui', 'Float window restored with its remembered size and position', { app });
         return withTopZ(
-          prev.map((win) => (win.app === app ? { ...win, minimized: false } : win)),
+          prev.map((win) => (win.app === app ? { ...win, minimized: false, closed: false } : win)),
           existing.id,
         );
       }
@@ -235,7 +237,7 @@ export function useFloatWindows({ topInset = 8 } = {}) {
     setWindows((prev) => {
       if (!prev.some((win) => win.id === id)) return prev;
       logger.info('ui', 'Float window closed', { app: id });
-      return prev.filter((win) => win.id !== id);
+      return prev.map((win) => win.id === id ? { ...win, closed: true, minimized: false } : win);
     });
   }, []);
 
@@ -244,15 +246,16 @@ export function useFloatWindows({ topInset = 8 } = {}) {
       const target = prev.find((win) => win.id === id);
       if (!target) return prev;
       const topZ = prev.reduce((acc, win) => Math.max(acc, win.z), Z_BASE - 1);
-      if (target.z === topZ && !target.minimized) return prev;
+      if (target.z === topZ && !target.minimized && !target.closed) return prev;
       return withTopZ(
-        prev.map((win) => (win.id === id ? { ...win, minimized: false } : win)),
+        prev.map((win) => (win.id === id ? { ...win, minimized: false, closed: false } : win)),
         id,
       );
     });
   }, []);
 
   const minimizeWindow = useCallback((id) => {
+    logger.info('ui', 'Float window minimized to dock', { app: id });
     setWindows((prev) => prev.map((win) => (win.id === id ? { ...win, minimized: true } : win)));
   }, []);
 
@@ -261,10 +264,12 @@ export function useFloatWindows({ topInset = 8 } = {}) {
   }, [focusWindow]);
 
   const moveWindow = useCallback((id, { x, y }) => {
+    logger.info('ui', 'Float window position remembered', { app: id, x, y });
     setWindows((prev) => prev.map((win) => (win.id === id ? clampBounds({ ...win, x, y }, topInsetRef.current) : win)));
   }, []);
 
   const resizeWindow = useCallback((id, { width, height }) => {
+    logger.info('ui', 'Float window size remembered', { app: id, width, height });
     setWindows((prev) => prev.map((win) => (win.id === id ? clampBounds({ ...win, width, height }, topInsetRef.current) : win)));
   }, []);
 
@@ -272,6 +277,7 @@ export function useFloatWindows({ topInset = 8 } = {}) {
      position action only — feature-owned "Back"/"Dock to" actions stay
      separate. */
   const returnHome = useCallback((id) => {
+    logger.info('ui', 'Float window returned home', { app: id });
     setWindows((prev) => withTopZ(
       prev.map((win) => (
         win.id === id
@@ -309,21 +315,21 @@ export function useFloatWindows({ topInset = 8 } = {}) {
     ));
   }, []);
 
-  const getWindow = useCallback((app) => windows.find((win) => win.app === app) || null, [windows]);
+  const getWindow = useCallback((app) => windows.find((win) => win.app === app && !win.closed) || null, [windows]);
 
   const topWindowId = useMemo(() => {
     let top = null;
     windows.forEach((win) => {
-      if (win.minimized) return;
+      if (win.minimized || win.closed) return;
       if (!top || win.z > top.z) top = win;
     });
     return top?.id || null;
   }, [windows]);
 
-  const minimizedWindows = useMemo(() => windows.filter((win) => win.minimized), [windows]);
+  const minimizedWindows = useMemo(() => windows.filter((win) => win.minimized && !win.closed), [windows]);
 
   return {
-    windows,
+    windows: windows.filter((win) => !win.closed),
     minimizedWindows,
     topWindowId,
     isLoading,

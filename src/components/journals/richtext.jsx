@@ -1,3 +1,4 @@
+import { lockDragSelection } from '../../lib/dragSelection';
 import { useEffect, useRef, useState } from 'react';
 import { Editor, Extension, Node } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -200,67 +201,22 @@ export function createNotesEditor(element, doc, {
   });
 }
 
-/* ── Icons (stroke = currentColor, match the app's inline SVG style) ── */
+/* ── SF Symbols from the supplied symbol catalog ── */
 
 const I = {
-  drag: (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="9" cy="6" r="1.4" /><circle cx="15" cy="6" r="1.4" />
-      <circle cx="9" cy="12" r="1.4" /><circle cx="15" cy="12" r="1.4" />
-      <circle cx="9" cy="18" r="1.4" /><circle cx="15" cy="18" r="1.4" />
-    </svg>
-  ),
+  drag: <span className="jr-sf-symbol" aria-hidden="true">􀌇</span>,
   bold: <span className="rt-glyph" data-theme-inline="richtext-rt-glyph-1">B</span>,
   italic: <span className="rt-glyph" data-theme-inline="richtext-rt-glyph-2">I</span>,
   underline: <span className="rt-glyph" data-theme-inline="richtext-rt-glyph-3">U</span>,
-  link: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M10 14a4 4 0 0 0 6 .4l2.5-2.5a4 4 0 1 0-5.7-5.7L11.5 7.5" />
-      <path d="M14 10a4 4 0 0 0-6-.4L5.5 12.1a4 4 0 1 0 5.7 5.7l1.3-1.3" />
-    </svg>
-  ),
-  code: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m9 8-5 4 5 4M15 8l5 4-5 4" />
-    </svg>
-  ),
+  link: <span className="jr-sf-symbol" aria-hidden="true">􀉣</span>,
+  code: <span className="jr-sf-symbol" aria-hidden="true">􀙚</span>,
   quote: <span className="rt-glyph" data-theme-inline="richtext-rt-glyph-4">”</span>,
-  alignL: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M4 6h16M4 11h10M4 16h16M4 21h10" transform="translate(0,-1.5)" />
-    </svg>
-  ),
-  alignC: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M4 6h16M7 11h10M4 16h16M7 21h10" transform="translate(0,-1.5)" />
-    </svg>
-  ),
-  alignR: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M4 6h16M10 11h10M4 16h16M10 21h10" transform="translate(0,-1.5)" />
-    </svg>
-  ),
-  bullets: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M9 6h11M9 12h11M9 18h11" />
-      <circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
-      <circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
-      <circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
-    </svg>
-  ),
-  numbers: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M10 6h10M10 12h10M10 18h10" />
-      <text x="2" y="8" font-size="7" fill="currentColor" stroke="none" font-family="system-ui">1</text>
-      <text x="2" y="14.5" font-size="7" fill="currentColor" stroke="none" font-family="system-ui">2</text>
-      <text x="2" y="21" font-size="7" fill="currentColor" stroke="none" font-family="system-ui">3</text>
-    </svg>
-  ),
-  chevron: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m6 10 6 6 6-6" />
-    </svg>
-  ),
+  alignL: <span className="jr-sf-symbol" aria-hidden="true">􀌀</span>,
+  alignC: <span className="jr-sf-symbol" aria-hidden="true">􀌁</span>,
+  alignR: <span className="jr-sf-symbol" aria-hidden="true">􀌂</span>,
+  bullets: <span className="jr-sf-symbol" aria-hidden="true">􀋲</span>,
+  numbers: <span className="jr-sf-symbol" aria-hidden="true">􀋴</span>,
+  chevron: <span className="jr-sf-symbol" aria-hidden="true">􀆈</span>,
 };
 
 /* ── Editor toolbar (docked strip / floating pill / float tray) ──────── */
@@ -296,6 +252,8 @@ export function EditorToolbar({
   const [link, setLinkPanel] = useState(null); // { range, text, url } when open
   const [, force] = useState(0); // re-render after async font-library load
   const toolbarRef = useRef(null);
+  const stopDragRef = useRef(null);
+  useEffect(() => () => stopDragRef.current?.(), []);
 
   useEffect(() => {
     if (isTray || isDocked || pos) return;
@@ -327,6 +285,8 @@ export function EditorToolbar({
     const el = toolbarRef.current;
     const rootEl = rootRef?.current;
     if (!el || !rootEl) return;
+    stopDragRef.current?.();
+    const release = lockDragSelection();
     const rect = el.getBoundingClientRect();
     const parent = rootEl.getBoundingClientRect();
     const ox = e.clientX - rect.left;
@@ -340,6 +300,10 @@ export function EditorToolbar({
       setPos(last);
     };
     const up = () => {
+      release();
+      stopDragRef.current = null;
+      window.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       if (last) {
@@ -350,6 +314,9 @@ export function EditorToolbar({
         });
       }
     };
+    stopDragRef.current = up;
+    window.addEventListener('blur', up);
+    window.addEventListener('pointercancel', up);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };

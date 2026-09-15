@@ -42,7 +42,7 @@ const SETTING_KEYS = new Set([
   'ambient_workspace',
 ]);
 const SHELL_MODES = ['grid', 'windowed', 'hybrid'];
-const AMBIENT_WINDOW_FIELDS = ['id', 'app', 'title', 'x', 'y', 'width', 'height', 'z', 'minimized', 'filled', 'prevBounds'];
+const AMBIENT_WINDOW_FIELDS = ['id', 'app', 'title', 'x', 'y', 'width', 'height', 'z', 'minimized', 'closed', 'filled', 'prevBounds'];
 const BRIIZTORM_KEYS = new Set(['projects', 'theme', 'flightSettings', 'flightPresets']);
 const COMMAND_STATUSES = ['accepted', 'queued', 'running', 'waiting_for_user', 'completed', 'failed', 'cancelled', 'expired', 'rejected'];
 const RUN_STATUSES = new Set(COMMAND_STATUSES);

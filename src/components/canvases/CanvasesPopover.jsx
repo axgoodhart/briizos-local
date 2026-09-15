@@ -1,3 +1,4 @@
+import { useInterfacePreferences } from '../../lib/interfacePreferences';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CanvasCard from './CanvasCard';
@@ -20,6 +21,7 @@ function CanvasesPopover({
   const popoverRef = useRef(null);
   const [newFlowOpen, setNewFlowOpen] = useState(false);
   const [anchorPlacement, setAnchorPlacement] = useState(null);
+  const [dockPreferences] = useInterfacePreferences();
 
   useLayoutEffect(() => {
     if (!isOpen || !anchorRef?.current || typeof window === 'undefined') {
@@ -55,21 +57,23 @@ function CanvasesPopover({
       const maxLeft = Math.max(8, viewportWidth - popoverWidth - 8);
 
       if (isDock) {
-        // Launched from the floating dock: anchor by bottom so the popover
-        // opens (and grows) upward, resting on the dock capsule. The offset
-        // rides the --fdock-height token, so a resized dock keeps the
-        // popover seated on it.
-        const left = Math.min(
-          Math.max(8, bounds.left + bounds.width / 2 - popoverWidth / 2),
-          maxLeft,
-        );
+        const edge = dockPreferences.dockEdge;
+        const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+        const horizontal = edge === 'top' || edge === 'bottom';
+        const left = horizontal
+          ? Math.min(Math.max(8, bounds.left + bounds.width / 2 - popoverWidth / 2), maxLeft)
+          : edge === 'left' ? Math.min(maxLeft, bounds.right + 12) : Math.max(8, bounds.left - popoverWidth - 12);
+        const maxHeight = horizontal
+          ? Math.max(80, edge === 'bottom' ? bounds.top - 24 : viewportHeight - bounds.bottom - 24)
+          : viewportHeight - 24;
         setAnchorPlacement({
-          isVertical: false,
+          isVertical: !horizontal,
           isDock: true,
           style: {
             position: 'fixed',
-            top: 'auto',
-            bottom: 'calc(var(--fdock-height, 52px) + 26px)',
+            top: edge === 'bottom' ? 'auto' : horizontal ? `${Math.round(bounds.bottom + 12)}px` : '12px',
+            bottom: edge === 'bottom' ? `${Math.round(viewportHeight - bounds.top + 12)}px` : 'auto',
+            maxHeight: `${maxHeight}px`,
             left: `${Math.round(left)}px`,
             right: 'auto',
             transform: 'none',
@@ -100,7 +104,7 @@ function CanvasesPopover({
       window.removeEventListener('resize', updatePlacement);
       window.removeEventListener('scroll', updatePlacement, true);
     };
-  }, [anchorRef, isOpen]);
+  }, [anchorRef, isOpen, dockPreferences.dockEdge]);
 
   // Close on outside click
   useEffect(() => {

@@ -104,6 +104,61 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+export function rememberPanelPlacement(layout, panelId) {
+  const location = findPanelLocation(layout, panelId);
+  if (!location) return layout;
+  const column = layout.columns[location.columnIndex];
+  const placement = {
+    columnId: column.id,
+    columnIndex: location.columnIndex,
+    panelIndex: location.panelIndex,
+    width: column.size,
+    height: column.panels[location.panelIndex].size,
+    siblings: column.panels.filter(p => p.panelId !== panelId).map(p => p.panelId),
+    before: layout.columns[location.columnIndex + 1]?.id,
+    after: layout.columns[location.columnIndex - 1]?.id,
+  };
+  return { ...layout, workspace: { ...layout.workspace,
+    panelPlacements: { ...layout.workspace?.panelPlacements, [panelId]: placement },
+  } };
+}
+
+export function restorePanelPlacement(layout, panel) {
+  if (findPanelLocation(layout, panel.panelId)) return layout;
+  const saved = layout.workspace?.panelPlacements?.[panel.panelId];
+  let columns = layout.columns.map(col => ({ ...col, panels: [...col.panels] }));
+  let index = saved ? columns.findIndex(col => col.id === saved.columnId
+    || col.panels.some(p => saved.siblings?.includes(p.panelId))) : -1;
+  const width = Math.max(5, Math.min(95, Number(saved?.width) || Number(panel.width) || 20));
+  if (index >= 0) {
+    const column = columns[index];
+    const height = Math.max(5, Math.min(95, Number(saved.height) || 50));
+    const total = column.panels.reduce((sum, p) => sum + p.size, 0) || 100;
+    column.panels = column.panels.map(p => ({ ...p, size: p.size / total * (100 - height) }));
+    column.panels.splice(Math.max(0, Math.min(saved.panelIndex || 0, column.panels.length)), 0,
+      { panelId: panel.panelId, type: panel.type, size: height });
+    column.size = width;
+  } else {
+    index = saved?.before ? columns.findIndex(col => col.id === saved.before) : -1;
+    if (index < 0 && saved?.after) {
+      const after = columns.findIndex(col => col.id === saved.after);
+      if (after >= 0) index = after + 1;
+    }
+    if (index < 0) index = Math.min(saved?.columnIndex ?? columns.length, columns.length);
+    columns.splice(Math.max(0, index), 0, {
+      id: saved?.columnId || nextColId(), size: width,
+      panels: [{ panelId: panel.panelId, type: panel.type, size: 100 }],
+    });
+  }
+  const others = columns.reduce((sum, col, i) => sum + (i === index ? 0 : col.size), 0);
+  columns = columns.map((col, i) => ({ ...col,
+    size: columns.length === 1 ? 100 : i === index ? width : col.size / (others || 1) * (100 - width),
+  }));
+  return simplifyLayout({ ...layout, columns,
+    hiddenPanels: (layout.hiddenPanels || []).filter(p => p.panelId !== panel.panelId),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Drop zone detection (adapted from waveterm's determineDropDirection)
 // ---------------------------------------------------------------------------

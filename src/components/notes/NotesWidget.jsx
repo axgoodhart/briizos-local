@@ -1,3 +1,5 @@
+import { useDragSelectionLock } from '../../lib/dragSelection';
+import { createPortal } from 'react-dom';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { computeFloatingShellChrome } from '../../lib/floatingShell';
 import logger from '../../lib/logger';
@@ -27,12 +29,46 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
   const [drawerDragOffset, setDrawerDragOffset] = useState({ x: 0, y: 0 });
   const [drawerResizeStart, setDrawerResizeStart] = useState({ mouseX: 0, mouseY: 0, width: 300, height: 520 });
 
+  useDragSelectionLock(!!(draggingId || resizingId || draggingDrawer || resizingDrawer));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Reopening is a side-drawer action; a previous free drag must not strand it.
+    const width = Math.min(drawerSize.width, window.innerWidth - 16);
+    const height = Math.min(drawerSize.height, window.innerHeight - 16);
+    const leftSide = drawerPos && drawerPos.x + width / 2 < window.innerWidth / 2;
+    setDrawerPos({
+      x: leftSide ? 8 : Math.max(8, window.innerWidth - width - 8),
+      y: Math.max(8, Math.min(drawerPos?.y ?? window.innerHeight * .28, window.innerHeight - height - 8)),
+    });
+    logger.info('notes', 'Notes drawer opened at the window edge');
+  }, [isOpen]);
+
   const MIN_NOTE_WIDTH = 220;
   const MIN_NOTE_HEIGHT = 170;
   const MIN_DRAWER_WIDTH = 240;
   const MIN_DRAWER_HEIGHT = 300;
   const TEXT_SAVE_DEBOUNCE_MS = 10_000;
   const REMOTE_REFRESH_DEBOUNCE_MS = 10_000;
+
+  const drawerRef = useRef(null);
+  const idleTimerRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const resetDrawerIdle = useCallback(() => {
+    clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      if (document.documentElement.classList.contains('app-drag-selection-lock')) { resetDrawerIdle(); return; }
+      drawerRef.current?.querySelector(':focus')?.blur();
+      onCloseRef.current?.();
+      logger.info('notes', 'Notes drawer tucked away after 10 seconds without interaction');
+    }, 10_000);
+  }, []);
+  useEffect(() => {
+    if (isOpen && !draggingDrawer && !resizingDrawer && !draggingId && !resizingId) resetDrawerIdle();
+    else clearTimeout(idleTimerRef.current);
+    return () => clearTimeout(idleTimerRef.current);
+  }, [isOpen, draggingDrawer, resizingDrawer, draggingId, resizingId, resetDrawerIdle]);
 
   const isEditingTextRef = useRef(false);
   const pendingRemoteNotesRef = useRef(null);
@@ -59,8 +95,8 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     content: note.content || '',
     color: note.color || '#fef08a',
     floating: !!note.floating,
-    x: note.x || 100,
-    y: note.y || 100,
+    x: note.x ?? 100,
+    y: note.y ?? 100,
     width: Math.max(note.width || 250, MIN_NOTE_WIDTH),
     height: Math.max(note.height || 200, MIN_NOTE_HEIGHT)
   })), []);
@@ -227,6 +263,8 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
       return;
     }
 
+    if (updates.color !== undefined) logger.info('notes', 'Note color selected', { noteId: id, color: updates.color });
+    if (updates.floating !== undefined) logger.info('notes', updates.floating ? 'Note floated out of drawer' : 'Note returned to drawer', { noteId: id });
     window.api.localData.stickyNotes.update(id, buildLocalUpdates(id, updates)).catch(error => {
       logger.error('ui', 'Failed to update note', error?.message);
     });
@@ -305,7 +343,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
 
   const handleMouseDown = (id, e) => {
     if (
-      e.target.closest('.note-input')
+      e.target.closest('button, input, textarea, select, a, [contenteditable]')
       || e.target.closest('.note-textarea')
       || e.target.closest('.note-resize-handle')
     ) return;
@@ -314,6 +352,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     if (!note?.floating) return;
     if (resizingId) return;
 
+    e.preventDefault();
     setDraggingId(id);
     setDragOffset({
       x: e.clientX - note.x,
@@ -425,30 +464,41 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
     if (draggingId || resizingId || draggingDrawer || resizingDrawer) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('blur', handleMouseUp);
+      window.addEventListener('pointercancel', handleMouseUp);
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('blur', handleMouseUp);
+        window.removeEventListener('pointercancel', handleMouseUp);
       };
     }
   }, [draggingId, resizingId, draggingDrawer, resizingDrawer, handleMouseMove, handleMouseUp]);
 
   // Separate docked and floating notes
-  const dockedNotes = notes.filter(n => !n.floating);
+  const dockedNotes = notes;
   const floatingNotes = notes.filter(n => n.floating);
 
-  return (
+  return createPortal(
     <>
       {/* Drawer */}
       <div
+        ref={drawerRef}
+        inert={!isOpen ? true : undefined}
+        onPointerMove={isOpen ? resetDrawerIdle : undefined}
+        onPointerDown={isOpen ? resetDrawerIdle : undefined}
+        onKeyDown={isOpen ? resetDrawerIdle : undefined}
+        onInput={isOpen ? resetDrawerIdle : undefined}
+        onWheel={isOpen ? resetDrawerIdle : undefined}
         className={`notes-drawer ${isOpen ? 'open' : ''} ${draggingDrawer ? 'drawer-dragging' : ''} ${resizingDrawer ? 'drawer-resizing' : ''}`}
         style={{
           ...(drawerPos ? { left: drawerPos.x, top: drawerPos.y, right: 'auto' } : {}),
           width: drawerSize.width,
           height: drawerSize.height,
-          transformOrigin: 'center center',
+          transformOrigin: drawerPos && drawerPos.x < window.innerWidth / 2 ? 'left center' : 'right center',
           transform: isOpen
-            ? `rotateY(${drawer3D.rotateY}deg) rotateX(${drawer3D.rotateX}deg)`
-            : `rotateY(${drawer3D.closedRotateY}deg) rotateX(-10deg) translateX(${drawer3D.closedTranslateX}px)`,
+            ? 'perspective(800px) rotateY(0deg)'
+            : 'perspective(800px) rotateY(-90deg)',
           boxShadow: isOpen ? drawer3D.boxShadow : undefined,
           borderRadius: drawer3D.borderRadius,
           borderTop: drawer3D.borderTop,
@@ -474,7 +524,12 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
               <button className="create-note-btn" onClick={addNote}>Create a note</button>
             </div>
           ) : (
-            dockedNotes.map(note => (
+            dockedNotes.map(note => note.floating ? (
+              <button key={note.id} type="button" className="note-shadow" style={{ '--note-color': note.color }}
+                onClick={() => dockNote(note.id)} title="Return this floating note to the drawer">
+                <span>{note.title || 'Untitled note'}</span><span>Floating · return to drawer</span>
+              </button>
+            ) : (
               <NoteCard
                 key={note.id}
                 note={note}
@@ -520,7 +575,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
           />
         </div>
       ))}
-    </>
+    </>, document.body
   );
 }
 
@@ -534,7 +589,7 @@ function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, 
       data-theme-role="card"
       data-theme-component="Notes"
       data-theme-instance={note.id}
-      style={{ borderTopColor: note.color }}
+      style={{ borderTopColor: note.color, '--note-color': note.color }}
     >
       <div className="note-header">
         <input
@@ -583,9 +638,14 @@ function NoteCard({ note, onUpdate, onDelete, onTearOff, onDock, onResizeStart, 
       />
       <div className="note-footer">
         <div className="color-picker">
-          {['#fef08a', '#a5f3fc', '#f0abfc', '#86efac', '#fca5a5'].map(color => (
+          {['#fef08a', '#a5f3fc', '#f0abfc', '#86efac', '#fca5a5', '#93c5fd'].map((color, index) => (
             <button
               key={color}
+              type="button"
+              aria-label={`Note color: ${['yellow', 'cyan', 'pink', 'green', 'coral', 'blue'][index]}`}
+              aria-pressed={note.color === color}
+              title={['Yellow', 'Cyan', 'Pink', 'Green', 'Coral', 'Blue'][index]}
+              onMouseDown={(event) => event.stopPropagation()}
               className={`color-dot ${note.color === color ? 'active' : ''}`}
               style={{ background: color }}
               onClick={() => onUpdate({ color })}

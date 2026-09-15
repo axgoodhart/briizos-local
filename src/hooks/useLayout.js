@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import logger from '../lib/logger';
 import {
   migrateFlatToColumns,
+  rememberPanelPlacement,
+  restorePanelPlacement,
   simplifyLayout,
   flattenLayoutToPanels,
   findPanelLocation,
@@ -71,6 +73,7 @@ export function useLayout() {
     setIsSaving(true);
     try {
       await window.api.localData.workspace.saveLayout(layoutToSave);
+      logger.info('ui.layout', 'Panel layout and remembered placements saved', { columns: layoutToSave.columns.length });
       setLastSaved(new Date().toISOString());
     } catch (error) {
       logger.error('ui', 'Failed to save layout', error?.message);
@@ -182,25 +185,16 @@ export function useLayout() {
       // Check if panel already exists
       if (findPanelLocation(prev, id)) return prev;
 
-      const newColumn = {
-        id: `col-${Date.now()}`,
-        size: panel.size || 20,
-        panels: [{ panelId: id, type: panel.type, size: 100 }]
-      };
-
-      const result = simplifyLayout({
-        ...prev,
-        columns: [...prev.columns, newColumn],
-        hiddenPanels: (prev.hiddenPanels || []).filter(p => p.panelId !== id)
-      });
-      return result;
+      logger.info('ui', 'Panel opened at its remembered column and width', { panelId: id });
+      return restorePanelPlacement(prev, { panelId: id, type: panel.type, width: panel.size });
     });
     return id;
   }, []);
 
   const removePanel = useCallback((panelId) => {
     setLayoutRow(prev => {
-      const result = removePanelFromLayout(prev, panelId);
+      const result = removePanelFromLayout(rememberPanelPlacement(prev, panelId), panelId);
+      logger.info('ui', 'Panel closed; placement remembered', { panelId });
       return simplifyLayout(result);
     });
   }, []);
@@ -258,7 +252,7 @@ export function useLayout() {
       if (loc) {
         // Move to hiddenPanels
         const panel = prev.columns[loc.columnIndex].panels[loc.panelIndex];
-        const result = removePanelFromLayout(prev, panelId);
+        const result = removePanelFromLayout(rememberPanelPlacement(prev, panelId), panelId);
         return simplifyLayout({
           ...result,
           hiddenPanels: [...(result.hiddenPanels || []), { panelId: panel.panelId, type: panel.type }]
@@ -268,17 +262,8 @@ export function useLayout() {
       // Check if panel is in hiddenPanels
       const hidden = (prev.hiddenPanels || []).find(p => p.panelId === panelId);
       if (hidden) {
-        // Move to a new column
-        const newColumn = {
-          id: `col-${Date.now()}`,
-          size: 20,
-          panels: [{ panelId: hidden.panelId, type: hidden.type, size: 100 }]
-        };
-        return simplifyLayout({
-          ...prev,
-          columns: [...prev.columns, newColumn],
-          hiddenPanels: (prev.hiddenPanels || []).filter(p => p.panelId !== panelId)
-        });
+        logger.info('ui', 'Panel restored to its remembered placement', { panelId });
+        return restorePanelPlacement(prev, hidden);
       }
 
       return prev;

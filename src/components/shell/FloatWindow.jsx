@@ -1,4 +1,5 @@
-import { useCallback, useRef } from 'react';
+import { lockDragSelection } from '../../lib/dragSelection';
+import { useCallback, useEffect, useRef } from 'react';
 
 /**
  * FloatWindow — the shared ambient window frame.
@@ -11,6 +12,8 @@ import { useCallback, useRef } from 'react';
  */
 export function FloatWindow({ win, focused, manager, onSendToGrid, children }) {
   const shellRef = useRef(null);
+  const endGestureRef = useRef(null);
+  useEffect(() => () => endGestureRef.current?.(), []);
 
   const beginDrag = useCallback((event) => {
     if (event.button !== 0) return;
@@ -20,6 +23,8 @@ export function FloatWindow({ win, focused, manager, onSendToGrid, children }) {
     manager.focusWindow(win.id);
     const el = shellRef.current;
     if (!el) return;
+    endGestureRef.current?.();
+    const unlock = lockDragSelection();
     const rect = el.getBoundingClientRect();
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
@@ -34,11 +39,18 @@ export function FloatWindow({ win, focused, manager, onSendToGrid, children }) {
       el.style.top = `${lastY}px`;
     };
     const onUp = () => {
+      unlock();
+      endGestureRef.current = null;
+      window.removeEventListener('blur', onUp);
+      window.removeEventListener('pointercancel', onUp);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.body.style.cursor = '';
       if (moved) manager.moveWindow(win.id, { x: lastX, y: lastY });
     };
+    endGestureRef.current = onUp;
+    window.addEventListener('blur', onUp);
+    window.addEventListener('pointercancel', onUp);
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
     document.body.style.cursor = 'grabbing';
@@ -51,6 +63,8 @@ export function FloatWindow({ win, focused, manager, onSendToGrid, children }) {
     manager.focusWindow(win.id);
     const el = shellRef.current;
     if (!el) return;
+    endGestureRef.current?.();
+    const unlock = lockDragSelection();
     const rect = el.getBoundingClientRect();
     const startX = event.clientX;
     const startY = event.clientY;
@@ -65,10 +79,17 @@ export function FloatWindow({ win, focused, manager, onSendToGrid, children }) {
       el.style.height = `${lastH}px`;
     };
     const onUp = () => {
+      unlock();
+      endGestureRef.current = null;
+      window.removeEventListener('blur', onUp);
+      window.removeEventListener('pointercancel', onUp);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       if (moved) manager.resizeWindow(win.id, { width: lastW, height: lastH });
     };
+    endGestureRef.current = onUp;
+    window.addEventListener('blur', onUp);
+    window.addEventListener('pointercancel', onUp);
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, [manager, win.id, win.filled]);

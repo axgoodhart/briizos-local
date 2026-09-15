@@ -1,3 +1,4 @@
+import { useDragSelectionLock } from '../../lib/dragSelection';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../../AppCombined.css';
 import { api, JOURNALS_CHANGED_EVENT } from './api.js';
@@ -95,6 +96,8 @@ export function JournalFloat({
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [grabPulse, setGrabPulse] = useState(false);
+  useDragSelectionLock(!!(dragging || resizing));
+
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({
     mouseX: 0,
@@ -347,9 +350,13 @@ export function JournalFloat({
 
     window.addEventListener('mousemove', handleFloatingMove);
     window.addEventListener('mouseup', handleFloatingUp);
+      window.addEventListener('blur', handleFloatingUp);
+      window.addEventListener('pointercancel', handleFloatingUp);
     return () => {
       window.removeEventListener('mousemove', handleFloatingMove);
       window.removeEventListener('mouseup', handleFloatingUp);
+        window.removeEventListener('blur', handleFloatingUp);
+        window.removeEventListener('pointercancel', handleFloatingUp);
     };
   }, [dragging, resizing, handleFloatingMove, handleFloatingUp]);
 

@@ -11534,3 +11534,50 @@
 }:is(#briizos-inline-origin#briizos-inline-origin#briizos-inline-origin, [data-theme-inline="sourcespanel-div-state-1"][data-theme-state-opacity="1"]) {
   opacity: 1;
 }
+
+/* Interaction appearance. Geometry and motion live in AppCombined.css. */
+.jr-sf-symbol { font-family: 'SF Pro Display', 'SF Pro Symbols', 'Apple Symbols', sans-serif; font-size: inherit; font-style: normal; line-height: 1; }
+.jv-choice { border: 1px solid currentColor; border-radius: 4px; }
+.jv-choice .jvb__scrolltoggle { opacity: .6; border: 0; background: transparent; }
+.jv-choice .jvb__scrolltoggle.is-on { opacity: 1; background: color-mix(in srgb, currentColor 16%, transparent); font-weight: 700; box-shadow: inset 0 -2px currentColor; }
+.interface-choices [aria-pressed='false'], .forest-project-tabs [aria-pressed='false'] { opacity: .65; }
+.interface-choices [aria-pressed='true'], .forest-project-tabs [aria-pressed='true'] { opacity: 1; font-weight: 700; box-shadow: inset 0 -2px currentColor; }
+.interface-choices button:focus-visible, .jv-choice button:focus-visible, .note-shadow:focus-visible, .briizy-companion button:focus-visible, .briizy-companion input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.note-shadow { color: var(--fw-text); background: color-mix(in srgb, var(--note-color) 8%, transparent); border: 1px dashed var(--note-color); border-top: 3px solid var(--note-color); border-radius: 4px; opacity: .7; }
+.note-shadow:hover, .note-shadow:focus-visible { opacity: 1; }
+.note-shadow span:last-child { font-size: .8em; }
+.note-card { background: color-mix(in srgb, var(--note-color, #fef08a) 12%, var(--theme-components-notes-noteswidget-note-card-background-48988)); }
+.note-card .color-dot:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.fw[data-float-app='forest'], .fw[data-float-app='forest'] .forest-shell .project-card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.fw[data-float-app='forest'] .forest-shell .aurora { opacity: .25; filter: none; }
+[data-dock-colors='monochrome'] .cb-icon, [data-dock-colors='monochrome'] .fdock-glyph, [data-dock-colors='monochrome'] .fdock-mini-glyph { color: var(--fw-text) !important; -webkit-text-fill-color: currentColor; filter: grayscale(1); text-shadow: none; }
+[data-dock-colors='colored'] .cb-icon, [data-dock-colors='colored'] .fdock-glyph, [data-dock-colors='colored'] .fdock-mini-glyph { color: var(--dock-item-color, currentColor) !important; -webkit-text-fill-color: currentColor; }
+.briizy-companion-avatar { background: transparent; border: 0; }
+.briizy-companion-bubble { color: var(--fw-text); background: var(--fw-surface); border: 1px solid var(--fw-edge); border-radius: 14px 14px 3px 14px; box-shadow: 0 6px 24px color-mix(in srgb, var(--fw-text) 18%, transparent); }
+.briizy-companion-bubble button, .briizy-companion-bubble input { font: inherit; color: inherit; background: color-mix(in srgb, var(--fw-text) 8%, var(--fw-surface)); border: 1px solid var(--fw-edge); border-radius: 4px; }
+.briizy-companion-bubble button:hover { background: color-mix(in srgb, var(--fw-text) 16%, var(--fw-surface)); }
+.briizy-companion-bubble button:disabled { opacity: .5; }
+[data-dock-item='chat'] { --dock-item-color: #16df69; }
+[data-dock-item='briiztorm'] { --dock-item-color: #f54ba3; }
+[data-dock-item='organizer'] { --dock-item-color: #2bff36; }
+[data-dock-item='calendar'] { --dock-item-color: #ff7149; }
+[data-dock-item='media'] { --dock-item-color: #43e8dd; }
+[data-dock-item='notes'] { --dock-item-color: #e7dc91; }
+[data-dock-item='canvases'] { --dock-item-color: #24d9e6; }
+[data-dock-item='journal'] { --dock-item-color: #e5a76a; }
+[data-dock-item='forest'] { --dock-item-color: #7ee7a1; }
+[data-dock-item='notefalls'] { --dock-item-color: #bda6ff; }
+[data-dock-item='sources'] { --dock-item-color: #74dcea; }
+[data-dock-item='tasks'] { --dock-item-color: #ffd36b; }
+[data-dock-item='settings'] { --dock-item-color: #9fb6c9; }
+
+/* Folio handoff opacity; geometry and timing live in AppCombined.css. */
+@keyframes jvFolioDissolve {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes jvFolioInk {
+  0%, 12% { opacity: 0; }
+  52% { opacity: 0.82; }
+  100% { opacity: 1; }
+}

@@ -1,3 +1,4 @@
+import { useInterfacePreferences } from '../../lib/interfacePreferences';
 import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 import { EDITABLE_DOCK_ITEMS, DockGlyph } from '../controlbar/ControlBar';
 import ShellModeSwitch from './ShellModeSwitch';
@@ -46,6 +47,7 @@ export function FloatDock({
   canvasesPopoverSlot = null,
 }) {
   const canvasesBtnRef = useRef(null);
+  const [preferences] = useInterfacePreferences();
 
   const renderedCanvasesPopover = isValidElement(canvasesPopoverSlot)
     ? cloneElement(canvasesPopoverSlot, { anchorRef: canvasesBtnRef })
@@ -54,7 +56,7 @@ export function FloatDock({
   const items = [...EDITABLE_DOCK_ITEMS, SETTINGS_ITEM];
 
   return (
-    <>
+    <div className={`fdock-host fdock-host--${preferences.dockEdge}${preferences.dockAutoHide ? ' is-auto-hide' : ''}`} data-dock-colors={preferences.dockColors} data-popover-open={!!canvasesPopoverSlot?.props?.isOpen}>
       {floats.minimizedWindows.length > 0 && (
         <div className="fdock-minirow" aria-label="Minimized windows">
           {floats.minimizedWindows.map((win) => {
@@ -64,12 +66,13 @@ export function FloatDock({
                 key={win.id}
                 type="button"
                 className="fdock-mini"
+                data-dock-item={item?.id}
                 onClick={() => floats.restoreWindow(win.id)}
                 title={`Restore ${win.title}`}
                 aria-label={`Restore ${win.title}`}
               >
                 {item
-                  ? <DockGlyph item={item} className="fdock-mini-glyph" style={{ color: item.accent }} />
+                  ? <DockGlyph item={item} className="fdock-mini-glyph" />
                   : <span className="fdock-mini-glyph" aria-hidden="true">❐</span>}
                 <span className="fdock-mini-label">{win.title}</span>
               </button>
@@ -87,13 +90,14 @@ export function FloatDock({
                 key={isCanvases ? undefined : item.id}
                 ref={isCanvases ? canvasesBtnRef : undefined}
                 type="button"
+                data-dock-item={item.id}
                 className={`fdock-item ${activeById[item.id] ? 'on' : ''}`}
                 onClick={() => onLaunchItem?.(item.id)}
                 title={item.label}
                 aria-label={item.label}
                 aria-pressed={!!activeById[item.id]}
               >
-                <DockGlyph item={item} className="fdock-glyph" style={{ color: item.accent }} />
+                <DockGlyph item={item} className="fdock-glyph" />
                 <span className="fdock-label">{item.label}</span>
               </button>
             );
@@ -111,7 +115,7 @@ export function FloatDock({
           <ShellModeSwitch mode={shellMode} onChange={onShellModeChange} compact />
         </div>
       </nav>
-    </>
+    </div>
   );
 }
 

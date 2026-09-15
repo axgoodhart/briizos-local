@@ -9,36 +9,14 @@ import {
 } from './import.js';
 import logger from '../../lib/logger';
 
-/* ── Icons (inline SVG, stroke = currentColor) ───────────────────────── */
+/* ── SF Symbols from the supplied symbol catalog ───────────────────────── */
 
 const Icon = {
-  plus: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  ),
-  search: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M16 16l4.5 4.5" />
-    </svg>
-  ),
-  chat: (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7.5 4h6a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-1.2l-2.8 2.6V14h-2a5 5 0 0 1 0-10z" />
-      <path d="M17.2 15.9a6.5 6.5 0 0 1-3 .9l-.9.8a4.6 4.6 0 0 0 3.4 1.5h.9l2.2 2v-2.4a4.2 4.2 0 0 0-2.6-2.8z" opacity="0.85" />
-    </svg>
-  ),
-  home: (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 3.6 4 10.4V20a1 1 0 0 0 1 1h4.6v-5.4h4.8V21H19a1 1 0 0 0 1-1v-9.6L12 3.6z" />
-    </svg>
-  ),
-  trash: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
-    </svg>
-  ),
+  plus: <span className="jr-sf-symbol" aria-hidden="true">􀅼</span>,
+  search: <span className="jr-sf-symbol" aria-hidden="true">􀊫</span>,
+  chat: <span className="jr-sf-symbol" aria-hidden="true">􀒤</span>,
+  home: <span className="jr-sf-symbol" aria-hidden="true">􀎞</span>,
+  trash: <span className="jr-sf-symbol" aria-hidden="true">􀈑</span>,
 };
 
 /* ── Import section ──────────────────────────────────────────────────

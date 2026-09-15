@@ -186,6 +186,12 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   // The streamId currently being consumed — used to filter the shared
   // 'langgraph-stream-event' subscription so stale streams are ignored.
   const activeStreamIdRef = useRef(null);
+  const responseObserverRef = useRef(null);
+  const responseFailureRef = useRef(false);
+  useEffect(() => () => {
+    responseObserverRef.current?.({ status: 'error', response: 'The chat surface closed before this response finished. Reopen Chats to continue.' });
+    responseObserverRef.current = null;
+  }, []);
   const activeActivityIdRef = useRef(null);
   // Confirmation bookkeeping so approve/reject can resume the right run.
   const pendingConfirmRef = useRef(null);
@@ -428,6 +434,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         if (payload.content) {
           streamContentRef.current += payload.content;
           setStreamingContent(streamContentRef.current);
+          responseObserverRef.current?.({ status: 'working', response: streamContentRef.current });
         }
         break;
       }
@@ -477,6 +484,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         };
         pendingConfirmRef.current = conf;
         setPendingToolConfirmation(conf);
+        responseObserverRef.current?.({ status: 'approval' });
         logTurn(
           'info',
           'agent.confirm',
@@ -528,6 +536,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         break;
       }
       case 'error': {
+        responseFailureRef.current = true;
         streamContentRef.current += `\n\n[Agent error] ${payload?.message || 'Unknown error'}`;
         setStreamingContent(streamContentRef.current);
         logTurn(
@@ -681,6 +690,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       });
     }
 
+    responseObserverRef.current?.({ status: responseFailureRef.current ? 'error' : skipSuggestions ? 'clarification' : 'done', response: content || 'The response finished without text. See Chats for details.' });
+    if (!skipSuggestions) responseObserverRef.current = null;
     // Follow-up suggestions are a local-user affordance only.
     if (!skipSuggestions && suggestionsEnabledRef.current && !isRemote && typeof api.langgraphFetchSuggestions === 'function') {
       try {
@@ -707,12 +718,14 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     return content;
   }, [messages, getSelectedModel, logTurn]);
 
-  const sendMessage = useCallback(async (message, { isRemote = false, prioritizeCandidates = [] } = {}) => {
+  const sendMessage = useCallback(async (message, { isRemote = false, prioritizeCandidates = [], onResponse } = {}) => {
     if (!message?.trim() || isLoading || isSwitchingThread) return null;
     if (!hasApi || typeof api.langgraphStreamMessage !== 'function') {
       return null;
     }
 
+    responseFailureRef.current = false;
+    if (onResponse || !pendingClarificationRef.current) responseObserverRef.current = onResponse || null;
     setSuggestions([]);
     activeActivityIdRef.current = newId('activity');
     const isPrioritizeTurn = modalityRef.current === 'prioritize';
@@ -877,6 +890,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         });
       }
     } catch (error) {
+      responseObserverRef.current?.({ status: 'error', response: error?.message || 'The request failed. See Chats for details.' });
+      responseObserverRef.current = null;
       if (isPrioritizeTurn) {
         logTurn('error', 'agent.prioritize', 'The prioritization AI request ended without a normal response. The exact error is recorded below and will also be saved as a visible conversation message.', {
           error: error?.message,

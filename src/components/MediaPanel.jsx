@@ -1,3 +1,4 @@
+import { useDragSelectionLock } from '../lib/dragSelection';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { computeFloatingShellChrome } from '../lib/floatingShell';
 import logger from '../lib/logger';
@@ -118,6 +119,7 @@ function MediaPanel({
   const [panelSize, setPanelSize] = useState(panelDimensions || DEFAULT_FLOATING_SIZE);
   const [draggingPanel, setDraggingPanel] = useState(false);
   const [resizingPanel, setResizingPanel] = useState(false);
+  useDragSelectionLock(!!(draggingPanel || resizingPanel));
   const [panelDragOffset, setPanelDragOffset] = useState({ x: 0, y: 0 });
   const [panelResizeStart, setPanelResizeStart] = useState({
     mouseX: 0,
@@ -753,9 +755,13 @@ function MediaPanel({
 
     window.addEventListener('mousemove', handleFloatingMove);
     window.addEventListener('mouseup', handleFloatingUp);
+    window.addEventListener('blur', handleFloatingUp);
+    window.addEventListener('pointercancel', handleFloatingUp);
     return () => {
       window.removeEventListener('mousemove', handleFloatingMove);
       window.removeEventListener('mouseup', handleFloatingUp);
+      window.removeEventListener('blur', handleFloatingUp);
+      window.removeEventListener('pointercancel', handleFloatingUp);
     };
   }, [draggingPanel, resizingPanel, handleFloatingMove, handleFloatingUp]);
 

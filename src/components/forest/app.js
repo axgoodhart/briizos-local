@@ -1,3 +1,4 @@
+import { lockDragSelection } from '../../lib/dragSelection';
 import logger from '../../lib/logger';
 
 // A reopened board must read after the previous instance's final save.
@@ -86,6 +87,7 @@ const state = {
   query: '',
   selectedProjectId: null,
   viewerProjectId: null,
+  projectTabs: {},
   hunterProjectId: null,
   hunterResults: [],
   hunterLoading: false,
@@ -382,6 +384,7 @@ function normalizeFile(file = {}) {
     modifiedAt: file.modifiedAt || new Date().toISOString(),
     typeGroup: file.typeGroup || 'other',
     previewable: Boolean(file.previewable),
+    filehawk: file.filehawk === true,
     tags: dedupe((file.tags || []).map(cleanTag)),
   };
 }
@@ -701,9 +704,14 @@ function renderProject(project) {
 
           ${renderActivityBadge(project)}
 
-          ${renderPreviewGrid(project)}
+          <div class="forest-project-tabs" role="group" aria-label="Project files">
+            <button class="forest-action-btn" data-action="project-files-tab" data-tab="files" aria-pressed="${state.projectTabs[project.id] !== 'filehawk'}">Files</button>
+            <button class="forest-action-btn" data-action="project-files-tab" data-tab="filehawk" aria-pressed="${state.projectTabs[project.id] === 'filehawk'}">FileHawk suggestions</button>
+          </div>
+          ${state.projectTabs[project.id] === 'filehawk' ? renderWatchSuggestions(project) : renderPreviewGrid(project)}
 
           ${(() => {
+            if (state.projectTabs[project.id] === 'filehawk') return '';
             // Images/video are shown in the gallery above; the list holds the rest.
             const listFiles = project.files.filter((file) => !(file.previewable && !isAudioFile(file)));
             if (project.files.length === 0) {
@@ -716,6 +724,31 @@ function renderProject(project) {
       ` : ''}
     </article>
   `;
+}
+
+function renderWatchSuggestions(project) {
+  return `<div class="file-list forest-watch-suggestions">
+    <p>Choose which project files FileHawk should watch for changes or missing paths.</p>
+    ${project.files.map(file => `<div class="file-row">
+      <span class="file-copy">${escapeHtml(file.name)}</span>
+      <div class="interface-choices" role="group" aria-label="FileHawk monitoring">
+        <button class="forest-action-btn" data-action="filehawk-designate" data-file-id="${escapeAttr(file.id)}" data-watch="false" aria-pressed="${!file.filehawk}">Unwatched</button>
+        <button class="forest-action-btn" data-action="filehawk-designate" data-file-id="${escapeAttr(file.id)}" data-watch="true" aria-pressed="${file.filehawk}">Watching</button>
+      </div>
+    </div>`).join('') || '<p>Add files to this project to choose what to watch.</p>'}
+  </div>`;
+}
+
+function designateFile(project, fileId, watch) {
+  const file = project?.files.find(f => f.id === fileId);
+  if (!file) return;
+  file.filehawk = watch;
+  delete state.filehawkStatus[file.path];
+  dispatchForestLog('info', watch ? 'File designated for FileHawk' : 'FileHawk monitoring removed; project file retained', { projectId: project.id, file: file.name });
+  scheduleSave(true);
+  render();
+  if (state.filehawkOpen) renderFilehawkPanel();
+  if (watch) filehawkScan();
 }
 
 /* ── FileHawk: activity badge ───────────────────────────────────────── */
@@ -889,7 +922,7 @@ function renderMilestoneModal(milestone, project) {
               ${milestone.completed ? '✓ Done' : '○ Todo'}
             </button>
             <button class="tl-modal-delete" data-action="delete-milestone" data-milestone-id="${milestone.id}" title="Delete milestone">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              <span class="jr-sf-symbol" aria-hidden="true">􀈑</span>
             </button>
             <button class="tl-modal-close" data-action="close-milestone-modal" title="Close (Esc)">✕</button>
           </div>
@@ -1117,7 +1150,7 @@ function renderMilestoneTimeline(project) {
                    data-draggable-node>
                 <button class="tl-dot" data-action="open-milestone-modal" data-milestone-id="${m.id}" title="Click to expand · Drag to reorder">
                   ${m.completed
-                    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                    ? '<span class="jr-sf-symbol" aria-hidden="true">􀆅</span>'
                     : `<span class="tl-dot-index">${i + 1}</span>`}
                 </button>
                 <div class="tl-node-info">
@@ -1580,13 +1613,19 @@ async function consolidateFiles(projectId) {
 async function filehawkScan() {
   if (destroyed || !state.projects.length) return;
 
-  const allPaths = state.projects.flatMap((p) => p.files.map((f) => f.path));
-  if (!allPaths.length) return;
+  if (state.filehawkScanning) return;
+  const allPaths = [...new Set(state.projects.flatMap((p) => p.files.filter(f => f.filehawk).map((f) => f.path)))];
+  if (!allPaths.length) {
+    state.filehawkStatus = {};
+    if (state.filehawkOpen) renderFilehawkPanel();
+    return;
+  }
 
   state.filehawkScanning = true;
   if (state.filehawkOpen) renderFilehawkPanel();
 
   try {
+    dispatchForestLog('info', 'FileHawk checking manually designated files', { count: allPaths.length });
     const results = await window.api.forestFilehawkCheck(allPaths);
     if (destroyed) return;
     const statMap = new Map(results.map((r) => [r.path, r]));
@@ -1594,7 +1633,7 @@ async function filehawkScan() {
     let changed = false;
 
     state.projects.forEach((project) => {
-      project.files.forEach((file) => {
+      project.files.filter(file => file.filehawk).forEach((file) => {
         const info = statMap.get(file.path);
         if (!info || !info.exists) {
           status[file.path] = 'missing';
@@ -1616,7 +1655,7 @@ async function filehawkScan() {
     render();
     if (changed) scheduleSave();
   } catch (err) {
-    console.error('FileHawk scan error:', err);
+    dispatchForestLog('error', 'FileHawk could not complete its scan', { error: err.message });
   } finally {
     state.filehawkScanning = false;
     if (!destroyed && state.filehawkOpen) renderFilehawkPanel();
@@ -1653,7 +1692,7 @@ function renderFilehawkPanel() {
 
   const groups = state.projects
     .map((p) => {
-      const rows = p.files.map((f) => ({ f, st: status[f.path] || 'ok' }));
+      const rows = p.files.filter(f => f.filehawk).map((f) => ({ f, st: status[f.path] || 'pending' }));
       return { p, rows, missing: rows.filter((r) => r.st === 'missing').length };
     })
     .filter((g) => g.rows.length)
@@ -1663,7 +1702,7 @@ function renderFilehawkPanel() {
     <div class="cv-slideout-head">
       <div class="cv-slideout-title">
         <span class="cv-slideout-kicker">FileHawk</span>
-        <h3>${missing ? `${missing} missing file${missing === 1 ? '' : 's'}` : 'All files present'}</h3>
+        <h3>${missing ? `${missing} missing file${missing === 1 ? '' : 's'}` : state.filehawkScanAt ? 'Designated files' : 'Choose files to watch'}</h3>
       </div>
       <div class="cv-slideout-head-actions">
         <button class="forest-action-btn" data-action="filehawk-rescan" ${state.filehawkScanning ? 'disabled' : ''}>${state.filehawkScanning ? 'Scanning…' : '↻ Rescan'}</button>
@@ -1691,10 +1730,11 @@ function renderFilehawkPanel() {
                      <button class="tiny-btn" data-action="filehawk-remove" data-project-id="${g.p.id}" data-file-id="${f.id}" title="Remove broken reference">✕</button>
                    </div>`
                 : `<span class="fh-row-tag">${st}</span>`}
+              <button class="tiny-btn" data-action="filehawk-unwatch" data-project-id="${g.p.id}" data-file-id="${f.id}">Stop watching</button>
             </div>
           `).join('')}
         </div>
-      `).join('') : '<div class="cv-slideout-empty">No files tracked yet.</div>'}
+      `).join('') : '<div class="cv-slideout-empty">No files designated yet. Open a project’s FileHawk suggestions tab to choose files to watch.</div>'}
     </div>
   `;
 }
@@ -2269,6 +2309,7 @@ function onForestPointerMove(event) {
 
   if (interaction.kind === 'move-project') {
     if (!interaction.dragging) {
+      lockDragSelection();
       interaction.card.classList.add('forest-dragging');
       interaction.dragging = true;
     }
@@ -2332,6 +2373,12 @@ world.addEventListener('click', async (event) => {
   const project = projectId ? getProject(projectId) : null;
 
   switch (actionEl.dataset.action) {
+    case 'project-files-tab':
+      if (project) { state.projectTabs[project.id] = actionEl.dataset.tab; render(); }
+      break;
+    case 'filehawk-designate':
+      designateFile(project, actionEl.dataset.fileId, actionEl.dataset.watch === 'true');
+      break;
     case 'toggle-expand': {
       if (!project) return;
       project.expanded = !project.expanded;
@@ -2942,6 +2989,7 @@ projectViewer.addEventListener('mousedown', (event) => {
     moved: false,
   };
 
+  lockDragSelection();
   node.classList.add('forest-dragging');
   track.classList.add('drag-active');
   event.preventDefault();
@@ -3450,6 +3498,9 @@ filehawkPanel.addEventListener('click', async (event) => {
   if (!actionEl) return;
 
   switch (actionEl.dataset.action) {
+    case 'filehawk-unwatch':
+      designateFile(getProject(actionEl.dataset.projectId), actionEl.dataset.fileId, false);
+      break;
     case 'filehawk-close':
       closeFilehawk();
       break;
@@ -3459,6 +3510,7 @@ filehawkPanel.addEventListener('click', async (event) => {
       break;
 
     case 'filehawk-remove': {
+      if (!window.confirm('Remove this missing file reference from the project? The file itself will not be deleted.')) return;
       const project = getProject(actionEl.dataset.projectId);
       if (!project) return;
       const file = project.files.find((f) => f.id === actionEl.dataset.fileId);

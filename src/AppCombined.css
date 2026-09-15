@@ -502,6 +502,7 @@
   top: 0;
   z-index: 34;
   padding: 0;
+  user-select: none;
 
   flex-shrink: 0;
   user-select: none;
@@ -563,8 +564,8 @@
   min-width: 0;
 }.header-dock-slot {
   justify-self: center;
-  width: 15vw;
-  min-width: 260px;
+  width: max-content;
+  min-width: 0;
   max-width: 100%;
 }.header-right {
   display: flex;
@@ -575,6 +576,7 @@
 }.title-icon {
   display: contents;
   transition: all 1.4s cubic-bezier(0.5, .2, 0.7, 1.1), filter 5s ease;
+  user-select:none;
 }.title-icon::before {
   content: "᳀";
   transition: all 1.4s cubic-bezier(0.5, .2, 0.7, 1.1), filter 2.5s ease;
@@ -624,8 +626,10 @@
   width: 68px;
   height: 68px;
   place-items: center;
+  user-select:none;
 }.app--vertical-header .app-header:hover .title-icon::before {
   transform: none;
+  user-select:none;
 }.app--vertical-header .title-text, .app--vertical-header .title-icon\:before {
   display: none;
 }.app--vertical-header .header-dock-slot {
@@ -684,6 +688,7 @@
 }#settings-btn.title-icon {
   display: inline-grid;
   place-items: center;
+  user-select:none;
 }#settings-btn:hover {
   transform: scale(1)rotate(1800deg);
 }#settings-btn:active {
@@ -1483,6 +1488,7 @@
 }.record-icon {
   width: 8px;
   height: 8px;
+  user-select: none;
 }::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -1619,6 +1625,8 @@ padding-top: var(--cc-padding-huge);
   cursor: pointer;
   flex-shrink: 0;
 }.file-icon {
+  user-select: none;
+
   flex-shrink: 0;
 }.file-name {
   flex: 1;
@@ -2935,6 +2943,7 @@ height:110%;
   min-width: 0;
 }.panel-header-icon {
   flex-shrink: 0;
+  usser-select: none;
 }.panel-header-title {
   white-space: nowrap;
   overflow: hidden;
@@ -3021,6 +3030,7 @@ height:110%;
   text-align: center;
   transition: all var(--layout-transition-normal);
 }.widget-placeholder-icon {
+  user-select: none;
   margin-bottom: 8px;
 }.panel-tabs {
   display: flex;
@@ -5954,19 +5964,24 @@ height:110%;
 }.notes-drawer {
   transform-style: preserve-3d;
   perspective: 400px;
-  position: absolute;
-  right: 22%;
+  position: fixed;
+  right: 8px;
   height: 520px;
   top: 28%;
   width: 300px;
   overflow: hidden;
-  z-index: 18;
+  z-index: 10000;
   display: flex;
   visibility: hidden;
   flex-direction: column;
-  transition: visibility 2s, transform 1s;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  pointer-events: none;
+  transition: visibility 0s linear .24s, transform .24s ease-out;
 }.notes-drawer.open {
   visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
 }.notes-drawer.drawer-dragging {
   transition: none;
 }.notes-drawer.drawer-resizing {
@@ -8364,6 +8379,59 @@ height:110%;
   box-sizing: border-box;
 }.jv-spread--single {
   grid-template-columns: 1fr;
+}/* Folio handoff: paper and chrome stay still; only the ink drifts. */
+.jv-bookscale {
+  --jv-turn-duration: 340ms;
+  --jv-turn-exit-duration: 170ms;
+  --jv-turn-distance: 14px;
+}
+.jv-spread[data-turn-direction] {
+  --jv-turn-direction: 1;
+}
+.jv-spread[data-turn-direction='backward'] {
+  --jv-turn-direction: -1;
+}
+.jv-turn-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.jv-turn-overlay > .jv-spread {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+.jv-spread--departing {
+  animation: jvFolioDissolve var(--jv-turn-exit-duration) cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: opacity;
+}
+.jv-spread--departing :is(.jv-page__head, .jv-page__body) {
+  animation: jvFolioDepart var(--jv-turn-exit-duration) cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: transform;
+}
+.jv-spread--arriving :is(.jv-page__head, .jv-page__body) {
+  animation: jvFolioArrive var(--jv-turn-duration) cubic-bezier(0.22, 1, 0.36, 1) both,
+    jvFolioInk var(--jv-turn-duration) linear both;
+  will-change: transform, opacity;
+}
+@keyframes jvFolioArrive {
+  from { transform: translateX(calc(var(--jv-turn-direction) * var(--jv-turn-distance))); }
+  to { transform: translateX(0); }
+}
+@keyframes jvFolioDepart {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(var(--jv-turn-direction) * var(--jv-turn-distance) * -0.5)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jv-turn-overlay { display: none; }
+  .jv-spread--departing,
+  .jv-spread--departing :is(.jv-page__head, .jv-page__body),
+  .jv-spread--arriving :is(.jv-page__head, .jv-page__body) {
+    animation: none;
+    will-change: auto;
+  }
 }.jv-scrollstack {
   min-width: 0;
   min-height: 0;
@@ -12055,3 +12123,96 @@ height:110%;
 }.theme-source-color-input:disabled {
   cursor: default;
 }/* Literal app appearance moved out of React style objects. *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:128 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:137 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:149 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:155 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:160 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:237 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:247 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:253 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:260 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:274 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:279 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:286 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:295 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:313 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:586 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:767 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:923 *//* Former inline appearance: src/components/overlays/DashboardOverlay.jsx:967 *//* Former inline appearance: src/components/InteractionPanel.jsx:648 *//* Former inline appearance: src/components/InteractionPanel.jsx:669 *//* Former inline appearance: src/components/InteractionPanel.jsx:675 *//* Former inline appearance: src/components/InteractionPanel.jsx:683 *//* Former inline appearance: src/components/InteractionPanel.jsx:704 *//* Former inline appearance: src/components/InteractionPanel.jsx:717 *//* Former inline appearance: src/components/InteractionPanel.jsx:722 *//* Former inline appearance: src/components/InteractionPanel.jsx:727 *//* Former inline appearance: src/components/InteractionPanel.jsx:732 *//* Former inline appearance: src/components/InteractionPanel.jsx:796 *//* Former inline appearance: src/components/InteractionPanel.jsx:806 *//* Former inline appearance: src/components/InteractionPanel.jsx:814 *//* Former inline appearance: src/components/InteractionPanel.jsx:822 *//* Former inline appearance: src/components/InteractionPanel.jsx:835 *//* Former inline appearance: src/components/ErrorBoundary.jsx:41 *//* Former inline appearance: src/components/ErrorBoundary.jsx:53 *//* Former inline appearance: src/components/ErrorBoundary.jsx:54 *//* Former inline appearance: src/components/ErrorBoundary.jsx:55 *//* Former inline appearance: src/components/journals/richtext.jsx:213 *//* Former inline appearance: src/components/journals/richtext.jsx:214 *//* Former inline appearance: src/components/journals/richtext.jsx:215 *//* Former inline appearance: src/components/journals/richtext.jsx:227 *//* Former inline appearance: src/components/canvases/CanvasSurface.jsx:60 *//* Former inline appearance: src/components/canvases/CanvasSurface.jsx:72 *//* App status and drag-state appearance, with the original state logic retained. */
+
+/* Interaction behavior: shared selection, reading, notes, and dock edges. */
+html.app-drag-selection-lock, html.app-drag-selection-lock * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+html.app-drag-selection-lock iframe,
+html.app-drag-selection-lock webview { pointer-events: none !important; }
+.jr-sf-symbol { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; flex-shrink: 0; }
+.jv-choice, .interface-choices { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.interface-choice-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-block: 6px; }
+.dock-appearance-settings, .briizy-behavior-settings { margin-block: 8px; }
+.briizy-behavior-notes { display: flex; flex-direction: column; gap: 4px; }
+.briizy-behavior-notes textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.briizy-behavior-source { margin-top: 8px; }
+.briizy-behavior-source code { overflow-wrap: anywhere; }
+.note-shadow { display: flex; flex-direction: column; align-items: flex-start; min-height: 50px; flex-shrink: 0; padding: 8px 10px; cursor: pointer; text-align: left; }
+.note-shadow span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notes-drawer .note-card { flex-shrink: 0; }
+.notes-drawer .note-card:hover, .notes-drawer .note-card:focus-within { height: 170px; margin-bottom: 0; }
+.note-input, .note-textarea { user-select: text; -webkit-user-select: text; min-width: 0; }
+.notes-drawer-content { overscroll-behavior: contain; }
+.forest-project-tabs { display: flex; gap: 4px; margin-block: 6px; }
+.forest-watch-suggestions { max-height: 220px; overflow: auto; }
+.forest-watch-suggestions .file-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Fixed board overlays retain one containing block before, during, and after a window transition. */
+.forest-runtime { position: relative; contain: layout paint; isolation: isolate; }
+.fw[data-float-app='forest'] .forest-shell .aurora { animation: none; }
+.fw[data-float-app='forest'] .forest-shell .world { will-change: auto; }
+.forest-shell .project-card.forest-dragging { transition: none; }
+.forest-shell .project-card { transition-property: opacity, box-shadow, border-color; }
+.app:not(.app--vertical-header) .header-dock-slot { max-width: min(70vw, 1100px); }
+.app:not(.app--vertical-header) .header-dock-slot > .control-bar-dock { width: max-content; max-width: 100%; box-sizing: border-box; }
+.app:not(.app--vertical-header) .header-dock-slot .control-bar-dock__scroll { display: flex; align-items: inherit; min-width: 0; }
+@media (max-width: 980px) {
+  .app:not(.app--vertical-header) .header-dock-slot { width: 100%; max-width: 100%; }
+  .app:not(.app--vertical-header) .header-dock-slot > .control-bar-dock { width: 100%; }
+}
+.fdock-host {
+  --dock-shift-x: 0px;
+  --dock-shift-y: 0px;
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100vw;
+  max-height: 100vh;
+  box-sizing: border-box;
+  padding: 14px;
+  transition: transform .22s ease-out;
+}
+.fdock-host--bottom { bottom: 0; left: 50%; transform: translate(-50%, var(--dock-shift-y)); }
+.fdock-host--top { top: 0; left: 50%; flex-direction: column-reverse; transform: translate(-50%, var(--dock-shift-y)); }
+.fdock-host--left { top: 50%; left: 0; flex-direction: row-reverse; transform: translate(var(--dock-shift-x), -50%); }
+.fdock-host--right { top: 50%; right: 0; flex-direction: row; transform: translate(var(--dock-shift-x), -50%); }
+.fdock-host > .fdock, .fdock-host > .fdock-minirow { position: relative; inset: auto; transform: none; animation: none; }
+.fdock-host > .fdock { flex-shrink: 1; min-height: var(--fdock-height, 52px); }
+.fdock-host > .fdock-minirow { flex-shrink: 0; max-width: 100%; }
+.fdock-host--left .fdock, .fdock-host--right .fdock { flex-direction: column; height: auto; min-height: 0; padding: 6px; max-height: calc(100vh - 28px); }
+.fdock-host--left .fdock-scroll, .fdock-host--right .fdock-scroll { flex-direction: column; overflow-x: hidden; overflow-y: auto; min-height: 0; }
+.fdock-host--left .fdock-item, .fdock-host--right .fdock-item { flex-shrink: 0; }
+.fdock-host--left .fdock-side, .fdock-host--right .fdock-side { flex-direction: column; flex-shrink: 0; }
+.fdock-host--left .fdock-minirow, .fdock-host--right .fdock-minirow { flex-direction: column; max-height: calc(100vh - 28px); overflow: auto; }
+.fdock-host--bottom.is-auto-hide:not(:hover):not(:focus-within):not([data-popover-open='true']) { --dock-shift-y: calc(100% - 8px); }
+.fdock-host--top.is-auto-hide:not(:hover):not(:focus-within):not([data-popover-open='true']) { --dock-shift-y: calc(-100% + 8px); }
+.fdock-host--left.is-auto-hide:not(:hover):not(:focus-within):not([data-popover-open='true']) { --dock-shift-x: calc(-100% + 8px); }
+.fdock-host--right.is-auto-hide:not(:hover):not(:focus-within):not([data-popover-open='true']) { --dock-shift-x: calc(100% - 8px); }
+.canvases-popover--portaled.canvases-popover--dock { z-index: 1101; }
+.briizy-companion { position: fixed; right: 0; bottom: 90px; z-index: 1102; display: flex; align-items: flex-end; transform: translateX(0); transition: transform .24s ease-out; }
+.briizy-companion.is-tucked { transform: translateX(52px); }
+.briizy-companion-avatar { width: 76px; height: 116px; padding: 0; flex-shrink: 0; cursor: pointer; }
+.briizy-companion-sprite { display: block; width: 100%; height: 100%; background-size: 600% 100%; background-repeat: no-repeat; }
+.briizy-companion.is-animated .briizy-companion-sprite { animation: briizyCompanionBreathe 2.8s ease-in-out infinite alternate; }
+.briizy-companion.is-animated:not(.is-tucked):hover .briizy-companion-sprite { animation: briizyCompanionGreet .7s ease-in-out 2 alternate; }
+.briizy-companion-bubble { width: min(320px, calc(100vw - 88px)); box-sizing: border-box; padding: 8px; margin-bottom: 12px; }
+.briizy-companion-actions { display: flex; gap: 6px; margin-bottom: 6px; }
+.briizy-companion-actions button:last-child { margin-left: auto; }
+.briizy-companion-response { max-height: min(36vh, 300px); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 8px; }
+.briizy-companion form { display: flex; gap: 4px; }
+.briizy-companion input { min-width: 0; flex: 1; }
+.briizy-companion button { cursor: pointer; }
+.briizy-companion button:disabled { cursor: default; }
+@keyframes briizyCompanionBreathe { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(-4px) rotate(1deg); } }
+@keyframes briizyCompanionGreet { from { transform: rotate(-4deg); } to { transform: rotate(4deg) translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .notes-drawer, .fdock-host, .briizy-companion { transition: none !important; }
+  .briizy-companion .briizy-companion-sprite { animation: none !important; }
+}
+.briizy-companion.is-left { left: 0; right: auto; flex-direction: row-reverse; }
+.briizy-companion.is-left.is-tucked { transform: translateX(-52px); }
+
+.fw[data-float-app='forest'] .forest-shell .aurora { display: none; }

@@ -1,3 +1,4 @@
+import { useBriizyConversation, claimBriizyRequest, reportBriizyResponse } from '../lib/briizyConversation';
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, Component } from 'react';
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
@@ -132,6 +133,22 @@ function InteractionPanel({ showPanelBackground = true }) {
     approveToolConfirmation,
     rejectToolConfirmation,
   } = useChat({ selectedModel, requestSettings: selectedRequestSettings });
+
+  const briizyRequest = useBriizyConversation();
+  useEffect(() => {
+    if (briizyRequest.status !== 'queued' || isLoading || isSwitchingThread || modelsLoading || pendingToolConfirmation) return;
+    if (!selectedModel) {
+      reportBriizyResponse(briizyRequest.id, { status: 'error', response: 'Choose an available model in Chats, then send your message again.' });
+      return;
+    }
+    if (!claimBriizyRequest(briizyRequest.id)) return;
+    const id = briizyRequest.id;
+    const message = briizyRequest.notes
+      ? `${briizyRequest.message}\n\n[Briizy response preferences supplied by the user]\n${briizyRequest.notes}`
+      : briizyRequest.message;
+    sendMessage(message, { onResponse: update => reportBriizyResponse(id, update) })
+      .catch(error => reportBriizyResponse(id, { status: 'error', response: error.message }));
+  }, [briizyRequest, isLoading, isSwitchingThread, modelsLoading, selectedModel, pendingToolConfirmation, sendMessage]);
 
   const lgStatus = 'running';
   const lgReady = true;

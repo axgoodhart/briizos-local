@@ -1266,14 +1266,16 @@ function TagStrip({ tags, onSave }) {
   );
 }
 
+function JournalChoice({ label, value, options, onChange }) {
+  return <div className="jv-choice" role="group" aria-label={label}>
+    {options.map(([id, title]) => <button key={id} type="button"
+      className={'jvb__scrolltoggle' + (value === id ? ' is-on' : '')}
+      aria-pressed={value === id} onClick={() => onChange(id)}>{title}</button>)}
+  </div>;
+}
+
 function FloatFolioIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5.5 3.5h9a2 2 0 0 1 2 2v15h-11z" />
-      <path d="M8.25 7h5.5M8.25 10h5.5M8.25 13h3.25" />
-      <path d="m10 20.5 3.2-4 3.3 4" />
-    </svg>
-  );
+  return <span className="jr-sf-symbol" aria-hidden="true">􀤞</span>;
 }
 
 function FloatJournalHeader({
@@ -1554,10 +1556,11 @@ export function JournalView({
     : 0;
   const activeScrolled = activeGroup ? isScrolled(activeGroup) : false;
 
-  const toggleActiveScroll = () => {
-    if (!activeGroup) return;
+  const setActiveScroll = (scroll) => {
+    if (!activeGroup || activeScrolled === scroll) return;
     const first = activeGroup.folios[0];
-    saveFolio(first)({ content: { ...first.content, groupScroll: !first.content?.groupScroll } });
+    saveFolio(first)({ content: { ...first.content, groupScroll: scroll } });
+    logger.info('journal', `Reading mode changed to ${scroll ? "Scroll" : "Pages"}`, { journalId: journal.id });
   };
 
   /* Fixed page geometry: pages are always PAGE_W×PAGE_H CSS px, so line
@@ -1585,7 +1588,8 @@ export function JournalView({
   /* Narrow mode: a vertical scroll gesture flips pages, unless something
      inside the page (tracker, list…) can still scroll itself. */
   const onPortWheel = (e) => {
-    if (!narrowMode) return;
+    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    if (activeScrolled) return;
     let el = e.target;
     while (el && el !== e.currentTarget) {
       if (el.scrollHeight > el.clientHeight + 1) {
@@ -1602,7 +1606,7 @@ export function JournalView({
     if (now - w.t > 400) w.acc = 0;
     w.t = now;
     if (now < w.lock) return;
-    w.acc += e.deltaY;
+    w.acc += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 120 : 1);
     if (Math.abs(w.acc) > 120) {
       if (w.acc > 0) goNext(); else goPrev();
       w.acc = 0;
@@ -1618,11 +1622,87 @@ export function JournalView({
     else scrollApisRef.current.delete(stackId);
   };
 
+  const turnRef = useRef(null);
+  const turnOverlayRef = useRef(null);
+  const spreadRef = useRef(null);
+  // Identity, rather than position, also handles page deletion and reordering.
+  const spreadKey = [journal.id, single, leftSlot?.kind, slotFolio(leftSlot)?.id,
+    rightSlot?.kind, slotFolio(rightSlot)?.id].join(':');
+  useEffect(() => () => { turnRef.current?.cleanup(); }, []);
+  useLayoutEffect(() => {
+    const turn = turnRef.current;
+    const spread = spreadRef.current;
+    const overlay = turnOverlayRef.current;
+    if (!turn || !spread || !overlay) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      turn.cleanup();
+      return;
+    }
+    overlay.appendChild(turn.snapshot);
+    // Restore scroll positions only after the visual copy has layout.
+    turn.scrollPositions.forEach(([node, top, left]) => {
+      node.scrollTop = top;
+      node.scrollLeft = left;
+    });
+    spread.dataset.turnDirection = turn.direction;
+    spread.classList.add('jv-spread--arriving');
+    const animations = [...spread.getAnimations({ subtree: true }),
+      ...turn.snapshot.getAnimations({ subtree: true })]
+      .filter((animation) => animation.animationName?.startsWith('jvFolio'));
+    Promise.allSettled(animations.map((animation) => animation.finished)).then(turn.cleanup);
+    return turn.cleanup;
+  }, [spreadKey]);
+
   const jumpToFolio = (target) => {
     if (!target) return;
     const idx = (foliosRef.current || []).findIndex((f) => f.id === target.id);
-    if (idx >= 0) setCursor(idx);
+    if (idx < 0 || idx === cursor) return;
+    turnRef.current?.cleanup();
+    const targetSlot = slots.findIndex((s) => s.kind === 'page'
+      ? s.folio.id === target.id : s.group.folios.some((f) => f.id === target.id));
+    const targetLeft = single ? targetSlot : targetSlot - (targetSlot % 2);
+    const spread = spreadRef.current;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (spread && targetSlot >= 0 && targetLeft !== leftSlotIdx && !reducedMotion) {
+      // An inert visual copy lets the live editor change immediately. Never
+      // mount a second editor: that would duplicate saves and overflow work.
+      const snapshot = spread.cloneNode(true);
+      snapshot.classList.add('jv-spread--departing');
+      snapshot.setAttribute('aria-hidden', 'true');
+      snapshot.inert = true;
+      const direction = idx > cursor ? 'forward' : 'backward';
+      snapshot.dataset.turnDirection = direction;
+      const originals = [spread, ...spread.querySelectorAll('*')];
+      const copies = [snapshot, ...snapshot.querySelectorAll('*')];
+      const scrollPositions = [];
+      copies.forEach((copy, i) => {
+        copy.removeAttribute('id');
+        copy.removeAttribute('name');
+        copy.removeAttribute('autofocus');
+        const original = originals[i];
+        if (original.scrollTop || original.scrollLeft) {
+          scrollPositions.push([copy, original.scrollTop, original.scrollLeft]);
+        }
+        if (original instanceof HTMLTextAreaElement ||
+          (original instanceof HTMLInputElement && original.type !== 'file')) copy.value = original.value;
+        if (original instanceof HTMLInputElement) copy.checked = original.checked;
+      });
+      const turn = { snapshot, direction, scrollPositions, cleanup: () => {
+        snapshot.remove();
+        if (turnRef.current !== turn) return;
+        spread.classList.remove('jv-spread--arriving');
+        delete spread.dataset.turnDirection;
+        turnRef.current = null;
+      } };
+      turnRef.current = turn;
+    }
+    setCursor(idx);
     for (const fn of scrollApisRef.current.values()) if (fn(target.id, true)) break;
+    logger.debug('journal', 'Journal page turned', {
+      journalId: journal.id, folioId: target.id, page: idx + 1,
+      direction: idx > cursor ? 'forward' : 'backward',
+      transition: turnRef.current ? 'paper handoff' : 'immediate',
+    });
   };
 
   /* Cursor tracks the page the reader has scrolled to inside a stack. */
@@ -2060,24 +2140,10 @@ export function JournalView({
               {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
               <PageJumper group={activeGroup} page={activePage} onJump={jumpToFolio} />
               {activeGroup?.type === 'notes' && (
-                <button
-                  type="button"
-                  className={'jvb__scrolltoggle' + (activeScrolled ? ' is-on' : '')}
-                  title={activeScrolled
-                    ? 'Back to page-by-page reading'
-                    : 'Read this folio as one continuous scroll'}
-                  onClick={toggleActiveScroll}
-                >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+                <JournalChoice label="Reading mode" value={activeScrolled} options={[[false, "Pages"], [true, "Scroll"]]} onChange={setActiveScroll} />
               )}
               {hasNotes && (
-                <button
-                  type="button"
-                  className={'jvb__scrolltoggle' + (selecting ? ' is-on' : '')}
-                  title={selecting
-                    ? 'Back to editing'
-                    : 'Select text across pages (editing pauses while this is on)'}
-                  onClick={() => setSelecting((s) => !s)}
-                >{selecting ? '✎ edit' : '⬚ select'}</button>
+                <JournalChoice label="Text interaction" value={selecting} options={[[false, "Edit"], [true, "Select"]]} onChange={setSelecting} />
               )}
             </div>
           </div>
@@ -2124,11 +2190,12 @@ export function JournalView({
                   className="jv-bookscale"
                   style={{ width: `${naturalW}px`, height: `${naturalH}px`, transform: `scale(${scale})` }}
                 >
-                  <div className={'jv-spread' + (single ? ' jv-spread--single' : '')}>
+                  <div ref={spreadRef} className={'jv-spread' + (single ? ' jv-spread--single' : '')}>
                     {renderSlot(leftSlot, 'empty-left')}
                     {!single && <div className="jv-spine" />}
                     {!single && renderSlot(rightSlot, 'empty-right')}
                   </div>
+                  <div ref={turnOverlayRef} className="jv-turn-overlay" aria-hidden="true" />
                 </div>
               </div>
 
@@ -2162,24 +2229,10 @@ export function JournalView({
                   onJump={jumpToFolio}
                 />
                 {activeGroup?.type === 'notes' && (
-                  <button
-                    type="button"
-                    className={'jvb__scrolltoggle' + (activeScrolled ? ' is-on' : '')}
-                    title={activeScrolled
-                      ? 'Back to page-by-page reading'
-                      : 'Read this folio as one continuous scroll'}
-                    onClick={toggleActiveScroll}
-                  >{activeScrolled ? '⧉ pages' : '⇳ scroll'}</button>
+                  <JournalChoice label="Reading mode" value={activeScrolled} options={[[false, "Pages"], [true, "Scroll"]]} onChange={setActiveScroll} />
                 )}
                 {hasNotes && (
-                  <button
-                    type="button"
-                    className={'jvb__scrolltoggle' + (selecting ? ' is-on' : '')}
-                    title={selecting
-                      ? 'Back to editing'
-                      : 'Select text across pages (editing pauses while this is on)'}
-                    onClick={() => setSelecting((s) => !s)}
-                  >{selecting ? '✎ edit' : '⬚ select'}</button>
+                  <JournalChoice label="Text interaction" value={selecting} options={[[false, "Edit"], [true, "Select"]]} onChange={setSelecting} />
                 )}
                 {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
               </div>
