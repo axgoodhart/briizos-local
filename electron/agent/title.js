@@ -70,7 +70,11 @@ async function generateTitle(state, { modelName = null } = {}) {
   try {
     const model = createChatModel({ name: titleConfig.model_name || modelName || null, thinkingEnabled: false });
     const response = await model.invoke(prompt);
-    const title = String(response.content || '').trim().replace(/^["']|["']$/g, '');
+    const raw = response.content;
+    const text = Array.isArray(raw)
+      ? raw.map((p) => (typeof p === 'string' ? p : p?.text || '')).filter(Boolean).join(' ')
+      : String(raw || '');
+    const title = text.trim().replace(/^["']|["']$/g, '');
     return title ? title.slice(0, maxChars) : fallbackTitle(userMsg, maxChars);
   } catch {
     return fallbackTitle(userMsg, maxChars);

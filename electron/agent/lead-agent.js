@@ -46,6 +46,10 @@ const {
   setLocalDataService: setMemoryLocalDataService,
 } = require('./memory');
 const { createTitlePostModelHook } = require('./title');
+const {
+  createTagPostModelHook,
+  setLocalDataService: setTagsLocalDataService,
+} = require('./tags');
 const { createViewImagePreModelHook } = require('./media');
 
 // Single checkpointer across the process — keys multi-turn context by
@@ -67,6 +71,7 @@ function setLocalDataService(service) {
   setPromptLocalDataService(service);
   setCheckpointLocalDataService(service);
   setMemoryLocalDataService(service);
+  setTagsLocalDataService(service);
   setToolsLocalDataService(service);
 }
 
@@ -270,6 +275,7 @@ function getOrBuildAgent({
     postModelHook: combinePostModelHooks(
       createSubagentLimitPostModelHook(maxConcurrentSubagents),
       createTitlePostModelHook({ modelName }),
+      createTagPostModelHook({ modelName }),
       createMemoryPostModelHook({ modelName, agentName }),
     ),
   });
@@ -290,6 +296,15 @@ function getOrBuildAgent({
     providerContactedByThisStep: false,
   });
   return agent;
+}
+
+/**
+ * Tag updates arrive as the full visible list for the conversation, never as
+ * a delta, so an empty array carries no news and is dropped here.
+ */
+function streamedTags(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim());
 }
 
 /**
@@ -328,14 +343,31 @@ function mapEvent(evt) {
   }
 
   if (name === 'on_chain_stream' && data?.chunk) {
-    const title = data.chunk?.post_model_hook?.title
+    const raw = data.chunk?.post_model_hook?.title
       || data.chunk?.agent?.title
       || data.chunk?.title;
+    const title = typeof raw === 'string' ? raw.trim() : null;
     if (title) return { type: 'thread_title', payload: { title } };
   }
 
+  if (name === 'on_chain_stream' && data?.chunk) {
+    const tags = streamedTags(
+      data.chunk?.post_model_hook?.tags
+      || data.chunk?.agent?.tags
+      || data.chunk?.tags,
+    );
+    if (tags.length) return { type: 'thread_tags', payload: { tags } };
+  }
+
   if (name === 'on_chain_end' && data?.output?.title) {
-    return { type: 'thread_title', payload: { title: data.output.title } };
+    const raw = data.output.title;
+    const title = typeof raw === 'string' ? raw.trim() : null;
+    if (title) return { type: 'thread_title', payload: { title } };
+  }
+
+  if (name === 'on_chain_end' && data?.output?.tags) {
+    const tags = streamedTags(data.output.tags);
+    if (tags.length) return { type: 'thread_tags', payload: { tags } };
   }
 
   if (name === 'on_chat_model_stream') {
@@ -720,6 +752,7 @@ async function streamAgentInput({
       inject_memory: agentOptions.injectMemory,
       disable_memory_update: !!config.disable_memory_update,
       disable_title_generation: !!config.disable_title_generation,
+      disable_tag_generation: !!config.disable_tag_generation,
       recursion_limit: 100,
     },
     bound_tool_schemas: boundToolSchemasForAudit(agentOptions.allowedTools),
@@ -812,6 +845,7 @@ async function streamAgentInput({
       permission_policy: config.permission_policy || null,
       disable_memory_update: !!config.disable_memory_update,
       disable_title_generation: !!config.disable_title_generation,
+      disable_tag_generation: !!config.disable_tag_generation,
       writer: (payload) => {
         if (payload?.type) onEvent(payload.type, payload);
       },
@@ -1350,6 +1384,7 @@ ${context}
       inject_memory: false,
       disable_memory_update: true,
       disable_title_generation: true,
+      disable_tag_generation: true,
       tool_confirmation_mode: 'no-asking',
       permission_policy: {
         surface: 'suggestions',

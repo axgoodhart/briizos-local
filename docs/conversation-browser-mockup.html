@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Conversation browser — mockup</title>
+<style>
+/* ------------------------------------------------------------------ *
+ * Tokens lifted verbatim from src/themes/AppCombined-THEMEVALUES-verdigris.css
+ * (the theme the reference screenshots were taken in) plus the
+ * --interaction-* set that .interaction-panel .chat-input-toolbar defines.
+ * Nothing here is invented: the mockup renders in the app's own values.
+ * ------------------------------------------------------------------ */
+:root {
+  --cc-font-size-tiny: 9.5px;
+  --cc-font-size-small: 13px;
+  --cc-font-size-medium: 16px;
+  --ui-border-radius: 16px;
+  --ui-font-main: Chillax, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+
+  --palette-accent-primary: #ceffdc;
+  --palette-text-muted: #8c8271;
+  --palette-text-subtle: #bbae97;
+  --palette-neon-accent: #81ffc3;
+  --ui-header-bg: linear-gradient(to bottom, black 80%, #52a938);
+  --ui-header-text: #68e29c;
+
+  --interaction-surface-deep: oklch(12% 0.012 190);
+  --interaction-surface: oklch(15% 0.014 190);
+  --interaction-surface-raised: oklch(20% 0.016 190);
+  --interaction-text: oklch(92% 0.012 85);
+  --interaction-text-muted: var(--palette-text-muted);
+  --interaction-line: oklch(34% 0.018 190);
+  --interaction-accent: var(--palette-accent-primary);
+  --interaction-selection: color-mix(in oklch, var(--interaction-accent) 13%, var(--interaction-surface-raised));
+
+  /* The Conversations segment's own gradient — the one new colour decision. */
+  --conversations-switch-gradient: linear-gradient(100deg, #7b3ff2 0%, #4f46e5 46%, #1e3a8a 100%);
+
+  --doc-bg: #06070a;
+  --doc-ink: #cfd8d2;
+  --doc-ink-dim: #6f7d78;
+  --doc-rule: rgba(206, 255, 220, 0.14);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 48px 40px 96px;
+  background: var(--doc-bg);
+  color: var(--doc-ink);
+  font-family: var(--ui-font-main);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.doc { max-width: 1180px; margin: 0 auto; }
+
+h1 {
+  margin: 0 0 6px;
+  color: var(--palette-accent-primary);
+  font-size: 26px;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+}
+
+.doc > p.lede { margin: 0 0 40px; max-width: 78ch; color: var(--doc-ink-dim); }
+
+h2 {
+  margin: 56px 0 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--doc-rule);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--palette-text-subtle);
+}
+
+h2 .h2-sub {
+  display: block;
+  margin-top: 6px;
+  color: var(--doc-ink-dim);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * The panel frame — a stand-in for .interaction-panel so the toolbar
+ * sits in the same context it does in the app.
+ * ------------------------------------------------------------------ */
+.panel {
+  position: relative;
+  margin: 22px 0 0;
+  height: 520px;
+  border: 3px solid #000;
+  border-radius: var(--ui-border-radius);
+  background: #000;
+  box-shadow: inset 0 0 10px rgb(34, 48, 56);
+  overflow: hidden;
+}
+
+.panel-header {
+  height: 34px;
+  background: var(--ui-header-bg);
+  border-bottom: 1px solid rgba(206, 255, 220, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 14px;
+}
+
+.panel-header .provider-indicator {
+  color: #00e5e5;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.panel-header .icon {
+  color: var(--palette-text-subtle);
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.chat-body {
+  position: absolute;
+  inset: 34px 0 0;
+  background: #000;
+}
+
+/* ------------------------------------------------------------------ *
+ * .chat-input-toolbar — the two-row, three-column surface. Row 1 is the
+ * mode switch; row 2 is the body. Metrics match AppCombined.css.
+ * ------------------------------------------------------------------ */
+.chat-input-toolbar {
+  --interaction-bar-height: 28px;
+  position: absolute;
+  inset: 0 0 auto;
+  display: grid;
+  grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--interaction-line);
+  border-radius: 0 0 var(--ui-border-radius) var(--ui-border-radius);
+  background: var(--interaction-surface-deep);
+  color: var(--interaction-text);
+  box-shadow: 0 18px 44px oklch(5% 0.01 190 / 0.58), inset 0 1px oklch(62% 0.025 190 / 0.14);
+  overflow: hidden;
+}
+
+/* --- Row 1: the segmented switch ---------------------------------- */
+.interaction-toolbar-switch {
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 48%) minmax(0, 1fr);
+  border-bottom: 1px solid var(--interaction-line);
+}
+
+.interaction-toolbar-switch-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 18px;
+  border: 0;
+  background: var(--interaction-surface-deep);
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main);
+  font-size: var(--cc-font-size-small);
+  font-weight: 450;
+  letter-spacing: -0.025em;
+  cursor: pointer;
+}
+
+.interaction-toolbar-switch-segment .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-toolbar-switch-segment.conversations.active {
+  background: var(--conversations-switch-gradient);
+  color: #fff;
+  font-weight: 560;
+}
+
+.interaction-toolbar-switch-segment.models.active {
+  color: var(--interaction-text);
+}
+
+/* The arrow is the existing .model-picker-trigger-arrow: a rotated corner. */
+.arrow {
+  flex: 0 0 auto;
+  width: 0.42em;
+  height: 0.42em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-0.14em) rotate(45deg);
+  color: var(--interaction-text-muted);
+}
+.interaction-toolbar-switch-segment.active .arrow { color: var(--interaction-accent); }
+.interaction-toolbar-switch-segment.models.active .arrow { transform: translateY(0.12em) rotate(225deg); }
+.interaction-toolbar-switch-segment.conversations.active .arrow { color: #fff; transform: rotate(-45deg); }
+
+/* Model mode keeps the current full-width trigger look. */
+.chat-input-toolbar.mode-models .interaction-toolbar-switch { grid-template-columns: minmax(0, 48%) minmax(0, 1fr); }
+
+/* --- Row 2: the three-column body --------------------------------- */
+.toolbar-body {
+  grid-row: 2;
+  display: grid;
+  min-height: 0;
+}
+
+/* Model mode column ratio — from the live CSS: 25% / 23% / 52%. */
+.toolbar-body.models { grid-template-columns: 25% 23% minmax(0, 1fr); }
+
+/* Conversations mode column ratio — measured off the reference mockup:
+   15.5% / 32.5% / 52%. Facets need less room than Mode; titles need more. */
+.toolbar-body.conversations { grid-template-columns: 15.5% 32.5% minmax(0, 1fr); }
+
+.col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.col.divider { border-right: 1px solid var(--interaction-line); }
+.col.sunk { background: color-mix(in oklch, var(--interaction-surface-deep) 78%, var(--interaction-surface)); }
+
+.col-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding-bottom: 24px; }
+.col-scroll::-webkit-scrollbar { width: 4px; }
+.col-scroll::-webkit-scrollbar-track { background: var(--interaction-surface-deep); }
+.col-scroll::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--interaction-accent) 46%, var(--interaction-surface-raised)); }
+
+/* The sticky section title, verbatim from the live rules. */
+.interaction-toolbar-section-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny);
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.interaction-toolbar-section-title span:last-child { letter-spacing: 0.04em; opacity: 0.72; font-variant-numeric: tabular-nums; }
+
+/* --- The shared row anatomy --------------------------------------- *
+ * Every selectable row in this surface — modality chip, provider,
+ * model, facet, tag, conversation — is the same object.
+ * ------------------------------------------------------------------ */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: max(48px, calc(var(--cc-font-size-medium) * 2.8));
+  padding: 0 20px 0 36px;
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main);
+  font-size: var(--cc-font-size-medium);
+  font-weight: 430;
+  letter-spacing: -0.012em;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.row.active {
+  color: var(--interaction-text);
+  font-weight: 560;
+  background: var(--interaction-selection);
+}
+
+.row.active::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateY(-50%);
+  border-radius: var(--ui-border-radius);
+  background: var(--interaction-accent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--interaction-accent) 34%, transparent);
+}
+
+.row .count {
+  margin-left: auto;
+  font-size: var(--cc-font-size-tiny);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+}
+
+.row .vision {
+  margin-left: auto;
+  font-size: var(--cc-font-size-tiny);
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.row.dim { opacity: 0.44; }
+
+/* --- Conversations mode: search row ------------------------------- */
+.conversation-search-cell { /* column 1's blank header — continuity with the search band */
+  flex: 0 0 auto;
+  min-height: 36px;
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.conversation-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.conversation-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main);
+  font-size: var(--cc-font-size-medium);
+  font-weight: 430;
+  letter-spacing: -0.012em;
+  outline: none;
+}
+.conversation-search-input::placeholder { color: var(--interaction-text-muted); opacity: 0.8; }
+
+.search-caret {
+  display: inline-block;
+  width: 1px;
+  height: 1.05em;
+  margin-left: -4px;
+  background: var(--interaction-accent);
+  vertical-align: -0.18em;
+}
+
+.conversation-new {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* --- Conversations mode: facet children --------------------------- */
+.conversation-facet-group { border-bottom: 1px solid var(--interaction-line); }
+
+.row.child {
+  min-height: 34px;
+  padding-left: 36px;
+  font-size: var(--cc-font-size-small);
+}
+.row.child.on { color: var(--interaction-text); }
+.row.child.on::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  transform: translateY(-50%);
+  border-radius: var(--ui-border-radius);
+  background: var(--interaction-accent);
+}
+
+.facet-rule { height: 1px; margin: 0 0 0 16px; background: var(--interaction-line); }
+
+/* --- Conversations mode: preview ---------------------------------- */
+.conversation-preview { display: flex; flex-direction: column; min-height: 0; }
+.conversation-preview-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px 18px 8px; }
+
+.conversation-preview-message { display: flex; gap: 10px; margin-bottom: 18px; }
+.conversation-preview-message.user { justify-content: flex-end; }
+
+.conversation-preview-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: var(--palette-neon-accent);
+  font-size: var(--cc-font-size-small);
+  line-height: 1.5;
+}
+.conversation-preview-message.user .conversation-preview-bubble {
+  background: color-mix(in oklch, var(--interaction-accent) 11%, var(--interaction-surface-raised));
+  text-align: right;
+}
+.conversation-preview-message.assistant .conversation-preview-bubble { padding-left: 0; color: var(--palette-neon-accent); }
+
+.conversation-preview-avatar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 38px;
+  padding-top: 4px;
+}
+.conversation-preview-avatar-glyph { font-size: 17px; color: var(--interaction-accent); }
+.conversation-preview-avatar-name {
+  font-size: var(--cc-font-size-tiny);
+  color: var(--interaction-text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* --- Conversations mode: the tag strip ---------------------------- */
+.conversation-tagbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.conversation-tagbar-label {
+  flex: 0 0 auto;
+  margin-right: 2px;
+  color: var(--interaction-text-muted);
+  font-size: 12px;
+}
+
+.conversation-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--interaction-line);
+  border-radius: 999px;
+  background: var(--interaction-surface-raised);
+  color: var(--interaction-text);
+  font-size: 11.5px;
+  letter-spacing: -0.005em;
+  cursor: default;
+}
+
+.conversation-tag.auto {
+  border-color: color-mix(in oklch, var(--interaction-accent) 36%, transparent);
+  color: var(--interaction-accent);
+}
+
+.conversation-tag-auto-mark { font-size: 9px; opacity: 0.8; }
+.conversation-tag-remove { color: var(--interaction-text-muted); font-size: 9px; cursor: pointer; }
+
+.conversation-tag-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px dashed var(--interaction-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+/* The open combobox state */
+.conversation-tag-editing {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--interaction-accent);
+  border-radius: 999px;
+  background: var(--interaction-surface-raised);
+  color: var(--interaction-text);
+  font-size: 11.5px;
+}
+
+.conversation-tag-suggestions {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 4;
+  min-width: 190px;
+  border: 1px solid var(--interaction-line);
+  background: var(--interaction-surface-deep);
+  box-shadow: 0 -12px 28px oklch(5% 0.01 190 / 0.6);
+}
+
+.conversation-tag-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  color: var(--interaction-text-muted);
+  font-size: 12px;
+}
+.conversation-tag-suggestion.on { background: var(--interaction-selection); color: var(--interaction-text); }
+.conversation-tag-suggestion-count { font-size: 9.5px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.conversation-tag-suggestion.mint { color: var(--interaction-accent); }
+
+/* ------------------------------------------------------------------ *
+ * Annotation callouts
+ * ------------------------------------------------------------------ */
+.notes { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.notes li { position: relative; padding-left: 26px; color: var(--doc-ink-dim); font-size: 13px; }
+.notes li b { color: var(--doc-ink); font-weight: 520; }
+.notes li::before {
+  content: counter(note);
+  counter-increment: note;
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid var(--doc-rule);
+  border-radius: 999px;
+  color: var(--palette-accent-primary);
+  font-size: 10px;
+}
+.notes { counter-reset: note; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 1000px) { .pair { grid-template-columns: 1fr; } }
+.pair .panel { height: 440px; }
+.caption { margin: 10px 2px 0; color: var(--doc-ink-dim); font-size: 12px; letter-spacing: 0.02em; }
+.caption b { color: var(--palette-accent-primary); font-weight: 560; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1>Conversation history browser</h1>
+<p class="lede">
+  The model selection dropdown and the conversation browser are two modes of one
+  surface. Same footprint, same grid, same row anatomy — only the three columns
+  and the header row change. Rendered here in the verdigris theme's own tokens.
+</p>
+
+<!-- ================================================================ -->
+<h2>1 — Model mode
+  <span class="h2-sub">Today's dropdown, with the new switch in row 1. Everything below row 1 is unchanged.</span>
+</h2>
+
+<div class="panel">
+  <div class="panel-header">
+    <span class="provider-indicator">OAI</span>
+    <span class="icon">􀌆</span>
+    <span class="icon">􀌴</span>
+  </div>
+  <div class="chat-body">
+    <div class="chat-input-toolbar mode-models">
+
+      <div class="interaction-toolbar-switch">
+        <button class="interaction-toolbar-switch-segment conversations">
+          <span class="label">Conversations</span>
+        </button>
+        <button class="interaction-toolbar-switch-segment models active">
+          <span class="label">GPT-5.6 Luna</span><span class="arrow"></span>
+        </button>
+      </div>
+
+      <div class="toolbar-body models">
+        <div class="col divider">
+          <div class="interaction-toolbar-section-title"><span>Mode</span><span>5</span></div>
+          <div class="col-scroll">
+            <div class="row"><span class="name">Day</span></div>
+            <div class="row active"><span class="name">Chat</span></div>
+            <div class="row"><span class="name">Research</span></div>
+            <div class="row"><span class="name">Code</span></div>
+            <div class="row"><span class="name">Report</span></div>
+          </div>
+        </div>
+        <div class="col divider">
+          <div class="interaction-toolbar-section-title"><span>Provider</span><span>4</span></div>
+          <div class="col-scroll">
+            <div class="row"><span class="name">Codex</span><span class="count">1</span></div>
+            <div class="row"><span class="name">Anthropic</span><span class="count">5</span></div>
+            <div class="row active"><span class="name">OpenAI</span><span class="count">13</span></div>
+            <div class="row"><span class="name">Google</span><span class="count">10</span></div>
+          </div>
+        </div>
+        <div class="col sunk">
+          <div class="interaction-toolbar-section-title"><span>OpenAI</span><span>13 models</span></div>
+          <div class="col-scroll">
+            <div class="row"><span class="name">GPT-4.1</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-4.1 Mini</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-4.1 Nano</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-5 Mini</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-5.1 Codex Mini</span></div>
+            <div class="row"><span class="name">GPT-5.2</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-5.4</span><span class="vision">Vision</span></div>
+            <div class="row active"><span class="name">GPT-5.6 Luna</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-5.6 Sol</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">GPT-5.6 Terra</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">o1</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">o3</span><span class="vision">Vision</span></div>
+            <div class="row"><span class="name">o3-mini</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<ul class="notes">
+  <li><b>Row 1 is now a switch.</b> The model segment keeps the current label, caret and centring; the Conversations segment sits to its left, quiet until it is the active mode.</li>
+  <li><b>Columns are untouched:</b> 25% / 23% / 52%, the sticky <code>MODE</code> / <code>PROVIDER</code> / <code>OPENAI</code> titles, and the 48px rows with the 5&times;5 accent dot.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2>2 — Conversations mode
+  <span class="h2-sub">The alternate mode of the same section. Facets / list / preview.</span>
+</h2>
+
+<div class="panel">
+  <div class="panel-header">
+    <span class="provider-indicator">OAI</span>
+    <span class="icon">􀌆</span>
+    <span class="icon">􀌴</span>
+  </div>
+  <div class="chat-body">
+    <div class="chat-input-toolbar mode-conversations">
+
+      <div class="interaction-toolbar-switch">
+        <button class="interaction-toolbar-switch-segment conversations active">
+          <span class="label">Conversations</span><span class="arrow"></span>
+        </button>
+        <button class="interaction-toolbar-switch-segment models">
+          <span class="label">GPT-5.6 Luna</span><span class="arrow"></span>
+        </button>
+      </div>
+
+      <div class="toolbar-body conversations">
+
+        <!-- Column 1 — facets -->
+        <div class="col divider">
+          <div class="conversation-search-cell"></div>
+          <div class="col-scroll">
+            <div class="row active"><span class="name">All</span><span class="count">13</span></div>
+            <div class="row"><span class="name">Tags</span><span class="count">5</span></div>
+            <div class="row"><span class="name">Date</span></div>
+            <div class="facet-rule"></div>
+          </div>
+        </div>
+
+        <!-- Column 2 — search + list -->
+        <div class="col divider">
+          <div class="conversation-search">
+            <input class="conversation-search-input" placeholder="search anything" readonly />
+            <span class="search-caret"></span>
+            <button class="conversation-new" title="New conversation">􀅼</button>
+          </div>
+          <div class="col-scroll">
+            <div class="row"><span class="name">Confederacy Analogues</span></div>
+            <div class="row active"><span class="name">Baltimore Ravens</span></div>
+            <div class="row"><span class="name">Friendly Greeting</span></div>
+            <div class="row"><span class="name">Looping agents</span></div>
+            <div class="row"><span class="name">Simpsons episode</span></div>
+            <div class="row"><span class="name">Troubleshooting agent</span></div>
+            <div class="row"><span class="name">Proofread letter</span></div>
+            <div class="row"><span class="name">Essay app</span></div>
+            <div class="row"><span class="name">Cooking lamb</span></div>
+            <div class="row"><span class="name">Remembering song</span></div>
+          </div>
+        </div>
+
+        <!-- Column 3 — preview -->
+        <div class="col sunk conversation-preview">
+          <div class="interaction-toolbar-section-title"><span>Preview</span><span></span></div>
+          <div class="conversation-preview-scroll">
+            <div class="conversation-preview-message user">
+              <div class="conversation-preview-bubble">Hi Luna, can you list some key historical achievements for the Baltimore Ravens?</div>
+            </div>
+            <div class="conversation-preview-message assistant">
+              <div class="conversation-preview-avatar">
+                <span class="conversation-preview-avatar-glyph">􀌲</span>
+                <span class="conversation-preview-avatar-name">Luna</span>
+              </div>
+              <div class="conversation-preview-bubble">Certainly. The Ravens have a notable history. Their key achievements include winning Super Bowl XXXV (2000 season) with one of the greatest defenses in NFL history, led by Ray Lewis, and Super Bowl XLVII (2012 season) with quarterback Joe Flacco.</div>
+            </div>
+            <div class="conversation-preview-message user">
+              <div class="conversation-preview-bubble">Who are some other all-time great Ravens players besides Lewis?</div>
+            </div>
+            <div class="conversation-preview-message assistant">
+              <div class="conversation-preview-avatar">
+                <span class="conversation-preview-avatar-glyph">􀌲</span>
+                <span class="conversation-preview-avatar-name">Luna</span>
+              </div>
+              <div class="conversation-preview-bubble">Other legendary Ravens players include safety Ed Reed, wide receiver Steve Smith Sr., and offensive lineman Jonathan Ogden, to name a few.</div>
+            </div>
+          </div>
+          <div class="conversation-tagbar">
+            <span class="conversation-tagbar-label">􀋡</span>
+            <span class="conversation-tag auto"><span class="conversation-tag-auto-mark">􀆿</span>baltimore ravens<span class="conversation-tag-remove">􀆄</span></span>
+            <span class="conversation-tag auto"><span class="conversation-tag-auto-mark">􀆿</span>nfl history<span class="conversation-tag-remove">􀆄</span></span>
+            <button class="conversation-tag-add">􀅼 tag</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="notes">
+  <li><b>Column 1's header cell is deliberately blank</b> and carries the search row's background, so the band reads as continuous from the left edge while the placeholder aligns to column 2.</li>
+  <li><b>Column ratios change to 15.5% / 32.5% / 52%.</b> Facets need less room than Mode; conversation titles need more than provider names. The preview column stays at 52%, identical to the model list.</li>
+  <li><b>Rows are the same object as before</b> — same height, same 36px text inset, same dot at <code>left: 17px</code>, same right-aligned count. <code>All</code> and <code>Baltimore Ravens</code> carry it here.</li>
+  <li><b>The tag strip is pinned to the bottom of the preview.</b> Model-applied tags carry 􀆿 and read in the accent colour; user tags read in body colour. Removing a 􀆿 tag also stops it being suggested again.</li>
+  <li><b>Interaction:</b> single click previews, double-click or <code>Enter</code> opens the conversation into the chat. The dot marks the conversation currently loaded.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2>3 — Facets expanded, and quick tag editing
+  <span class="h2-sub">Left: the Tags facet open with multi-select. Right: the 􀅼 chip's inline combobox.</span>
+</h2>
+
+<div class="pair">
+
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="provider-indicator">OAI</span><span class="icon">􀌆</span><span class="icon">􀌴</span>
+      </div>
+      <div class="chat-body">
+        <div class="chat-input-toolbar">
+          <div class="interaction-toolbar-switch">
+            <button class="interaction-toolbar-switch-segment conversations active">
+              <span class="label">Conversations</span><span class="arrow"></span>
+            </button>
+            <button class="interaction-toolbar-switch-segment models">
+              <span class="label">GPT-5.6 Luna</span><span class="arrow"></span>
+            </button>
+          </div>
+          <div class="toolbar-body conversations" style="grid-template-columns: 34% 1fr;">
+            <div class="col divider">
+              <div class="conversation-search-cell"></div>
+              <div class="col-scroll">
+                <div class="row"><span class="name">All</span><span class="count">13</span></div>
+                <div class="row active"><span class="name">Tags</span><span class="count">5</span></div>
+                <div class="conversation-facet-group">
+                  <div class="row child on"><span class="name">baltimore ravens</span><span class="count">2</span></div>
+                  <div class="row child"><span class="name">nfl history</span><span class="count">2</span></div>
+                  <div class="row child"><span class="name">agent debugging</span><span class="count">3</span></div>
+                  <div class="row child"><span class="name">cooking</span><span class="count">1</span></div>
+                  <div class="row child"><span class="name">writing</span><span class="count">2</span></div>
+                </div>
+                <div class="row"><span class="name">Date</span></div>
+                <div class="facet-rule"></div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="conversation-search">
+                <input class="conversation-search-input" value="" placeholder="search anything" readonly />
+                <button class="conversation-new">􀅼</button>
+              </div>
+              <div class="col-scroll">
+                <div class="row active"><span class="name">Baltimore Ravens</span></div>
+                <div class="row"><span class="name">Ravens draft board</span></div>
+                <div class="row" style="opacity:.34"><span class="name">&mdash; 11 hidden by filter</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption"><b>Tags facet.</b> Selecting a tag filters the list and the count in the header. Multi-select is additive; a "Clear filters" row appears under the group when anything is on.</p>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="provider-indicator">OAI</span><span class="icon">􀌆</span><span class="icon">􀌴</span>
+      </div>
+      <div class="chat-body">
+        <div class="chat-input-toolbar">
+          <div class="interaction-toolbar-switch">
+            <button class="interaction-toolbar-switch-segment conversations active">
+              <span class="label">Conversations</span><span class="arrow"></span>
+            </button>
+            <button class="interaction-toolbar-switch-segment models">
+              <span class="label">GPT-5.6 Luna</span><span class="arrow"></span>
+            </button>
+          </div>
+          <div class="toolbar-body conversations" style="grid-template-columns: 34% 1fr;">
+            <div class="col divider">
+              <div class="conversation-search-cell"></div>
+              <div class="col-scroll">
+                <div class="row"><span class="name">All</span><span class="count">13</span></div>
+                <div class="row"><span class="name">Tags</span><span class="count">5</span></div>
+                <div class="row"><span class="name">Date</span></div>
+                <div class="facet-rule"></div>
+              </div>
+            </div>
+            <div class="col sunk conversation-preview">
+              <div class="interaction-toolbar-section-title"><span>Preview</span><span></span></div>
+              <div class="conversation-preview-scroll" style="opacity:.42">
+                <div class="conversation-preview-message user">
+                  <div class="conversation-preview-bubble">Who are some other all-time great Ravens players besides Lewis?</div>
+                </div>
+                <div class="conversation-preview-message assistant">
+                  <div class="conversation-preview-avatar">
+                    <span class="conversation-preview-avatar-glyph">􀌲</span>
+                    <span class="conversation-preview-avatar-name">Luna</span>
+                  </div>
+                  <div class="conversation-preview-bubble">Other legendary Ravens players include safety Ed Reed, wide receiver Steve Smith Sr., and offensive lineman Jonathan Ogden.</div>
+                </div>
+              </div>
+              <div class="conversation-tagbar">
+                <span class="conversation-tagbar-label">􀋡</span>
+                <span class="conversation-tag auto"><span class="conversation-tag-auto-mark">􀆿</span>baltimore ravens<span class="conversation-tag-remove">􀆄</span></span>
+                <span class="conversation-tag-editing">
+                  nf<span class="search-caret" style="margin-left:1px"></span>
+                  <div class="conversation-tag-suggestions">
+                    <div class="conversation-tag-suggestion on"><span>nfl history</span><span class="conversation-tag-suggestion-count">2</span></div>
+                    <div class="conversation-tag-suggestion"><span>nfl draft</span><span class="conversation-tag-suggestion-count">1</span></div>
+                    <div class="conversation-tag-suggestion mint"><span>􀅼 create &ldquo;nf&rdquo;</span><span class="conversation-tag-suggestion-count">new</span></div>
+                  </div>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption"><b>Quick tag edit.</b> 􀅼 opens an inline combobox over the workspace vocabulary with usage counts. <code>↑</code>/<code>↓</code> move, <code>Enter</code> commits, <code>Esc</code> cancels, blur cancels. Creating a new tag is always the last option, never the first.</p>
+  </div>
+
+</div>
+
+<!-- ================================================================ -->
+<h2>4 — When the model adds a tag
+  <span class="h2-sub">Five gates run before the model is ever asked, so a greeting costs nothing.</span>
+</h2>
+
+<ul class="notes">
+  <li><b>Turn shape.</b> Only after a completed assistant reply with no pending tool call, and never inside a sub-agent run.</li>
+  <li><b>Cap.</b> At 5 tags the conversation is finished — it is never evaluated again. This is the main guard against endless curation.</li>
+  <li><b>Checkpoint.</b> Evaluated only when the exchange count crosses 2, 4, 8, 16 or 32. A 40-turn conversation is checked at most five times, not forty.</li>
+  <li><b>Substance.</b> Needs 2+ complete exchanges, 120+ characters of user text, 12+ distinct non-stopword words, and no small-talk match. <b>&ldquo;Hello&rdquo; fails this and the checkpoint gate, so no model call is made and no tag is created.</b></li>
+  <li><b>Vocabulary.</b> The existing workspace tags and their counts are handed to the model with an instruction to reuse before inventing — so the vocabulary converges instead of growing.</li>
+  <li><b>Append-only.</b> The model can add at most 2 tags per check and can never rename or remove one. Anything you delete is remembered and never proposed again.</li>
+</ul>
+
+</div>
+</body>
+</html>

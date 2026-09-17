@@ -38,7 +38,11 @@ function moveRovingFocus(event, selectOnFocus = false) {
   if (selectOnFocus) nextItem?.click();
 }
 
-export default function ModelPicker({ models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus }) {
+// renderTrigger defaults to true so every existing caller is unaffected. The
+// interaction panel passes false because the toolbar's segmented switch is the
+// shared header row for both the model and conversation modes, and the switch
+// carries the aria-expanded the toolbar's CSS opens on.
+export default function ModelPicker({ models, modelsByProvider, selectedModel, selectModel, isModelAvailable, apiKeyStatus, renderTrigger = true }) {
   const [pinned, setPinned] = useState(false);
   const ref = useRef(null);
   const pickerId = useId();
@@ -85,18 +89,20 @@ export default function ModelPicker({ models, modelsByProvider, selectedModel, s
 
   return (
     <div ref={ref} className="model-picker">
-      <button
-        type="button"
-        onClick={() => setPinned(current => !current)}
-        className="model-picker-trigger"
-        title={`Current model: ${displayName}`}
-        aria-haspopup="dialog"
-        aria-expanded={pinned}
-        aria-controls={pickerId}
-      >
-        <span className="model-picker-trigger-label">{displayName}</span>
-        <span className="model-picker-trigger-arrow" aria-hidden="true" />
-      </button>
+      {renderTrigger && (
+        <button
+          type="button"
+          onClick={() => setPinned(current => !current)}
+          className="model-picker-trigger"
+          title={`Current model: ${displayName}`}
+          aria-haspopup="dialog"
+          aria-expanded={pinned}
+          aria-controls={pickerId}
+        >
+          <span className="model-picker-trigger-label">{displayName}</span>
+          <span className="model-picker-trigger-arrow" aria-hidden="true" />
+        </button>
+      )}
 
       <div id={pickerId} className="model-picker-dropdown" role="dialog" aria-label="Choose AI model">
         <div className="model-picker-providers" role="tablist" aria-label="AI providers">

@@ -1,5 +1,7 @@
 # Theme stylesheet extraction
 
+> Historical record only: this documents the September 5 split into complete per-theme files. That model was restored back to one `AppCombined.css` on September 16. It is not the current runtime contract; see `docs/theme-authoring.md`.
+
 The original files were renamed to `docs/theme-archive/AppCombined.before-theme-split.css` and `docs/theme-archive/App.before-theme-split.css`. The late App.css declarations follow AppCombined declarations in both extracted streams. Every shipped appearance file contains its own complete common appearance and selected theme declarations; no appearance file imports or derives from another theme file.
 
 ## Runtime and Chromap contract

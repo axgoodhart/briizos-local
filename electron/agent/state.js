@@ -38,6 +38,8 @@ const ThreadState = Annotation.Root({
   sandbox: Annotation({ reducer: lastWrite, default: () => null }),
   threadData: Annotation({ reducer: lastWrite, default: () => null }),
   title: Annotation({ reducer: lastWrite, default: () => null }),
+  // The full visible tag list after the auto-tagger ran, not just the new ones.
+  tags: Annotation({ reducer: lastWrite, default: () => null }),
   artifacts: Annotation({ reducer: mergeArtifacts, default: () => [] }),
   todos: Annotation({ reducer: lastWrite, default: () => null }),
   uploadedFiles: Annotation({ reducer: lastWrite, default: () => null }),

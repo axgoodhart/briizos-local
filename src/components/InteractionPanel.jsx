@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, Comp
 import { useDrop } from 'react-dnd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat } from '../hooks/useChat';
+import { useChat, threadKindForModality } from '../hooks/useChat';
 import { useChatSettings } from '../context/ChatSettingsContext';
 import { useTools } from '../context/ToolContext';
 import ConfirmationToast from './ConfirmationToast';
@@ -15,6 +15,11 @@ import { CHAT_BACKGROUNDS } from '../lib/chatBackgrounds';
 import { syncThemeTokensIntoFrame } from '../lib/backgroundFrame';
 import { useModelSelection } from '../hooks/useModelSelection';
 import ModelPicker from './ModelPicker';
+import ConversationBrowser, {
+  CONVERSATION_DATE_BUCKETS,
+  conversationDateRange,
+  conversationDateCounts,
+} from './ConversationBrowser';
 import '../AppCombined.css';
 
 // 'prioritize' left the chat surface: it now lives in the Tasks Panel
@@ -26,6 +31,8 @@ const MODALITIES = [
   { id: 'code', label: 'Code' },
   { id: 'report', label: 'Report' }
 ];
+
+const EMPTY_CONVERSATION_TOTALS = { all: 0, today: 0, week: 0, month: 0, earlier: 0 };
 
 const TOOL_NAME_REGEX = '[A-Za-z][A-Za-z0-9_]*';
 
@@ -127,6 +134,11 @@ function InteractionPanel({ showPanelBackground = true }) {
     setSuggestionsEnabled,
     threadTitle,
     threadTitleRef,
+    threadId,
+    threadTags,
+    openThread,
+    startNewConversation,
+    syncThreadTags,
     sendMessage,
     clearHistory,
     refreshFilesInContext,
@@ -211,6 +223,33 @@ function InteractionPanel({ showPanelBackground = true }) {
   const confirmationPanelRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
+  // ---- Toolbar section: a two-mode surface (models / conversations) --------
+  // The segmented switch is the shared header row. It owns the open state that
+  // the model picker's trigger used to own, so both modes open and close the
+  // same way and the panel has exactly one expansion owner.
+  const [toolbarMode, setToolbarMode] = useState('models');
+  const [toolbarExpanded, setToolbarExpanded] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [conversationTotals, setConversationTotals] = useState(EMPTY_CONVERSATION_TOTALS);
+  const [tagVocabulary, setTagVocabulary] = useState([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationSearch, setConversationSearch] = useState('');
+  const [conversationFacet, setConversationFacet] = useState('all');
+  const [conversationTagFilter, setConversationTagFilter] = useState([]);
+  const [conversationDateBucket, setConversationDateBucket] = useState(null);
+  const [selectedThreadId, setSelectedThreadId] = useState(null);
+  const [previewMessages, setPreviewMessages] = useState([]);
+  const [threadsRevision, setThreadsRevision] = useState(0);
+  const toolbarRef = useRef(null);
+  const browserOpenedRef = useRef(false);
+  const lastFilterSignatureRef = useRef(null);
+  const conversationsRef = useRef([]);
+  const previewThreadRef = useRef(null);
+  const conversationKind = threadKindForModality(modality);
+  const conversationsActive = toolbarExpanded && toolbarMode === 'conversations';
+  const modelsActive = toolbarExpanded && toolbarMode === 'models';
+  const modelDisplayName = selectedProfile?.display_name || selectedModel || 'Select model';
+
   useEffect(() => {
     if (!pendingToolConfirmation) return undefined;
     const frame = requestAnimationFrame(() => confirmationPanelRef.current?.focus());
@@ -262,6 +301,288 @@ function InteractionPanel({ showPanelBackground = true }) {
       logger.error('chat', 'Failed to remove file from context', error?.message);
     }
   }, [refreshFilesInContext]);
+
+  // ---- Conversation browser: data, subscription, and actions --------------
+  // ConversationBrowser is presentational. The query, the tag vocabulary, the
+  // preview transcript, the change subscription, and every log entry live here,
+  // so there is exactly one owner of each.
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  const loadConversationVocabulary = useCallback(async () => {
+    try {
+      const rows = await window.api.localData.threads.tags.list({ kind: conversationKind });
+      setTagVocabulary(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+      // A missing vocabulary only costs the Tags facet its rows. The list and
+      // the preview still work, so this is deliberately not fatal.
+      setTagVocabulary([]);
+      logger.error('chat', 'Could not read the workspace tag list, so the Tags filter has nothing to offer. Conversations are still listed and can still be opened.', error?.message);
+    }
+  }, [conversationKind]);
+
+  const loadConversations = useCallback(async () => {
+    setConversationsLoading(true);
+    try {
+      const range = conversationDateRange(conversationDateBucket);
+      const query = conversationSearch.trim();
+      // The second read is the unfiltered list. Facet counts come from it so
+      // the numbers keep saying what else is there instead of collapsing to
+      // whatever the current filter already shows.
+      const [rows, everything] = await Promise.all([
+        window.api.localData.threads.list({
+          kind: conversationKind,
+          query: query || undefined,
+          tags: conversationTagFilter.length > 0 ? conversationTagFilter : undefined,
+          since: range.since,
+          until: range.until,
+        }),
+        window.api.localData.threads.list({ kind: conversationKind }),
+      ]);
+      const listed = Array.isArray(rows) ? rows : [];
+      const totals = conversationDateCounts(Array.isArray(everything) ? everything : []);
+      setConversations(listed);
+      setConversationTotals(totals);
+      return { listed, totals };
+    } catch (error) {
+      setConversations([]);
+      setConversationTotals(EMPTY_CONVERSATION_TOTALS);
+      logger.error('chat', 'Could not read the saved conversation list, so the conversation browser is empty. Your conversations are untouched and reopening the browser tries again.', error?.message);
+      return null;
+    } finally {
+      setConversationsLoading(false);
+    }
+  }, [conversationKind, conversationSearch, conversationTagFilter, conversationDateBucket]);
+
+  useEffect(() => {
+    if (!conversationsActive) return undefined;
+    let active = true;
+    loadConversationVocabulary();
+    loadConversations().then((result) => {
+      if (!active || !result) return;
+      if (!browserOpenedRef.current) {
+        browserOpenedRef.current = true;
+        logger.info(
+          'chat.browser_opened',
+          `Conversation browser opened. ${result.totals.all} saved conversations are listed; opening one replaces what the chat panel shows but does not delete anything.`,
+          { kind: conversationKind, listed: result.listed.length, total: result.totals.all },
+        );
+      }
+      const query = conversationSearch.trim();
+      const bucket = CONVERSATION_DATE_BUCKETS.find((entry) => entry.id === conversationDateBucket);
+      const isFiltered = !!query || conversationTagFilter.length > 0 || !!conversationDateBucket;
+      const signature = JSON.stringify([query, conversationTagFilter, conversationDateBucket]);
+      if (!isFiltered) {
+        lastFilterSignatureRef.current = null;
+        return;
+      }
+      // One entry per distinct filter, not one per background refresh.
+      if (signature === lastFilterSignatureRef.current) return;
+      lastFilterSignatureRef.current = signature;
+      logger.debug(
+        'chat.browser_filtered',
+        `Filter applied — search "${query}", tags [${conversationTagFilter.join(', ')}], date bucket "${bucket ? bucket.label.toLowerCase() : 'any'}". ${result.listed.length} of ${result.totals.all} conversations match.`,
+        {
+          kind: conversationKind,
+          query,
+          tags: conversationTagFilter,
+          dateBucket: conversationDateBucket,
+          matched: result.listed.length,
+          total: result.totals.all,
+        },
+      );
+    });
+    return () => { active = false; };
+  }, [
+    conversationsActive,
+    threadsRevision,
+    conversationKind,
+    conversationSearch,
+    conversationTagFilter,
+    conversationDateBucket,
+    loadConversations,
+    loadConversationVocabulary,
+  ]);
+
+  // Closing the browser arms the next "opened" entry, so reopening it is
+  // reported while a background refresh is not.
+  useEffect(() => {
+    if (!conversationsActive) browserOpenedRef.current = false;
+  }, [conversationsActive]);
+
+  useEffect(() => {
+    if (!conversationsActive || !selectedThreadId) {
+      setPreviewMessages([]);
+      return undefined;
+    }
+    let active = true;
+    // Drop the previous transcript when the selection moves, so the preview
+    // column never shows one conversation's messages under another's name. A
+    // background refresh of the same conversation leaves it on screen instead
+    // of blinking.
+    if (previewThreadRef.current !== selectedThreadId) {
+      previewThreadRef.current = selectedThreadId;
+      setPreviewMessages([]);
+    }
+    window.api.localData.threads.messages.list(selectedThreadId)
+      .then((rows) => {
+        if (active) setPreviewMessages(Array.isArray(rows) ? rows : []);
+      })
+      .catch((error) => {
+        if (active) setPreviewMessages([]);
+        logger.error('chat', 'Could not read the previewed conversation, so the preview column is blank. The conversation itself is unchanged and can still be opened.', error?.message);
+      });
+    return () => { active = false; };
+  }, [conversationsActive, selectedThreadId, threadsRevision]);
+
+  // The browser refreshes from the same committed-change feed the rest of the
+  // app uses, so new conversations, renames, and tag writes appear on their own.
+  useEffect(() => {
+    if (typeof window.api?.localData?.onChanged !== 'function') return undefined;
+    return window.api.localData.onChanged((change) => {
+      if (change?.domains?.includes('threads')) setThreadsRevision((revision) => revision + 1);
+    });
+  }, []);
+
+  // Each mode reads its own thread kind, so a selection made against the
+  // previous list would point at a conversation this one does not contain.
+  useEffect(() => {
+    setSelectedThreadId(null);
+    setPreviewMessages([]);
+  }, [conversationKind]);
+
+  // The model can add tags mid-conversation; useChat sees that on the stream
+  // before the database change event lands. Mirroring it keeps the open
+  // conversation's row and tag strip current without a second read.
+  useEffect(() => {
+    if (!threadId || !Array.isArray(threadTags)) return;
+    setConversations((rows) => rows.map((row) => (
+      row.id === threadId ? { ...row, tags: threadTags } : row
+    )));
+  }, [threadId, threadTags]);
+
+  const handleToolbarSegment = useCallback((mode) => {
+    // The active segment collapses the section; an inactive one switches mode
+    // and keeps it open.
+    if (toolbarExpanded && toolbarMode === mode) {
+      setToolbarExpanded(false);
+      return;
+    }
+    setToolbarMode(mode);
+    setToolbarExpanded(true);
+  }, [toolbarExpanded, toolbarMode]);
+
+  const collapseToolbar = useCallback(() => setToolbarExpanded(false), []);
+
+  // The switch took over the open state the model picker's trigger used to
+  // own, so the outside-click and Escape dismissals move here with it.
+  useEffect(() => {
+    if (!toolbarExpanded) return undefined;
+    function handleClick(e) {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target)) setToolbarExpanded(false);
+    }
+    function handleKeyDown(e) {
+      if (e.key !== 'Escape') return;
+      setToolbarExpanded(false);
+      toolbarRef.current?.querySelector(`.interaction-toolbar-switch-segment.${toolbarMode}`)?.focus();
+    }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [toolbarExpanded, toolbarMode]);
+
+  // Picking a model closes the section, exactly as it did while the model
+  // picker owned its own trigger.
+  const handleSelectModel = useCallback((modelName) => {
+    selectModel(modelName);
+    setToolbarExpanded(false);
+  }, [selectModel]);
+
+  const handleOpenConversation = useCallback(async (conversationId) => {
+    const row = conversationsRef.current.find((conversation) => conversation.id === conversationId);
+    const title = row?.title?.trim() || 'Untitled conversation';
+    try {
+      const opened = await openThread(conversationId);
+      const messageCount = Array.isArray(opened) ? opened.length : (row?.messageCount ?? 0);
+      setToolbarExpanded(false);
+      logger.info(
+        'chat.conversation_opened',
+        `Opened conversation "${title}" (${conversationId}). The chat panel now shows its ${messageCount} saved messages, and new messages continue this conversation instead of the previous one.`,
+        { threadId: conversationId, title, messageCount },
+      );
+    } catch (error) {
+      logger.error('chat', `Could not open the conversation "${title}". The chat panel still shows the conversation you were already in, and nothing was lost.`, error?.message);
+    }
+  }, [openThread]);
+
+  const handleNewConversation = useCallback(async () => {
+    const previousThreadId = threadId;
+    try {
+      await startNewConversation();
+      setSelectedThreadId(null);
+      setPreviewMessages([]);
+      setToolbarExpanded(false);
+      logger.info(
+        'chat.conversation_started',
+        'Started a new conversation. The previous conversation was left intact and can be reopened from the conversation browser.',
+        { previousThreadId },
+      );
+    } catch (error) {
+      logger.error('chat', 'Could not start a new conversation, so the chat panel is still in the current one. Nothing was lost.', error?.message);
+    }
+  }, [startNewConversation, threadId]);
+
+  const handleSetConversationTags = useCallback(async (conversationId, tags) => {
+    const row = conversationsRef.current.find((conversation) => conversation.id === conversationId);
+    const title = row?.title?.trim() || 'Untitled conversation';
+    try {
+      const result = await window.api.localData.threads.tags.set(conversationId, tags);
+      const saved = Array.isArray(result?.row?.tags) ? result.row.tags : tags;
+      setConversations((rows) => rows.map((conversation) => (
+        conversation.id === conversationId
+          ? { ...conversation, tags: saved, tagState: result?.row?.tagState ?? conversation.tagState }
+          : conversation
+      )));
+      // Editing the open conversation's tags brings the live chat state in
+      // line. State only — the write above is the write, and syncThreadTags
+      // ignores an id that is not the open conversation.
+      syncThreadTags?.(conversationId, saved);
+      await loadConversationVocabulary();
+      // No log entry here on purpose. The local data service writes exactly one
+      // 'chat.tags_edited' entry inside the write above, from what was actually
+      // stored. Logging again from here would put two lines in the log panel
+      // for one edit, and this side only knows what it asked for.
+    } catch (error) {
+      logger.error('chat', `Could not save the tags for "${title}", so its tags are unchanged. The conversation itself is unaffected.`, error?.message);
+    }
+  }, [syncThreadTags, loadConversationVocabulary]);
+
+  const handleConversationFacet = useCallback((nextFacet) => {
+    setConversationFacet(nextFacet);
+    // "All" is the unfiltered view, so choosing it drops the filters the other
+    // two facets were holding.
+    if (nextFacet === 'all') {
+      setConversationTagFilter([]);
+      setConversationDateBucket(null);
+    }
+  }, []);
+
+  const handleToggleConversationTag = useCallback((tag) => {
+    setConversationTagFilter((current) => (
+      current.includes(tag) ? current.filter((entry) => entry !== tag) : [...current, tag]
+    ));
+  }, []);
+
+  const handleClearConversationFilters = useCallback(() => {
+    setConversationSearch('');
+    setConversationTagFilter([]);
+    setConversationDateBucket(null);
+    setConversationFacet('all');
+  }, []);
 
   // Auto-scroll to bottom when messages change or streaming
   useEffect(() => {
@@ -532,33 +853,90 @@ function InteractionPanel({ showPanelBackground = true }) {
           </div>)}
 
         {!modelsLoading && models.length > 0 && (
-          <div className="chat-input-toolbar">
-            <ModelPicker
-              models={models}
-              modelsByProvider={modelsByProvider}
-              selectedModel={selectedModel}
-              selectModel={selectModel}
-              isModelAvailable={isModelAvailable}
-              apiKeyStatus={apiKeyStatus}
-            />
-            <div className="modality-selector" role="group" aria-label="Interaction mode">
-              <div className="interaction-toolbar-section-title" aria-hidden="true">
-                <span>Mode</span>
-                <span>{MODALITIES.length}</span>
-              </div>
-              {MODALITIES.map(m => (
-                <button
-                  key={m.id}
-                  className={`modality-chip ${modality === m.id ? 'active' : ''}`}
-                  onClick={() => setModality(m.id)}
-                  disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
-                  title={`${m.label} mode`}
-                  aria-pressed={modality === m.id}
-                >
-                  {m.label}
-                </button>
-              ))}
+          <div className="chat-input-toolbar" ref={toolbarRef}>
+            {/* The segmented switch is the shared header row for both modes.
+              * Collapsed, both segments still render, so either side of the
+              * section is one click away. */}
+            <div className="interaction-toolbar-switch" role="group" aria-label="Toolbar section">
+              <button
+                type="button"
+                className={`interaction-toolbar-switch-segment conversations ${conversationsActive ? 'active' : ''}`}
+                onClick={() => handleToolbarSegment('conversations')}
+                title={conversationsActive ? 'Close the conversation browser' : 'Browse saved conversations'}
+                aria-haspopup="dialog"
+                aria-expanded={conversationsActive}
+              >
+                <span>Conversations</span>
+                <span aria-hidden="true">􀆊</span>
+              </button>
+              <button
+                type="button"
+                className={`interaction-toolbar-switch-segment models ${modelsActive ? 'active' : ''}`}
+                onClick={() => handleToolbarSegment('models')}
+                title={`Current model: ${modelDisplayName}`}
+                aria-haspopup="dialog"
+                aria-expanded={modelsActive}
+              >
+                <span className="model-picker-trigger-label">{modelDisplayName}</span>
+                <span className="model-picker-trigger-arrow" aria-hidden="true" />
+              </button>
             </div>
+
+            {toolbarMode === 'models' ? (
+              <>
+                <ModelPicker
+                  models={models}
+                  modelsByProvider={modelsByProvider}
+                  selectedModel={selectedModel}
+                  selectModel={handleSelectModel}
+                  isModelAvailable={isModelAvailable}
+                  apiKeyStatus={apiKeyStatus}
+                  renderTrigger={false}
+                />
+                <div className="modality-selector" role="group" aria-label="Interaction mode">
+                  <div className="interaction-toolbar-section-title" aria-hidden="true">
+                    <span>Mode</span>
+                    <span>{MODALITIES.length}</span>
+                  </div>
+                  {MODALITIES.map(m => (
+                    <button
+                      key={m.id}
+                      className={`modality-chip ${modality === m.id ? 'active' : ''}`}
+                      onClick={() => setModality(m.id)}
+                      disabled={isLoading || isSwitchingThread || !!pendingClarification || !!pendingToolConfirmation || !!pendingConfirmation}
+                      title={`${m.label} mode`}
+                      aria-pressed={modality === m.id}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <ConversationBrowser
+                conversations={conversations}
+                tagVocabulary={tagVocabulary}
+                totals={conversationTotals}
+                activeThreadId={threadId}
+                selectedThreadId={selectedThreadId}
+                onSelect={setSelectedThreadId}
+                onOpen={handleOpenConversation}
+                onNewConversation={handleNewConversation}
+                onSetTags={handleSetConversationTags}
+                onClose={collapseToolbar}
+                search={conversationSearch}
+                onSearchChange={setConversationSearch}
+                facet={conversationFacet}
+                onFacetChange={handleConversationFacet}
+                selectedTags={conversationTagFilter}
+                onToggleTag={handleToggleConversationTag}
+                dateBucket={conversationDateBucket}
+                onDateBucketChange={setConversationDateBucket}
+                onClearFilters={handleClearConversationFilters}
+                loading={conversationsLoading}
+                previewMessages={previewMessages}
+              />
+            )}
           </div>
         )}
 

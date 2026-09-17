@@ -2,7 +2,6 @@ import postcss from 'postcss';
 import selectorParser from 'postcss-selector-parser';
 import { getBuiltInThemeCss } from '../themes/themeFiles';
 import structuralCss from '../AppCombined.css?raw';
-import retiredThemeVariables from '../themes/retiredThemeVariables.json';
 import { rulesForOverrides } from './themeRuntime';
 
 // Keep the authored tree, including comments, duplicate declarations and conditions.
@@ -91,14 +90,30 @@ export function getThemeVariableInventory(cssText) {
   return parseThemeSource(cssText).variables;
 }
 
+// Keep the editor's theme document separate from the complete app stylesheet.
+// A structural definition can be inspected, but an edit becomes a theme-level
+// override rather than silently changing the application for every theme.
 export function getThemeSourceIndex(cssText) {
   const appearance = parseThemeSource(cssText);
   const structural = parseThemeSource(structuralCss);
   const variables = new Map(appearance.variables.map((item) => [item.name, { ...item, origin: 'Theme' }]));
   for (const item of structural.variables) {
     const existing = variables.get(item.name);
-    const definitions = item.definitions.map((definition) => ({ ...definition, id: `structure:${definition.id}`, readOnly: true, source: 'AppCombined.css' }));
-    variables.set(item.name, existing ? { ...existing, uses: existing.uses + item.uses, structuralUses: item.uses, definitions: [...definitions, ...existing.definitions], references: [...(item.references || []), ...(existing.references || [])] } : { ...item, origin: 'Structure', definitions });
+    const definitions = item.definitions.map((definition) => ({
+      ...definition,
+      id: `structure:${definition.id}`,
+      readOnly: true,
+      source: 'AppCombined.css',
+    }));
+    variables.set(item.name, existing
+      ? {
+        ...existing,
+        uses: existing.uses + item.uses,
+        structuralUses: item.uses,
+        definitions: [...definitions, ...existing.definitions],
+        references: [...(item.references || []), ...(existing.references || [])],
+      }
+      : { ...item, origin: 'Structure', definitions });
   }
   return { ...appearance, variables: [...variables.values()].sort((a, b) => a.name.localeCompare(b.name)) };
 }
@@ -107,22 +122,7 @@ export function materializeThemeCss(theme) {
   if (typeof theme?.cssText === 'string') return theme.cssText;
   const context = theme?.baseThemeId || theme?.id || 'default';
   let cssText = getBuiltInThemeCss(context);
-  if (theme?.variables && theme?.overrides) cssText += '\n/* briizOS legacy-custom */\n';
   const variables = { ...(theme?.variables || {}) };
-  const legacyValues = JSON.stringify([variables, theme?.overrides || []]);
-  const referencedRetiredNames = new Set([...legacyValues.matchAll(/var\(\s*(--[\w-]+)/g)].map((match) => match[1]));
-  const recovered = new Set();
-  const rescue = [];
-  for (const name of referencedRetiredNames) {
-    if (recovered.has(name)) continue;
-    for (const record of retiredThemeVariables.variables[name] || []) {
-      if (record.themeContexts?.length && !record.themeContexts.includes(context)) continue;
-      rescue.push(record.cssText);
-      for (const match of record.value.matchAll(/var\(\s*(--[\w-]+)/g)) referencedRetiredNames.add(match[1]);
-    }
-    recovered.add(name);
-  }
-  if (rescue.length) cssText += `\n/* Recovered variable definitions explicitly used by this imported theme */\n${rescue.join('\n')}\n`;
   if (variables['--theme-corner-style'] && !variables['--ui-corner-shape']) {
     variables['--ui-corner-shape'] = ({ soft: 'squircle', rounded: 'round', square: 'square' })[variables['--theme-corner-style']] || variables['--theme-corner-style'];
   }
@@ -293,7 +293,6 @@ export function setSelectionHighlight(element) {
   const schedule = () => { if (frame === null) frame = view.requestAnimationFrame(draw); };
   view.addEventListener('scroll', schedule, true);
   view.addEventListener('resize', schedule);
-  view.addEventListener('pointermove', schedule, { passive: true });
   const observer = new view.ResizeObserver(schedule);
   for (let current = target; current; current = current.parentElement) observer.observe(current);
   const mutationObserver = new view.MutationObserver((changes) => {
@@ -304,7 +303,6 @@ export function setSelectionHighlight(element) {
   highlightCleanup = () => {
     view.removeEventListener('scroll', schedule, true);
     view.removeEventListener('resize', schedule);
-    view.removeEventListener('pointermove', schedule);
     observer.disconnect();
     mutationObserver.disconnect();
     if (frame !== null) view.cancelAnimationFrame(frame);

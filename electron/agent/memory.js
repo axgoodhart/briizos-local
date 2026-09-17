@@ -180,7 +180,11 @@ function stripUploadMentions(memoryData) {
 }
 
 function parseJsonResponse(text) {
-  let clean = String(text || '').trim();
+  // LLM response.content may be an array of content blocks when using the Responses API.
+  const normalized = Array.isArray(text)
+    ? text.map((p) => (typeof p === 'string' ? p : p?.text || '')).filter(Boolean).join('')
+    : text;
+  let clean = String(normalized || '').trim();
   if (clean.startsWith('```')) {
     clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
   }

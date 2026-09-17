@@ -49,6 +49,33 @@ const RUN_STATUSES = new Set(COMMAND_STATUSES);
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'expired', 'rejected']);
 const SHARED_TEXT_TYPES = ['task', 'note', 'project', 'event', 'timer', 'retained_text'];
 
+// Conversation tags. Every number and every spelling rule that a tag has to
+// obey lives here and nowhere else: the quick tag editor in the renderer, the
+// IPC surface, and the model-side tagger (electron/agent/tags.js) all import
+// these, so the workspace can never end up with two vocabularies for the same
+// subject ("Baltimore Ravens" typed by hand vs "baltimore-ravens" minted by the
+// model).
+// When a conversation last had activity, as opposed to when its row last
+// changed. A brand-new conversation has no messages yet, so it falls back to
+// created_at rather than disappearing to the bottom of the list.
+const THREAD_ACTIVITY_AT = `COALESCE(
+  (SELECT MAX(m.created_at) FROM messages m WHERE m.thread_id = threads.id AND m.deleted_at IS NULL),
+  threads.created_at
+)`;
+
+const MAX_TAGS_PER_THREAD = 5;          // the model stops proposing at this many
+const MAX_TAGS_PER_THREAD_EDITOR = 12;  // a person may curate up to this many
+const MAX_NEW_TAGS_PER_EVALUATION = 2;  // new tags the model may add in one check
+const MAX_TAG_LENGTH = 48;
+const MAX_TAG_WORDS = 3;
+// A model asked to label a conversation reaches for the medium instead of the
+// subject unless it is stopped. These are refused from the model path only; a
+// person who deliberately types "misc" gets "misc".
+const GENERIC_TAG_BANLIST = new Set([
+  'chat', 'conversation', 'question', 'help', 'assistant', 'ai', 'general',
+  'discussion', 'misc', 'info',
+]);
+
 function now() {
   return Date.now();
 }
@@ -64,6 +91,109 @@ function toBooleanRow(row, fields) {
     if (field in result) result[field] = result[field] === 1;
   });
   return result;
+}
+
+/**
+ * The single spelling rule for a conversation tag.
+ *
+ * Lowercases, trims, collapses internal whitespace, drops every character that
+ * is not a letter, digit, space, or an internal hyphen, and refuses anything
+ * longer than MAX_TAG_WORDS words or MAX_TAG_LENGTH characters. Returns '' when
+ * the input cannot become a tag at all, so callers can drop or reject it as
+ * their path requires.
+ *
+ * Both the person editing chips and the model-side tagger normalize through
+ * this function. That is deliberate: a second copy of these rules anywhere else
+ * is how a workspace ends up with "NFL History" and "nfl-history" as two
+ * different facets of the same subject.
+ */
+function normalizeThreadTag(value) {
+  if (typeof value !== 'string') return '';
+  const words = value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    // Hyphens survive only between characters; a leading, trailing, or lone
+    // hyphen is punctuation, not part of the word.
+    .map((word) => word.replace(/-{2,}/g, '-').replace(/^-+/, '').replace(/-+$/, ''))
+    .filter(Boolean);
+  if (!words.length || words.length > MAX_TAG_WORDS) return '';
+  const tag = words.join(' ');
+  return tag.length > MAX_TAG_LENGTH ? '' : tag;
+}
+
+/**
+ * Normalize a list of tags, dropping unusable and duplicate entries while
+ * preserving the order the caller asked for.
+ */
+function normalizeThreadTagList(values) {
+  const seen = new Set();
+  const tags = [];
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const tag = normalizeThreadTag(value);
+    if (!tag || seen.has(tag)) return;
+    seen.add(tag);
+    tags.push(tag);
+  });
+  return tags;
+}
+
+function parseThreadTags(value) {
+  const parsed = value ? JSON.parse(value) : [];
+  return Array.isArray(parsed) ? parsed.filter((tag) => typeof tag === 'string') : [];
+}
+
+/**
+ * Read `tag_state_json` back as a complete record.
+ *
+ * Rows written before migration 015 carry the '{}' default, so every consumer
+ * — including the model-side checkpoint gate — would otherwise have to guess at
+ * missing keys. Filling them here means the gate reads real numbers instead of
+ * `undefined`, and a corrupt key can never widen into a crash mid-turn.
+ */
+function parseThreadTagState(value) {
+  const raw = value ? JSON.parse(value) : {};
+  const state = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  return {
+    auto: Array.isArray(state.auto) ? state.auto.filter((tag) => typeof tag === 'string') : [],
+    dismissed: Array.isArray(state.dismissed) ? state.dismissed.filter((tag) => typeof tag === 'string') : [],
+    lastEvaluatedExchanges: Number.isSafeInteger(state.lastEvaluatedExchanges) ? state.lastEvaluatedExchanges : 0,
+    evaluations: Number.isSafeInteger(state.evaluations) ? state.evaluations : 0,
+    lastEvaluatedAt: Number.isSafeInteger(state.lastEvaluatedAt) ? state.lastEvaluatedAt : null,
+  };
+}
+
+/**
+ * Work out the bookkeeping that must accompany a wholesale replacement of a
+ * conversation's visible tags.
+ *
+ * `source: 'user'` is the consequential case: a model-applied tag the person
+ * removed moves out of `auto` and into `dismissed`, which is what stops the
+ * tagger proposing it again on the next checkpoint. A tag the person types back
+ * in leaves `dismissed` again, so the two lists never contradict each other.
+ * `source: 'model'` claims only the tags that were not already there, so a tag
+ * the person typed is never relabelled as model-applied.
+ */
+function nextThreadTagState(currentState, beforeTags, nextTags, source) {
+  const visible = new Set(nextTags);
+  const previous = new Set(beforeTags);
+  const dismissed = new Set(currentState.dismissed);
+  const auto = currentState.auto.filter((tag) => {
+    if (visible.has(tag)) return true;
+    if (source === 'user') dismissed.add(tag);
+    return false;
+  });
+  if (source === 'model') {
+    nextTags.forEach((tag) => {
+      if (!previous.has(tag) && !auto.includes(tag)) auto.push(tag);
+    });
+  }
+  nextTags.forEach((tag) => dismissed.delete(tag));
+  return {
+    ...currentState,
+    auto,
+    dismissed: [...dismissed],
+  };
 }
 
 class LocalDataService extends EventEmitter {
@@ -2393,37 +2523,327 @@ class LocalDataService extends EventEmitter {
 
   listThreads(input = {}) {
     this._assertReady();
-    v.object(input, 'thread filters', ['id', 'kind', 'query', 'includeDeleted', 'limit']);
+    v.object(input, 'thread filters', [
+      'id', 'kind', 'query', 'tags', 'tagMatch', 'since', 'until', 'includeDeleted', 'limit',
+    ]);
     const includeDeleted = input.includeDeleted === undefined
       ? false
       : v.boolean(input.includeDeleted, 'includeDeleted');
     const clauses = [];
     const params = [];
-    if (!includeDeleted) clauses.push('deleted_at IS NULL');
+    if (!includeDeleted) clauses.push('threads.deleted_at IS NULL');
     if (input.id !== undefined) {
-      clauses.push('id = ?');
+      clauses.push('threads.id = ?');
       params.push(v.identifier(input.id, 'id'));
     }
     if (input.kind !== undefined) {
-      clauses.push('kind = ?');
+      clauses.push('threads.kind = ?');
       params.push(v.string(input.kind, 'kind', { required: true, max: 100 }));
     }
     if (input.query !== undefined) {
       const query = v.string(input.query, 'query', { required: true, max: 500 }).toLowerCase();
       clauses.push(`(
-        LOWER(title) LIKE ? OR EXISTS (
+        LOWER(threads.title) LIKE ? OR EXISTS (
           SELECT 1 FROM messages m
           WHERE m.thread_id = threads.id AND m.deleted_at IS NULL AND LOWER(m.content_text) LIKE ?
         )
       )`);
       params.push(`%${query}%`, `%${query}%`);
     }
+    const tagMatch = input.tagMatch === undefined
+      ? 'any'
+      : v.oneOf(input.tagMatch, 'tagMatch', ['any', 'all']);
+    if (input.tags !== undefined) {
+      const requested = v.stringArray(input.tags, 'tags', {
+        maxItems: MAX_TAGS_PER_THREAD_EDITOR,
+        maxLength: MAX_TAG_LENGTH,
+      });
+      // Stored tags are always normalized, so the filter normalizes too rather
+      // than silently matching nothing when a caller passes "NFL History".
+      const tags = normalizeThreadTagList(requested);
+      if (requested.length && !tags.length) v.fail('INVALID_INPUT', 'tags contains no usable tag');
+      if (tags.length) {
+        const placeholders = tags.map(() => '?').join(', ');
+        clauses.push(tagMatch === 'all'
+          ? `(
+            SELECT COUNT(DISTINCT json_each.value) FROM json_each(threads.tags_json)
+            WHERE json_each.value IN (${placeholders})
+          ) = ?`
+          : `EXISTS (
+            SELECT 1 FROM json_each(threads.tags_json)
+            WHERE json_each.value IN (${placeholders})
+          )`);
+        params.push(...tags);
+        if (tagMatch === 'all') params.push(tags.length);
+      }
+    }
+    // Date filters and list order both run on when the conversation was last
+    // TALKED IN, not when its row last changed. `updated_at` moves for any
+    // write, including a tag edit, so ordering on it would jump a year-old
+    // conversation to the top of the list and into the Today bucket the moment
+    // someone tagged it. A conversation's date is the date of its last message.
+    if (input.since !== undefined) {
+      clauses.push(`${THREAD_ACTIVITY_AT} >= ?`);
+      params.push(v.integer(input.since, 'since', { min: 0 }));
+    }
+    if (input.until !== undefined) {
+      clauses.push(`${THREAD_ACTIVITY_AT} < ?`);
+      params.push(v.integer(input.until, 'until', { min: 0 }));
+    }
     const limit = input.limit === undefined ? 500 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
+    // The message tallies are correlated subqueries inside this one statement,
+    // never a follow-up query per row: the conversation browser asks for every
+    // thread at once, and an N+1 read there is what makes a list feel slower
+    // and slower as a workspace fills up. Both ride idx_messages_thread_active.
     return this.db.prepare(`
-      SELECT id, kind, title, model_profile_id, status, created_at, updated_at, revision, deleted_at
+      SELECT threads.id, threads.kind, threads.title, threads.model_profile_id, threads.status,
+             threads.created_at, threads.updated_at, threads.revision, threads.deleted_at,
+             threads.tags_json, threads.tag_state_json,
+             (
+               SELECT COUNT(*) FROM messages m
+               WHERE m.thread_id = threads.id AND m.deleted_at IS NULL
+             ) AS message_count,
+             (
+               SELECT MAX(m.created_at) FROM messages m
+               WHERE m.thread_id = threads.id AND m.deleted_at IS NULL
+             ) AS last_message_at
       FROM threads ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
-      ORDER BY updated_at DESC LIMIT ?
-    `).all(...params, limit);
+      ORDER BY ${THREAD_ACTIVITY_AT} DESC LIMIT ?
+    `).all(...params, limit).map((row) => this._threadRow(row));
+  }
+
+  _threadRow(row) {
+    if (!row) return row;
+    return {
+      ...row,
+      tags: parseThreadTags(row.tags_json),
+      tagState: parseThreadTagState(row.tag_state_json),
+      messageCount: row.message_count ?? 0,
+      lastMessageAt: row.last_message_at ?? null,
+      tags_json: undefined,
+      tag_state_json: undefined,
+      message_count: undefined,
+      last_message_at: undefined,
+    };
+  }
+
+  listThreadTags(input = {}) {
+    this._assertReady();
+    v.object(input, 'thread tag filters', ['kind']);
+    const clauses = ['threads.deleted_at IS NULL'];
+    const params = [];
+    if (input.kind !== undefined) {
+      clauses.push('threads.kind = ?');
+      params.push(v.string(input.kind, 'kind', { required: true, max: 100 }));
+    }
+    return this.db.prepare(`
+      SELECT json_each.value AS tag, COUNT(*) AS count
+      FROM threads, json_each(threads.tags_json)
+      WHERE ${clauses.join(' AND ')}
+      GROUP BY json_each.value
+      ORDER BY count DESC, tag ASC
+    `).all(...params);
+  }
+
+  /**
+   * Replace a conversation's visible tag list.
+   *
+   * `source` records who decided: 'user' is a person editing chips, 'model' is
+   * the tagger. Only the 'user' path can dismiss a tag, because dismissal is a
+   * statement about what the person does not want, not about what the model
+   * happened to drop.
+   */
+  setThreadTags(threadId, tags, options = {}) {
+    threadId = v.identifier(threadId, 'threadId');
+    v.object(options, 'thread tag options', ['source']);
+    const source = options.source === undefined
+      ? 'user'
+      : v.oneOf(options.source, 'source', ['user', 'model']);
+    const requested = v.stringArray(tags, 'tags', {
+      maxItems: MAX_TAGS_PER_THREAD_EDITOR,
+      maxLength: MAX_TAG_LENGTH,
+    });
+    const nextTags = [];
+    const seen = new Set();
+    requested.forEach((value, index) => {
+      const tag = normalizeThreadTag(value);
+      if (!tag) {
+        v.fail('INVALID_INPUT', `tags[${index}] is not a usable tag: at most ${MAX_TAG_WORDS} words, ${MAX_TAG_LENGTH} characters, letters and digits only`);
+      }
+      if (seen.has(tag)) return;
+      seen.add(tag);
+      nextTags.push(tag);
+    });
+
+    let before = [];
+    let title = '';
+    let state = null;
+    let newlyDismissed = [];
+    const saved = this._write('threads', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId);
+      if (!current) v.fail('NOT_FOUND', 'Thread not found');
+      before = parseThreadTags(current.tags_json);
+      title = current.title;
+      const currentState = parseThreadTagState(current.tag_state_json);
+      state = nextThreadTagState(currentState, before, nextTags, source);
+      newlyDismissed = state.dismissed.filter((tag) => !currentState.dismissed.includes(tag));
+      this.db.prepare(`
+        UPDATE threads SET tags_json = ?, tag_state_json = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(JSON.stringify(nextTags), JSON.stringify(state), timestamp, threadId);
+      return { row: this.listThreads({ id: threadId })[0] };
+    });
+
+    const added = nextTags.filter((tag) => !before.includes(tag));
+    const removed = before.filter((tag) => !nextTags.includes(tag));
+    const displayTitle = title || 'Untitled conversation';
+    this.logger?.info?.(
+      'chat.tags_edited',
+      `Tags for "${displayTitle}" changed from [${before.join(', ') || 'none'}] to [${nextTags.join(', ') || 'none'}]. Tags are only used for finding this conversation again in the browser; nothing about the conversation's content changed.`,
+      {
+        threadId,
+        title: displayTitle,
+        source,
+        tagsBefore: before,
+        tagsAfter: nextTags,
+        added,
+        removed,
+        newlyDismissed,
+        dismissed: state.dismissed,
+        modelApplied: state.auto,
+        effect: newlyDismissed.length
+          ? `The conversation now appears under these tags in the conversation browser, and ${newlyDismissed.join(', ')} will never be proposed for it again. None of its messages changed.`
+          : 'The conversation now appears under these tags in the conversation browser. None of its messages changed.',
+      },
+      {
+        threadId,
+        entryCategory: 'chat',
+        source: source === 'user' ? 'user' : 'agent',
+        phase: 'tags',
+        outcome: 'saved',
+      },
+    );
+    return saved;
+  }
+
+  /**
+   * Add model-proposed tags to a conversation without ever removing one.
+   *
+   * The evaluation bookkeeping is written whether or not a tag survives the
+   * filters. That is the point: the checkpoint gate in electron/agent/tags.js
+   * advances on "we looked", not on "we found something", so a conversation is
+   * never re-evaluated at the same size just because the honest answer was
+   * "nothing worth tagging".
+   *
+   * Returns { row, added: string[], skipped: [{ tag, reason }] } where reason is
+   * one of 'unusable' | 'banned' | 'duplicate' | 'dismissed' | 'cap'.
+   */
+  appendThreadAutoTags(threadId, tags, options = {}) {
+    threadId = v.identifier(threadId, 'threadId');
+    v.object(options, 'auto tag options', ['evaluations', 'exchanges']);
+    const evaluations = options.evaluations === undefined
+      ? undefined
+      : v.integer(options.evaluations, 'evaluations', { min: 0 });
+    const exchanges = options.exchanges === undefined
+      ? undefined
+      : v.integer(options.exchanges, 'exchanges', { min: 0 });
+    // Deliberately generous on length here, then filtered below: a model that
+    // returns a sentence should lose that one candidate, not fail the write and
+    // with it the bookkeeping that keeps the gate from re-running.
+    const candidates = v.stringArray(tags === undefined ? [] : tags, 'tags', {
+      maxItems: MAX_TAGS_PER_THREAD_EDITOR,
+      maxLength: 500,
+    });
+
+    let before = [];
+    let title = '';
+    let state = null;
+    const added = [];
+    const skipped = [];
+    const saved = this._write('threads', (timestamp) => {
+      const current = this.db.prepare('SELECT * FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId);
+      if (!current) v.fail('NOT_FOUND', 'Thread not found');
+      before = parseThreadTags(current.tags_json);
+      title = current.title;
+      const currentState = parseThreadTagState(current.tag_state_json);
+      const dismissed = new Set(currentState.dismissed);
+      const nextTags = [...before];
+      candidates.forEach((candidate) => {
+        const tag = normalizeThreadTag(candidate);
+        if (!tag) {
+          skipped.push({ tag: candidate, reason: 'unusable' });
+          return;
+        }
+        if (GENERIC_TAG_BANLIST.has(tag)) {
+          skipped.push({ tag, reason: 'banned' });
+          return;
+        }
+        if (nextTags.includes(tag)) {
+          skipped.push({ tag, reason: 'duplicate' });
+          return;
+        }
+        if (dismissed.has(tag)) {
+          skipped.push({ tag, reason: 'dismissed' });
+          return;
+        }
+        if (nextTags.length >= MAX_TAGS_PER_THREAD) {
+          skipped.push({ tag, reason: 'cap' });
+          return;
+        }
+        nextTags.push(tag);
+        added.push(tag);
+      });
+      state = nextThreadTagState(currentState, before, nextTags, 'model');
+      state.evaluations = evaluations === undefined ? currentState.evaluations + 1 : evaluations;
+      // Never walk the checkpoint backwards: a late write from a slower run
+      // must not re-open a checkpoint a later run already passed.
+      state.lastEvaluatedExchanges = exchanges === undefined
+        ? currentState.lastEvaluatedExchanges
+        : Math.max(currentState.lastEvaluatedExchanges, exchanges);
+      state.lastEvaluatedAt = timestamp;
+      this.db.prepare(`
+        UPDATE threads SET tags_json = ?, tag_state_json = ?, updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(JSON.stringify(nextTags), JSON.stringify(state), timestamp, threadId);
+      return { row: this.listThreads({ id: threadId })[0] };
+    });
+
+    const displayTitle = title || 'Untitled conversation';
+    const after = saved.row?.tags || before;
+    this.logger?.info?.(
+      'chat.tags_applied',
+      added.length
+        ? `The model added ${added.length} tag${added.length === 1 ? '' : 's'} (${added.join(', ')}) to "${displayTitle}" on check ${state.evaluations}, so its tags are now [${after.join(', ')}]. Tags are only used for finding this conversation again in the browser; nothing about the conversation's content changed.`
+        : `The model checked "${displayTitle}" for tags (check ${state.evaluations}) and added none, so its tags stay [${after.join(', ') || 'none'}]. Tags are only used for finding this conversation again in the browser; nothing about the conversation's content changed.`,
+      {
+        threadId,
+        title: displayTitle,
+        tagsBefore: before,
+        tagsAfter: after,
+        added,
+        skipped,
+        evaluations: state.evaluations,
+        lastEvaluatedExchanges: state.lastEvaluatedExchanges,
+        dismissed: state.dismissed,
+        effect: `This check is recorded either way, so the same conversation is not tagged again until it has grown. The model stops proposing tags once a conversation has ${MAX_TAGS_PER_THREAD}.`,
+      },
+      {
+        threadId,
+        entryCategory: 'chat',
+        source: 'agent',
+        phase: 'tags',
+        outcome: added.length ? 'saved' : 'skipped',
+      },
+    );
+    return { ...saved, added, skipped };
+  }
+
+  getThreadTagState(threadId) {
+    this._assertReady();
+    threadId = v.identifier(threadId, 'threadId');
+    const row = this.db.prepare('SELECT tag_state_json FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId);
+    if (!row) v.fail('NOT_FOUND', 'Thread not found');
+    return parseThreadTagState(row.tag_state_json);
   }
 
   createThread(input = {}) {
@@ -2439,7 +2859,7 @@ class LocalDataService extends EventEmitter {
         INSERT INTO threads (id, kind, title, model_profile_id, status, created_at, updated_at, revision)
         VALUES (?, ?, ?, ?, 'active', ?, ?, 1)
       `).run(thread.id, thread.kind, thread.title, thread.modelProfileId, timestamp, timestamp);
-      return { row: this.db.prepare('SELECT * FROM threads WHERE id = ?').get(thread.id) };
+      return { row: this.listThreads({ id: thread.id })[0] };
     });
   }
 
@@ -2453,22 +2873,38 @@ class LocalDataService extends EventEmitter {
 
   updateThread(threadId, patch = {}) {
     threadId = v.identifier(threadId, 'threadId');
-    v.object(patch, 'thread changes', ['title', 'status', 'modelProfileId']);
+    v.object(patch, 'thread changes', ['title', 'status', 'modelProfileId', 'tags']);
     if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one thread change is required');
     const title = patch.title === undefined ? undefined : v.string(patch.title, 'title', { max: 1000 });
     const status = patch.status === undefined ? undefined : v.string(patch.status, 'status', { required: true, max: 100 });
     const modelProfileId = patch.modelProfileId === undefined
       ? undefined
       : v.identifier(patch.modelProfileId, 'modelProfileId', { nullable: true });
+    // Tags travel through the same normalization and the same bookkeeping as
+    // setThreadTags, so this convenience path cannot become a second, looser
+    // way to write tags.
+    const tags = patch.tags === undefined
+      ? undefined
+      : normalizeThreadTagList(v.stringArray(patch.tags, 'tags', {
+        maxItems: MAX_TAGS_PER_THREAD_EDITOR,
+        maxLength: MAX_TAG_LENGTH,
+      }));
     return this._write('threads', (timestamp) => {
       const current = this.db.prepare('SELECT * FROM threads WHERE id = ? AND deleted_at IS NULL').get(threadId);
       if (!current) v.fail('NOT_FOUND', 'Thread not found');
+      const tagState = tags === undefined
+        ? current.tag_state_json
+        : JSON.stringify(nextThreadTagState(
+          parseThreadTagState(current.tag_state_json), parseThreadTags(current.tags_json), tags, 'user',
+        ));
       this.db.prepare(`
-        UPDATE threads SET title = ?, status = ?, model_profile_id = ?, updated_at = ?, revision = revision + 1
+        UPDATE threads SET title = ?, status = ?, model_profile_id = ?, tags_json = ?, tag_state_json = ?,
+          updated_at = ?, revision = revision + 1
         WHERE id = ?
       `).run(title ?? current.title, status ?? current.status,
-        modelProfileId === undefined ? current.model_profile_id : modelProfileId, timestamp, threadId);
-      return { row: this.db.prepare('SELECT * FROM threads WHERE id = ?').get(threadId) };
+        modelProfileId === undefined ? current.model_profile_id : modelProfileId,
+        tags === undefined ? current.tags_json : JSON.stringify(tags), tagState, timestamp, threadId);
+      return { row: this.listThreads({ id: threadId })[0] };
     });
   }
 
@@ -5309,4 +5745,19 @@ class LocalDataService extends EventEmitter {
   }
 }
 
-module.exports = { LocalDataService, LocalDataError: v.LocalDataError };
+module.exports = {
+  LocalDataService,
+  LocalDataError: v.LocalDataError,
+  // The conversation-tag vocabulary contract. electron/agent/tags.js and the
+  // renderer's tag editor import these rather than restating them, so there is
+  // exactly one definition of what a tag may look like and how many a
+  // conversation may carry.
+  normalizeThreadTag,
+  normalizeThreadTagList,
+  GENERIC_TAG_BANLIST,
+  MAX_TAGS_PER_THREAD,
+  MAX_TAGS_PER_THREAD_EDITOR,
+  MAX_NEW_TAGS_PER_EVALUATION,
+  MAX_TAG_LENGTH,
+  MAX_TAG_WORDS,
+};

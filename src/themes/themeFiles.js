@@ -1,4 +1,5 @@
-// Complete editable CSS files, loaded as text without automatically activating every theme.
+// Split-era full CSS documents retained for recovery and custom-theme compatibility.
+// Built-in theme selection now uses the named sections in AppCombined.css.
 const sources = import.meta.glob('./AppCombined-THEMEVALUES-*.css', { query: '?raw', import: 'default', eager: true });
 
 export const BUILT_IN_THEME_FILES = Object.freeze({

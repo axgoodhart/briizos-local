@@ -64,7 +64,10 @@ export function createThemeRuntime(doc = document) {
     if (!baseThemeId || baseThemeId === 'default') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', baseThemeId);
 
-    const cssText = materializeThemeCss(theme || { id: 'default' });
+    // Built-in themes now live in the combined stylesheet under their named
+    // :root[data-theme] sections. Only a saved custom theme needs a runtime
+    // stylesheet layered over that shared source.
+    const cssText = typeof theme?.cssText === 'string' ? materializeThemeCss(theme) : '';
     if (/\/\*\s*briizOS legacy-custom\s*\*\//.test(cssText)) root.setAttribute('data-custom-theme', theme.id);
     else root.removeAttribute('data-custom-theme');
     let style = doc.getElementById(RUNTIME_STYLE_ID);

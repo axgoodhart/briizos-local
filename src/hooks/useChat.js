@@ -13,7 +13,7 @@
  *             src/lib/tools.js handlers (Electron-trusted fs/terminal/UI)
  *     ← Streamed events pushed back on the 'langgraph-stream-event' channel
  *       (text / tool_call_start / tool_result / tool_confirmation /
- *        clarification / thread_title / end / error)
+ *        clarification / thread_title / thread_tags / end / error)
  *
  * There is intentionally NO direct-to-provider streaming, NO renderer-side
  * system prompt, and NO renderer-side tool catalog. The in-process agent
@@ -91,7 +91,11 @@ function buildFileContextAddendum(files = []) {
   ].join('\n');
 }
 
-function threadKindForModality(modality) {
+// Which stored thread kind a mode reads and writes. Exported because the
+// conversation browser has to list exactly the kind the chat panel is holding
+// — a second private copy of this mapping would let the browser mark the wrong
+// row as open the moment a new mode is added.
+export function threadKindForModality(modality) {
   return ['prioritize', 'planner'].includes(modality) ? modality : 'chat';
 }
 
@@ -150,6 +154,46 @@ function newId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Tags reach this hook from three directions: a stored thread row, the quick
+// tag editor, and the agent's auto-tagging stream event. Every one of them is
+// shaped here, so a malformed payload (a bare string, a null, a duplicate
+// casing) can never reach state or the database. Count/length limits stay in
+// the local-data validator so there is exactly one authority for them.
+function normalizeTagList(tags) {
+  if (!Array.isArray(tags)) return [];
+  const seen = new Set();
+  const normalized = [];
+  for (const tag of tags) {
+    if (typeof tag !== 'string') continue;
+    const trimmed = tag.trim().replace(/\s+/g, ' ');
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(trimmed);
+  }
+  return normalized;
+}
+
+function tagsInclude(tags, candidate) {
+  const key = candidate.toLowerCase();
+  return tags.some((tag) => tag.toLowerCase() === key);
+}
+
+// "after its 3rd check" is what a non-technical reader needs in the log panel,
+// not "evaluations: 3".
+function ordinalCount(value) {
+  if (!Number.isFinite(value) || value < 1) return null;
+  const count = Math.trunc(value);
+  const tens = count % 100;
+  if (tens >= 11 && tens <= 13) return `${count}th`;
+  const ones = count % 10;
+  if (ones === 1) return `${count}st`;
+  if (ones === 2) return `${count}nd`;
+  if (ones === 3) return `${count}rd`;
+  return `${count}th`;
+}
+
 export function useChat({ selectedModel, requestSettings } = {}) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -163,6 +207,8 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   const [pendingClarification, setPendingClarification] = useState(null);
   const [threadTitle, setThreadTitle] = useState(null);
   const threadTitleRef = useRef(null);
+  const [threadTags, setThreadTags] = useState([]);
+  const threadTagsRef = useRef([]);
   const [modality, setModalityState] = useState('chat');
   const [isSwitchingThread, setIsSwitchingThread] = useState(true);
   const [subAgentTasks, setSubAgentTasks] = useState([]);
@@ -181,8 +227,14 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   const activeThreadKindRef = useRef('chat');
 
   // One LangGraph thread per chat session (multi-turn context lives in the
-  // agent's checkpointer, keyed by this thread_id).
+  // agent's checkpointer, keyed by this thread_id). The ref is what the async
+  // paths read; the state mirror exists so consumers (the conversation
+  // browser's active row) re-render when the open conversation changes.
   const threadIdRef = useRef(null);
+  const [threadId, setThreadId] = useState(null);
+  // Bumped by every thread switch. A load that started under an older
+  // generation must not adopt its row on top of a newer one.
+  const threadSwitchGenerationRef = useRef(0);
   // The streamId currently being consumed — used to filter the shared
   // 'langgraph-stream-event' subscription so stale streams are ignored.
   const activeStreamIdRef = useRef(null);
@@ -223,45 +275,71 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       .finally(() => { suggestionsHydratedRef.current = true; });
   }, []);
 
+  // Every path that moves the hook onto (or off) a conversation goes through
+  // this one function, so the ref the async code reads, the state consumers
+  // render from, and the logger's active thread can never disagree.
+  const adoptThreadId = useCallback((nextThreadId) => {
+    const resolved = nextThreadId || null;
+    threadIdRef.current = resolved;
+    setThreadId(resolved);
+    setActiveThread(resolved);
+  }, []);
+
+  // The shared "adopt this thread row" work. The automatic latest-thread load
+  // and openThread both run exactly this sequence — messages, title, tags and
+  // the surface permission policy move together — so the two entry points
+  // cannot drift on what opening a conversation means.
+  const adoptThread = useCallback(async (thread, isStillCurrent = () => true) => {
+    const nextMessages = await api.localData.threads.messages.list(thread.id);
+    if (!isStillCurrent()) return null;
+    adoptThreadId(thread.id);
+    threadTitleRef.current = thread.title || null;
+    setThreadTitle(thread.title || null);
+    const tags = normalizeTagList(thread.tags);
+    threadTagsRef.current = tags;
+    setThreadTags(tags);
+    setMessages(nextMessages);
+    // Fail closed: an unreadable policy must never leave the previous
+    // conversation's permissions in force for this one.
+    try {
+      chatPolicyRef.current = await registerSurfaceForThread(thread.id, 'chat');
+    } catch {
+      chatPolicyRef.current = restrictivePolicy('chat');
+    }
+    return nextMessages;
+  }, [adoptThreadId]);
+
   const desiredThreadKind = threadKindForModality(modality);
 
   useEffect(() => {
     let active = true;
+    const generation = ++threadSwitchGenerationRef.current;
     activeThreadKindRef.current = desiredThreadKind;
-    threadIdRef.current = null;
-    setActiveThread(null);
+    adoptThreadId(null);
     setIsSwitchingThread(true);
     setMessages([]);
     setSuggestions([]);
     setThreadTitle(null);
     threadTitleRef.current = null;
+    setThreadTags([]);
+    threadTagsRef.current = [];
     chatPolicyRef.current = restrictivePolicy('chat');
+
+    const isCurrent = () => active && threadSwitchGenerationRef.current === generation;
 
     const loadLatestThread = async () => {
       const threads = await api.localData.threads.list({ kind: desiredThreadKind, limit: 1 });
-      if (!active || !threads.length) return;
-      const thread = threads[0];
-      const nextMessages = await api.localData.threads.messages.list(thread.id);
-      if (!active) return;
-      threadIdRef.current = thread.id;
-      setActiveThread(thread.id);
-      threadTitleRef.current = thread.title || null;
-      setThreadTitle(thread.title || null);
-      setMessages(nextMessages);
-      try {
-        chatPolicyRef.current = await registerSurfaceForThread(thread.id, 'chat');
-      } catch {
-        chatPolicyRef.current = restrictivePolicy('chat');
-      }
+      if (!isCurrent() || !threads.length) return;
+      await adoptThread(threads[0], isCurrent);
     };
 
     loadLatestThread()
       .catch((error) => logger.error('chat', `Failed to load ${desiredThreadKind} history`, { error: error?.message }))
       .finally(() => {
-        if (active) setIsSwitchingThread(false);
+        if (isCurrent()) setIsSwitchingThread(false);
       });
     return () => { active = false; };
-  }, [desiredThreadKind]);
+  }, [desiredThreadKind, adoptThread, adoptThreadId]);
 
   useEffect(() => {
     let active = true;
@@ -423,6 +501,47 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     });
   }, []);
 
+  // Tags produced by the agent's auto-tagging hook. Both the dedicated
+  // 'thread_tags' event and the 'values' snapshot that carries the same
+  // ThreadState land here, so one new tag is shown once and logged once no
+  // matter which of the two arrives first.
+  //
+  // This does NOT write. electron/agent/tags.js has already called
+  // appendThreadAutoTags and only emits the event once that write returned
+  // added tags, so the database is the thing this event is reporting. Writing
+  // again from here would save the same tags a second time as a person's edit,
+  // which would put a misleading "you changed these tags" entry in the log
+  // panel and mark model-applied tags as hand-picked. The event is a
+  // notification, not an instruction.
+  const recordModelThreadTags = useCallback((rawTags, meta = {}) => {
+    const tags = normalizeTagList(rawTags);
+    if (!tags.length) return;
+    const taggedThreadId = threadIdRef.current;
+    if (!taggedThreadId) return;
+    const before = threadTagsRef.current;
+    const added = tags.filter((tag) => !tagsInclude(before, tag));
+    if (!added.length) return;
+
+    threadTagsRef.current = tags;
+    setThreadTags(tags);
+    const title = threadTitleRef.current || 'Untitled conversation';
+    const checkOrdinal = ordinalCount(meta?.evaluations);
+    logTurn(
+      'info',
+      'chat.tags_applied',
+      `The model added ${added.length} tag${added.length === 1 ? '' : 's'} to “${title}” after its ${checkOrdinal || 'latest'} check: ${added.join(', ')}. Tags are used only for finding this conversation again.`,
+      {
+        threadId: taggedThreadId,
+        addedTags: added,
+        tagsBefore: before,
+        tagsNow: tags,
+        modelChecksSoFar: Number.isFinite(meta?.evaluations) ? meta.evaluations : null,
+        savedBy: 'the AI request engine, before this event was sent',
+        effect: 'The tags are already saved with the conversation and appear in the conversation browser. No message was changed, and you can remove any of them from the tag strip.',
+      },
+    );
+  }, [logTurn]);
+
   // ---------------------------------------------------------------------
   // Single SSE event handler. Mutates refs then mirrors into state so the
   // UI contract (streamingContent / toolCalls / subAgentTasks / etc.)
@@ -518,21 +637,28 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         break;
       }
       case 'thread_title': {
-        if (payload.title) {
-          const titleChanged = threadTitleRef.current !== payload.title;
-          threadTitleRef.current = payload.title;
-          setThreadTitle((prev) => prev || payload.title);
-          if (titleChanged && threadIdRef.current) api.localData.threads.update(threadIdRef.current, { title: payload.title }).catch(() => {});
+        const title = typeof payload.title === 'string' ? payload.title.trim() : null;
+        if (title) {
+          const titleChanged = threadTitleRef.current !== title;
+          threadTitleRef.current = title;
+          setThreadTitle((prev) => prev || title);
+          if (titleChanged && threadIdRef.current) api.localData.threads.update(threadIdRef.current, { title }).catch(() => {});
         }
         break;
       }
+      case 'thread_tags': {
+        recordModelThreadTags(payload?.tags, { evaluations: payload?.evaluations });
+        break;
+      }
       case 'values': {
-        if (payload?.title) {
-          const titleChanged = threadTitleRef.current !== payload.title;
-          threadTitleRef.current = payload.title;
-          setThreadTitle((prev) => prev || payload.title);
-          if (titleChanged && threadIdRef.current) api.localData.threads.update(threadIdRef.current, { title: payload.title }).catch(() => {});
+        const title = typeof payload?.title === 'string' ? payload.title.trim() : null;
+        if (title) {
+          const titleChanged = threadTitleRef.current !== title;
+          threadTitleRef.current = title;
+          setThreadTitle((prev) => prev || title);
+          if (titleChanged && threadIdRef.current) api.localData.threads.update(threadIdRef.current, { title }).catch(() => {});
         }
+        recordModelThreadTags(payload?.tags, { evaluations: payload?.evaluations });
         break;
       }
       case 'error': {
@@ -579,7 +705,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
         break;
       }
     }
-  }, [logTurn]);
+  }, [logTurn, recordModelThreadTags]);
 
   // Persistent subscription to the agent stream push channel. Set up once;
   // filters by the active streamId so only the live turn is consumed.
@@ -619,8 +745,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     const res = await api.langgraphCreateThread(kind);
     const threadId = res?.thread_id || res?.threadId || res;
     if (!threadId) throw new Error('Failed to create agent thread');
-    threadIdRef.current = threadId;
-    setActiveThread(threadId);
+    adoptThreadId(threadId);
     // Resolve + register the chat-surface policy for this thread. Used by
     // both the renderer hard gate (bridge tools) and the run config.
     // Fail-closed if resolution fails.
@@ -640,7 +765,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
       },
     );
     return threadId;
-  }, [logTurn]);
+  }, [adoptThreadId, logTurn]);
 
   const buildConfig = useCallback(() => {
     const model = getSelectedModel();
@@ -1030,36 +1155,148 @@ export function useChat({ selectedModel, requestSettings } = {}) {
   const approveToolConfirmation = useCallback(() => resolveConfirmation(true), [resolveConfirmation]);
   const rejectToolConfirmation = useCallback(() => resolveConfirmation(false), [resolveConfirmation]);
 
+  // The conversation state every reset path clears. clearHistory archives the
+  // old conversation and returns to chat modality, startNewConversation leaves
+  // it on disk, openThread replaces it with another one — but all three clear
+  // exactly this, so they cannot drift as chat state grows.
+  const resetConversationState = useCallback(() => {
+    setMessages([]);
+    setTokenUsage(null);
+    setStreamingContent('');
+    streamContentRef.current = '';
+    setCurrentStreamId(null);
+    setToolCalls([]);
+    toolCallsRef.current = [];
+    setSubAgentTasks([]);
+    subAgentTasksRef.current = [];
+    setSuggestions([]);
+    setThreadTitle(null);
+    threadTitleRef.current = null;
+    setThreadTags([]);
+    threadTagsRef.current = [];
+    setPendingToolConfirmation(null);
+    pendingConfirmRef.current = null;
+    setPendingClarification(null);
+    pendingClarificationRef.current = null;
+    activeActivityIdRef.current = null;
+    // New conversation → new agent thread. Leaving the old one registered
+    // would keep its permission policy alive for tools still keyed to it.
+    if (threadIdRef.current) unregisterThread(threadIdRef.current);
+    chatPolicyRef.current = restrictivePolicy('chat');
+    adoptThreadId(null);
+    activeStreamIdRef.current = null;
+  }, [adoptThreadId]);
+
   const clearHistory = useCallback(async () => {
     try {
       if (threadIdRef.current) await api.localData.threads.archive(threadIdRef.current);
-      setMessages([]);
-      setTokenUsage(null);
-      setStreamingContent('');
-      setCurrentStreamId(null);
-      setToolCalls([]);
-      toolCallsRef.current = [];
-      setSubAgentTasks([]);
-      subAgentTasksRef.current = [];
+      resetConversationState();
       modalityRef.current = 'chat';
       setModalityState('chat');
-      setSuggestions([]);
-      setThreadTitle(null);
-      threadTitleRef.current = null;
-      setPendingToolConfirmation(null);
-      pendingConfirmRef.current = null;
-      setPendingClarification(null);
-      pendingClarificationRef.current = null;
-      activeActivityIdRef.current = null;
-      // New conversation → new agent thread.
-      if (threadIdRef.current) unregisterThread(threadIdRef.current);
-      chatPolicyRef.current = restrictivePolicy('chat');
-      threadIdRef.current = null;
-      activeStreamIdRef.current = null;
-      setActiveThread(null);
     } catch (error) {
       logger.error('chat', 'Failed to clear history', { error: error?.message });
     }
+  }, [resetConversationState]);
+
+  // Open a saved conversation from the conversation browser — the counterpart
+  // to the automatic latest-thread load: same adoption path, different trigger.
+  const openThread = useCallback(async (nextThreadId) => {
+    if (!nextThreadId || nextThreadId === threadIdRef.current) return;
+    // Switching mid-turn would abandon a run that is still streaming into the
+    // conversation on screen, so the switch is refused until that turn ends.
+    if (isLoading || pendingConfirmRef.current || pendingClarificationRef.current) {
+      const reason = isLoading
+        ? 'a response is still being written'
+        : pendingConfirmRef.current
+          ? 'a tool action is waiting for your approval'
+          : 'the AI is waiting for your answer to its question';
+      logger.warn(
+        'chat',
+        `That conversation was not opened because ${reason} in the conversation that is already open. Finish or answer that request, then choose the conversation again.`,
+        {
+          requestedThreadId: nextThreadId,
+          currentThreadId: threadIdRef.current,
+          effect: 'Nothing changed. The open conversation and the one you picked are both intact.',
+        },
+      );
+      return;
+    }
+
+    const generation = ++threadSwitchGenerationRef.current;
+    const previousThreadId = threadIdRef.current;
+    const previousTitle = threadTitleRef.current;
+    setIsSwitchingThread(true);
+    resetConversationState();
+
+    const isCurrent = () => threadSwitchGenerationRef.current === generation;
+
+    try {
+      const rows = await api.localData.threads.list({ id: nextThreadId });
+      if (!isCurrent()) return;
+      const thread = Array.isArray(rows) ? rows.find((row) => row?.id === nextThreadId) || null : null;
+      if (!thread) throw new Error(`Conversation ${nextThreadId} is no longer saved on this computer`);
+      const nextMessages = await adoptThread(thread, isCurrent);
+      if (!isCurrent()) return;
+      logger.info(
+        'chat.conversation_opened',
+        `Opened conversation “${thread.title || 'Untitled conversation'}” (${thread.id}). The chat panel now shows its ${nextMessages?.length || 0} saved messages, and new messages continue this conversation instead of the previous one.`,
+        {
+          threadId: thread.id,
+          title: thread.title || null,
+          messageCount: nextMessages?.length || 0,
+          tags: normalizeTagList(thread.tags),
+          previousThreadId: previousThreadId || null,
+          previousTitle: previousTitle || null,
+          permissionMode: chatPolicyRef.current?.mode,
+          effect: 'Nothing was deleted. The previous conversation is still saved and can be reopened from the conversation browser.',
+        },
+      );
+    } catch (error) {
+      logger.error(
+        'chat',
+        'briizOS could not open that conversation, so the chat panel is empty for now. Nothing was deleted — pick the conversation again, or start a new one.',
+        {
+          threadId: nextThreadId,
+          previousThreadId: previousThreadId || null,
+          error: error?.message,
+        },
+      );
+    } finally {
+      if (isCurrent()) setIsSwitchingThread(false);
+    }
+  }, [isLoading, resetConversationState, adoptThread]);
+
+  // Leave the current conversation exactly where it is and reset to a fresh
+  // one: clearHistory minus the archive step and minus the modality reset.
+  const startNewConversation = useCallback(() => {
+    const previousThreadId = threadIdRef.current;
+    const previousTitle = threadTitleRef.current;
+    resetConversationState();
+    logger.info(
+      'chat.conversation_started',
+      'Started a new conversation. The previous conversation was left intact and can be reopened from the conversation browser.',
+      {
+        previousThreadId: previousThreadId || null,
+        previousTitle: previousTitle || null,
+        archived: false,
+        modality: modalityRef.current,
+        effect: 'The next message you send starts the new conversation. Nothing was archived or deleted.',
+      },
+    );
+  }, [resetConversationState]);
+
+  // Bring the open conversation's tag strip in line with a tag edit that has
+  // ALREADY been saved elsewhere. State only: no write, no log entry.
+  //
+  // The conversation browser owns the one write path for tags, and the local
+  // data service writes the one log entry for it. A second write from here
+  // would save the same tags twice and put a second "tags changed" line in the
+  // log panel for a single edit, which is what this hook used to do.
+  const syncThreadTags = useCallback((targetThreadId, tags) => {
+    if (!targetThreadId || targetThreadId !== threadIdRef.current) return;
+    const applied = normalizeTagList(tags);
+    threadTagsRef.current = applied;
+    setThreadTags(applied);
   }, []);
 
   const refreshFilesInContext = useCallback(async () => {
@@ -1084,10 +1321,15 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     suggestions,
     suggestionsEnabled,
     setSuggestionsEnabled,
+    threadId,
     threadTitle,
     threadTitleRef,
+    threadTags,
+    syncThreadTags,
     sendMessage,
     clearHistory,
+    openThread,
+    startNewConversation,
     loadHistory: async () => {
       if (!threadIdRef.current) return [];
       const next = await api.localData.threads.messages.list(threadIdRef.current);

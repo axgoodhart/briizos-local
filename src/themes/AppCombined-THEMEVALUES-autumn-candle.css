@@ -5444,17 +5444,17 @@
   border-radius: 0 0 var(--ui-border-radius) var(--ui-border-radius);
   background: var(--interaction-surface-deep);
   color: var(--interaction-text);
-}.interaction-panel .chat-input-toolbar:not(:has(.model-picker-trigger[aria-expanded='true'])) {
+}.interaction-panel .chat-input-toolbar:not(:has(.interaction-toolbar-switch-segment[aria-expanded='true'])) {
   opacity: 0.72;
   backdrop-filter: none;
-}.interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) {
+}.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
   opacity: 1;
   box-shadow: 0 18px 44px oklch(5% 0.01 190 / 0.58), inset 0 1px oklch(62% 0.025 190 / 0.14);
-}.interaction-panel .modality-selector, .interaction-panel .model-picker-dropdown {
+}.interaction-panel .modality-selector, .interaction-panel .model-picker-dropdown, .interaction-panel .conversation-facets, .interaction-panel .conversation-list, .interaction-panel .conversation-preview {
   opacity: 0;
-}.interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) .modality-selector, .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) .model-picker-dropdown {
+}.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .modality-selector, .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .model-picker-dropdown , .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-facets, .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-list, .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-preview {
   opacity: 1;
-}.interaction-panel .model-picker-trigger {
+}.interaction-panel .model-picker-trigger, .interaction-panel .interaction-toolbar-switch-segment {
   border: 0;
   border-bottom: 1px solid var(--interaction-line);
   border-radius: 0;
@@ -5468,7 +5468,7 @@
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   color: var(--interaction-text-muted);
-}.interaction-panel .model-picker-trigger[aria-expanded='true'] .model-picker-trigger-arrow {
+}.interaction-panel .interaction-toolbar-switch-segment[aria-expanded='true'] .model-picker-trigger-arrow {
   color: var(--interaction-accent);
 }.interaction-panel .modality-selector {
   border-right: 1px solid var(--interaction-line);
@@ -5573,7 +5573,7 @@
   color: var(--interaction-text-muted);
   font-size: var(--cc-font-size-small, 13px);
   line-height: 1.5;
-}.interaction-panel .model-picker-trigger:focus-visible, .interaction-panel .modality-chip:focus-visible, .interaction-panel .model-picker-provider:focus-visible, .interaction-panel .model-picker-option:focus-visible {
+}.interaction-panel .interaction-toolbar-switch-segment:focus-visible, .interaction-panel .model-picker-trigger:focus-visible, .interaction-panel .modality-chip:focus-visible, .interaction-panel .model-picker-provider:focus-visible, .interaction-panel .model-picker-option:focus-visible {
   outline: 2px solid var(--interaction-accent);
   outline-offset: -4px;
 }.canvas-modal {
@@ -11579,4 +11579,403 @@
   0%, 12% { opacity: 0; }
   52% { opacity: 0.82; }
   100% { opacity: 1; }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Conversation history browser — appearance.
+ *
+ * Written entirely against this file's own --interaction-* token set (defined
+ * above on .interaction-panel .chat-input-toolbar), so every shipped theme
+ * renders the browser in its own palette from the same declarations.
+ *
+ * --interaction-switch-gradient is the one new token. It is deliberately not
+ * derived from --interaction-accent: the Conversations segment identifies a
+ * mode, the way a tab colour does, and reads as a distinct object from the
+ * accent used for selection dots. Retint it per theme in Theme Studio.
+ * ------------------------------------------------------------------------ */
+
+.interaction-panel .chat-input-toolbar {
+  --interaction-switch-gradient: linear-gradient(100deg, #7b3ff2 0%, #4f46e5 46%, #1e3a8a 100%);
+  --interaction-switch-gradient-text: #ffffff;
+}
+
+.interaction-panel .interaction-toolbar-switch-segment {
+  border: 0;
+  border-bottom: 1px solid var(--interaction-line);
+  border-radius: 0;
+  background: var(--interaction-surface-deep);
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small);
+  font-weight: 450;
+  letter-spacing: -0.025em;
+}
+
+.interaction-panel .interaction-toolbar-switch-segment.conversations {
+  border-right: 1px solid var(--interaction-line);
+}
+
+.interaction-panel .interaction-toolbar-switch-segment:hover {
+  color: var(--interaction-text);
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .interaction-toolbar-switch-segment.models.active {
+  color: var(--interaction-text);
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .interaction-toolbar-switch-segment.conversations.active,
+.interaction-panel .interaction-toolbar-switch-segment.conversations.active:hover {
+  color: var(--interaction-switch-gradient-text);
+  font-weight: 560;
+  background: var(--interaction-switch-gradient);
+}
+
+
+
+
+.interaction-panel .interaction-toolbar-switch-segment:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -4px;
+}
+
+/* --- Columns ------------------------------------------------------------ */
+
+.interaction-panel .conversation-facets {
+  border-right: 1px solid var(--interaction-line);
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-list {
+  border-right: 1px solid var(--interaction-line);
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-preview {
+  background: color-mix(in oklch, var(--interaction-surface-deep) 78%, var(--interaction-surface));
+}
+
+.interaction-panel .conversation-facets,
+.interaction-panel .conversation-list,
+.interaction-panel .conversation-preview-scroll,
+.interaction-panel .conversation-tag-suggestions {
+  scrollbar-color: color-mix(in oklch, var(--interaction-accent) 46%, var(--interaction-surface-raised)) var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-facets::-webkit-scrollbar-track,
+.interaction-panel .conversation-list::-webkit-scrollbar-track,
+.interaction-panel .conversation-preview-scroll::-webkit-scrollbar-track {
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-facets::-webkit-scrollbar-thumb,
+.interaction-panel .conversation-list::-webkit-scrollbar-thumb,
+.interaction-panel .conversation-preview-scroll::-webkit-scrollbar-thumb {
+  border-radius: 0;
+  background: color-mix(in oklch, var(--interaction-accent) 46%, var(--interaction-surface-raised)) !important;
+}
+
+/* --- Search row --------------------------------------------------------- */
+
+.interaction-panel .conversation-search-cell,
+.interaction-panel .conversation-search {
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.interaction-panel .conversation-search-input {
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-medium, 16px);
+  font-weight: 430;
+  letter-spacing: -0.012em;
+}
+
+.interaction-panel .conversation-search-input::placeholder {
+  color: var(--interaction-text-muted);
+  opacity: 0.8;
+}
+
+.interaction-panel .conversation-search-input:focus-visible {
+  outline: 0;
+}
+
+.interaction-panel .conversation-search:focus-within {
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .conversation-search-clear,
+.interaction-panel .conversation-new {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-search-clear:hover,
+.interaction-panel .conversation-new:hover {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-search-clear:focus-visible,
+.interaction-panel .conversation-new:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -3px;
+}
+
+/* --- Facet, tag and conversation rows share the model-picker anatomy ----- */
+
+.interaction-panel .conversation-facet,
+.interaction-panel .conversation-facet-child,
+.interaction-panel .conversation-facet-clear,
+.interaction-panel .conversation-row {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-medium, 16px);
+  font-weight: 430;
+  letter-spacing: -0.012em;
+  line-height: 1.15;
+}
+
+.interaction-panel .conversation-facet:hover,
+.interaction-panel .conversation-facet-child:hover,
+.interaction-panel .conversation-facet-clear:hover,
+.interaction-panel .conversation-row:hover {
+  color: var(--interaction-text);
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .conversation-facet.active,
+.interaction-panel .conversation-facet-child.active,
+.interaction-panel .conversation-row.selected {
+  color: var(--interaction-text);
+  font-weight: 560;
+  background: var(--interaction-selection);
+}
+
+.interaction-panel .conversation-facet.active::before,
+.interaction-panel .conversation-facet-child.active::before,
+.interaction-panel .conversation-row.active::before {
+  border-radius: var(--ui-border-radius);
+  background: var(--interaction-accent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--interaction-accent) 34%, transparent);
+}
+
+.interaction-panel .conversation-facet-group {
+  border-bottom: 1px solid var(--interaction-line);
+  background: color-mix(in oklch, var(--interaction-surface-deep) 88%, var(--interaction-surface));
+}
+
+.interaction-panel .conversation-facet-child {
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-facet-clear {
+  color: var(--interaction-accent);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-facet-count,
+.interaction-panel .conversation-facet-child-count {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+}
+
+.interaction-panel .conversation-group-title {
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.interaction-panel .conversation-row-title {
+  color: inherit;
+}
+
+.interaction-panel .conversation-row-tag-btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+  opacity: 0;
+}
+
+.interaction-panel .conversation-row:hover .conversation-row-tag-btn,
+.interaction-panel .conversation-row:focus-within .conversation-row-tag-btn,
+.interaction-panel .conversation-row-tag-btn:focus-visible {
+  opacity: 1;
+}
+
+.interaction-panel .conversation-row-tag-btn:hover {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-facet:focus-visible,
+.interaction-panel .conversation-facet-child:focus-visible,
+.interaction-panel .conversation-facet-clear:focus-visible,
+.interaction-panel .conversation-row:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -4px;
+}
+
+.interaction-panel .conversation-empty,
+.interaction-panel .conversation-preview-empty {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+  line-height: 1.5;
+}
+
+/* --- Preview transcript ------------------------------------------------- */
+
+.interaction-panel .conversation-preview-bubble {
+  border-radius: calc(var(--ui-border-radius) * 0.75);
+  color: var(--interaction-text);
+  font-size: var(--cc-font-size-small, 13px);
+  line-height: 1.5;
+}
+
+.interaction-panel .conversation-preview-message.user .conversation-preview-bubble {
+  background: color-mix(in oklch, var(--interaction-accent) 11%, var(--interaction-surface-raised));
+}
+
+.interaction-panel .conversation-preview-message.assistant .conversation-preview-bubble {
+  background: transparent;
+  color: var(--interaction-text);
+}
+
+.interaction-panel .conversation-preview-avatar-glyph {
+  color: var(--interaction-accent);
+  font-size: var(--cc-font-size-medium, 16px);
+}
+
+.interaction-panel .conversation-preview-avatar-name {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  letter-spacing: 0.04em;
+}
+
+/* --- Tag strip ---------------------------------------------------------- */
+
+.interaction-panel .conversation-tagbar {
+  border-top: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.interaction-panel .conversation-tagbar-label {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag {
+  border: 1px solid var(--interaction-line);
+  border-radius: var(--cc-radius-huge, 999px);
+  background: var(--interaction-surface-raised);
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+  letter-spacing: -0.005em;
+}
+
+.interaction-panel .conversation-tag.auto {
+  border-color: color-mix(in oklch, var(--interaction-accent) 36%, transparent);
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-tag-auto-mark {
+  font-size: var(--cc-font-size-tiny, 10px);
+  opacity: 0.8;
+}
+
+.interaction-panel .conversation-tag-remove {
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+}
+
+.interaction-panel .conversation-tag-remove:hover {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-tag-add {
+  border: 1px dashed var(--interaction-line);
+  border-radius: var(--cc-radius-huge, 999px);
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag-add:hover {
+  border-style: solid;
+  color: var(--interaction-text);
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .conversation-tag-input {
+  border: 1px solid var(--interaction-accent);
+  border-radius: var(--cc-radius-huge, 999px);
+  background: var(--interaction-surface-raised);
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag-input:focus-visible {
+  outline: 0;
+}
+
+.interaction-panel .conversation-tag-suggestions {
+  border: 1px solid var(--interaction-line);
+  border-radius: 0;
+  background: var(--interaction-surface-deep);
+  box-shadow: 0 -12px 28px oklch(5% 0.01 190 / 0.6);
+}
+
+.interaction-panel .conversation-tag-suggestion {
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag-suggestion:hover,
+.interaction-panel .conversation-tag-suggestion.active {
+  color: var(--interaction-text);
+  background: var(--interaction-selection);
+}
+
+.interaction-panel .conversation-tag-suggestion.create {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-tag-suggestion-count {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.interaction-panel .conversation-tag:focus-visible,
+.interaction-panel .conversation-tag-add:focus-visible,
+.interaction-panel .conversation-tag-remove:focus-visible,
+.interaction-panel .conversation-tag-suggestion:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -2px;
 }

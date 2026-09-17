@@ -225,6 +225,10 @@ contextBridge.exposeInMainWorld('api', {
       create: (input) => invokeLocalData('local-data:threads:create', input),
       update: (threadId, patch) => invokeLocalData('local-data:threads:update', threadId, patch),
       archive: (threadId) => invokeLocalData('local-data:threads:archive', threadId),
+      tags: {
+        list: (filters) => invokeLocalData('local-data:threads:tags:list', filters),
+        set: (threadId, tags) => invokeLocalData('local-data:threads:tags:set', threadId, tags),
+      },
       messages: {
         list: (threadId) => invokeLocalData('local-data:messages:list', threadId),
         append: (threadId, input) => invokeLocalData('local-data:messages:append', threadId, input),

@@ -52,6 +52,8 @@ const CHANNELS = Object.freeze({
   threadsCreate: 'local-data:threads:create',
   threadsUpdate: 'local-data:threads:update',
   threadsArchive: 'local-data:threads:archive',
+  threadsTagsList: 'local-data:threads:tags:list',
+  threadsTagsSet: 'local-data:threads:tags:set',
   messagesList: 'local-data:messages:list',
   messagesAppend: 'local-data:messages:append',
   memorySectionsList: 'local-data:memory:sections:list',
@@ -152,6 +154,10 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
     [CHANNELS.threadsCreate, (input) => service.createThread(input)],
     [CHANNELS.threadsUpdate, (threadId, patch) => service.updateThread(threadId, patch)],
     [CHANNELS.threadsArchive, (threadId) => service.archiveThread(threadId)],
+    [CHANNELS.threadsTagsList, (filters) => service.listThreadTags(filters)],
+    // Source is fixed to 'user' here: everything arriving from the renderer is
+    // a person editing chips, and only that path may dismiss a model tag.
+    [CHANNELS.threadsTagsSet, (threadId, tags) => service.setThreadTags(threadId, tags, { source: 'user' })],
     [CHANNELS.messagesList, (threadId) => service.listMessages(threadId)],
     [CHANNELS.messagesAppend, (threadId, input) => service.appendMessage(threadId, input)],
     [CHANNELS.memorySectionsList, () => service.listMemorySections()],

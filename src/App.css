@@ -1,3 +1,5 @@
+/* DO NOT USE  -- USE APPCOMBINED.CSS */ 
+
 /* Compatibility entry. Its former late declarations are now merged, in order,
  * into AppCombined.css and every complete appearance stylesheet in src/themes/.
  * Add structural rules to AppCombined.css; edit appearance in the active theme file.
