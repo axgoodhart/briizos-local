@@ -19029,15 +19029,15 @@ height:110%;
   transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* Both toolbar modes use the segmented switch as their sole expansion state. */
-.interaction-panel .chat-input-toolbar:not(:has(.interaction-toolbar-switch-segment[aria-expanded='true'])) {
+/* React exposes one explicit container state for both toolbar modes. */
+.interaction-panel .chat-input-toolbar.toolbar-collapsed {
   height: var(--interaction-bar-height);
   overflow: hidden;
   opacity: 0.72;
   backdrop-filter: none;
 }
 
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
+.interaction-panel .chat-input-toolbar.toolbar-expanded {
   grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
   inset: 0;
   height: auto;
@@ -19058,11 +19058,11 @@ height:110%;
   transition: opacity 160ms cubic-bezier(0.25, 1, 0.5, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
 }
 
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .modality-selector,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .model-picker-dropdown,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-facets,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-list,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-preview {
+.interaction-panel .chat-input-toolbar.toolbar-expanded .modality-selector,
+.interaction-panel .chat-input-toolbar.toolbar-expanded .model-picker-dropdown,
+.interaction-panel .chat-input-toolbar.toolbar-expanded .conversation-facets,
+.interaction-panel .chat-input-toolbar.toolbar-expanded .conversation-list,
+.interaction-panel .chat-input-toolbar.toolbar-expanded .conversation-preview {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
@@ -33062,7 +33062,7 @@ button, input, textarea, select {
         grid-template-rows: var(--interaction-bar-height) 0fr 0fr;
     }
 
-    .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
+    .interaction-panel .chat-input-toolbar.toolbar-expanded {
         grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr);
     }
 
@@ -34540,7 +34540,7 @@ html.app-drag-selection-lock webview {
   transform: translateY(0.12em) rotate(225deg);
 }.interaction-panel .conversation-browser {
   display: contents !important;
-}.interaction-panel .chat-input-toolbar:has(.conversation-browser) {
+}.interaction-panel .chat-input-toolbar.toolbar-mode-conversations {
   grid-template-columns: minmax(112px, 15.5%) minmax(168px, 32.5%) minmax(0, 1fr);
 }.interaction-panel .conversation-facets, .interaction-panel .conversation-list, .interaction-panel .conversation-preview {
   grid-row: 2;
@@ -35300,11 +35300,11 @@ html.app-drag-selection-lock webview {
         display: none;
     }
 
-    .interaction-panel .chat-input-toolbar:has(.conversation-browser) {
+    .interaction-panel .chat-input-toolbar.toolbar-mode-conversations {
         grid-template-rows: var(--interaction-bar-height) 0fr 0fr 0fr;
     }
 
-    .interaction-panel .chat-input-toolbar:has(.conversation-browser):has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
+    .interaction-panel .chat-input-toolbar.toolbar-mode-conversations.toolbar-expanded {
         grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr) minmax(0, 1fr);
     }
 

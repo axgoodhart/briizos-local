@@ -898,7 +898,10 @@ function InteractionPanel({ showPanelBackground = true }) {
           </div>)}
 
         {!modelsLoading && models.length > 0 && (
-          <div className="chat-input-toolbar" ref={toolbarRef}>
+          <div
+            className={`chat-input-toolbar toolbar-${toolbarExpanded ? 'expanded' : 'collapsed'} toolbar-mode-${toolbarMode}`}
+            ref={toolbarRef}
+          >
             {/* The segmented switch is the shared header row for both modes.
               * Collapsed, both segments still render, so either side of the
               * section is one click away. */}
