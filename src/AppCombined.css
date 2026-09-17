@@ -34476,3 +34476,914 @@ html.app-drag-selection-lock webview {
 [data-dock-item='sources'] { --dock-item-color: #74dcea; }
 [data-dock-item='tasks'] { --dock-item-color: #ffd36b; }
 [data-dock-item='settings'] { --dock-item-color: #9fb6c9; }
+/* Conversation Browser carried forward from the preserved workspace copy. */
+.interaction-panel .chat-input-toolbar:not(:has(.interaction-toolbar-switch-segment[aria-expanded='true'])) {
+  height: var(--interaction-bar-height);
+  overflow: hidden;
+}
+
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
+  grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
+}
+
+.interaction-panel .modality-selector,
+.interaction-panel .model-picker-dropdown,
+.interaction-panel .conversation-facets,
+.interaction-panel .conversation-list,
+.interaction-panel .conversation-preview {
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 160ms cubic-bezier(0.25, 1, 0.5, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
+}
+
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .modality-selector,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .model-picker-dropdown,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-facets,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-list,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-preview {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+
+.interaction-panel .interaction-toolbar-switch {
+  display: contents;
+}.interaction-panel .interaction-toolbar-switch-segment {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0 24px;
+  cursor: pointer;
+  transition: background-color 120ms linear, color 120ms linear;
+}.interaction-panel .interaction-toolbar-switch-segment.conversations {
+  grid-column: 1 / 3;
+}.interaction-panel .interaction-toolbar-switch-segment.models {
+  grid-column: 3;
+}.interaction-panel .interaction-toolbar-switch-segment > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: transform 80ms linear;
+}.interaction-panel .interaction-toolbar-switch-segment > span:last-child {
+  flex: 0 0 auto;
+}.interaction-panel .interaction-toolbar-switch-segment:active > span:first-child {
+  transform: translateY(1px);
+}.interaction-panel .interaction-toolbar-switch-segment[aria-expanded='true'] .model-picker-trigger-arrow {
+  transform: translateY(0.12em) rotate(225deg);
+}.interaction-panel .conversation-browser {
+  display: contents !important;
+}.interaction-panel .chat-input-toolbar:has(.conversation-browser) {
+  grid-template-columns: minmax(112px, 15.5%) minmax(168px, 32.5%) minmax(0, 1fr);
+}.interaction-panel .conversation-facets, .interaction-panel .conversation-list, .interaction-panel .conversation-preview {
+  grid-row: 2;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}.interaction-panel .conversation-facets, .interaction-panel .conversation-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0 0 24px;
+  overflow: auto;
+  scrollbar-width: thin;
+}.interaction-panel .conversation-facets {
+  grid-column: 1;
+}.interaction-panel .conversation-list {
+  grid-column: 2;
+}.interaction-panel .conversation-preview {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}.interaction-panel .conversation-facets::-webkit-scrollbar, .interaction-panel .conversation-list::-webkit-scrollbar, .interaction-panel .conversation-preview-scroll::-webkit-scrollbar {
+  width: 4px;
+}.interaction-panel .conversation-search-cell, .interaction-panel .conversation-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 36px;
+}.interaction-panel .conversation-search-cell {
+  padding: 0;
+}.interaction-panel .conversation-search {
+  gap: 8px;
+  padding: 0 8px 0 16px;
+}.interaction-panel .conversation-search > span {
+  flex: 0 0 auto;
+}.interaction-panel .conversation-search-input {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+}.interaction-panel .conversation-search-clear, .interaction-panel .conversation-new {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  cursor: pointer;
+  transition: color 120ms linear, transform 80ms linear;
+}.interaction-panel .conversation-search-clear:active, .interaction-panel .conversation-new:active {
+  transform: translateY(1px);
+}.interaction-panel .conversation-facet, .interaction-panel .conversation-facet-child, .interaction-panel .conversation-facet-clear, .interaction-panel .conversation-row {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: max(48px, calc(var(--cc-font-size-medium, 16px) * 2.8));
+  padding: 0 20px 0 36px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 120ms linear, background-color 120ms linear, transform 80ms linear;
+}.interaction-panel .conversation-facet:active, .interaction-panel .conversation-facet-child:active, .interaction-panel .conversation-facet-clear:active, .interaction-panel .conversation-row:active {
+  transform: translateY(1px);
+}.interaction-panel .conversation-facet.active::before, .interaction-panel .conversation-facet-child.active::before, .interaction-panel .conversation-row.active::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateY(-50%);
+}.interaction-panel .conversation-facet > span:first-child, .interaction-panel .conversation-facet-clear > span:first-child {
+  flex: 0 0 auto;
+}.interaction-panel .conversation-facet-count, .interaction-panel .conversation-facet-child-count {
+  margin-left: auto;
+}.interaction-panel .conversation-facet-group {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+}.interaction-panel .conversation-group-title {
+  position: sticky;
+  top: 36px;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 28px;
+  padding: 0 20px 0 36px;
+}.interaction-panel .conversation-row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.interaction-panel .conversation-row-tag-btn {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms linear;
+}.interaction-panel .conversation-row:hover .conversation-row-tag-btn, .interaction-panel .conversation-row:focus-within .conversation-row-tag-btn, .interaction-panel .conversation-row-tag-btn:focus-visible {
+  opacity: 1;
+}.interaction-panel .conversation-empty {
+  max-width: 28ch;
+  padding: 32px 24px;
+}.interaction-panel .conversation-preview-scroll {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 0 20px 16px;
+  overflow: auto;
+  scrollbar-width: thin;
+}.interaction-panel .conversation-preview-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 0;
+}.interaction-panel .conversation-preview-message.user {
+  justify-content: flex-end;
+}.interaction-panel .conversation-preview-message.assistant {
+  justify-content: flex-start;
+}.interaction-panel .conversation-preview-avatar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 44px;
+}.interaction-panel .conversation-preview-avatar-glyph {
+  display: block;
+  line-height: 1;
+}.interaction-panel .conversation-preview-avatar-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.interaction-panel .conversation-preview-bubble {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 82%;
+  padding: 6px 10px;
+  overflow-wrap: anywhere;
+}.interaction-panel .conversation-preview-message.assistant .conversation-preview-bubble {
+  max-width: calc(100% - 52px);
+  padding-left: 0;
+}.interaction-panel .conversation-preview-empty {
+  max-width: 32ch;
+  padding: 32px 24px;
+}.interaction-panel .conversation-tagbar {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 28px;
+  padding: 4px 20px;
+}.interaction-panel .conversation-tagbar-label {
+  flex: 0 0 auto;
+}.interaction-panel .conversation-tag {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0 6px;
+}.interaction-panel .conversation-tag > span:last-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.interaction-panel .conversation-tag-auto-mark {
+  flex: 0 0 auto;
+}.interaction-panel .conversation-tag-remove {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms linear;
+}.interaction-panel .conversation-tag:hover .conversation-tag-remove, .interaction-panel .conversation-tag:focus-within .conversation-tag-remove {
+  opacity: 1;
+}.interaction-panel .conversation-tag-add {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  cursor: pointer;
+  transition: color 120ms linear, transform 80ms linear;
+}.interaction-panel .conversation-tag-add:active:not(:disabled) {
+  transform: translateY(1px);
+}.interaction-panel .conversation-tag-add:disabled {
+  cursor: not-allowed;
+}.interaction-panel .conversation-tag-input {
+  flex: 1 1 96px;
+  box-sizing: border-box;
+  min-width: 96px;
+  height: 20px;
+  padding: 0 4px;
+}.interaction-panel .conversation-tag-suggestions {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 100%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+  max-height: 168px;
+  overflow: auto;
+  scrollbar-width: thin;
+}.interaction-panel .conversation-tag-suggestions::-webkit-scrollbar {
+  width: 4px;
+}.interaction-panel .conversation-tag-suggestion {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 120ms linear, background-color 120ms linear;
+}.interaction-panel .conversation-tag-suggestion > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.interaction-panel .conversation-tag-suggestion-count {
+  margin-left: auto;
+}@media (pointer: coarse) {
+
+
+/* ------------------------------------------------------------------------ *
+ * Conversation history browser — appearance.
+ *
+ * Written entirely against this file's own --interaction-* token set (defined
+ * above on .interaction-panel .chat-input-toolbar), so every shipped theme
+ * renders the browser in its own palette from the same declarations.
+ *
+ * --interaction-switch-gradient is the one new token. It is deliberately not
+ * derived from --interaction-accent: the Conversations segment identifies a
+ * mode, the way a tab colour does, and reads as a distinct object from the
+ * accent used for selection dots. Retint it per theme in Theme Studio.
+ * ------------------------------------------------------------------------ */
+
+.interaction-panel .chat-input-toolbar {
+  --interaction-switch-gradient: linear-gradient(100deg, #7b3ff2 0%, #4f46e5 46%, #1e3a8a 100%);
+  --interaction-switch-gradient-text: #ffffff;
+}
+
+.interaction-panel .interaction-toolbar-switch-segment {
+  border: 0;
+  border-bottom: 1px solid var(--interaction-line);
+  border-radius: 0;
+  background: var(--interaction-surface-deep);
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small);
+  font-weight: 450;
+  letter-spacing: -0.025em;
+}
+
+.interaction-panel .interaction-toolbar-switch-segment.conversations {
+  border-right: 1px solid var(--interaction-line);
+}
+
+.interaction-panel .interaction-toolbar-switch-segment:hover {
+  color: var(--interaction-text);
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .interaction-toolbar-switch-segment.models.active {
+  color: var(--interaction-text);
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .interaction-toolbar-switch-segment.conversations.active,
+.interaction-panel .interaction-toolbar-switch-segment.conversations.active:hover {
+  color: var(--interaction-switch-gradient-text);
+  font-weight: 560;
+  background: var(--interaction-switch-gradient);
+}
+
+
+
+
+.interaction-panel .interaction-toolbar-switch-segment:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -4px;
+}
+
+/* --- Columns ------------------------------------------------------------ */
+
+.interaction-panel .conversation-facets {
+  border-right: 1px solid var(--interaction-line);
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-list {
+  border-right: 1px solid var(--interaction-line);
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-preview {
+  background: color-mix(in oklch, var(--interaction-surface-deep) 78%, var(--interaction-surface));
+}
+
+.interaction-panel .conversation-facets,
+.interaction-panel .conversation-list,
+.interaction-panel .conversation-preview-scroll,
+.interaction-panel .conversation-tag-suggestions {
+  scrollbar-color: color-mix(in oklch, var(--interaction-accent) 46%, var(--interaction-surface-raised)) var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-facets::-webkit-scrollbar-track,
+.interaction-panel .conversation-list::-webkit-scrollbar-track,
+.interaction-panel .conversation-preview-scroll::-webkit-scrollbar-track {
+  background: var(--interaction-surface-deep);
+}
+
+.interaction-panel .conversation-facets::-webkit-scrollbar-thumb,
+.interaction-panel .conversation-list::-webkit-scrollbar-thumb,
+.interaction-panel .conversation-preview-scroll::-webkit-scrollbar-thumb {
+  border-radius: 0;
+  background: color-mix(in oklch, var(--interaction-accent) 46%, var(--interaction-surface-raised)) !important;
+}
+
+/* --- Search row --------------------------------------------------------- */
+
+.interaction-panel .conversation-search-cell,
+.interaction-panel .conversation-search {
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.interaction-panel .conversation-search-input {
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-medium, 16px);
+  font-weight: 430;
+  letter-spacing: -0.012em;
+}
+
+.interaction-panel .conversation-search-input::placeholder {
+  color: var(--interaction-text-muted);
+  opacity: 0.8;
+}
+
+.interaction-panel .conversation-search-input:focus-visible {
+  outline: 0;
+}
+
+.interaction-panel .conversation-search:focus-within {
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .conversation-search-clear,
+.interaction-panel .conversation-new {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-search-clear:hover,
+.interaction-panel .conversation-new:hover {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-search-clear:focus-visible,
+.interaction-panel .conversation-new:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -3px;
+}
+
+/* --- Facet, tag and conversation rows share the model-picker anatomy ----- */
+
+.interaction-panel .conversation-facet,
+.interaction-panel .conversation-facet-child,
+.interaction-panel .conversation-facet-clear,
+.interaction-panel .conversation-row {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-medium, 16px);
+  font-weight: 430;
+  letter-spacing: -0.012em;
+  line-height: 1.15;
+}
+
+.interaction-panel .conversation-facet:hover,
+.interaction-panel .conversation-facet-child:hover,
+.interaction-panel .conversation-facet-clear:hover,
+.interaction-panel .conversation-row:hover {
+  color: var(--interaction-text);
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .conversation-facet.active,
+.interaction-panel .conversation-facet-child.active,
+.interaction-panel .conversation-row.selected {
+  color: var(--interaction-text);
+  font-weight: 560;
+  background: var(--interaction-selection);
+}
+
+.interaction-panel .conversation-facet.active::before,
+.interaction-panel .conversation-facet-child.active::before,
+.interaction-panel .conversation-row.active::before {
+  border-radius: var(--ui-border-radius);
+  background: var(--interaction-accent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--interaction-accent) 34%, transparent);
+}
+
+.interaction-panel .conversation-facet-group {
+  border-bottom: 1px solid var(--interaction-line);
+  background: color-mix(in oklch, var(--interaction-surface-deep) 88%, var(--interaction-surface));
+}
+
+.interaction-panel .conversation-facet-child {
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-facet-clear {
+  color: var(--interaction-accent);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-facet-count,
+.interaction-panel .conversation-facet-child-count {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+}
+
+.interaction-panel .conversation-group-title {
+  border-bottom: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.interaction-panel .conversation-row-title {
+  color: inherit;
+}
+
+.interaction-panel .conversation-row-tag-btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+  opacity: 0;
+}
+
+.interaction-panel .conversation-row:hover .conversation-row-tag-btn,
+.interaction-panel .conversation-row:focus-within .conversation-row-tag-btn,
+.interaction-panel .conversation-row-tag-btn:focus-visible {
+  opacity: 1;
+}
+
+.interaction-panel .conversation-row-tag-btn:hover {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-facet:focus-visible,
+.interaction-panel .conversation-facet-child:focus-visible,
+.interaction-panel .conversation-facet-clear:focus-visible,
+.interaction-panel .conversation-row:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -4px;
+}
+
+.interaction-panel .conversation-empty,
+.interaction-panel .conversation-preview-empty {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+  line-height: 1.5;
+}
+
+/* --- Preview transcript ------------------------------------------------- */
+
+.interaction-panel .conversation-preview-bubble {
+  border-radius: calc(var(--ui-border-radius) * 0.75);
+  color: var(--interaction-text);
+  font-size: var(--cc-font-size-small, 13px);
+  line-height: 1.5;
+}
+
+.interaction-panel .conversation-preview-message.user .conversation-preview-bubble {
+  background: color-mix(in oklch, var(--interaction-accent) 11%, var(--interaction-surface-raised));
+}
+
+.interaction-panel .conversation-preview-message.assistant .conversation-preview-bubble {
+  background: transparent;
+  color: var(--interaction-text);
+}
+
+.interaction-panel .conversation-preview-avatar-glyph {
+  color: var(--interaction-accent);
+  font-size: var(--cc-font-size-medium, 16px);
+}
+
+.interaction-panel .conversation-preview-avatar-name {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  letter-spacing: 0.04em;
+}
+
+/* --- Tag strip ---------------------------------------------------------- */
+
+.interaction-panel .conversation-tagbar {
+  border-top: 1px solid var(--interaction-line);
+  background: var(--interaction-surface);
+}
+
+.interaction-panel .conversation-tagbar-label {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag {
+  border: 1px solid var(--interaction-line);
+  border-radius: var(--cc-radius-huge, 999px);
+  background: var(--interaction-surface-raised);
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+  letter-spacing: -0.005em;
+}
+
+.interaction-panel .conversation-tag.auto {
+  border-color: color-mix(in oklch, var(--interaction-accent) 36%, transparent);
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-tag-auto-mark {
+  font-size: var(--cc-font-size-tiny, 10px);
+  opacity: 0.8;
+}
+
+.interaction-panel .conversation-tag-remove {
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+}
+
+.interaction-panel .conversation-tag-remove:hover {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-tag-add {
+  border: 1px dashed var(--interaction-line);
+  border-radius: var(--cc-radius-huge, 999px);
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag-add:hover {
+  border-style: solid;
+  color: var(--interaction-text);
+  background: var(--interaction-surface-raised);
+}
+
+.interaction-panel .conversation-tag-input {
+  border: 1px solid var(--interaction-accent);
+  border-radius: var(--cc-radius-huge, 999px);
+  background: var(--interaction-surface-raised);
+  color: var(--interaction-text);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag-input:focus-visible {
+  outline: 0;
+}
+
+.interaction-panel .conversation-tag-suggestions {
+  border: 1px solid var(--interaction-line);
+  border-radius: 0;
+  background: var(--interaction-surface-deep);
+  box-shadow: 0 -12px 28px oklch(5% 0.01 190 / 0.6);
+}
+
+.interaction-panel .conversation-tag-suggestion {
+  border: 0;
+  background: transparent;
+  color: var(--interaction-text-muted);
+  font-family: var(--ui-font-main, inherit);
+  font-size: var(--cc-font-size-small, 13px);
+}
+
+.interaction-panel .conversation-tag-suggestion:hover,
+.interaction-panel .conversation-tag-suggestion.active {
+  color: var(--interaction-text);
+  background: var(--interaction-selection);
+}
+
+.interaction-panel .conversation-tag-suggestion.create {
+  color: var(--interaction-accent);
+}
+
+.interaction-panel .conversation-tag-suggestion-count {
+  color: var(--interaction-text-muted);
+  font-size: var(--cc-font-size-tiny, 10px);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.interaction-panel .conversation-tag:focus-visible,
+.interaction-panel .conversation-tag-add:focus-visible,
+.interaction-panel .conversation-tag-remove:focus-visible,
+.interaction-panel .conversation-tag-suggestion:focus-visible {
+  outline: 2px solid var(--interaction-accent);
+  outline-offset: -2px;
+}
+
+@container (max-width: 580px) {
+    .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
+        grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr);
+    }
+
+    .interaction-panel .model-picker-trigger {
+        grid-column: 1;
+        grid-row: 1;
+        padding-inline: 16px;
+    }
+
+    .interaction-panel .interaction-toolbar-switch {
+        display: flex;
+        grid-column: 1;
+        grid-row: 1;
+        align-items: stretch;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .interaction-panel .interaction-toolbar-switch-segment {
+        flex: 1 1 50%;
+        gap: 8px;
+        padding-inline: 12px;
+    }
+
+    .interaction-panel .modality-selector {
+        grid-column: 1;
+        grid-row: 2;
+        flex-direction: row;
+        min-height: 49px;
+        height: auto;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .interaction-panel .modality-selector .interaction-toolbar-section-title {
+        position: sticky;
+        left: 0;
+        min-width: 58px;
+        min-height: 48px;
+        padding-inline: 12px;
+    }
+
+    .interaction-panel .modality-selector .interaction-toolbar-section-title span:last-child {
+        display: none;
+    }
+
+    .interaction-panel .modality-chip {
+        width: auto;
+        min-width: max-content;
+        min-height: 48px;
+        padding: 0 14px 0 25px;
+    }
+
+    .interaction-panel .modality-chip.active {
+        width: auto;
+    }
+
+    .interaction-panel .modality-chip.active::before {
+        left: 12px;
+    }
+
+    .interaction-panel .model-picker-dropdown {
+        grid-column: 1;
+        grid-row: 3;
+        grid-template-columns: minmax(116px, 39%) minmax(0, 1fr);
+    }
+
+    .interaction-panel .model-picker-provider,
+    .interaction-panel .model-picker-option {
+        min-height: 48px;
+        padding: 0 12px 0 28px;
+    }
+
+    .interaction-panel .model-picker-provider.active::before,
+    .interaction-panel .model-picker-option.active::before {
+        left: 12px;
+    }
+
+    .interaction-panel .model-picker-provider-count,
+    .interaction-panel .model-vision-mark {
+        display: none;
+    }
+
+    .interaction-panel .chat-input-toolbar:has(.conversation-browser) {
+        grid-template-rows: var(--interaction-bar-height) 0fr 0fr 0fr;
+    }
+
+    .interaction-panel .chat-input-toolbar:has(.conversation-browser):has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
+        grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .interaction-panel .conversation-facets {
+        grid-column: 1;
+        grid-row: 2;
+        flex-direction: row;
+        min-height: 49px;
+        height: auto;
+        padding: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .interaction-panel .conversation-list {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    .interaction-panel .conversation-preview {
+        grid-column: 1;
+        grid-row: 4;
+    }
+
+    .interaction-panel .conversation-search-cell {
+        display: none;
+    }
+
+    .interaction-panel .conversation-facet-group {
+        flex-direction: row;
+        width: auto;
+    }
+
+    .interaction-panel .conversation-facet,
+    .interaction-panel .conversation-facet-child,
+    .interaction-panel .conversation-facet-clear {
+        width: auto;
+        min-width: max-content;
+        min-height: 48px;
+        padding: 0 14px 0 25px;
+    }
+
+    .interaction-panel .conversation-row {
+        min-height: 48px;
+        padding: 0 12px 0 28px;
+    }
+
+    .interaction-panel .conversation-facet.active::before,
+    .interaction-panel .conversation-facet-child.active::before,
+    .interaction-panel .conversation-row.active::before {
+        left: 12px;
+    }
+
+    .interaction-panel .conversation-group-title {
+        padding: 0 12px 0 28px;
+    }
+
+    .interaction-panel .conversation-facet-count,
+    .interaction-panel .conversation-facet-child-count {
+        display: none;
+    }
+
+    .interaction-panel .conversation-preview-scroll {
+        padding: 0 12px 12px;
+    }
+
+    .interaction-panel .conversation-tagbar {
+        padding: 4px 12px;
+    }
+
+    .interaction-panel .conversation-tag-suggestions {
+        left: 12px;
+        right: 12px;
+    }
+}
