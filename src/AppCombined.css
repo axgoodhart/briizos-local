@@ -19029,14 +19029,15 @@ height:110%;
   transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.interaction-panel .chat-input-toolbar:not(:has(.model-picker-trigger[aria-expanded='true'])) {
+/* Both toolbar modes use the segmented switch as their sole expansion state. */
+.interaction-panel .chat-input-toolbar:not(:has(.interaction-toolbar-switch-segment[aria-expanded='true'])) {
   height: var(--interaction-bar-height);
   overflow: hidden;
   opacity: 0.72;
   backdrop-filter: none;
 }
 
-.interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) {
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
   grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
@@ -19044,7 +19045,11 @@ height:110%;
   box-shadow: 0 18px 44px oklch(5% 0.01 190 / 0.58), inset 0 1px oklch(62% 0.025 190 / 0.14);
 }
 
-.interaction-panel .modality-selector, .interaction-panel .model-picker-dropdown {
+.interaction-panel .modality-selector,
+.interaction-panel .model-picker-dropdown,
+.interaction-panel .conversation-facets,
+.interaction-panel .conversation-list,
+.interaction-panel .conversation-preview {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -19052,7 +19057,11 @@ height:110%;
   transition: opacity 160ms cubic-bezier(0.25, 1, 0.5, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
 }
 
-.interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) .modality-selector, .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) .model-picker-dropdown {
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .modality-selector,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .model-picker-dropdown,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-facets,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-list,
+.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-preview {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
@@ -33052,7 +33061,7 @@ button, input, textarea, select {
         grid-template-rows: var(--interaction-bar-height) 0fr 0fr;
     }
 
-    .interaction-panel .chat-input-toolbar:has(.model-picker-trigger[aria-expanded='true']) {
+    .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
         grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr);
     }
 
@@ -34497,39 +34506,6 @@ html.app-drag-selection-lock webview {
 [data-dock-item='tasks'] { --dock-item-color: #ffd36b; }
 [data-dock-item='settings'] { --dock-item-color: #9fb6c9; }
 /* Conversation Browser carried forward from the preserved workspace copy. */
-.interaction-panel .chat-input-toolbar:not(:has(.interaction-toolbar-switch-segment[aria-expanded='true'])) {
-  height: var(--interaction-bar-height);
-  overflow: hidden;
-}
-
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
-  grid-template-rows: var(--interaction-bar-height) minmax(0, 1fr);
-  height: 100%;
-  overflow: hidden;
-}
-
-.interaction-panel .modality-selector,
-.interaction-panel .model-picker-dropdown,
-.interaction-panel .conversation-facets,
-.interaction-panel .conversation-list,
-.interaction-panel .conversation-preview {
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateY(-8px);
-  transition: opacity 160ms cubic-bezier(0.25, 1, 0.5, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
-}
-
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .modality-selector,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .model-picker-dropdown,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-facets,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-list,
-.interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) .conversation-preview {
-  visibility: visible;
-  pointer-events: auto;
-  transform: translateY(0);
-  transition-delay: 0s;
-}
-
 .interaction-panel .interaction-toolbar-switch {
   display: contents;
 }.interaction-panel .interaction-toolbar-switch-segment {
@@ -35243,10 +35219,6 @@ html.app-drag-selection-lock webview {
 }
 
 @container (max-width: 580px) {
-    .interaction-panel .chat-input-toolbar:has(.interaction-toolbar-switch-segment[aria-expanded='true']) {
-        grid-template-rows: var(--interaction-bar-height) auto minmax(0, 1fr);
-    }
-
     .interaction-panel .model-picker-trigger {
         grid-column: 1;
         grid-row: 1;
