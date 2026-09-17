@@ -34371,6 +34371,26 @@ html.app-drag-selection-lock webview {
 .forest-project-tabs { display: flex; gap: 4px; margin-block: 6px; }
 .forest-watch-suggestions { max-height: 220px; overflow: auto; }
 .forest-watch-suggestions .file-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Forest is rendered inside a generic panel. These two boxes must inherit the
+   panel's available height; its board children are absolutely positioned. */
+.forest-host,
+.forest-runtime {
+  width: 100%;
+  height: 100%;
+}
+.forest-panel,
+.forest-panel * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.forest-panel input,
+.forest-panel textarea,
+.forest-panel [contenteditable]:not([contenteditable="false"]),
+.forest-panel [contenteditable]:not([contenteditable="false"]) * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.forest-shell .forest-empty-state button { pointer-events: auto; }
 .forest-runtime { position: relative; contain: layout paint; isolation: isolate; }
 .fw[data-float-app='forest'] .forest-shell .aurora { display: none; }
 .fw[data-float-app='forest'] .forest-shell .world { will-change: auto; }
@@ -34822,7 +34842,7 @@ html.app-drag-selection-lock webview {
   margin-left: auto;
 }@media (pointer: coarse) {
 
-
+}
 /* ------------------------------------------------------------------------ *
  * Conversation history browser — appearance.
  *

@@ -484,7 +484,7 @@ function NotesWidget({ isOpen, onClose, drawerPosition, drawerDimensions, onDraw
       {/* Drawer */}
       <div
         ref={drawerRef}
-        inert={!isOpen ? true : undefined}
+        inert={isOpen ? undefined : ''}
         onPointerMove={isOpen ? resetDrawerIdle : undefined}
         onPointerDown={isOpen ? resetDrawerIdle : undefined}
         onKeyDown={isOpen ? resetDrawerIdle : undefined}

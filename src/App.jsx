@@ -1367,18 +1367,18 @@ function AppContent({ layout, shell, floats }) {
   // Open-state highlights for the floating dock (float windows, grid tiles,
   // and overlays all count as "open").
   const dockActiveById = {
-    chat: floatOpen('interaction') || interactionPanel?.visible === true,
+    chat: floatOpen('interaction') || (gridActive && interactionPanel?.visible === true),
     briiztorm: briiztormOpen,
     organizer: organizerOpen,
     calendar: calendarOpen,
     media: mediaOpen,
     notes: notesOpen,
     canvases: canvasesPopoverOpen,
-    journal: floatOpen('journal') || journalPanel?.visible === true,
-    forest: floatOpen('forest') || forestPanel?.visible === true,
-    notefalls: floatOpen('notefalls') || notefallsPanel?.visible === true,
-    sources: floatOpen('sources') || sourcesPanel?.visible === true,
-    tasks: floatOpen('tasks') || tasksPanel?.visible === true,
+    journal: floatOpen('journal') || (gridActive && journalPanel?.visible === true),
+    forest: floatOpen('forest') || (gridActive && forestPanel?.visible === true),
+    notefalls: floatOpen('notefalls') || (gridActive && notefallsPanel?.visible === true),
+    sources: floatOpen('sources') || (gridActive && sourcesPanel?.visible === true),
+    tasks: floatOpen('tasks') || (gridActive && tasksPanel?.visible === true),
     settings: showSettings,
   };
 
