@@ -463,7 +463,7 @@ function InteractionPanel({ showPanelBackground = true }) {
   }, [threadId, threadTags]);
 
   const reportToolbarContainerState = useCallback((clickedMode) => {
-    requestAnimationFrame(() => {
+    window.setTimeout(() => {
       const container = toolbarRef.current;
       if (!container) {
         console.log('[DEBUG-interaction-toolbar]', { clickedMode, containerFound: false });
@@ -491,6 +491,7 @@ function InteractionPanel({ showPanelBackground = true }) {
         visibility: styles.visibility,
         opacity: styles.opacity,
         overflow: styles.overflow,
+        computedHeight: styles.height,
         gridTemplateRows: styles.gridTemplateRows,
         dimensions: {
           width: bounds.width,
@@ -501,7 +502,7 @@ function InteractionPanel({ showPanelBackground = true }) {
           offsetHeight: container.offsetHeight,
         },
       });
-    });
+    }, 320);
   }, []);
 
   const handleToolbarSegment = useCallback((mode) => {
