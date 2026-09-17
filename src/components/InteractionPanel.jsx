@@ -462,7 +462,51 @@ function InteractionPanel({ showPanelBackground = true }) {
     )));
   }, [threadId, threadTags]);
 
+  const reportToolbarContainerState = useCallback((clickedMode) => {
+    requestAnimationFrame(() => {
+      const container = toolbarRef.current;
+      if (!container) {
+        console.log('[DEBUG-interaction-toolbar]', { clickedMode, containerFound: false });
+        return;
+      }
+
+      const bounds = container.getBoundingClientRect();
+      const styles = window.getComputedStyle(container);
+      const expandedSegment = container.querySelector('.interaction-toolbar-switch-segment[aria-expanded="true"]');
+
+      console.log('[DEBUG-interaction-toolbar]', {
+        clickedMode,
+        containerFound: true,
+        expandedMode: expandedSegment?.classList.contains('conversations')
+          ? 'conversations'
+          : expandedSegment?.classList.contains('models')
+            ? 'models'
+            : null,
+        visible: styles.display !== 'none'
+          && styles.visibility !== 'hidden'
+          && Number.parseFloat(styles.opacity) > 0
+          && bounds.width > 0
+          && bounds.height > 0,
+        display: styles.display,
+        visibility: styles.visibility,
+        opacity: styles.opacity,
+        overflow: styles.overflow,
+        gridTemplateRows: styles.gridTemplateRows,
+        dimensions: {
+          width: bounds.width,
+          height: bounds.height,
+          clientWidth: container.clientWidth,
+          clientHeight: container.clientHeight,
+          offsetWidth: container.offsetWidth,
+          offsetHeight: container.offsetHeight,
+        },
+      });
+    });
+  }, []);
+
   const handleToolbarSegment = useCallback((mode) => {
+    reportToolbarContainerState(mode);
+
     // The active segment collapses the section; an inactive one switches mode
     // and keeps it open.
     if (toolbarExpanded && toolbarMode === mode) {
@@ -471,7 +515,7 @@ function InteractionPanel({ showPanelBackground = true }) {
     }
     setToolbarMode(mode);
     setToolbarExpanded(true);
-  }, [toolbarExpanded, toolbarMode]);
+  }, [reportToolbarContainerState, toolbarExpanded, toolbarMode]);
 
   const collapseToolbar = useCallback(() => setToolbarExpanded(false), []);
 
