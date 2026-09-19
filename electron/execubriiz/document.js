@@ -103,6 +103,8 @@ function applyOperation(board, op, { actor = 'user', protectedIds = [] } = {}) {
     if (ai && (target.node.attrs.fixed || (destination !== target.parent && (destination.attrs?.fixed || target.parent.attrs?.fixed)))) throw new Error('This section stays here; ideas cannot cross its boundary');
     if (target.node.type === 'execSection' && destination !== next) throw new Error('Sections cannot be nested');
     if (target.node.type === 'execBlock' && destination.type !== 'execSection') throw new Error('Ideas need a section');
+    if (op.beforeId === op.targetId) return validate(next);
+    if (op.beforeId && !destination.content.some((node) => node.attrs.id === op.beforeId)) throw new Error('The proposed destination changed; this move was not applied');
     if (ai && target.node.type === 'execSection') {
       const from = next.content.indexOf(target.node);
       const to = op.beforeId ? next.content.findIndex((n) => n.attrs.id === op.beforeId) : next.content.length;

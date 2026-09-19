@@ -135,6 +135,7 @@ class ExecRuntime {
     const sessionEntries = eligible.filter((e) => e.sessionId === s.sessionId);
     const summary = this.db.prepare('SELECT summary,summary_revision FROM exec_sessions WHERE id=?').get(s.sessionId);
     const large = sessionEntries.reduce((n, e) => n + e.text.length, 0) > 24000;
+    const summaryIsInvisible = sessionEntries.some((e) => e.privacy === 'invisible');
     const focused = entry || eligible.find((e) => e.id === s.focusId);
     const recent = eligible.slice(-40);
     if (focused && !recent.some((e) => e.id === focused.id)) recent.unshift(focused);
@@ -142,9 +143,9 @@ class ExecRuntime {
     const board = clone(s.board);
     const viewBoard = { type: 'doc', content: board.content.map((section) => ({ ...section, content: section.content.map((block) => ({ id: block.attrs.id, revision: block.attrs.revision, done: block.attrs.done, text: plain(block).slice(0, 700) })) })) };
     const context = { generation: s.generation, contextRevision: s.contextRevision, board, draftId: s.draft.id, entryId: entry?.id, entryRevision: entry?.revision, intent: payload.intent, sessionId: s.sessionId,
-      hasInvisible: recent.some((e) => e.privacy === 'invisible') || s.draft.privacy === 'invisible', verifiedUrls: [], input: {
+      hasInvisible: recent.some((e) => e.privacy === 'invisible') || s.draft.privacy === 'invisible' || (large && summaryIsInvisible), verifiedUrls: [], input: {
         role: job.kind, now: new Date().toISOString(), question: payload.question, intent: payload.intent, focusId: focused?.id,
-        sessionSummary: large && summary?.summary_revision === s.contextRevision ? summary.summary : '',
+        sessionSummary: large && summary?.summary_revision === s.contextRevision ? { privacy: summaryIsInvisible ? 'invisible' : 'open', text: summary.summary } : null,
         entries: manifest, board: viewBoard, existingReactions: s.reactions.slice(-20),
         draft: s.draft.privacy === 'private' ? null : { privacy: s.draft.privacy, text: plain(s.draft.doc).slice(-12000) },
         focusedEntry: focused ? { id: focused.id, privacy: focused.privacy, text: focused.text.slice(0, 14000) } : null,
@@ -180,7 +181,7 @@ class ExecRuntime {
     if (job.kind === 'research') {
       if (context.hasInvisible) throw new Error('Online research was withheld because this context contains Invisible material');
       const research = await searchWeb({ service: this.store.service, config, question: JSON.parse(job.payload_json).question, signal, logger: this.logger });
-      context.input.research = research;
+      context.input = { role: 'research', now: context.input.now, board: context.input.board, existingReactions: context.input.existingReactions, research };
       context.verifiedUrls = research.sources.map((source) => source.url);
       context.input.instruction = 'Attach at most two relevant, evidence-backed external-link reactions to existing board ideas. No other operations. If evidence is weak, return no reactions.';
     }
