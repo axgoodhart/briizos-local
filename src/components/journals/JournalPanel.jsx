@@ -20,6 +20,8 @@ const Icon = {
   chat: <span className="jr-sf-symbol" aria-hidden="true">􀒤</span>,
   home: <span className="jr-sf-symbol" aria-hidden="true">􀎞</span>,
   trash: <span className="jr-sf-symbol" aria-hidden="true">􀈑</span>,
+  archive: <span className="jr-sf-symbol" aria-hidden="true">􀣔</span>,
+
 };
 
 /* ── Import section ──────────────────────────────────────────────────
@@ -487,24 +489,26 @@ export function JournalPanel({
           />
         ) : (
           <div className="journals-home" onClick={() => setSelectedId(null)}>
+
+              <button
+                type="button"
+                className="jr-action jr-action--current jr-home-button"
+                title={floatingJournalId ? 'Center floating journal' : 'Home'}
+                aria-label={floatingJournalId ? 'Center floating journal' : 'Home'}
+                disabled={!floatingJournalId || !onFloatingJournalHome}
+                onClick={onFloatingJournalHome}
+              >
+                {Icon.home}
+              </button>
             <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
               <button type="button" className="jr-action" title="New journal" onClick={() => setCreating(true)}>
                 {Icon.plus}
               </button>
-              <button
-                type="button"
-                className={'jr-action' + (searchOpen ? ' is-active' : '')}
-                title="Search journals"
-                onClick={() => {
-                  if (searchOpen) setQuery('');
-                  setSearchOpen(!searchOpen);
-                }}
-              >
-                {Icon.search}
-              </button>
+
               <button type="button" className="jr-action is-stub" title="Chat (coming soon)" disabled>
                 {Icon.chat}
               </button>
+              <div className="jr-panel-control-group">
               <button
                 type="button"
                 className="jr-action jr-action--danger"
@@ -515,17 +519,26 @@ export function JournalPanel({
               >
                 {Icon.trash}
               </button>
-              <button type="button" className="jr-btn" onClick={() => setTrashOpen(true)}>Trash</button>
-              <button
-                type="button"
-                className="jr-action jr-action--current"
-                title={floatingJournalId ? 'Center floating journal' : 'Home'}
-                aria-label={floatingJournalId ? 'Center floating journal' : 'Home'}
-                disabled={!floatingJournalId || !onFloatingJournalHome}
-                onClick={onFloatingJournalHome}
-              >
-                {Icon.home}
-              </button>
+
+                <button
+                  type="button"
+                  className="jr-action"
+                  onClick={() => setTrashOpen(true)}>{Icon.archive}</button></div>
+
+
+                <div className="jr-panel-control-group">
+
+                <button
+                  type="button"
+                  className={'jr-action' + (searchOpen ? ' is-active' : '')}
+                  title="Search journals"
+                  onClick={() => {
+                    if (searchOpen) setQuery('');
+                    setSearchOpen(!searchOpen);
+                  }}
+                >
+                  {Icon.search}
+                </button>
 
               <div className={'jr-searchbar' + (searchOpen ? ' is-open' : '')}>
                 <input
@@ -542,6 +555,7 @@ export function JournalPanel({
                     }
                   }}
                 />
+                </div>
               </div>
             </div>
 

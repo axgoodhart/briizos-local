@@ -25365,12 +25365,16 @@ height:110%;
 }
 
 .jr-actions {
-  position: relative;
+  position: fixed;
+  top:50px;
+  left:50%;
+  transform:translateX(-50%);
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 18px;
   padding: 0px 0 8px;
+  z-index:10;
 }
 
 .jr-action {
@@ -25379,7 +25383,7 @@ height:110%;
   height: 42px;
   border-radius: 50px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03) 70%);
+  background: black;
   color: rgba(255, 255, 255, 0.88);
   display: inline-flex;
   align-items: center;
@@ -25394,14 +25398,15 @@ height:110%;
 }
 
 .jr-action:hover:not(:disabled), .jr-action.is-active {
-  border-color: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 1);
   color: #fff;
   box-shadow: 0 0 14px rgba(255, 255, 255, 0.18);
 }
 
+
+
 .jr-action.is-stub {
-  opacity: 0.55;
-  cursor: default;
+display:none;  cursor: default;
 }
 
 .jr-action:disabled:not(.jr-action--current) {
@@ -25422,9 +25427,8 @@ height:110%;
 }
 
 .jr-action--current {
-  background: #fff;
   border-color: #fff;
-  color: #000;
+  color: #fff;
   cursor: default;
 }
 
@@ -25434,8 +25438,7 @@ height:110%;
 
 .jr-searchbar {
   overflow: hidden;
-  max-width: 0;
-  opacity: 0;
+  max-width: 0px;
   transition: max-width 0.22s ease, opacity 0.18s ease;
 }
 
@@ -25444,6 +25447,21 @@ height:110%;
   opacity: 1;
 }
 
+.jr-home-button {
+  position:fixed;
+  top: 50px;
+    left: 20px;
+    z-index:10;
+}
+
+.jr-home-button:hover {
+  background:cyan;
+  color:black;
+}
+.jr-home-button:active {
+  background:black;
+  color:cyan;
+}
 .jr-searchbar__input {
   width: 250px;
 }
@@ -25451,10 +25469,12 @@ height:110%;
 .jr-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 26px 24px;
+  gap: 36px 34px;
   max-width: 1480px;
   margin: 0 auto;
   justify-items: center;
+  padding-top:90px;
+  z-index:5;
   perspective: 1000px;
 }
 
@@ -25576,20 +25596,20 @@ height:110%;
 
 .jr-input {
   appearance: none;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+border:none;
+background:none;
   border-radius: 8px;
   color: #fff;
   font-size: 14px;
   padding: 9px 12px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, font-size .2s;
   box-sizing: border-box;
 }
 
 .jr-input:focus {
-  border-color: rgba(120, 180, 255, 0.8);
-  box-shadow: 0 0 10px rgba(120, 180, 255, 0.25);
+  outline:none;
+  font-size:20px;
 }
 
 .jr-input::placeholder {
@@ -34354,6 +34374,25 @@ html.app-drag-selection-lock webview {
   line-height: 1;
 }
 
+.jr-panel-control-group {border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 40px;
+  background: black;
+  display: flex;
+  overflow: hidden;
+  height: 42px;
+  justify-content: center;
+  align-items: center;}
+
+.jr-panel-control-group .jr-action {
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+.jr-panel-control-group .jr-action:not(:disabled):hover {
+color:var(--accent-cyan);
+text-shadow:0 0 2px var(--accent-cyan);
+}
+
 .jv-choice,
 .interface-choices {
   display: inline-flex;
@@ -34396,11 +34435,11 @@ width: 100%;
     grid-column-gap: 5px;
 }
 
-.jv-choice { border: 1px solid currentColor; border-radius: 4px; }
+.jv-choice { border: .5px solid currentColor; border-radius: 40px; }
 .jv-choice .jvb__scrolltoggle { opacity: .6; border: 0; background: transparent; }
 .jv-choice .jvb__scrolltoggle.is-on { opacity: 1; background: color-mix(in srgb, currentColor 16%, transparent); font-weight: 700; box-shadow: inset 0 -2px currentColor; }
 .interface-choices [aria-pressed='false'], .forest-project-tabs [aria-pressed='false'] { opacity: .65; }
-.interface-choices [aria-pressed='true'], .forest-project-tabs [aria-pressed='true'] { opacity: 1; font-weight: 700; box-shadow: inset 0 -2px currentColor; }
+.interface-choices [aria-pressed='true'], .forest-project-tabs [aria-pressed='true'] { opacity: 1; font-weight: 400; box-shadow: inset 0 -2px 8px currentColor; }
 .interface-choices button:focus-visible, .jv-choice button:focus-visible, .note-shadow:focus-visible, .briizy-companion button:focus-visible, .briizy-companion input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 .note-shadow {
