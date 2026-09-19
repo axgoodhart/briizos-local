@@ -24,6 +24,11 @@
 
 export const TEMPLATES = [
   {
+    id: 'execubriiz', mode: 'execubriiz', name: 'Execubriiz',
+    tagline: 'Write freely. Gather ideas on a living, editable board.',
+    cover: null, page: null, tags: [], folios: [],
+  },
+  {
     id: 'blank',
     name: 'Blank',
     tagline: 'An empty book. You bring the ink.',

@@ -3,6 +3,7 @@ import '../../AppCombined.css';
 import { api, JOURNALS_CHANGED_EVENT } from './api.js';
 import { TEMPLATES } from './templates.js';
 import { JournalView } from './JournalView.jsx';
+import { JournalTrash } from './JournalTrash.jsx';
 import {
   COVERS, PAGES, COVER_NAMES, PAGE_NAMES, getCoverUrl, getPageUrl,
 } from './assets.js';
@@ -194,7 +195,7 @@ function CreateJournalModal({ onClose, onCreate }) {
       const folios = JSON.parse(JSON.stringify(template.folios || []));
       const imported = buildFolios(importDocs, importTargets);
       await onCreate({
-        title: title.trim(), tags: mergedTags, cover, page, folios: [...folios, ...imported],
+        title: title.trim(), tags: mergedTags, cover, page, mode: template.mode || 'journal', folios: [...folios, ...imported],
       });
       if (imported.length) {
         logger.info('journal', 'Journal pre-filled from files', {
@@ -240,7 +241,7 @@ function CreateJournalModal({ onClose, onCreate }) {
                 <span className="jr-template__name">{t.name}</span>
                 <span className="jr-template__tagline">{t.tagline}</span>
                 <span className="jr-template__count">
-                  {t.folios.length ? `${t.folios.length} prefab pages` : 'no pages'}
+                  {t.mode === 'execubriiz' ? 'entries + working board' : t.folios.length ? `${t.folios.length} prefab pages` : 'no pages'}
                 </span>
               </button>
             ))}
@@ -341,7 +342,7 @@ function JournalCard({ journal, selected, onSelect, onPopOut }) {
           : <span ref={coverRef} className="jr-card__cover jr-card__cover--missing" />}
         <span className="jr-card__plaque">
           <span className="jr-card__name">{journal.title}</span>
-          <span className="jr-card__count">{journal.folioCount === 1 ? '1 folio' : `${journal.folioCount || 0} folios`}</span>
+          <span className="jr-card__count">{journal.mode === 'execubriiz' ? 'execubriiz' : journal.folioCount === 1 ? '1 folio' : `${journal.folioCount || 0} folios`}</span>
         </span>
       </button>
       {selected && onPopOut && (
@@ -374,6 +375,7 @@ export function JournalPanel({
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const searchRef = useRef(null);
@@ -433,6 +435,7 @@ export function JournalPanel({
     const created = await api.create({ ...input, folios });
     setJournals((prev) => [...prev, created]);
     setSelectedId(created.id);
+    if (created.mode === 'execubriiz') setOpenId(created.id);
     logger.info('journal', 'Journal created', { id: created.id, title: created.title });
   };
 
@@ -440,12 +443,6 @@ export function JournalPanel({
 
   const handleDelete = async () => {
     if (!selectedJournal || deleting) return;
-    const folioLabel = selectedJournal.folioCount === 1 ? '1 folio' : `${selectedJournal.folioCount || 0} folios`;
-    const confirmed = window.confirm(
-      `Delete “${selectedJournal.title}” and its ${folioLabel}?\n\nThis cannot be undone.`,
-    );
-    if (!confirmed) return;
-
     setDeleting(true);
     try {
       await api.delete(selectedJournal.id);
@@ -456,7 +453,7 @@ export function JournalPanel({
       window.dispatchEvent(new CustomEvent(JOURNALS_CHANGED_EVENT, {
         detail: { journalId: selectedJournal.id, deleted: true },
       }));
-      logger.info('journal', 'Journal deleted', { id: selectedJournal.id, title: selectedJournal.title });
+      logger.info('journal', 'Journal archived to Trash; it can be restored there', { id: selectedJournal.id, title: selectedJournal.title });
     } catch (err) {
       logger.error('journal', 'journals:delete failed', err?.message);
       window.alert(`Could not delete “${selectedJournal.title}”. Please try again.`);
@@ -511,13 +508,14 @@ export function JournalPanel({
               <button
                 type="button"
                 className="jr-action jr-action--danger"
-                title={selectedJournal ? `Delete ${selectedJournal.title}` : 'Select a journal to delete it'}
-                aria-label={selectedJournal ? `Delete ${selectedJournal.title}` : 'Select a journal to delete it'}
+                title={selectedJournal ? `Archive ${selectedJournal.title}` : 'Select a journal to archive it'}
+                aria-label={selectedJournal ? `Archive ${selectedJournal.title}` : 'Select a journal to archive it'}
                 disabled={!selectedJournal || deleting}
                 onClick={handleDelete}
               >
                 {Icon.trash}
               </button>
+              <button type="button" className="jr-btn" onClick={() => setTrashOpen(true)}>Trash</button>
               <button
                 type="button"
                 className="jr-action jr-action--current"
@@ -576,6 +574,7 @@ export function JournalPanel({
           </div>
         )}
       </div>
+      {trashOpen && <JournalTrash onClose={() => setTrashOpen(false)} />}
     </div>
   );
 }

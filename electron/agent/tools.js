@@ -794,7 +794,9 @@ function queryCatalogData(input) {
     const items = [];
     for (const journal of journals) {
       const needsFolios = !!(input.id || input.include_content || query);
-      const folios = needsFolios ? localDataService.listFolios(journal.id) : [];
+      // Execubriiz entry access belongs to its journal-scoped reader. Imported
+      // folios are not a back door around an entry's later privacy choice.
+      const folios = needsFolios && journal.mode !== 'execubriiz' ? localDataService.listFolios(journal.id) : [];
       const item = needsFolios ? { ...journal, folios } : journal;
       if (catalogMatches(item, query)) items.push(item);
     }

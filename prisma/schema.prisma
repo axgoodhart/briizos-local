@@ -166,6 +166,7 @@ model external_files {
 model folios {
   id           String   @id
   journal_id   String
+  archive_batch String?
   type         String
   title        String   @default("")
   content_json String   @default("{}")
@@ -224,6 +225,8 @@ model forest_view_state {
 model journals {
   id             String           @id
   title          String
+  mode           String           @default("journal")
+  settings_json  String           @default("{}")
   cover_key      String?
   created_at     BigInt
   updated_at     BigInt
@@ -234,7 +237,97 @@ model journals {
   position       Int              @default(0)
   folios         folios[]
   notefall_posts notefall_posts[]
+  exec_workspace exec_workspaces?
+  exec_sessions exec_sessions[]
+  exec_entries exec_entries[]
+  exec_jobs exec_jobs[]
+  exec_history exec_board_history[]
 
+}
+
+model exec_workspaces {
+  journal_id String @id
+  state_json String
+  revision Int @default(1)
+  updated_at BigInt
+  journal journals @relation(fields: [journal_id], references: [id], onDelete: Cascade)
+}
+
+model exec_sessions {
+  id String @id
+  journal_id String
+  created_at BigInt
+  summary String @default("")
+  summary_revision Int @default(0)
+  journal journals @relation(fields: [journal_id], references: [id], onDelete: Cascade)
+  entries exec_entries[]
+}
+
+model exec_entries {
+  id String @id
+  journal_id String
+  session_id String
+  doc_json String
+  plain_text String
+  label String @default("")
+  privacy String @default("open")
+  summary String @default("")
+  summary_revision Int @default(0)
+  revision Int @default(1)
+  created_at BigInt
+  updated_at BigInt
+  deleted_at BigInt?
+  journal journals @relation(fields: [journal_id], references: [id], onDelete: Cascade)
+  session exec_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  @@index([journal_id, deleted_at, created_at], map: "idx_exec_entries_journal")
+}
+
+model exec_jobs {
+  id String @id
+  journal_id String
+  kind String
+  payload_json String
+  status String @default("queued")
+  attempts Int @default(0)
+  error String?
+  created_at BigInt
+  updated_at BigInt
+  journal journals @relation(fields: [journal_id], references: [id], onDelete: Cascade)
+  checkpoints exec_checkpoints[]
+  @@index([status, created_at], map: "idx_exec_jobs_queue")
+}
+
+model exec_checkpoints {
+  thread_id String
+  checkpoint_ns String
+  checkpoint_id String
+  parent_checkpoint_id String?
+  checkpoint_json String
+  metadata_json String
+  job exec_jobs @relation(fields: [thread_id], references: [id], onDelete: Cascade)
+  writes exec_checkpoint_writes[]
+  @@id([thread_id, checkpoint_ns, checkpoint_id])
+}
+
+model exec_checkpoint_writes {
+  thread_id String
+  checkpoint_ns String
+  checkpoint_id String
+  task_id String
+  idx Int
+  channel String
+  value_json String
+  checkpoint exec_checkpoints @relation(fields: [thread_id, checkpoint_ns, checkpoint_id], references: [thread_id, checkpoint_ns, checkpoint_id], onDelete: Cascade)
+  @@id([thread_id, checkpoint_ns, checkpoint_id, task_id, idx])
+}
+
+model exec_board_history {
+  id String @id
+  journal_id String
+  board_json String
+  label String
+  created_at BigInt
+  journal journals @relation(fields: [journal_id], references: [id], onDelete: Cascade)
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.

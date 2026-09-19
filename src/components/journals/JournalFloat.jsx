@@ -390,6 +390,7 @@ export function JournalFloat({
             pageUrl={getPageUrl(journal.page, { journalId: journal.id, surface: 'floating journal' })}
             coverUrl={getCoverUrl(journal.cover, { journalId: journal.id, surface: 'floating journal' })}
             variant="float"
+            floatHomeRequest={homeRequest}
             onBack={onClose}
             floatChrome={{
               onDragStart: handleDragStart,

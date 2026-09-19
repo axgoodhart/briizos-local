@@ -1888,6 +1888,7 @@ class LocalDataService extends EventEmitter {
       id: row.id,
       title: row.title,
       tags: JSON.parse(row.tags_json),
+      mode: row.mode || 'journal',
       cover: row.cover_key || '',
       page: row.page_key || '',
       settings: row.settings_json ? JSON.parse(row.settings_json) : {},
@@ -1911,7 +1912,8 @@ class LocalDataService extends EventEmitter {
   }
 
   createJournal(input = {}) {
-    v.object(input, 'journal', ['title', 'tags', 'cover', 'page', 'folios']);
+    v.object(input, 'journal', ['title', 'tags', 'cover', 'page', 'folios', 'mode']);
+    const mode = v.oneOf(input.mode || 'journal', 'journal mode', ['journal', 'execubriiz']);
     const journalId = id();
     const title = v.string(input.title, 'title', { required: true, max: 1000 });
     const tags = input.tags === undefined ? [] : v.stringArray(input.tags, 'tags', { maxItems: 100, maxLength: 200 });
@@ -1932,9 +1934,9 @@ class LocalDataService extends EventEmitter {
     return this._write('forest', (timestamp) => {
       const position = this.db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS position FROM journals WHERE deleted_at IS NULL').get().position;
       this.db.prepare(`
-        INSERT INTO journals (id, title, cover_key, tags_json, page_key, position, created_at, updated_at, revision)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `).run(journalId, title, cover, JSON.stringify(tags), page, position, timestamp, timestamp);
+        INSERT INTO journals (id, title, cover_key, tags_json, page_key, position, created_at, updated_at, revision, mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      `).run(journalId, title, cover, JSON.stringify(tags), page, position, timestamp, timestamp, mode);
       const insert = this.db.prepare(`
         INSERT INTO folios (id, journal_id, type, title, content_json, position, created_at, updated_at, revision)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -1987,8 +1989,8 @@ class LocalDataService extends EventEmitter {
     return this._write('forest', (timestamp) => {
       const journal = this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
       if (!journal) v.fail('NOT_FOUND', 'Journal not found');
-      this.db.prepare('UPDATE folios SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE journal_id = ? AND deleted_at IS NULL')
-        .run(timestamp, timestamp, journalId);
+      this.db.prepare('UPDATE folios SET deleted_at = ?, updated_at = ?, archive_batch = ?, revision = revision + 1 WHERE journal_id = ? AND deleted_at IS NULL')
+        .run(timestamp, timestamp, journalId, journalId);
       this.db.prepare('UPDATE journals SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
         .run(timestamp, timestamp, journalId);
       return { ok: true };

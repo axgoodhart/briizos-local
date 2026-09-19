@@ -55,6 +55,7 @@ const langgraph = require('./agent');
 const codexProvider = require('./codex-provider');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
+const { registerExecubriiz } = require('./execubriiz');
 const { CloudGateway } = require('./cloud-gateway');
 const { AutomationRunner } = require('./automation-runner');
 const operationReceipts = require('./agent-op-receipts');
@@ -70,6 +71,7 @@ const { BriizyShell } = require('./briizy/shell');
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
 let unregisterLocalDataIPC = null;
+let execubriiz = null;
 let cloudGateway = null;
 let automationRunner = null;
 let briizy = null;
@@ -963,6 +965,7 @@ ipcMain.handle('forest-journals-create', async (_event, input) => {
 });
 ipcMain.handle('forest-journals-delete', async (_event, id) => {
   const result = localDataService.archiveJournal(id);
+  execubriiz?.archive(id);
   logger.info('forest', 'Journal deleted', { id });
   return result;
 });
@@ -1147,6 +1150,7 @@ app.whenReady().then(() => {
     logger,
   });
   langgraph.setLocalDataService(localDataService);
+  execubriiz = registerExecubriiz({ ipcMain, BrowserWindow, service: localDataService, logger });
   operationReceipts.setLocalDataService(localDataService);
   cloudGateway = new CloudGateway({
     service: localDataService,
@@ -1303,6 +1307,8 @@ app.on('before-quit', (event) => {
   automationRunner = null;
   unregisterLocalDataIPC?.();
   unregisterLocalDataIPC = null;
+  execubriiz?.close();
+  execubriiz = null;
   localDataService?.close();
   localDataService = null;
 });

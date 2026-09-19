@@ -1,0 +1,7 @@
+[
+  { "id": "themes", "label": "Themes", "order": "salience", "hint": "Ideas that belong together" },
+  { "id": "notes", "label": "Notes", "order": "manual", "hint": "Your working notes, in your order" },
+  { "id": "checklist", "label": "Checklist", "order": "manual", "hint": "Things to do, with checkboxes" },
+  { "id": "sequence", "label": "Sequence", "order": "sequence", "hint": "Steps that follow one another" },
+  { "id": "diagram", "label": "Diagram", "order": "graph", "hint": "Connected ideas, with an editable outline" }
+]

@@ -455,6 +455,18 @@ contextBridge.exposeInMainWorld('api', {
   foliosDelete: (id) => ipcRenderer.invoke('forest-folios-delete', id),
   foliosUpdate: (id, patch) => ipcRenderer.invoke('forest-folios-update', id, patch),
   journalsAttachImages: () => ipcRenderer.invoke('forest-journals-attach-images'),
+  execubriiz: {
+    snapshot: (id) => ipcRenderer.invoke('execubriiz-snapshot', id),
+    command: (id, input) => ipcRenderer.invoke('execubriiz-command', id, input),
+    protect: (id, ids, surfaceId) => ipcRenderer.invoke('execubriiz-protect', id, ids, surfaceId),
+    trash: (id = null) => ipcRenderer.invoke('execubriiz-trash', id),
+    trashAction: (input) => ipcRenderer.invoke('execubriiz-trash-action', input),
+    subscribe: (callback) => {
+      const listener = (_event, payload) => callback(payload);
+      ipcRenderer.on('execubriiz-changed', listener);
+      return () => ipcRenderer.removeListener('execubriiz-changed', listener);
+    },
+  },
   notefallsList: () => ipcRenderer.invoke('forest-notefalls-list'),
   notefallsCreate: (input) => ipcRenderer.invoke('forest-notefalls-create', input),
   notefallsUpdate: (id, patch) => ipcRenderer.invoke('forest-notefalls-update', id, patch),

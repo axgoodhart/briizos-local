@@ -6,6 +6,7 @@ import {
   getSystemFonts, loadSystemFonts, canQueryLocalFonts,
 } from './richtext.jsx';
 import logger from '../../lib/logger';
+import { ExecubriizView } from './ExecubriizView.jsx';
 
 /* ── Journal viewer — open book ───────────────────────────────────────
    Renders a journal's folios two-up. Everything that looks interactive
@@ -1347,7 +1348,13 @@ function FloatJournalHeader({
   );
 }
 
-export function JournalView({
+export function JournalView(props) {
+  return props.journal?.mode === 'execubriiz'
+    ? <ExecubriizView key={props.journal.id} {...props} />
+    : <FolioJournalView {...props} />;
+}
+
+function FolioJournalView({
   journal,
   pageUrl,
   coverUrl,
