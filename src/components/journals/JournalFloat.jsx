@@ -2,7 +2,7 @@ import { useDragSelectionLock } from '../../lib/dragSelection';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../../AppCombined.css';
 import { api, JOURNALS_CHANGED_EVENT } from './api.js';
-import { COVERS, PAGES } from './assets.js';
+import { getCoverUrl, getPageUrl } from './assets.js';
 import { JournalView } from './JournalView.jsx';
 import { computeFloatingShellChrome } from '../../lib/floatingShell';
 import logger from '../../lib/logger';
@@ -387,8 +387,8 @@ export function JournalFloat({
         {journal ? (
           <JournalView
             journal={journal}
-            pageUrl={PAGES[journal.page]}
-            coverUrl={COVERS[journal.cover]}
+            pageUrl={getPageUrl(journal.page, { journalId: journal.id, surface: 'floating journal' })}
+            coverUrl={getCoverUrl(journal.cover, { journalId: journal.id, surface: 'floating journal' })}
             variant="float"
             onBack={onClose}
             floatChrome={{

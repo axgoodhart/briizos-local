@@ -2,7 +2,7 @@ import { BUILT_IN_THEME_IDS } from './builtInThemes';
 import { COMPONENT_IDS, EDITABLE_PROPERTIES, TARGET_IDS, TARGET_REGISTRY } from './themeRegistry';
 import { materializeThemeCss, parseThemeSource } from './themeSource';
 import themeContract from './themeContract.json';
-import postcss from 'postcss';
+import postcss from './postcssBrowser';
 import { BUILT_IN_THEME_FILES } from '../themes/themeFiles';
 
 export const THEME_SCHEMA_VERSION = themeContract.version;

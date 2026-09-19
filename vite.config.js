@@ -9,6 +9,15 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   resolve: {
+    // The renderer only needs Theme Studio's in-memory CSS parser. Keep the
+    // full PostCSS entry (and its optional Node file/source-map modules) on
+    // the Electron/script side even if a future renderer file imports it.
+    alias: [
+      {
+        find: /^postcss$/,
+        replacement: resolve(__dirname, 'src/theme/postcssBrowser.js'),
+      },
+    ],
     dedupe: [
       'react',
       'react-dom',

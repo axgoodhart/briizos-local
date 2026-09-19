@@ -1,4 +1,4 @@
-import postcss from 'postcss';
+import postcss from './postcssBrowser';
 import selectorParser from 'postcss-selector-parser';
 import { getBuiltInThemeCss } from '../themes/themeFiles';
 import structuralCss from '../AppCombined.css?raw';

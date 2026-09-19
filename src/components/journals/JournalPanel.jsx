@@ -3,7 +3,9 @@ import '../../AppCombined.css';
 import { api, JOURNALS_CHANGED_EVENT } from './api.js';
 import { TEMPLATES } from './templates.js';
 import { JournalView } from './JournalView.jsx';
-import { COVERS, PAGES, COVER_NAMES, PAGE_NAMES } from './assets.js';
+import {
+  COVERS, PAGES, COVER_NAMES, PAGE_NAMES, getCoverUrl, getPageUrl,
+} from './assets.js';
 import {
   IMPORT_TARGETS, TEXT_FILE_ACCEPT, MAX_FILES, readTextFiles, buildFolios, previewImport,
 } from './import.js';
@@ -146,8 +148,8 @@ function CreateJournalModal({ onClose, onCreate }) {
   const pickTemplate = (t) => {
     setTemplateId(t.id);
     // Templates suggest a cover/page; the user can still override below.
-    if (t.cover && COVERS[t.cover]) setCover(t.cover);
-    if (t.page && PAGES[t.page]) setPage(t.page);
+    if (t.cover && getCoverUrl(t.cover, { surface: `new journal template: ${t.id}` })) setCover(t.cover);
+    if (t.page && getPageUrl(t.page, { surface: `new journal template: ${t.id}` })) setPage(t.page);
   };
 
   useEffect(() => titleRef.current?.focus(), []);
@@ -322,7 +324,7 @@ function CreateJournalModal({ onClose, onCreate }) {
 /* ── Journal card ────────────────────────────────────────────────────── */
 
 function JournalCard({ journal, selected, onSelect, onPopOut }) {
-  const url = COVERS[journal.cover];
+  const url = getCoverUrl(journal.cover, { journalId: journal.id, surface: 'shelf' });
   const coverRef = useRef(null);
   /* The wrapper exists because a <button> can't nest the tear-off button;
      it carries the grid sizing the card used to own. */
@@ -474,8 +476,8 @@ export function JournalPanel({
         {openJournal ? (
           <JournalView
             journal={openJournal}
-            pageUrl={PAGES[openJournal.page]}
-            coverUrl={COVERS[openJournal.cover]}
+            pageUrl={getPageUrl(openJournal.page, { journalId: openJournal.id, surface: 'panel' })}
+            coverUrl={getCoverUrl(openJournal.cover, { journalId: openJournal.id, surface: 'panel' })}
             onBack={() => setOpenId(null)}
             onJournalChange={(updated) =>
               setJournals((prev) => prev.map((j) => (j.id === updated.id ? { ...j, ...updated } : j)))}
