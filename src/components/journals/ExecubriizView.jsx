@@ -157,7 +157,7 @@ export function ExecubriizView({ journal, variant = 'panel', onBack, onPopOut, f
   const firstIds = new Set(state?.entries.filter((entry) => { if (firstInSession.has(entry.sessionId)) return false; firstInSession.add(entry.sessionId); return true; }).map((entry) => entry.id));
   const busyJobs = state?.jobs.filter((job) => ['running', 'queued'].includes(job.status)) || [];
   const failedJob = state?.jobs.find((job) => job.status === 'failed');
-  const board = state && <ExecubriizBoard state={state} onAction={act} onError={onError} onEntry={setEntryId} onEditor={capture} onProtected={protectedIds} visible={boardOpen} />;
+  const board = state && <ExecubriizBoard state={state} onAction={act} onError={onError} onEntry={setEntryId} onEditor={capture} onProtected={protectedIds} visible={boardOpen && !entryId && !trash} />;
   return <div ref={root} className={`exec-journal${narrow ? ' is-narrow' : ''}${variant === 'float' ? ' is-floating' : ''}`}>
     <header className="exec-topbar" onMouseDown={(e) => { if (variant === 'float' && !e.target.closest('button')) floatChrome?.onDragStart?.(e); }}>{variant !== 'float' && <button title="Back to journals" onClick={() => leave(onBack)}>‹</button>}<strong>{journal.title}</strong><span className="exec-mode-label">execubriiz</span>
       <button title={boardOpen ? 'Hide working board' : 'Show working board'} aria-pressed={boardOpen} onClick={() => { setBoardOpen(!boardOpen); logger.info('journal', 'Analysis board visibility changed', { visible: !boardOpen }); }}>board</button>
