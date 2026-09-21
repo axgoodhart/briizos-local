@@ -23,10 +23,5 @@ export default function BriizyBehaviorSettings() {
         onClick={() => update({ briizyNotes: notes })}>Save response preferences</button>
 
     </label>
-    <details className="briizy-behavior-source">
-      <summary>Where these decisions live</summary>
-      <p>Interface movement and hover: <code>src/components/briizy/BriizyCompanion.jsx</code>. Defaults and saved choices: <code>src/lib/interfacePreferences.js</code>. Motion: <code>src/AppCombined.css</code>. Replies use the current Chats model and its existing permission controls.</p>
-      <p>The separate desktop pet is controlled by <code>src/briizy/BriizyShell.jsx</code> and <code>electron/briizy/shell.js</code>. Screen-memory assistants and their editable prompts are below.</p>
-    </details>
   </div>;
 }

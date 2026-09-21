@@ -129,7 +129,6 @@ export function AssistantSettings({ capture }) {
       <section className="nf-capture__model-access" aria-label="Briizy model access">
         <div className="nf-capture__model-access-head">
           <span className="nf-drawer__label">Briizy models</span>
-          <span>stored locally on this Mac</span>
         </div>
         <p className="nf-capture__hint">Connect a provider here, then choose its model for any Briizy capability below.</p>
         {modelAccessError && <p className="nf-capture__model-error" role="alert">{modelAccessError}</p>}

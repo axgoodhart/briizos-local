@@ -242,12 +242,6 @@ function ModelTab({ isOpen }) {
           </div>
         );
       })}
-
-      <div className="settings-divider" />
-
-      <p className="settings-hint" data-theme-inline="dashboard-overlay-settings-hint-1">
-        Model selection and provider credentials are stored locally in briizos.db.
-      </p>
     </div>
   );
 }
