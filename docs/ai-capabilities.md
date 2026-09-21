@@ -77,6 +77,8 @@ Briizy is one animated character that lives outside the briizOS window. Click it
 
 Goals, Focus, and Task agent are opt-in experimental capabilities in Briizy’s screen-memory settings. They are off by default and remain unavailable until you allow recognized screen text to be analysed by your selected model.
 
+The same Briizy settings pane shows the locally saved model profiles, per-capability model selectors, and connection fields for OpenAI, Anthropic, and Gemini. You do not need to visit the general Model tab to connect a provider for Briizy.
+
 - **Goals** compares a stable slice of captured work with your active Briizy goals. It can record progress or offer an evidence-backed suggestion.
 - **Focus** records whether the work appears focused, adjacent, or drifting relative to your first active goal. Its feedback is ambient; it does not interrupt you with a popup.
 - **Task agent** runs only after you accept a Briizy suggestion into a task. It can add a concise set of task steps, but it never starts or executes the work unless a separate automation setting is explicitly enabled.

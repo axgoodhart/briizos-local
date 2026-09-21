@@ -47,10 +47,63 @@ const ASSISTANT_REQUIREMENTS = {
   taskAgent: 'Runs only after you accept a Briizy suggestion into a task. It can add task steps; it cannot start work on its own.',
 };
 
+const PROVIDER_CREDENTIALS = [
+  { id: 'openai', label: 'OpenAI' },
+  { id: 'claude', label: 'Anthropic' },
+  { id: 'gemini', label: 'Gemini' },
+];
+
+function credentialAvailable(provider, status = {}) {
+  if (provider === 'claude' || provider === 'anthropic') return status.claude === true || status.anthropic === true;
+  if (provider === 'gemini' || provider === 'google') return status.gemini === true || status.google === true;
+  return status[provider] === true;
+}
+
+function modelLabel(model) {
+  return model?.display_name || model?.displayName || model?.name || model?.model || 'Unnamed model';
+}
+
 export function AssistantSettings({ capture }) {
   const { config, defaults, busy, updateAssistant, updateConfig } = capture;
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState('');
+  const [models, setModels] = useState([]);
+  const [credentialStatus, setCredentialStatus] = useState({});
+  const [credentialDrafts, setCredentialDrafts] = useState({ openai: '', claude: '', gemini: '' });
+  const [savingCredential, setSavingCredential] = useState('');
+  const [modelAccessError, setModelAccessError] = useState('');
+
+  const loadModelAccess = useCallback(async () => {
+    try {
+      const [profiles, status] = await Promise.all([window.api.getModels(), window.api.checkApiKeys()]);
+      setModels(Array.isArray(profiles) ? profiles : []);
+      setCredentialStatus(status || {});
+      setModelAccessError('');
+    } catch (error) {
+      setModelAccessError('Briizy could not read the locally saved model connections.');
+      logger.error('briizy.models', 'Briizy could not load locally saved model connections.', { error: error?.message });
+    }
+  }, []);
+
+  useEffect(() => { loadModelAccess(); }, [loadModelAccess]);
+
+  const saveCredential = async (provider) => {
+    const key = credentialDrafts[provider]?.trim();
+    if (!key) return;
+    setSavingCredential(provider);
+    try {
+      await window.api.setProviderApiKey(provider, key);
+      setCredentialDrafts((current) => ({ ...current, [provider]: '' }));
+      await loadModelAccess();
+      logger.info('briizy.models', `${provider} credentials were saved locally for Briizy model use.`, { provider });
+    } catch (error) {
+      setModelAccessError(`Briizy could not save the ${provider} credentials.`);
+      logger.error('briizy.models', 'Briizy could not save provider credentials.', { provider, error: error?.message });
+    } finally {
+      setSavingCredential('');
+    }
+  };
+
   if (!config) return null;
 
   const defaultPrompt = (id) => defaults?.assistantPrompts?.[id] || '';
@@ -72,6 +125,36 @@ export function AssistantSettings({ capture }) {
           assistants below stay idle.
         </span>
       </label>
+
+      <section className="nf-capture__model-access" aria-label="Briizy model access">
+        <div className="nf-capture__model-access-head">
+          <span className="nf-drawer__label">Briizy models</span>
+          <span>stored locally on this Mac</span>
+        </div>
+        <p className="nf-capture__hint">Connect a provider here, then choose its model for any Briizy capability below.</p>
+        {modelAccessError && <p className="nf-capture__model-error" role="alert">{modelAccessError}</p>}
+        <div className="nf-capture__credentials">
+          {PROVIDER_CREDENTIALS.map((provider) => {
+            const ready = credentialAvailable(provider.id, credentialStatus);
+            return (
+              <label className="nf-capture__credential" key={provider.id}>
+                <span>{provider.label}{ready ? ' · ready' : ''}</span>
+                <div>
+                  <input
+                    type="password"
+                    value={credentialDrafts[provider.id]}
+                    placeholder={ready ? 'replace key' : 'API key'}
+                    onChange={(event) => setCredentialDrafts((current) => ({ ...current, [provider.id]: event.target.value }))}
+                  />
+                  <button type="button" className="nf-capture__btn" disabled={!credentialDrafts[provider.id]?.trim() || savingCredential === provider.id} onClick={() => saveCredential(provider.id)}>
+                    {savingCredential === provider.id ? 'saving…' : 'save'}
+                  </button>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </section>
 
       <p className="nf-capture__experiment-intro">
         Goals, Focus, and Task agent are experimental: turn one on to try it with your own work. Their activity and every skipped reason appear in the Log Panel.
@@ -100,6 +183,19 @@ export function AssistantSettings({ capture }) {
               <option value={15 * 60000}>at most every 15 min</option>
               <option value={30 * 60000}>at most every 30 min</option>
               <option value={60 * 60000}>at most hourly</option>
+            </select>
+            <select
+              className="nf-capture__assistant-model"
+              value={assistant.model || ''}
+              disabled={busy}
+              onChange={(event) => updateAssistant(id, { model: event.currentTarget.value || null })}
+              aria-label={`Model for ${ASSISTANT_LABELS[id] || id}`}
+            >
+              <option value="">Briizy default model</option>
+              {models.map((model) => {
+                const available = credentialAvailable(model.provider, credentialStatus);
+                return <option key={model.name} value={model.name} disabled={!available}>{modelLabel(model)}{available ? '' : ' · credentials needed'}</option>;
+              })}
             </select>
             <button
               type="button"

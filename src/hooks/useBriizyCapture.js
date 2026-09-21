@@ -151,6 +151,8 @@ export function useBriizyCapture() {
     act(
       typeof patch.enabled === 'boolean'
         ? `Experimental assistant “${assistantId}” turned ${patch.enabled ? 'on' : 'off'}`
+        : Object.prototype.hasOwnProperty.call(patch, 'model')
+          ? `Briizy ${assistantId} model changed to ${patch.model || 'the Briizy default'}`
         : `Assistant "${assistantId}" settings changed`,
       () => briizyApi.setConfig({ assistants: { [assistantId]: patch } }),
       { assistantId, ...patch })
