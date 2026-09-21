@@ -37,6 +37,7 @@ function ModelTab({ isOpen }) {
   const [selectedModel, setSelectedModel] = useState(null);
   const [keyDrafts, setKeyDrafts] = useState({ openai: '', claude: '', gemini: '' });
   const [savingProvider, setSavingProvider] = useState(null);
+  const [modelAccessError, setModelAccessError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -67,6 +68,7 @@ function ModelTab({ isOpen }) {
       setApiKeyStatus(normalized);
       setCodexAuth(codexStatus || { installed: false, connected: false });
     } catch (err) {
+      setModelAccessError('Models could not be loaded. Close Settings and open it again.');
       logger.error('config', 'Failed to load models', err?.message);
     } finally {
       setLoading(false);
@@ -101,16 +103,40 @@ function ModelTab({ isOpen }) {
 
   const providerCount = Object.keys(modelsByProvider).length;
   const selectedModelObj = modelList.find(m => m.name === selectedModel);
+  const providerReady = (provider) => {
+    if (provider === 'claude') return apiKeyStatus.claude || apiKeyStatus.anthropic;
+    if (provider === 'gemini') return apiKeyStatus.gemini || apiKeyStatus.google;
+    return apiKeyStatus[provider] === true;
+  };
+
+  const selectDefaultModel = async (modelName) => {
+    setModelAccessError('');
+    setSelectedModel(modelName);
+    try {
+      await window.api.localData.settings.set('selected_model', modelName);
+      const model = modelList.find((item) => item.name === modelName);
+      logger.info('models', 'Briizy default model changed.', { model: modelName, provider: model?.provider || null });
+    } catch (error) {
+      setModelAccessError('That model could not be selected. Please try again.');
+      logger.error('models', 'Briizy default model could not be changed.', { model: modelName, error: error?.message });
+      await loadModels();
+    }
+  };
 
   const saveProviderKey = async (provider) => {
     const apiKey = keyDrafts[provider]?.trim();
     if (!apiKey) return;
+    setModelAccessError('');
     setSavingProvider(provider);
     try {
       await window.api.setProviderApiKey(provider, apiKey);
       setKeyDrafts(prev => ({ ...prev, [provider]: '' }));
       const keys = await window.api.checkApiKeys();
       setApiKeyStatus(keys || {});
+      logger.info('models', 'Provider key saved.', { provider });
+    } catch (error) {
+      setModelAccessError(`The ${provider === 'claude' ? 'Anthropic' : provider === 'gemini' ? 'Gemini' : 'OpenAI'} key could not be saved. Please try again.`);
+      logger.error('models', 'Provider key could not be saved.', { provider, error: error?.message });
     } finally {
       setSavingProvider(null);
     }
@@ -123,6 +149,7 @@ function ModelTab({ isOpen }) {
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">Model Configuration</h3>
+      {modelAccessError && <p className="settings-error" role="alert">{modelAccessError}</p>}
 
       {/* Summary */}
       <div className="settings-field">
@@ -131,16 +158,22 @@ function ModelTab({ isOpen }) {
         </div>
       </div>
 
-      {/* Currently selected model */}
-      {selectedModelObj && (
-        <div className="settings-field">
-          <label className="settings-label">Currently Selected</label>
-          <div data-theme-inline="dashboard-overlay-div-2" style={{ padding: '8px 12px' }}>
-            <span data-theme-inline="dashboard-overlay-span-2">{selectedModelObj.display_name}</span>
-            <span data-theme-inline="dashboard-overlay-span-3" style={{ marginLeft: 8 }}>({selectedModelObj.provider})</span>
-          </div>
-        </div>
-      )}
+      <div className="settings-field">
+        <label className="settings-label" htmlFor="briizy-default-model">Briizy default model</label>
+        <select
+          id="briizy-default-model"
+          className="settings-input"
+          value={selectedModel || ''}
+          onChange={(event) => selectDefaultModel(event.target.value)}
+        >
+          {!selectedModelObj && <option value="">Choose a model</option>}
+          {modelList.map((model) => (
+            <option key={model.name} value={model.name} disabled={!providerReady(model.provider)}>
+              {model.display_name || model.name}{providerReady(model.provider) ? '' : ' — connect provider first'}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="settings-divider" />
 
@@ -168,7 +201,7 @@ function ModelTab({ isOpen }) {
         <div className="settings-field" key={`key-${provider}`}>
           <label className="settings-label">
             {provider === 'claude' ? 'Anthropic' : provider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key
-            {apiKeyStatus[provider] ? ' · saved locally' : ''}
+            {providerReady(provider) ? ' · connected' : ''}
           </label>
           <div className="settings-input-group">
             <input
@@ -196,7 +229,7 @@ function ModelTab({ isOpen }) {
       {['codex', 'claude', 'openai', 'gemini', 'other'].map(provider => {
         const models = modelsByProvider[provider];
         if (!models || models.length === 0) return null;
-        const hasKey = apiKeyStatus[provider];
+        const hasKey = providerReady(provider);
         const providerLabel =
           provider === 'claude' ? 'Claude' :
           provider === 'codex' ? 'Codex' :

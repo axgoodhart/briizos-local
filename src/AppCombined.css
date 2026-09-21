@@ -29447,70 +29447,6 @@ button.jr-card {
   color: rgba(255, 255, 255, 0.62);
 }
 
-.nf-capture__model-access {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 9px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.nf-capture__model-access-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.nf-capture__model-access-head > span:last-child {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 10px;
-}
-
-.nf-capture__credentials {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-  gap: 6px;
-}
-
-.nf-capture__credential {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-}
-
-.nf-capture__credential > div {
-  display: flex;
-  gap: 4px;
-}
-
-.nf-capture__credential input {
-  min-width: 0;
-  flex: 1;
-  padding: 5px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.18);
-  color: rgba(255, 255, 255, 0.9);
-  font: inherit;
-}
-
-.nf-capture__credential .nf-capture__btn {
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-.nf-capture__model-error {
-  margin: 0;
-  color: #ff9a93;
-  font-size: 11px;
-}
-
 .nf-capture__assistant-head select {
   appearance: none;
   margin-left: auto;
@@ -29522,11 +29458,6 @@ button.jr-card {
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
-}
-
-.nf-capture__assistant-head select.nf-capture__assistant-model {
-  margin-left: 0;
-  max-width: 220px;
 }
 
 .nf-capture__prompt {

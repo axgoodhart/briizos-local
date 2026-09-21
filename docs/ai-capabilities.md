@@ -77,7 +77,7 @@ Briizy is one animated character that lives outside the briizOS window. Click it
 
 Goals, Focus, and Task agent are opt-in experimental capabilities in Briizy’s screen-memory settings. They are off by default and remain unavailable until you allow recognized screen text to be analysed by your selected model.
 
-The same Briizy settings pane shows the locally saved model profiles, per-capability model selectors, and connection fields for OpenAI, Anthropic, and Gemini. You do not need to visit the general Model tab to connect a provider for Briizy.
+Use the **MODEL** tab in Settings to connect OpenAI, Anthropic, or Gemini and choose Briizy’s default model. Briizy’s own settings stay focused on what Briizy does with the work it sees.
 
 - **Goals** compares a stable slice of captured work with your active Briizy goals. It can record progress or offer an evidence-backed suggestion.
 - **Focus** records whether the work appears focused, adjacent, or drifting relative to your first active goal. Its feedback is ambient; it does not interrupt you with a popup.
@@ -200,7 +200,7 @@ Resolves model names to LangChain chat model instances. The resolution chain:
 
 1. Look up the requested name in `localDataService.listModelProfiles()` (stored in `briizos.db`)
 2. Match by `name`, `model`, or `display_name`
-3. If no match and no name requested, use the profile marked `isDefault`, or the first profile
+3. If no match and no name requested, use the model selected in the **MODEL** tab, then the profile marked `isDefault`, or the first profile
 4. If no profiles exist at all, fall back to `claude-sonnet-4-6`
 
 Provider detection logic (`detectProvider()`):
@@ -236,7 +236,8 @@ CAPABILITIES = [
 Resolution order for each capability:
 1. Per-capability routing override (stored in the `ai_routing` settings object)
 2. For Chat specifically: the `selected_model` setting
-3. App default model profile
+3. The model selected in the **MODEL** tab
+4. App default model profile
 
 `testRoute()` sends a minimal probe message ("Reply with the single word: ok") with a 45-second timeout to verify a capability's model+credential pair works.
 
@@ -456,7 +457,7 @@ Skills can be enabled/disabled per-skill in settings. The skill system is inject
 
 | Setting key | Purpose |
 |---|---|
-| `selected_model` | Active chat model profile name |
+| `selected_model` | Active chat and Briizy default model profile name |
 | `ai_routing` | Object: `{ execubriizLive, execubriizDeep, background }` — per-capability model overrides |
 | `agent_config` | Memory and skill configuration |
 | `skills_config` | Per-skill enabled/disabled flags |

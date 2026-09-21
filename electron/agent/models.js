@@ -113,9 +113,12 @@ function getConfiguredModels() {
 function resolveModelConfig(requestedName) {
   const models = getConfiguredModels();
   const requested = requestedName ? String(requestedName) : null;
+  const selectedName = localDataService?.getSetting?.('selected_model')?.value;
   const entry = requested
     ? models.find((m) => m.name === requested || m.model === requested || m.display_name === requested)
-    : models.find((model) => model.isDefault) || models[0];
+    : models.find((m) => m.name === selectedName || m.model === selectedName || m.display_name === selectedName)
+      || models.find((model) => model.isDefault)
+      || models[0];
 
   if (!entry) {
     if (requested) throw new Error(`Unknown configured model: ${requested}`);
