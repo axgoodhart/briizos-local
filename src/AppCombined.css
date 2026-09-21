@@ -12824,7 +12824,7 @@ height:110%;
   --ui-modal-tab-active-bg: rgba(110, 110, 0);
   --ui-settings-section-desc: rgb(250, 220, 100);
   --ui-settings-label: #d1a675;
-  --ui-settings-hint: #593f2a;
+  --ui-settings-hint: palegoldenrod;;
   --ui-settings-input-bg: rgba(53, 53, 51, 0.5);
   --ui-settings-input-border: rgba(161, 48, 101, 0.3);
   --ui-settings-input-text: #ffe9ad;
@@ -29405,8 +29405,8 @@ button.jr-card {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.nf-capture__assistant.is-soon {
-  opacity: 0.5;
+.nf-capture__assistant.is-experimental {
+  border: 1px solid color-mix(in srgb, var(--fw-accent, #6fb0ff) 32%, transparent);
 }
 
 .nf-capture__assistant-head {
@@ -29429,11 +29429,22 @@ button.jr-card {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.nf-capture__soon {
+.nf-capture__experimental {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.3);
+  color: color-mix(in srgb, var(--fw-accent, #6fb0ff) 78%, white);
+}
+
+.nf-capture__experiment-intro, .nf-capture__experiment-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nf-capture__experiment-note {
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .nf-capture__assistant-head select {
@@ -34603,7 +34614,7 @@ text-shadow:0 0 2px var(--accent-cyan);
       user-select: none;
         width: 100%;
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;;
         border-bottom: .5px solid var(--fw-edge);
         margin-bottom: 4px;
         font-size: var(--cc-font-size-tiny);

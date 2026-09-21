@@ -39,6 +39,14 @@ const ASSISTANT_BLURBS = {
   taskAgent: 'Turns an accepted suggestion into a plan with steps.',
 };
 
+const EXPERIMENTAL_ASSISTANTS = new Set(['goals', 'focus', 'taskAgent']);
+
+const ASSISTANT_REQUIREMENTS = {
+  goals: 'Needs an active goal, capture, and text-analysis consent. It may surface a progress or drift suggestion.',
+  focus: 'Needs an active goal, capture, and text-analysis consent. It records an ambient focus state rather than interrupting you.',
+  taskAgent: 'Runs only after you accept a Briizy suggestion into a task. It can add task steps; it cannot start work on its own.',
+};
+
 export function AssistantSettings({ capture }) {
   const { config, defaults, busy, updateAssistant, updateConfig } = capture;
   const [editing, setEditing] = useState(null);
@@ -46,7 +54,6 @@ export function AssistantSettings({ capture }) {
   if (!config) return null;
 
   const defaultPrompt = (id) => defaults?.assistantPrompts?.[id] || '';
-  const shipped = new Set(['insight', 'taskExtraction', 'memoryExtraction']);
 
   return (
     <div className="nf-capture__assistants">
@@ -66,46 +73,47 @@ export function AssistantSettings({ capture }) {
         </span>
       </label>
 
+      <p className="nf-capture__experiment-intro">
+        Goals, Focus, and Task agent are experimental: turn one on to try it with your own work. Their activity and every skipped reason appear in the Log Panel.
+      </p>
+
       {Object.entries(config.assistants).map(([id, assistant]) => (
-        <div className={'nf-capture__assistant' + (shipped.has(id) ? '' : ' is-soon')} key={id}>
+        <div className={'nf-capture__assistant' + (EXPERIMENTAL_ASSISTANTS.has(id) ? ' is-experimental' : '')} key={id}>
           <div className="nf-capture__assistant-head">
             <label className="nf-capture__assistant-toggle">
               <input
                 type="checkbox"
                 checked={assistant.enabled}
-                disabled={busy || !shipped.has(id) || !config.cloudTextAnalysisAllowed}
+                disabled={busy || !config.cloudTextAnalysisAllowed}
                 onChange={(e) => updateAssistant(id, { enabled: e.currentTarget.checked })}
               />
               <span className="nf-capture__assistant-name">{ASSISTANT_LABELS[id] || id}</span>
             </label>
-            {!shipped.has(id) && <span className="nf-capture__soon">built, not yet verified</span>}
-            {shipped.has(id) && (
-              <>
-                <select
-                  value={assistant.intervalMs}
-                  disabled={busy || !assistant.enabled}
-                  onChange={(e) => updateAssistant(id, { intervalMs: Number(e.currentTarget.value) })}
-                >
-                  <option value={5 * 60000}>at most every 5 min</option>
-                  <option value={10 * 60000}>at most every 10 min</option>
-                  <option value={15 * 60000}>at most every 15 min</option>
-                  <option value={30 * 60000}>at most every 30 min</option>
-                  <option value={60 * 60000}>at most hourly</option>
-                </select>
-                <button
-                  type="button"
-                  className="nf-capture__btn"
-                  onClick={() => {
-                    setEditing((current) => (current === id ? null : id));
-                    setDraft(assistant.prompt || defaultPrompt(id));
-                  }}
-                >
-                  {editing === id ? 'close' : 'prompt'}
-                </button>
-              </>
-            )}
+            {EXPERIMENTAL_ASSISTANTS.has(id) && <span className="nf-capture__experimental">experimental</span>}
+            <select
+              value={assistant.intervalMs}
+              disabled={busy || !assistant.enabled}
+              onChange={(e) => updateAssistant(id, { intervalMs: Number(e.currentTarget.value) })}
+            >
+              <option value={5 * 60000}>at most every 5 min</option>
+              <option value={10 * 60000}>at most every 10 min</option>
+              <option value={15 * 60000}>at most every 15 min</option>
+              <option value={30 * 60000}>at most every 30 min</option>
+              <option value={60 * 60000}>at most hourly</option>
+            </select>
+            <button
+              type="button"
+              className="nf-capture__btn"
+              onClick={() => {
+                setEditing((current) => (current === id ? null : id));
+                setDraft(assistant.prompt || defaultPrompt(id));
+              }}
+            >
+              {editing === id ? 'close' : 'prompt'}
+            </button>
           </div>
           <p className="nf-capture__hint">{ASSISTANT_BLURBS[id]}</p>
+          {EXPERIMENTAL_ASSISTANTS.has(id) && <p className="nf-capture__experiment-note">{ASSISTANT_REQUIREMENTS[id]}</p>}
 
           {editing === id && (
             <div className="nf-capture__prompt">

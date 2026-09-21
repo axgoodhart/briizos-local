@@ -73,6 +73,16 @@ Briizy is one animated character that lives outside the briizOS window. Click it
 - If a request needs an approval or more space, **open in briizOS** takes you to Chats without losing the conversation.
 - Briizy can also surface screen-memory observations and proposed actions. It remains one character and one entry point, not a second assistant.
 
+### Experimental Briizy Capabilities
+
+Goals, Focus, and Task agent are opt-in experimental capabilities in Briizy’s screen-memory settings. They are off by default and remain unavailable until you allow recognized screen text to be analysed by your selected model.
+
+- **Goals** compares a stable slice of captured work with your active Briizy goals. It can record progress or offer an evidence-backed suggestion.
+- **Focus** records whether the work appears focused, adjacent, or drifting relative to your first active goal. Its feedback is ambient; it does not interrupt you with a popup.
+- **Task agent** runs only after you accept a Briizy suggestion into a task. It can add a concise set of task steps, but it never starts or executes the work unless a separate automation setting is explicitly enabled.
+
+Use the Log Panel to see every attempt, including when a capability stays quiet because there is no active goal, capture is paused, consent is off, or the recent screen text is not substantial enough to analyse.
+
 ### Execubriiz: The Journal AI
 
 Execubriiz is a separate AI system that lives inside journal workspaces. Unlike Chat (which is a back-and-forth conversation), Execubriiz watches you write and maintains a **board** — a structured document of themes, notes, checklists, sequences, and diagrams that evolves alongside your entries.

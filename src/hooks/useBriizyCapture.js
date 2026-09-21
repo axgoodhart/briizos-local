@@ -148,7 +148,10 @@ export function useBriizyCapture() {
   }, [act, refresh]);
 
   const updateAssistant = useCallback((assistantId, patch) => (
-    act(`Assistant "${assistantId}" settings changed`,
+    act(
+      typeof patch.enabled === 'boolean'
+        ? `Experimental assistant “${assistantId}” turned ${patch.enabled ? 'on' : 'off'}`
+        : `Assistant "${assistantId}" settings changed`,
       () => briizyApi.setConfig({ assistants: { [assistantId]: patch } }),
       { assistantId, ...patch })
   ), [act]);
