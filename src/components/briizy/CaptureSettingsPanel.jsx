@@ -9,7 +9,7 @@
  * `capture` is the object returned by useBriizyCapture(). `onClose` is
  * optional: the Notefalls drawer passes it, the Dashboard tab does not.
  */
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { briizyApi, describeCaptureState, formatBytes } from '../notefalls/briizyApi.js';
 import { relativeTime } from '../notefalls/dates.js';
 import logger from '../../lib/logger';
