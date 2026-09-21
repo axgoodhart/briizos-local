@@ -75,7 +75,7 @@ function windowSizeFor(avatarW, avatarH, hasBubble) {
   if (hasBubble) {
     return {
       width: avatarW + BUBBLE_WIDTH_PX + WINDOW_PADDING_PX * 2 + 12,
-      height: Math.max(avatarH, 160) + WINDOW_PADDING_PX * 2 + 24,
+      height: Math.max(avatarH, 240) + WINDOW_PADDING_PX * 2 + 24,
     };
   }
   return {
@@ -98,6 +98,9 @@ export function BriizyShell() {
   const [hovered, setHovered] = useState(false);
   const [side, setSide] = useState('left');
   const [avatarSizePx, setAvatarSizePx] = useState(DEFAULT_AVATAR_SIZE_PX);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [quickChat, setQuickChat] = useState({ requestId: null, status: 'idle', response: '' });
 
   const avatarWidth = normalizeAvatarSizePx(avatarSizePx);
   const avatarHeight = Math.round(avatarWidth * AVATAR_ASPECT_RATIO);
@@ -179,6 +182,14 @@ export function BriizyShell() {
         setSuggestion(null);
       }, 2600);
     });
+    const offChatResponse = bridge.onChatResponse?.((payload) => {
+      setQuickChat((current) => (
+        !payload?.requestId || payload.requestId === current.requestId
+          ? { ...current, ...payload }
+          : current
+      ));
+      if (payload?.status === 'approval') setChatOpen(true);
+    });
 
     bridge.ready();
     return () => {
@@ -187,6 +198,7 @@ export function BriizyShell() {
       offDismiss?.();
       offFocus?.();
       offResult?.();
+      offChatResponse?.();
     };
   }, []);
 
@@ -280,7 +292,7 @@ export function BriizyShell() {
 
   // Keep window sized correctly when bubble appears/dismisses or avatar resizes.
   useEffect(() => {
-    const hasBubble = !!(suggestion || result);
+    const hasBubble = !!(suggestion || result || chatOpen);
     syncWindowBounds(hasBubble, side);
   }, [suggestion, result, avatarWidth, avatarHeight, side, syncWindowBounds]);
 
@@ -303,9 +315,19 @@ export function BriizyShell() {
     setSuggestion(null);
   };
 
+  const submitQuickChat = (event) => {
+    event.preventDefault();
+    const message = chatInput.trim();
+    if (!message || ['queued', 'working'].includes(quickChat.status)) return;
+    const requestId = crypto.randomUUID();
+    setQuickChat({ requestId, status: 'queued', response: '' });
+    setChatInput('');
+    shell()?.requestChat?.({ requestId, message });
+  };
+
   const effectiveAvatar = useMemo(() => {
     if (result) return result.result?.ok ? 'working' : 'error';
-    if (suggestion) return 'speaking';
+    if (suggestion || chatOpen) return 'speaking';
     return avatar;
   }, [avatar, suggestion, result]);
 
@@ -330,12 +352,35 @@ export function BriizyShell() {
         ref={avatarRef}
         style={{ '--briizy-w': `${avatarWidth}px`, '--briizy-h': `${avatarHeight}px` }}
       >
-        {(suggestion || result) && (
+        {(suggestion || result || chatOpen) && (
           <div
             className={`briizy-bubble briizy-bubble--${side}${result ? ' is-result' : ''}`}
             ref={bubbleRef}
           >
-            {result ? (
+            {chatOpen ? (
+              <>
+                <p className="briizy-bubble__title">Briizy</p>
+                <p className="briizy-bubble__body" aria-live="polite">
+                  {quickChat.status === 'approval'
+                    ? quickChat.response || 'I need your approval in briizOS before I can continue.'
+                    : quickChat.response || (['queued', 'working'].includes(quickChat.status) ? 'Thinking…' : 'What’s on your mind?')}
+                </p>
+                <form className="briizy-chat-form" onSubmit={submitQuickChat}>
+                  <input
+                    aria-label="Message Briizy"
+                    placeholder="Talk to Briizy…"
+                    value={chatInput}
+                    disabled={['queued', 'working'].includes(quickChat.status)}
+                    onChange={(event) => setChatInput(event.target.value)}
+                  />
+                  <button type="submit" disabled={!chatInput.trim() || ['queued', 'working'].includes(quickChat.status)}>send</button>
+                </form>
+                <div className="briizy-bubble__actions briizy-chat-actions">
+                  <button type="button" className="briizy-btn briizy-btn--open" onClick={() => shell()?.openInApp({ route: 'chat' })}>open in briizOS</button>
+                  <button type="button" className="briizy-btn" onClick={() => setChatOpen(false)}>close</button>
+                </div>
+              </>
+            ) : result ? (
               <p className="briizy-bubble__result">
                 {result.result?.ok
                   ? (result.decision?.verdict === 'accept' ? 'Added to your tasks — nothing started.' : 'Dismissed.')
@@ -385,12 +430,12 @@ export function BriizyShell() {
             backgroundImage: `url(${moodSheet})`,
             backgroundPositionX: `${cell * -100}%`,
           }}
-          onClick={() => shell()?.openInApp({ route: 'notefalls' })}
+          onClick={() => setChatOpen((open) => !open)}
           onContextMenu={(event) => {
             event.preventDefault();
             shell()?.hide();
           }}
-          aria-label={`briizy — ${effectiveAvatar}. Click to open briizOS, right-click to hide.`}
+          aria-label={`briizy — ${effectiveAvatar}. Click to chat, right-click to hide.`}
         />
       </div>
     </div>

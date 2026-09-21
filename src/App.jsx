@@ -1,4 +1,4 @@
-import BriizyCompanion from './components/briizy/BriizyCompanion';
+import BriizyQuickChatController from './components/briizy/BriizyQuickChatController';
 import { useInterfacePreferences } from './lib/interfacePreferences';
 import { useNativeDragSelectionLock } from './lib/dragSelection';
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
@@ -550,6 +550,14 @@ function AppContent({ layout, shell, floats }) {
     addPanel({ id: 'interaction', type: 'interaction', size: 20, visible: true });
   }, [interactionPanel, togglePanelVisibility, addPanel]);
 
+  const openInteractionPanel = useCallback(() => {
+    if (interactionPanel) {
+      if (!interactionPanel.visible) togglePanelVisibility(interactionPanel.id);
+      return;
+    }
+    addPanel({ id: 'interaction', type: 'interaction', size: 20, visible: true });
+  }, [interactionPanel, togglePanelVisibility, addPanel]);
+
   // Sources and Tasks used to be present only because the default layout
   // seeded them. Giving them the same launch path as the other panels means a
   // dock icon can now hide them out of the layout and bring them back later.
@@ -664,10 +672,12 @@ function AppContent({ layout, shell, floats }) {
         setShowSettings(true);
       } else if (options.route === 'notefalls') {
         openNotefallsPanel();
+      } else if (options.route === 'chat') {
+        openInteractionPanel();
       }
     });
     return () => off?.();
-  }, [openNotefallsPanel]);
+  }, [openInteractionPanel, openNotefallsPanel]);
 
   const openForestPanel = useCallback(() => {
     if (forestPanel) {
@@ -1397,19 +1407,7 @@ function AppContent({ layout, shell, floats }) {
       {/* With the grid hidden, the Conversation background paints the whole
           app window instead of staying confined to the chat panel. */}
       {windowedOnly && <AmbientBackground />}
-      <BriizyCompanion
-        visible={briizyCapture.config?.avatarVisible ?? true}
-        onOpenSettings={() => { setDashboardTab('briizy'); setShowSettings(true); }}
-        onOpenChat={() => {
-          const win = floats.getWindow('interaction');
-          if (floatActive && win) floats.restoreWindow(win.id);
-          else if (gridActive) {
-            const panel = getPanelByType('interaction');
-            if (panel && !panel.visible) togglePanelVisibility(panel.id);
-            else if (!panel) layout.addPanel({ id: 'interaction', type: 'interaction' });
-          } else floats.openWindow('interaction');
-        }}
-      />
+      <BriizyQuickChatController />
 
       {!windowedOnly && (<>
       <button

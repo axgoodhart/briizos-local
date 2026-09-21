@@ -882,6 +882,13 @@ ipcMain.handle('ai-is-configured', async () => {
     || !!process.env.GOOGLE_API_KEY
     || codex.connected;
 });
+
+// === AI Capability Routing IPC Handlers ===
+// One pane to choose and diagnose which model powers each briizOS capability.
+const aiRouting = require('./ai-routing');
+ipcMain.handle('ai-routing-state', () => aiRouting.routingState(localDataService));
+ipcMain.handle('ai-routing-set', (_event, capabilityId, modelName) => aiRouting.setRoute(localDataService, capabilityId, modelName, logger));
+ipcMain.handle('ai-routing-test', (_event, capabilityId) => aiRouting.testRoute(localDataService, capabilityId, logger));
 ipcMain.handle('codex-auth-status', async () => codexProvider.getAuthStatus({ refresh: true }));
 ipcMain.handle('codex-auth-login', async () => codexProvider.login((url) => shell.openExternal(url)));
 ipcMain.handle('codex-auth-logout', async () => codexProvider.logout());

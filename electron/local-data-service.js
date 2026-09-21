@@ -26,6 +26,7 @@ const SETTING_KEYS = new Set([
   'briizify_plan',
   'briizify_saved_flows',
   'selected_model',
+  'ai_routing',
   'codex_thread_map',
   'suggestions_enabled',
   'agent_config',
@@ -353,6 +354,17 @@ class LocalDataService extends EventEmitter {
     // Preserve the original payload even when recovery cannot validate a theme.
     if (key === 'ui_theme_library_backup') return value;
     if (key === 'selected_model') return v.string(value, key, { nullable: true, max: 200 });
+    if (key === 'ai_routing') {
+      // Capability → configured model profile name. Null/absent = follow the
+      // app default profile. Keys are the capability ids from ai-routing.js.
+      v.object(value, key, ['execubriizLive', 'execubriizDeep', 'background']);
+      const normalizeRoute = (entry) => (entry == null ? null : v.string(entry, key, { max: 200 }));
+      return {
+        execubriizLive: normalizeRoute(value.execubriizLive),
+        execubriizDeep: normalizeRoute(value.execubriizDeep),
+        background: normalizeRoute(value.background),
+      };
+    }
     if (key === 'suggestions_enabled') return v.boolean(value, key);
     if (key.endsWith('_url')) {
       const candidate = v.string(value, key, { max: 2000 });

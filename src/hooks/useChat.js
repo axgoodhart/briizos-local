@@ -843,7 +843,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     return content;
   }, [messages, getSelectedModel, logTurn]);
 
-  const sendMessage = useCallback(async (message, { isRemote = false, prioritizeCandidates = [], onResponse } = {}) => {
+  const sendMessage = useCallback(async (message, { isRemote = false, prioritizeCandidates = [], onResponse, onThread } = {}) => {
     if (!message?.trim() || isLoading || isSwitchingThread) return null;
     if (!hasApi || typeof api.langgraphStreamMessage !== 'function') {
       return null;
@@ -859,6 +859,7 @@ export function useChat({ selectedModel, requestSettings } = {}) {
     const pendingClarificationAnswer = pendingClarificationRef.current;
     const activeThreadId = pendingClarificationAnswer ? threadIdRef.current : await ensureThread();
     if (!activeThreadId) throw new Error('Cannot save a message without an agent thread');
+    onThread?.(activeThreadId);
     await api.localData.threads.messages.append(activeThreadId, {
       role: 'user',
       content: message,

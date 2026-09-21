@@ -6,7 +6,7 @@
  *   - agent/src/config/title_config.py
  */
 
-const { createChatModel } = require('./models');
+const { createChatModel, getRoutingModel } = require('./models');
 const DEFAULT_PROMPT = 'Generate a concise title (max {max_words} words) for this conversation.\nUser: {user_msg}\nAssistant: {assistant_msg}\n\nReturn ONLY the title, no quotes, no explanation.';
 
 function readConfig() {
@@ -68,7 +68,7 @@ async function generateTitle(state, { modelName = null } = {}) {
     .replace('{assistant_msg}', assistantMsg);
 
   try {
-    const model = createChatModel({ name: titleConfig.model_name || modelName || null, thinkingEnabled: false });
+    const model = createChatModel({ name: titleConfig.model_name || modelName || getRoutingModel('background'), thinkingEnabled: false });
     const response = await model.invoke(prompt);
     const raw = response.content;
     const text = Array.isArray(raw)

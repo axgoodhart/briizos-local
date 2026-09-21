@@ -1507,7 +1507,7 @@ body {
   background: var(--ui-header-bg);
     background-size:var(--header-bg-size);
   background-position:var(--header-bg-position);
-
+user-select:none;
   flex-shrink: 0;
   border-radius: var(--cc-radius-none) !important;
   user-select: none;
@@ -1886,6 +1886,27 @@ body {
 
 #settings-btn span:last-child {
   display: none;
+}
+.briizy-behavior-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.briizy-behavior-notes > textarea {
+ width: 100%;
+    background: none;
+    margin: 10px 0px 0px 0px;
+    padding: 5px;
+    border-radius: 10px 10px 40px 10px;
+}
+.briizy-behavior-notes > .settings-btn {
+  transform:translateY(-20px)translateX(10px);
+  border:1px solid rgb(100,100,100);
+  padding:5px 10px;
+      width: 50%;
+        background: linear-gradient(to bottom, teal, black 20%);
+
 }
 
 .settings-icon {
@@ -4475,6 +4496,150 @@ height:110%;
   color: var(--ui-settings-hint);
   margin: 4px 0 0 0;
   font-style: italic;
+}
+
+/* AI routing pane — one card per capability, dense like the rest of settings */
+.routing-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-gap-huge);
+}
+
+.routing-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-gap-large);
+  padding: var(--cc-padding-large);
+  background: var(--ui-settings-input-bg);
+  border: 1px solid var(--ui-settings-input-border);
+  border-radius: var(--cc-radius-slight);
+}
+
+.routing-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cc-gap-large);
+}
+
+.routing-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex: none;
+  background: var(--palette-text-muted);
+}
+
+.routing-card.is-ok .routing-status {
+  background: var(--palette-success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--palette-success) 50%, transparent);
+}
+
+.routing-card.is-warn .routing-status {
+  background: var(--palette-warning);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--palette-warning) 50%, transparent);
+}
+
+.routing-card.is-error .routing-status {
+  background: var(--palette-danger);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--palette-danger) 50%, transparent);
+}
+
+.routing-card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.routing-card-title h4 {
+  margin: 0;
+  font-size: var(--cc-font-size-small);
+  font-weight: 600;
+  color: var(--ui-settings-label);
+}
+
+.routing-card-title p {
+  margin: 2px 0 0 0;
+  font-size: var(--cc-font-size-small);
+  color: var(--ui-settings-hint);
+}
+
+.routing-test {
+  flex: none;
+  padding: 3px 10px;
+  background: var(--ui-settings-toggle-bg);
+  border: 1px solid var(--ui-settings-input-border);
+  border-radius: var(--cc-radius-slight);
+  color: var(--ui-settings-label);
+  font-size: var(--cc-font-size-small);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.routing-test:hover:not(:disabled) {
+  background: var(--ui-settings-toggle-bg-hover);
+  border-color: var(--ui-settings-toggle-border-hover);
+}
+
+.routing-test:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.routing-card-route {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-gap-large);
+  flex-wrap: wrap;
+}
+
+.routing-card-route select {
+  flex: 1;
+  min-width: 220px;
+  padding: var(--cc-padding-medium) var(--cc-padding-large);
+  background: var(--ui-settings-input-bg);
+  border: 1px solid var(--ui-settings-input-border);
+  border-radius: var(--cc-radius-slight);
+  color: var(--ui-settings-input-text);
+  font-size: var(--cc-font-size-small);
+  font-family: inherit;
+}
+
+.routing-card-route select:focus {
+  outline: none;
+  border-color: var(--ui-settings-input-focus-border);
+  box-shadow: var(--ui-settings-input-focus-shadow);
+}
+
+.routing-effective {
+  font-size: var(--cc-font-size-small);
+  color: var(--ui-settings-hint);
+  white-space: nowrap;
+}
+
+.routing-note {
+  margin: 0;
+  font-size: var(--cc-font-size-small);
+  color: var(--palette-accent-primary);
+  font-style: italic;
+}
+
+.routing-message {
+  margin: 0;
+  font-size: var(--cc-font-size-small);
+  color: var(--ui-settings-hint);
+}
+
+.routing-message.is-ok {
+  color: var(--palette-success);
+}
+
+.routing-message.is-warn {
+  color: var(--palette-warning);
+}
+
+.routing-message.is-error {
+  color: var(--palette-danger);
 }
 
 .settings-radio-group {
@@ -33856,6 +34021,38 @@ button, input, textarea, select {
   border-radius: inherit;
   overflow: hidden;
 }
+
+.fw-body > .panel:not(.interaction-panel) > .panel-header {
+  display:none;
+}
+
+.fw-body > .interaction-panel > .panel-header, .fw-body>.interaction-panel>#chat-header {
+      position: fixed;
+        z-index: 99;
+        right: 0;
+        padding: 0;
+        border-radius: 0 0 20px 20px !important;
+        width: 100%;
+        padding-top: 0;
+        padding-right: 20px;
+        margin: 0;
+        min-height: 0;
+        max-height: 36px;
+            background-color:black;
+            border-top:none;
+        bottom: -30px;
+        border: 1.5px solid var(--fw-edge);
+        border-top:none !important;
+}
+.fw.is-focused>.fw-body >.interaction-panel>.panel-header,
+.fw.is-focused>.fw-body>.interaction-panel>#chat-header {
+            border-color: color-mix(in srgb, var(--fw-accent) 60%, transparent);
+}
+
+section.fw:has(.interaction-panel) {
+border-radius:20px 20px 0 0 
+}
+
 
 /* The hosted feature body is the same .panel used by grid tiles — let it
    fill the frame and drop its own outer border so the frame reads as the

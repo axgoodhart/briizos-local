@@ -43,6 +43,23 @@ const GPT_5_6_REASONING_LABELS = new Map([
 ]);
 let localDataService = null;
 
+// Capability → field inside the single 'ai_routing' settings object. A
+// null/absent value means "follow the app default model profile".
+const ROUTING_FIELDS = {
+  'execubriiz-live': 'execubriizLive',
+  'execubriiz-deep': 'execubriizDeep',
+  background: 'background',
+};
+
+// Read the app-level routing override for a capability. Chat is intentionally
+// excluded: it persists its choice as the legacy 'selected_model' setting.
+function getRoutingModel(capabilityId) {
+  const field = ROUTING_FIELDS[capabilityId];
+  if (!field || !localDataService) return null;
+  const value = localDataService.getSetting?.('ai_routing')?.value?.[field];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 class AuditedChatOpenAI extends ChatOpenAI {
   async invoke(input, options = {}) {
     const invocationRef = { runId: null };
@@ -326,6 +343,8 @@ module.exports = {
   createChatModel,
   detectProvider,
   resolveChatModelRequest,
+  getRoutingModel,
+  ROUTING_FIELDS,
   isGpt56Model,
   normalizeGpt56ReasoningEffort,
   DEFAULT_MODEL,

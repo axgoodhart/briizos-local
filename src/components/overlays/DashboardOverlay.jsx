@@ -1,4 +1,3 @@
-import BriizyBehaviorSettings from '../briizy/BriizyBehaviorSettings';
 import DockAppearanceSettings from '../controlbar/DockAppearanceSettings';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -249,6 +248,114 @@ function ModelTab({ isOpen }) {
       <p className="settings-hint" data-theme-inline="dashboard-overlay-settings-hint-1">
         Model selection and provider credentials are stored locally in briizos.db.
       </p>
+    </div>
+  );
+}
+
+function RoutingTab({ isOpen }) {
+  const [state, setState] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [testing, setTesting] = useState('');
+  const [testResults, setTestResults] = useState({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      setState(await window.api.aiRouting.state());
+    } catch (e) {
+      setError(e?.message || String(e));
+      logger.error('ai.routing', 'Failed to load AI routing state', { reason: e?.message || String(e) });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
+
+  const changeRoute = async (capabilityId, value) => {
+    setError('');
+    try {
+      const updated = await window.api.aiRouting.set(capabilityId, value);
+      setState((prev) => prev && { ...prev, capabilities: prev.capabilities.map((c) => (c.id === capabilityId ? updated : c)) });
+      setTestResults((prev) => ({ ...prev, [capabilityId]: null }));
+    } catch (e) {
+      const reason = e?.message || String(e);
+      setError(reason);
+      logger.error('ai.routing', 'AI routing could not be updated', { capability: capabilityId, reason });
+    }
+  };
+
+  const testRoute = async (capabilityId) => {
+    setTesting(capabilityId);
+    setError('');
+    try {
+      const result = await window.api.aiRouting.test(capabilityId);
+      setTestResults((prev) => ({ ...prev, [capabilityId]: result }));
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setTesting('');
+    }
+  };
+
+  if (loading) return <div className="settings-loading">Loading AI routing…</div>;
+  if (!state) return <div className="settings-loading">{error || 'AI routing is unavailable.'}</div>;
+
+  const defaultProfile = state.models.find((model) => model.isDefault) || state.models[0] || null;
+  const defaultName = defaultProfile ? (defaultProfile.display_name || defaultProfile.name) : 'none configured';
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">AI routing</h3>
+      <p className="settings-hint">Choose which model powers each briizOS capability, then test the route. Anything left on “App default” follows the default profile from the Model tab.</p>
+      {error && <p className="routing-message is-error" role="alert">{error}</p>}
+      <div className="routing-list">
+        {state.capabilities.map((capability) => {
+          const statusKind = capability.error || capability.incompatible ? 'error' : capability.missingKey ? 'warn' : 'ok';
+          const statusText = capability.error
+            || capability.incompatible
+            || (capability.missingKey ? `No ${capability.provider} API key is saved — add one on the Model tab, or route this elsewhere.` : `Ready · ${capability.provider}`)
+            || 'Not configured';
+          const result = testResults[capability.id];
+          return (
+            <div className={`routing-card is-${statusKind}`} key={capability.id}>
+              <div className="routing-card-head">
+                <span className="routing-status" aria-hidden="true" />
+                <div className="routing-card-title">
+                  <h4>{capability.label}</h4>
+                  <p>{capability.description}</p>
+                </div>
+                <button type="button" className="routing-test" disabled={testing === capability.id || !!capability.error} onClick={() => testRoute(capability.id)}>
+                  {testing === capability.id ? 'testing…' : 'test'}
+                </button>
+              </div>
+              <div className="routing-card-route">
+                <select value={capability.override || ''} onChange={(e) => changeRoute(capability.id, e.target.value)} disabled={!!testing} aria-label={`Model for ${capability.label}`}>
+                  <option value="">App default — {defaultName}</option>
+                  {state.models.map((model) => (
+                    <option key={model.name} value={model.name}>
+                      {model.display_name || model.name}{model.provider === 'codex' ? ' · Codex subscription' : ''}
+                    </option>
+                  ))}
+                </select>
+                <span className="routing-effective" title="The model a request will actually use right now">
+                  {capability.effectiveName || '—'}
+                  {capability.provider ? ` · ${capability.provider}` : ''}
+                </span>
+              </div>
+              {capability.journalNote && <p className="routing-note">{capability.journalNote}</p>}
+              <p className={`routing-message is-${statusKind}`}>{statusText}</p>
+              {result && (
+                <p className={`routing-message is-${result.ok ? 'ok' : 'error'}`} role="status">
+                  {result.ok ? `Test call succeeded in ${(result.latencyMs / 1000).toFixed(1)} s — the provider accepted a request with this exact routing.` : `Test call failed: ${result.error}`}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1202,7 +1309,6 @@ function BriizyTab() {
   if (!capture.available) {
     return (
       <div className="settings-section">
-        <BriizyBehaviorSettings />
         <h3 className="settings-section-title">briizy — screen memory</h3>
         <p className="settings-hint">briizy is not available in this build.</p>
       </div>
@@ -1210,7 +1316,6 @@ function BriizyTab() {
   }
   return (
     <div className="settings-section">
-      <BriizyBehaviorSettings />
       <CaptureSettingsPanel capture={capture} />
     </div>
   );
@@ -1425,6 +1530,7 @@ function DashboardOverlay({
 
   const tabs = [
     { id: 'model', label: 'Model' },
+    { id: 'routing', label: 'AI routing' },
     { id: 'briizy', label: 'briizy' },
     { id: 'appearance', label: 'Appearance' },
     { id: 'integrations', label: 'Integrations' },
@@ -1499,12 +1605,16 @@ function DashboardOverlay({
             role="tabpanel"
             aria-labelledby={`dashboard-tab-${activeTab}`}
           >
-          {isLoading && activeTab !== 'memory' && activeTab !== 'permissions' && activeTab !== 'health' && activeTab !== 'briizy' ? (
+          {isLoading && activeTab !== 'routing' && activeTab !== 'memory' && activeTab !== 'permissions' && activeTab !== 'health' && activeTab !== 'briizy' ? (
             <div className="settings-loading">Loading settings...</div>
           ) : (
             <>
               {activeTab === 'model' && (
                 <ModelTab isOpen={isOpen} />
+              )}
+
+              {activeTab === 'routing' && (
+                <RoutingTab isOpen={isOpen} />
               )}
 
               {activeTab === 'briizy' && (

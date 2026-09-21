@@ -103,10 +103,22 @@ class ExecStore extends EventEmitter {
       const cancel = () => { this.invalidate(id, s); invalidated = true; };
       switch (input.action) {
         case 'draft': {
-          if (input.draftId !== s.draft.id || input.expectedRevision !== s.draft.revision) throw new Error('The draft changed in another journal window. Your text is still in this editor; reopen to reconcile it.');
+          if (input.draftId !== s.draft.id) throw new Error('This draft was replaced in another journal window (it was finished or put away while you were writing). Your text is still in this editor; copy it somewhere safe, then reopen this journal to reconcile.');
+          const incomingText = plain(input.doc);
+          const currentText = plain(s.draft.doc);
+          if (input.expectedRevision !== s.draft.revision) {
+            // A lagged save from the same logical editor (retry after a hiccup, or a
+            // recovery copy from an earlier session) still builds on the current
+            // draft, so apply it instead of failing the whole save loop. Only a
+            // genuinely divergent edit is a real conflict worth stopping the user for.
+            const buildsOnCurrent = input.privacy === s.draft.privacy && incomingText.startsWith(currentText);
+            const identicalText = incomingText === currentText;
+            if (!buildsOnCurrent && !identicalText) throw new Error('This draft was edited in another journal window and your pending change no longer builds on it. Your text is still in this editor; copy it somewhere safe, then reopen this journal to reconcile.');
+            this.logger.info('journal.execubriiz', 'A lagged journal draft save was applied over the newer draft', { journalId: id, sentRevision: input.expectedRevision, currentRevision: s.draft.revision });
+          }
           if (!PRIVACY.has(input.privacy)) throw new Error('Unknown entry privacy');
           if (!input.doc || input.doc.type !== 'doc' || JSON.stringify(input.doc).length > 5000000) throw new Error('Invalid or oversized entry');
-          if (input.privacy !== s.draft.privacy || !plain(input.doc).startsWith(plain(s.draft.doc))) cancel();
+          if (input.privacy !== s.draft.privacy || !incomingText.startsWith(currentText)) cancel();
           s.draft = { ...s.draft, doc: input.doc, privacy: input.privacy, revision: s.draft.revision + 1 };
           break;
         }

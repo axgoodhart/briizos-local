@@ -73,7 +73,15 @@ export function ExecubriizView({ journal, variant = 'panel', onBack, onPopOut, f
   const root = useRef(null); const composer = useRef(null); const pending = useRef(null); const timer = useRef(null); const mounted = useRef(true);
   const submittedDraft = useRef(null);
   const surfaceId = useRef(crypto.randomUUID());
-  const onError = useCallback((e) => { if (mounted.current) setError(e?.message || String(e)); logger.error('journal.execubriiz', 'Journal action failed', { journalId: journal.id, reason: e?.message || String(e) }); }, [journal.id]);
+  const onError = useCallback((e) => {
+    const raw = e?.message || String(e);
+    // ipcRenderer prefixes remote failures with "Error invoking remote method
+    // '<channel>': Error:" — keep the user-facing and logged reason to the
+    // actual journal explanation.
+    const reason = raw.replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, '');
+    if (mounted.current) setError(reason);
+    logger.error('journal.execubriiz', 'Journal action failed', { journalId: journal.id, reason });
+  }, [journal.id]);
   const command = useCallback((action, input = {}) => client.command(action, input), [client]);
   const capture = useCallback((editor, transaction = false) => {
     if (editor.isDestroyed) return;
@@ -95,11 +103,21 @@ export function ExecubriizView({ journal, variant = 'panel', onBack, onPopOut, f
         if (mounted.current) setSaveStatus('saved');
       }
       return next;
-    } catch (e) { if (!pending.current) pending.current = value; submittedDraft.current = null; if (mounted.current) setSaveStatus('not saved · retry'); onError(e); throw e; }
+    } catch (e) {
+      // Mark the restored save as failed so the next keystroke recomputes its
+      // base revision from fresh state instead of retrying a stale revision
+      // forever (the old behaviour produced an unbreakable conflict loop).
+      if (!pending.current) pending.current = { ...value, failed: true };
+      submittedDraft.current = null;
+      if (mounted.current) setSaveStatus('not saved · retry');
+      onError(e);
+      throw e;
+    }
   }, [client, recoveryKey, onError]);
   const draftChanged = (doc, privacy = composerPrivacy) => {
     const latest = client.get().draft;
-    const value = { doc, privacy, draftId: latest.id, baseRevision: pending.current?.baseRevision ?? Math.max(latest.revision, submittedDraft.current?.id === latest.id ? submittedDraft.current.revision : 0) };
+    const reusePending = pending.current && !pending.current.failed && pending.current.draftId === latest.id;
+    const value = { doc, privacy, draftId: latest.id, baseRevision: reusePending ? pending.current.baseRevision : Math.max(latest.revision, submittedDraft.current?.id === latest.id ? submittedDraft.current.revision : 0) };
     pending.current = value; setSaveStatus('saving…');
     try { localStorage.setItem(recoveryKey, JSON.stringify(value)); } catch (e) { logger.warn('journal.execubriiz', 'Temporary draft recovery copy unavailable', { reason: e.message }); }
     clearTimeout(timer.current); timer.current = setTimeout(() => flush().catch(() => {}), 350);
@@ -113,7 +131,7 @@ export function ExecubriizView({ journal, variant = 'panel', onBack, onPopOut, f
         if (backup?.draftId === next.draft.id) {
           if (JSON.stringify(backup.doc) === JSON.stringify(next.draft.doc) && backup.privacy === next.draft.privacy) localStorage.removeItem(recoveryKey);
           else {
-            pending.current = backup; composer.current?.commands.setContent(backup.doc, false); setComposerPrivacy(backup.privacy);
+            pending.current = { ...backup, baseRevision: next.draft.revision, failed: false }; composer.current?.commands.setContent(backup.doc, false); setComposerPrivacy(backup.privacy);
             flush().catch(() => {});
           }
         }

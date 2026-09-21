@@ -12,7 +12,7 @@
 const crypto = require('crypto');
 const { SystemMessage } = require('@langchain/core/messages');
 const { logger } = require('../logger');
-const { createChatModel } = require('./models');
+const { createChatModel, getRoutingModel } = require('./models');
 
 const UPLOAD_BLOCK_RE = /<uploaded_files>[\s\S]*?<\/uploaded_files>\n*/gi;
 const UPLOAD_SENTENCE_RE = /[^.!?]*\b(?:upload(?:ed|ing)?(?:\s+\w+){0,3}\s+(?:file|files?|document|documents?|attachment|attachments?)|file\s+upload|\/mnt\/user-data\/uploads\/|<uploaded_files>)[^.!?]*[.!?]?\s*/gi;
@@ -243,7 +243,7 @@ async function updateMemoryFromConversation({ messages, threadId, agentName = nu
   const prompt = MEMORY_UPDATE_PROMPT
     .replace('{current_memory}', JSON.stringify(currentMemory, null, 2))
     .replace('{conversation}', formatConversationForUpdate(filtered));
-  const model = createChatModel({ name: modelName || config?.memory?.model_name || null, thinkingEnabled: false });
+  const model = createChatModel({ name: modelName || config?.memory?.model_name || getRoutingModel('background'), thinkingEnabled: false });
   const response = await model.invoke(prompt);
   const updateData = parseJsonResponse(response.content);
   const updated = applyMemoryUpdates(currentMemory, updateData, threadId, config);
@@ -346,7 +346,7 @@ async function summarizeMessages(messages, { threadId, modelName = null } = {}) 
 
   const text = messages.map((msg) => `${messageRole(msg)}: ${messageContent(msg).slice(0, 2000)}`).join('\n\n');
   const prompt = config.summary_prompt || `Summarize this conversation history for an assistant that will continue the same task. Preserve user goals, decisions, constraints, file paths, tool results, open questions, and unresolved work. Be concise but specific.\n\n<conversation>\n${text}\n</conversation>`;
-  const model = createChatModel({ name: config.model_name || modelName || null, thinkingEnabled: false });
+  const model = createChatModel({ name: config.model_name || modelName || getRoutingModel('background'), thinkingEnabled: false });
   const response = await model.invoke(prompt);
   const summary = String(response.content || '').trim();
 

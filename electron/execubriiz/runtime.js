@@ -2,7 +2,7 @@ const { randomUUID } = require('crypto');
 const { z } = require('zod');
 const { StateGraph, Annotation, START, END } = require('@langchain/langgraph');
 const { SystemMessage, HumanMessage, ToolMessage } = require('@langchain/core/messages');
-const { createChatModel, resolveChatModelRequest } = require('../agent/models');
+const { createChatModel, resolveChatModelRequest, getRoutingModel } = require('../agent/models');
 const { SqliteCheckpointSaver } = require('../agent/checkpointer');
 const { plain, clone, locate } = require('./document');
 const { searchWeb } = require('./search');
@@ -174,9 +174,12 @@ class ExecRuntime {
     if (!running || signal?.aborted) throw new Error('Request cancelled');
     const { job } = running;
     const s = this.store.read(job.journal_id);
-    const name = (job.kind === 'live' ? s.prefs.model : s.prefs.deepModel || s.prefs.model) || null;
+    // Resolution order: the journal's own support setting, then the app-level
+    // AI routing choice from the settings pane, then the app default profile.
+    const scoped = job.kind === 'live' ? s.prefs.model : s.prefs.deepModel || s.prefs.model;
+    const name = scoped || getRoutingModel(job.kind === 'live' ? 'execubriiz-live' : 'execubriiz-deep') || null;
     const config = resolveChatModelRequest({ name, maxTokens: 3500 });
-    if (config.provider === 'codex') throw new Error('Execubriiz needs a configured OpenAI, Claude, or Gemini API profile. The current Codex Subscription chat connector does not support this structured journal workflow.');
+    if (config.provider === 'codex') throw new Error('Execubriiz needs a configured OpenAI, Claude, or Gemini API profile. The current Codex Subscription chat connector does not support this structured journal workflow. Route Execubriiz to an API model in Settings → AI routing.');
     const context = this.context(job); running.context = context;
     if (job.kind === 'research') {
       if (context.hasInvisible) throw new Error('Online research was withheld because this context contains Invisible material');

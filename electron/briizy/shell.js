@@ -38,6 +38,8 @@ const SHELL_CHANNELS = Object.freeze({
   hide: 'briizy:shell:hide',
   ready: 'briizy:shell:ready',
   updateBounds: 'briizy:shell:update-bounds',
+  requestChat: 'briizy:shell:request-chat',
+  chatResponse: 'briizy:shell:chat-response',
 });
 
 /** Avatar states, mirrored by the sprite sheet cell order in the renderer. */
@@ -87,7 +89,7 @@ class BriizyShell {
       ? avatarW + BUBBLE_WIDTH_PX + WINDOW_PADDING_PX * 2 + 12
       : avatarW + WINDOW_PADDING_PX * 2;
     const contentH = suggestionVisible
-      ? Math.max(avatarH, 160) + WINDOW_PADDING_PX * 2 + 24
+      ? Math.max(avatarH, 240) + WINDOW_PADDING_PX * 2 + 24
       : avatarH + WINDOW_PADDING_PX * 2;
     return { avatarW, avatarH, contentW, contentH };
   }
@@ -434,6 +436,26 @@ class BriizyShell {
     this._log('info', 'Main window focused', options);
   }
 
+  /** Relay a desktop quick-chat turn to the main renderer's shared Chat engine. */
+  requestQuickChat(request) {
+    const mainWindow = this.getMainWindow();
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      this._send(SHELL_CHANNELS.chatResponse, {
+        requestId: request?.requestId || null,
+        status: 'error',
+        response: 'briizOS is not available to answer right now.',
+      });
+      return;
+    }
+    const send = () => mainWindow.webContents.send('briizy:quick-chat', request);
+    if (mainWindow.webContents.isLoading()) mainWindow.webContents.once('did-finish-load', send);
+    else send();
+    this._log('info', 'Quick-chat message sent from the desktop Briizy to saved Chats', {
+      requestId: request?.requestId || null,
+      characters: String(request?.message || '').length,
+    });
+  }
+
   // ------------------------------------------------------------------
   // Wiring
   // ------------------------------------------------------------------
@@ -451,6 +473,8 @@ class BriizyShell {
       }],
       [SHELL_CHANNELS.openInApp, (_event, options) => this.focusMainWindow(options || {})],
       [SHELL_CHANNELS.updateBounds, (_event, bounds) => this.setWindowBounds(bounds || {})],
+      [SHELL_CHANNELS.requestChat, (_event, request) => this.requestQuickChat(request || {})],
+      [SHELL_CHANNELS.chatResponse, (_event, update) => this._send(SHELL_CHANNELS.chatResponse, update || {})],
     ];
     handlers.forEach(([channel, handler]) => ipcMain.on(channel, handler));
     this.unsubscribers.push(() => handlers.forEach(([channel, handler]) => (

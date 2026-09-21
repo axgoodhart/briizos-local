@@ -88,6 +88,8 @@ contextBridge.exposeInMainWorld('briizy', {
     openInApp: (options) => ipcRenderer.send('briizy:shell:open-in-app', options || {}),
     decide: (decision) => ipcRenderer.invoke('briizy:shell:decide', decision),
     updateBounds: (bounds) => ipcRenderer.send('briizy:shell:update-bounds', bounds || {}),
+    requestChat: (request) => ipcRenderer.send('briizy:shell:request-chat', request || {}),
+    sendChatResponse: (update) => ipcRenderer.send('briizy:shell:chat-response', update || {}),
     onState: (callback) => {
       const handler = (_event, data) => callback(data);
       ipcRenderer.on('briizy:shell:state', handler);
@@ -113,6 +115,16 @@ contextBridge.exposeInMainWorld('briizy', {
       ipcRenderer.on('briizy:shell:action-result', handler);
       return () => ipcRenderer.removeListener('briizy:shell:action-result', handler);
     },
+    onChatResponse: (callback) => {
+      const handler = (_event, data) => callback(data || {});
+      ipcRenderer.on('briizy:shell:chat-response', handler);
+      return () => ipcRenderer.removeListener('briizy:shell:chat-response', handler);
+    },
+  },
+  onQuickChat: (callback) => {
+    const handler = (_event, data) => callback(data || {});
+    ipcRenderer.on('briizy:quick-chat', handler);
+    return () => ipcRenderer.removeListener('briizy:quick-chat', handler);
   },
 });
 
@@ -393,6 +405,12 @@ contextBridge.exposeInMainWorld('api', {
   getCodexAuthStatus: () => ipcRenderer.invoke('codex-auth-status'),
   connectCodex: () => ipcRenderer.invoke('codex-auth-login'),
   disconnectCodex: () => ipcRenderer.invoke('codex-auth-logout'),
+  // AI capability routing — choose and diagnose which model powers each feature.
+  aiRouting: {
+    state: () => ipcRenderer.invoke('ai-routing-state'),
+    set: (capabilityId, modelName) => ipcRenderer.invoke('ai-routing-set', capabilityId, modelName),
+    test: (capabilityId) => ipcRenderer.invoke('ai-routing-test', capabilityId),
+  },
   onCodexAuthChanged: (callback) => {
     const handler = (_event, status) => callback(status);
     ipcRenderer.on('codex-auth-changed', handler);

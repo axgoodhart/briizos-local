@@ -16,12 +16,13 @@ export default function BriizyBehaviorSettings() {
         {[3, 5, 10, 20, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
       </select>
     </label>
-    <label className="briizy-behavior-notes">How Briizy should respond
+    <label className="briizy-behavior-notes">
       <textarea value={notes} maxLength={4000} rows={4} onChange={event => setNotes(event.target.value)}
         placeholder="Describe tone, helpful habits, or preferences for Briizy’s replies…" />
+      <button type="button" className="settings-btn" disabled={notes === preferences.briizyNotes}
+        onClick={() => update({ briizyNotes: notes })}>Save response preferences</button>
+
     </label>
-    <button type="button" className="settings-btn" disabled={notes === preferences.briizyNotes}
-      onClick={() => update({ briizyNotes: notes })}>Save response preferences</button>
     <details className="briizy-behavior-source">
       <summary>Where these decisions live</summary>
       <p>Interface movement and hover: <code>src/components/briizy/BriizyCompanion.jsx</code>. Defaults and saved choices: <code>src/lib/interfacePreferences.js</code>. Motion: <code>src/AppCombined.css</code>. Replies use the current Chats model and its existing permission controls.</p>

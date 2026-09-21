@@ -17,7 +17,7 @@
  */
 
 const { logger } = require('../logger');
-const { createChatModel } = require('./models');
+const { createChatModel, getRoutingModel } = require('./models');
 const { filterMessagesForMemory, formatConversationForUpdate } = require('./memory');
 // The shape and volume limits of a tag are the database's to define, so they
 // are imported rather than restated. Restating MAX_TAGS_PER_THREAD here is the
@@ -519,7 +519,7 @@ async function generateThreadTags(state, {
     max_new: String(maxNew),
   });
 
-  const model = createChatModel({ name: tagsConfig.model_name || modelName || null, thinkingEnabled: false });
+  const model = createChatModel({ name: tagsConfig.model_name || modelName || getRoutingModel('background'), thinkingEnabled: false });
   const response = await model.invoke(prompt);
   const proposed = parseTagsResponse(messageContent(response));
   const { kept, dropped } = postProcessTags(proposed, { tags, tagState });
