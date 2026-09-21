@@ -205,7 +205,7 @@ function DockEditor({
         </label>
         </section>
 <section className="cb-briizy-vis-toggles">
-        <fieldset className="cb-briizy-visibility" n={!observationAvailable || observationBusy}>
+        <fieldset className="cb-briizy-visibility" disabled={!observationAvailable || observationBusy}>
           <legend className="cb-sr-only">Briizy visibility</legend>
           <label className="cb-briizy-visibility__option">
             <input
