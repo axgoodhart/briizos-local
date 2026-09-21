@@ -19,6 +19,8 @@ const {
   getRoutingModel,
   ROUTING_FIELDS,
 } = require('./agent/models');
+const { journalContract, bindJournalModel, parseToolArguments, PROTOCOL } = require('./execubriiz/model-contract');
+const { SystemMessage, HumanMessage } = require('@langchain/core/messages');
 
 const CAPABILITIES = [
   {
@@ -133,14 +135,30 @@ async function testRoute(service, capabilityId, logger) {
   const requestedName = requestedNameFor(service, capability);
   const started = Date.now();
   let timeout = null;
+  const controller = new AbortController();
   try {
     const deadline = new Promise((_, reject) => {
-      timeout = setTimeout(() => reject(new Error('The provider did not answer within 45 seconds')), 45000);
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new Error('The provider did not answer within 45 seconds'));
+      }, 45000);
     });
     await Promise.race([
       (async () => {
-        const model = createChatModel({ name: requestedName, maxTokens: 16 });
-        await model.invoke('Reply with the single word: ok');
+        const journal = capability.id.startsWith('execubriiz-');
+        const config = resolveChatModelRequest({ name: requestedName, maxTokens: journal ? 3500 : 16 });
+        const model = createChatModel({ name: config.profileName, maxTokens: journal ? 3500 : 16 });
+        if (journal) {
+          const contract = journalContract(config.provider);
+          const bound = bindJournalModel(model, contract);
+          logger?.info?.('ai.routing', 'Checking the journal function-result contract', { capability: capabilityId, provider: config.provider, model: config.model, mode: contract.mode, tools: contract.tools, toolOptions: contract.options });
+          const reply = await bound.invoke([
+            new SystemMessage(PROTOCOL),
+            new HumanMessage('Connection check with no journal content. Call finish_journal_work with null summary, null answer, empty operations, empty reactions, and null researchQuestion. No retrieval is needed.'),
+          ], { signal: controller.signal });
+          if (reply.invalid_tool_calls?.length || reply.tool_calls?.length !== 1 || reply.tool_calls[0].name !== 'finish_journal_work') throw new Error('The provider answered, but did not return the requested journal function result.');
+          parseToolArguments('finish_journal_work', reply.tool_calls[0].args, 'live');
+        } else await model.invoke('Reply with the single word: ok', { signal: controller.signal });
       })(),
       deadline,
     ]);

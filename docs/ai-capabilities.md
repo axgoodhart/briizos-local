@@ -239,7 +239,7 @@ Resolution order for each capability:
 3. The model selected in the **MODEL** tab
 4. App default model profile
 
-`testRoute()` sends a minimal probe message ("Reply with the single word: ok") with a 45-second timeout to verify a capability's model+credential pair works.
+`testRoute()` checks Execubriiz routes using the journal's actual function declarations and validates a `finish_journal_work` response. Other routes use a minimal text probe. The 45-second timeout aborts the underlying request. A successful journal probe establishes a valid result for that probe, not guaranteed success on every journal task.
 
 ### System Prompt (`electron/agent/system-prompt.js`)
 
@@ -368,7 +368,19 @@ Job kinds and priority order: `prompt` > `live` > `summary` > others.
 
 Concurrency: max 3 active jobs globally, max 1 per kind per journal. Live jobs are rate-limited (min 3 seconds between runs per journal). Draft changes debounce 1.2–6 seconds before triggering a live job.
 
-The model returns structured output matching `resultSchema`: `summary`, `answer`, `operations` (max 12), `reactions` (max 8), and `researchQuestion`.
+The model returns function arguments matching the shared contract in `electron/execubriiz/model-contract.js`: `summary`, `answer`, `operations` (max 12), `reactions` (max 8), and `researchQuestion`. Every field is required; unused scalar fields are null and unused lists are empty. Operation-specific requirements are checked locally before document application.
+
+Provider requests use function calling for both retrieval and result submission, rather than mixing a text-JSON response format with tools:
+
+- OpenAI: strict function parameter schemas, all object properties required, additional properties rejected, parallel calls disabled. Responses uses the native `allowed_tools` required-choice object because the installed adapter drops string `tool_choice` values on that endpoint. All journal functions remain eligible; no last-round final tool is forced.
+- Claude: strict `input_schema` declarations with automatic tool choice, compatible with thinking modes/model variants that reject forced tool selection.
+- Gemini: generateContent function declarations with OpenAPI-style nullable fields, `ANY` mode and an explicit list of all journal functions. Original model messages retain thought signatures, and tool results carry both name and call ID.
+
+Entry reads include character offsets and end-of-entry information. Invalid arguments receive field-specific tool error responses. Prose and unknown JSON objects are not treated as successful journal results. The exchange limit counts retrieval and rejected replies separately; exhausting it does not imply five malformed responses. Logs identify the job, resolved model, provider, contract, tool calls, validation issues and stop reason.
+
+Offline regression coverage exercises the installed adapters' request builders and a read/rejection/correction conversation (`node --test electron/execubriiz/model-contract.test.cjs`). It does not establish the cause of past Gemini responses whose arguments were not retained, or establish live provider success.
+
+Protocol references: [OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling), [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling), [Claude tool use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview).
 
 Operations: `insert`, `edit`, `move`, `convert`, `retire`, `addSection`, `rename`, `done`. Structural operations (`move`, `convert`, `retire`) become proposals that apply after a delay, not immediately.
 
