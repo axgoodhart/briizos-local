@@ -1,13 +1,12 @@
 import React, { useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useDrag, useDrop } from 'react-dnd';
 import { determineDropZone } from '../../lib/layoutUtils';
+import { usePanelLayoutMotion } from '../../hooks/usePanelLayoutMotion';
 import logger from '../../lib/logger';
 import '../../AppCombined.css';
 
-// Debug counter
-let tileLayoutRenderCount = 0;
+const EMPTY_COLUMNS = [];
 
 // Drag type constant for react-dnd
 const PANEL_TYPE = 'PANEL';
@@ -153,78 +152,68 @@ function panelTitle(panel) {
   return PANEL_TITLES[panel.type] || panel.type || 'Panel';
 }
 
-/**
- * A panel's React tree always renders into the same carrier element. Moving
- * that carrier between the grid shell and fullscreen host preserves component
- * state because the portal target itself never changes.
- */
+/** Stable siblings keep panel content mounted across every column/stack change. */
 function RelocatablePanel({
   panel,
   children,
-  fullscreenHostRef,
+  registerCarrier,
   isFullscreen,
+  isInactive,
   onDrop,
   onToggleFullscreen,
   onActivate,
   onPopOut,
 }) {
-  const slotRef = useRef(null);
-  const carrierRef = useRef(null);
-
-  if (!carrierRef.current && typeof document !== 'undefined') {
-    const carrier = document.createElement('div');
-    carrier.className = 'panel-carrier';
-    carrier.dataset.panelCarrier = panel.panelId;
-    carrierRef.current = carrier;
-  }
-
-  useLayoutEffect(() => {
-    const carrier = carrierRef.current;
-    const target = isFullscreen ? fullscreenHostRef.current : slotRef.current;
-    if (!carrier || !target || carrier.parentElement === target) return undefined;
-
-    const focusedElement = carrier.contains(document.activeElement)
-      ? document.activeElement
-      : null;
-    target.appendChild(carrier);
-    if (focusedElement instanceof HTMLElement) {
-      focusedElement.focus({ preventScroll: true });
-    }
-
-    return undefined;
-  }, [fullscreenHostRef, isFullscreen]);
-
-  useEffect(() => () => {
-    carrierRef.current?.remove();
-  }, []);
+  const carrierRef = useCallback(element => registerCarrier(panel.panelId, element), [panel.panelId, registerCarrier]);
 
   return (
-    <>
-      <div ref={slotRef} className={`panel-slot-shell${isFullscreen ? ' is-vacant' : ''}`}>
-        <div className="panel panel-husk" aria-hidden="true">
-          <div className="panel-header">
-            <span className="panel-header-title">{panelTitle(panel)}</span>
-          </div>
+    <div
+      ref={carrierRef}
+      className={`panel-carrier${isFullscreen ? ' is-fullscreen' : ''}`}
+      data-panel-carrier={panel.panelId}
+      data-layout-inactive={isInactive ? 'true' : undefined}
+      inert={isInactive ? '' : undefined}
+      aria-hidden={isInactive ? 'true' : undefined}
+      role={isFullscreen ? 'region' : undefined}
+      aria-label={isFullscreen ? `${panelTitle(panel)} panel, fullscreen` : undefined}
+    >
+      <DraggablePanel
+        panelId={panel.panelId}
+        componentId={PANEL_THEME_COMPONENTS[panel.type] || 'Application'}
+        onDrop={onDrop}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={onToggleFullscreen}
+        onActivate={onActivate}
+        onPopOut={onPopOut}
+      >
+        {children}
+      </DraggablePanel>
+    </div>
+  );
+}
+
+function PanelSlot({ panel, registerSlot, isFullscreen }) {
+  const slotRef = useCallback(element => registerSlot(panel.panelId, element), [panel.panelId, registerSlot]);
+  return (
+    <div ref={slotRef} className="panel-slot-shell" data-panel-slot={panel.panelId} aria-hidden="true">
+      {isFullscreen && (
+        <div className="panel panel-husk">
+          <div className="panel-header"><span className="panel-header-title">{panelTitle(panel)}</span></div>
           <div className="panel-content" />
         </div>
-      </div>
-      {carrierRef.current && createPortal(
-        <DraggablePanel
-          panelId={panel.panelId}
-          componentId={PANEL_THEME_COMPONENTS[panel.type] || 'Application'}
-          onDrop={onDrop}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={onToggleFullscreen}
-          onActivate={onActivate}
-          onPopOut={onPopOut}
-        >
-          {children}
-        </DraggablePanel>,
-        carrierRef.current,
-        panel.panelId,
       )}
-    </>
+    </div>
   );
+}
+
+function LayoutGroup({ layout, children, ...props }) {
+  const groupRef = useRef(null);
+  useLayoutEffect(() => {
+    // defaultLayout only initializes a group. Also apply tool-driven size changes
+    // when its topology stays the same, without recreating any live content.
+    groupRef.current?.setLayout(layout);
+  }, [layout]);
+  return <Group {...props} groupRef={groupRef} defaultLayout={layout}>{children}</Group>;
 }
 
 /**
@@ -251,225 +240,138 @@ export function TileLayout({
   canPopOutPanel,
   className = ''
 }) {
-  const fullscreenHostRef = useRef(null);
-  tileLayoutRenderCount++;
-  const currentRender = tileLayoutRenderCount;
-  logger.debug('ui', `TileLayout render #${currentRender}`, layoutRow?.columns?.map(c => c.id));
+  const columns = layoutRow?.columns ?? EMPTY_COLUMNS;
+  const { rootRef, surfaceRef, panels, registerSlot, registerCarrier } = usePanelLayoutMotion(columns, fullscreenPanelId);
+  const liveIds = useMemo(() => new Set(columns.flatMap(column => column.panels.map(panel => panel.panelId))), [columns]);
 
-  useEffect(() => {
-    logger.debug('ui', `TileLayout MOUNTED (render #${currentRender})`);
-    return () => {
-      logger.debug('ui', `TileLayout UNMOUNTED (render #${currentRender})`);
-    };
-  }, []);
-
-  // Handle horizontal column resize
-  const handleColumnResize = useCallback((layout) => {
-    if (!layout || Object.keys(layout).length === 0) return;
-    const sizeMap = {};
-    Object.entries(layout).forEach(([id, size]) => {
-      sizeMap[id] = Number(size.toFixed(2));
-    });
-    debugPanelResize('column resize', sizeMap);
-    if (onColumnResize) onColumnResize(sizeMap);
+  // Only deliberate resizing writes back to the model. Mounting/reconfiguring a
+  // resize group must never overwrite the ratios of a pending layout change.
+  const handleColumnResize = useCallback((sizes, meta) => {
+    if (!meta.isUserInteraction || !Object.keys(sizes).length) return;
+    debugPanelResize('column resize', sizes);
+    logger.info('ui.layout', 'Column widths adjusted; these proportions will be used for the next layout change', { widths: sizes });
+    onColumnResize?.(sizes);
   }, [onColumnResize]);
 
-  // Handle vertical stack resize within a column
-  const handleStackResize = useCallback((columnId, layout) => {
-    if (!layout || Object.keys(layout).length === 0) return;
-    const sizeMap = {};
-    Object.entries(layout).forEach(([id, size]) => {
-      sizeMap[id] = Number(size.toFixed(2));
-    });
-    debugPanelResize('stack resize', columnId, sizeMap);
-    if (onStackResize) onStackResize(columnId, sizeMap);
+  const handleStackResize = useCallback((columnId, sizes, meta) => {
+    if (!meta.isUserInteraction || !Object.keys(sizes).length) return;
+    debugPanelResize('stack resize', columnId, sizes);
+    logger.info('ui.layout', 'Stack heights adjusted; these proportions will be used for the next layout change', { columnId, heights: sizes });
+    onStackResize?.(columnId, sizes);
   }, [onStackResize]);
 
-  // Handle panel drop
   const handleDrop = useCallback((draggedId, targetId, dropZone) => {
-    logger.debug('ui', `TileLayout drop: ${draggedId} -> ${targetId} (${dropZone})`);
-    if (onMovePanel) onMovePanel(draggedId, targetId, dropZone);
+    onMovePanel?.(draggedId, targetId, dropZone);
   }, [onMovePanel]);
 
-  // Per-panel pop-out handler for the floating window shell (undefined when
-  // the panel type cannot float, which hides the affordance entirely).
   const popOutFor = useCallback((panel) => {
-    if (!onPopOutPanel) return undefined;
-    if (canPopOutPanel && !canPopOutPanel(panel)) return undefined;
+    if (!onPopOutPanel || (canPopOutPanel && !canPopOutPanel(panel))) return undefined;
     return () => onPopOutPanel(panel);
   }, [onPopOutPanel, canPopOutPanel]);
 
-  const columns = layoutRow?.columns ?? [];
+  const columnLayout = useMemo(() => Object.fromEntries(columns.map(column => [column.id, column.size])), [columns]);
+  // Only the empty sizing slots remount when their structure changes.
+  const groupKey = columns.map(column => `${column.id}:${column.panels.map(panel => panel.panelId).join('+')}`).join('-');
 
-  // Default layout for the horizontal Group
-  const defaultColumnLayout = useMemo(() => {
-    const layout = {};
-    columns.forEach(col => {
-      layout[col.id] = col.size;
-    });
-    return layout;
-  }, [columns]);
-
-  // Key that changes when column structure changes, forcing Group remount
-  const groupKey = useMemo(() => {
-    return columns.map(c => `${c.id}:${c.panels.map(p => p.panelId).join('+')}`).join('-');
-  }, [columns]);
-
-  if (columns.length === 0) {
-    return (
-      <div className={`tile-layout ${className}`}>
-        <div className="tile-layout-empty">No panels to display</div>
-      </div>
-    );
-  }
-
-  const fullscreenPanel = columns
-    .flatMap((column) => column.panels)
-    .find((panel) => panel.panelId === fullscreenPanelId);
-
-  // NOTE: the react-dnd provider lives at the App root (shared with the
-  // floating window layer) — TileLayout no longer mounts its own backend.
   return (
-      <div className={`tile-layout ${className}`}>
-        <div
-          className="tile-layout-grid"
-          inert={fullscreenPanelId ? '' : undefined}
-          aria-hidden={fullscreenPanelId ? 'true' : undefined}
-        >
-          <Group
+    <div ref={rootRef} className={`tile-layout ${className}`}>
+      <div
+        className="tile-layout-grid"
+        inert={fullscreenPanelId ? '' : undefined}
+        aria-hidden={fullscreenPanelId ? 'true' : undefined}
+      >
+        {columns.length ? (
+          <LayoutGroup
             key={groupKey}
             orientation="horizontal"
-            onLayoutChange={handleColumnResize}
-            defaultLayout={defaultColumnLayout}
+            onLayoutChanged={handleColumnResize}
+            layout={columnLayout}
             className="tile-layout-content"
           >
-            {columns.map((column, colIndex) => (
+            {columns.map((column, index) => (
               <React.Fragment key={column.id}>
                 <Panel
                   id={column.id}
-                  minSize="5%"
-                  maxSize="95%"
+                  defaultSize={toPercentSize(column.size, 100 / columns.length)}
+                  minSize={toPercentSize(Math.min(5, column.size), 0)}
+                  maxSize="100%"
                   className="resizable-panel"
                 >
                   {column.panels.length === 1 ? (
-                    <RelocatablePanel
+                    <PanelSlot
                       panel={column.panels[0]}
-                      fullscreenHostRef={fullscreenHostRef}
+                      registerSlot={registerSlot}
                       isFullscreen={fullscreenPanelId === column.panels[0].panelId}
-                      onDrop={handleDrop}
-                      onToggleFullscreen={onTogglePanelFullscreen}
-                      onActivate={onActivatePanel}
-                      onPopOut={popOutFor(column.panels[0])}
-                    >
-                      {renderPanel ? renderPanel(column.panels[0]) : (
-                        <div className="panel-content">
-                          <div className="widget-empty">Panel: {column.panels[0].type}</div>
-                        </div>
-                      )}
-                    </RelocatablePanel>
+                    />
                   ) : (
                     <StackColumn
                       column={column}
-                      renderPanel={renderPanel}
                       onStackResize={handleStackResize}
-                      onDrop={handleDrop}
                       fullscreenPanelId={fullscreenPanelId}
-                      fullscreenHostRef={fullscreenHostRef}
-                      onTogglePanelFullscreen={onTogglePanelFullscreen}
-                      onActivatePanel={onActivatePanel}
-                      popOutFor={popOutFor}
+                      registerSlot={registerSlot}
                     />
                   )}
                 </Panel>
-
-                {colIndex < columns.length - 1 && (
-                  <Separator className="resize-handle horizontal" />
-                )}
+                {index < columns.length - 1 && <Separator className="resize-handle horizontal" />}
               </React.Fragment>
             ))}
-          </Group>
-        </div>
-
-        <div
-          ref={fullscreenHostRef}
-          className={`fullscreen-panel-host${fullscreenPanelId ? ' is-active' : ''}`}
-          role={fullscreenPanelId ? 'region' : undefined}
-          aria-label={fullscreenPanel ? `${panelTitle(fullscreenPanel)} panel, fullscreen` : undefined}
-          aria-hidden={fullscreenPanelId ? undefined : 'true'}
-        />
+          </LayoutGroup>
+        ) : (
+          <div className="tile-layout-empty">No panels to display</div>
+        )}
       </div>
+      <div ref={surfaceRef} className="panel-layout-surface">
+        {panels.map(panel => (
+          <RelocatablePanel
+            key={panel.panelId}
+            panel={panel}
+            registerCarrier={registerCarrier}
+            isFullscreen={fullscreenPanelId === panel.panelId}
+            isInactive={!liveIds.has(panel.panelId) || (!!fullscreenPanelId && fullscreenPanelId !== panel.panelId)}
+            onDrop={handleDrop}
+            onToggleFullscreen={onTogglePanelFullscreen}
+            onActivate={onActivatePanel}
+            onPopOut={popOutFor(panel)}
+          >
+            {renderPanel ? renderPanel(panel) : (
+              <div className="panel-content"><div className="widget-empty">Panel: {panel.type}</div></div>
+            )}
+          </RelocatablePanel>
+        ))}
+      </div>
+    </div>
   );
 }
 
-/**
- * StackColumn - Renders a vertical stack of panels within a column.
- */
-function StackColumn({
-  column,
-  renderPanel,
-  onStackResize,
-  onDrop,
-  fullscreenPanelId,
-  fullscreenHostRef,
-  onTogglePanelFullscreen,
-  onActivatePanel,
-  popOutFor,
-}) {
-  const defaultStackLayout = useMemo(() => {
-    const layout = {};
-    column.panels.forEach(p => {
-      layout[p.panelId] = p.size;
-    });
-    return layout;
-  }, [column.panels]);
-
-  const stackKey = useMemo(() => {
-    return column.panels.map(p => p.panelId).join('-');
-  }, [column.panels]);
-
-  const handleResize = useCallback((layout) => {
-    if (onStackResize) onStackResize(column.id, layout);
-  }, [onStackResize, column.id]);
+/** A stack contains sizing slots; its content stays in the stable outer layer. */
+function StackColumn({ column, onStackResize, fullscreenPanelId, registerSlot }) {
+  const stackLayout = useMemo(() => Object.fromEntries(column.panels.map(panel => [panel.panelId, panel.size])), [column.panels]);
+  const stackKey = column.panels.map(panel => panel.panelId).join('-');
+  const handleResize = useCallback((sizes, meta) => onStackResize?.(column.id, sizes, meta), [onStackResize, column.id]);
 
   return (
-    <Group
+    <LayoutGroup
       key={stackKey}
       orientation="vertical"
-      onLayoutChange={handleResize}
-      defaultLayout={defaultStackLayout}
+      onLayoutChanged={handleResize}
+      layout={stackLayout}
       className="stack-column"
     >
-      {column.panels.map((panel, pIndex) => (
+      {column.panels.map((panel, index) => (
         <React.Fragment key={panel.panelId}>
           <Panel
             id={panel.panelId}
-            minSize="5%"
-            maxSize="95%"
+            defaultSize={toPercentSize(panel.size, 100 / column.panels.length)}
+            minSize={toPercentSize(Math.min(5, panel.size), 0)}
+            maxSize="100%"
             className="resizable-panel"
           >
-            <RelocatablePanel
-              panel={panel}
-              onDrop={onDrop}
-              isFullscreen={fullscreenPanelId === panel.panelId}
-              fullscreenHostRef={fullscreenHostRef}
-              onToggleFullscreen={onTogglePanelFullscreen}
-              onActivate={onActivatePanel}
-              onPopOut={popOutFor ? popOutFor(panel) : undefined}
-            >
-              {renderPanel ? renderPanel(panel) : (
-                <div className="panel-content">
-                  <div className="widget-empty">Panel: {panel.type}</div>
-                </div>
-              )}
-            </RelocatablePanel>
+            <PanelSlot panel={panel} registerSlot={registerSlot} isFullscreen={fullscreenPanelId === panel.panelId} />
           </Panel>
-
-          {pIndex < column.panels.length - 1 && (
-            <Separator className="resize-handle vertical" />
-          )}
+          {index < column.panels.length - 1 && <Separator className="resize-handle vertical" />}
         </React.Fragment>
       ))}
-    </Group>
+    </LayoutGroup>
   );
 }
 

@@ -3,7 +3,9 @@ import logger from '../lib/logger';
 import {
   migrateFlatToColumns,
   rememberPanelPlacement,
-  restorePanelPlacement,
+  addPanelToRight,
+  insertPanelColumn,
+  NEW_PANEL_WIDTH,
   simplifyLayout,
   flattenLayoutToPanels,
   findPanelLocation,
@@ -22,6 +24,22 @@ const DEFAULT_LAYOUT_V1 = {
 };
 
 const DEFAULT_LAYOUT_V2 = migrateFlatToColumns(DEFAULT_LAYOUT_V1.panels);
+
+function newColumnWidth(columnCount) {
+  if (columnCount <= 1) return 100;
+  const row = document.querySelector('.tile-layout-content');
+  if (!row || !row.clientWidth) return NEW_PANEL_WIDTH;
+  const styles = getComputedStyle(row);
+  const gap = parseFloat(styles.columnGap) || 0;
+  const separator = row.querySelector('.resize-handle.horizontal');
+  const separatorWidth = separator?.getBoundingClientRect().width
+    ?? (parseFloat(styles.getPropertyValue('--layout-resize-handle-size')) || 0);
+  const panelSpace = row.clientWidth - (columnCount - 1) * (separatorWidth + 2 * gap);
+  if (panelSpace <= 0) return NEW_PANEL_WIDTH;
+  // The resize library percentages exclude gutters. Compensate so the new
+  // panel itself occupies 20% of the window, including themes with wider handles.
+  return Math.min(95, window.innerWidth * NEW_PANEL_WIDTH / panelSpace);
+}
 
 export function useLayout() {
   const layoutResizeDebugEnabled = typeof window !== 'undefined' && (
@@ -47,7 +65,7 @@ export function useLayout() {
       if (result && result.config) {
         if (result.config.version === 2 && result.config.columns) {
           // v2 format — use directly
-          setLayoutRow(result.config);
+          setLayoutRow(simplifyLayout(result.config));
         } else if (result.config.panels) {
           // v1 format — migrate
           const migrated = migrateFlatToColumns(result.config.panels);
@@ -73,7 +91,7 @@ export function useLayout() {
     setIsSaving(true);
     try {
       await window.api.localData.workspace.saveLayout(layoutToSave);
-      logger.info('ui.layout', 'Panel layout and remembered placements saved', { columns: layoutToSave.columns.length });
+      logger.info('ui.layout', 'Panel positions and proportions saved', { columns: layoutToSave.columns.length });
       setLastSaved(new Date().toISOString());
     } catch (error) {
       logger.error('ui', 'Failed to save layout', error?.message);
@@ -171,7 +189,20 @@ export function useLayout() {
       if (dropZone === 'center') {
         result = executeStackDrop(prev, targetPanelId, draggedPanelId);
       } else {
-        result = executeEdgeDrop(prev, targetPanelId, draggedPanelId, dropZone);
+        result = executeEdgeDrop(prev, targetPanelId, draggedPanelId, dropZone, newColumnWidth(prev.columns.length + 1));
+      }
+      if (result !== prev) {
+        logger.info('ui.layout', ['center', 'top', 'bottom'].includes(dropZone)
+          ? 'Panel moved into a stack; the other panels retain their proportions'
+          : 'Panel moved to a column; the other columns retain their proportions', {
+          panelId: draggedPanelId,
+          targetPanelId,
+          dropZone,
+          columns: result.columns.map(column => ({
+            width: column.size,
+            panels: column.panels.map(panel => ({ panelId: panel.panelId, height: panel.size })),
+          })),
+        });
       }
       return result;
     });
@@ -185,8 +216,10 @@ export function useLayout() {
       // Check if panel already exists
       if (findPanelLocation(prev, id)) return prev;
 
-      logger.info('ui', 'Panel opened at its remembered column and width', { panelId: id });
-      return restorePanelPlacement(prev, { panelId: id, type: panel.type, width: panel.size });
+      logger.info('ui.layout', 'Panel opened on the right; existing columns shrink in proportion', {
+        panelId: id, windowWidthPercent: prev.columns.length ? NEW_PANEL_WIDTH : 100,
+      });
+      return addPanelToRight(prev, { panelId: id, type: panel.type }, newColumnWidth(prev.columns.length + 1));
     });
     return id;
   }, []);
@@ -194,7 +227,7 @@ export function useLayout() {
   const removePanel = useCallback((panelId) => {
     setLayoutRow(prev => {
       const result = removePanelFromLayout(rememberPanelPlacement(prev, panelId), panelId);
-      logger.info('ui', 'Panel closed; placement remembered', { panelId });
+      logger.info('ui.layout', 'Panel closed; remaining panels expand in proportion', { panelId });
       return simplifyLayout(result);
     });
   }, []);
@@ -253,6 +286,7 @@ export function useLayout() {
         // Move to hiddenPanels
         const panel = prev.columns[loc.columnIndex].panels[loc.panelIndex];
         const result = removePanelFromLayout(rememberPanelPlacement(prev, panelId), panelId);
+        logger.info('ui.layout', 'Panel hidden; remaining panels expand in proportion', { panelId });
         return simplifyLayout({
           ...result,
           hiddenPanels: [...(result.hiddenPanels || []), { panelId: panel.panelId, type: panel.type }]
@@ -262,8 +296,8 @@ export function useLayout() {
       // Check if panel is in hiddenPanels
       const hidden = (prev.hiddenPanels || []).find(p => p.panelId === panelId);
       if (hidden) {
-        logger.info('ui', 'Panel restored to its remembered placement', { panelId });
-        return restorePanelPlacement(prev, hidden);
+        logger.info('ui.layout', 'Panel shown on the right; existing columns shrink in proportion', { panelId });
+        return addPanelToRight(prev, hidden, newColumnWidth(prev.columns.length + 1));
       }
 
       return prev;
@@ -271,6 +305,7 @@ export function useLayout() {
   }, []);
 
   const resetLayout = useCallback(() => {
+    logger.info('ui.layout', 'Panel layout reset to its default arrangement');
     setLayoutRow(DEFAULT_LAYOUT_V2);
   }, []);
 
@@ -320,19 +355,15 @@ export function useLayout() {
       if (!loc) return prev;
 
       const panel = prev.columns[loc.columnIndex].panels[loc.panelIndex];
-      let result = removePanelFromLayout(prev, panelId);
-
-      const targetColIndex = Math.min(newOrder, result.columns.length);
-      const newColumn = {
-        id: `col-${Date.now()}`,
-        size: 20,
-        panels: [{ ...panel, size: 100 }]
-      };
-
-      const columns = [...result.columns];
-      columns.splice(targetColIndex, 0, newColumn);
-
-      return simplifyLayout({ ...result, columns });
+      const sourceColumn = prev.columns[loc.columnIndex];
+      logger.info('ui.layout', 'Panel reordered while preserving the other panel proportions', { panelId, newOrder });
+      if (sourceColumn.panels.length === 1) {
+        const columns = prev.columns.filter(column => column.id !== sourceColumn.id);
+        columns.splice(Math.max(0, Math.min(newOrder, columns.length)), 0, sourceColumn);
+        return { ...prev, columns };
+      }
+      const result = simplifyLayout(removePanelFromLayout(prev, panelId));
+      return insertPanelColumn(result, panel, newOrder, newColumnWidth(result.columns.length + 1));
     });
   }, []);
 

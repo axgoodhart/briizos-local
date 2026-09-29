@@ -20,6 +20,8 @@
 
 let colIdCounter = 0;
 
+export const NEW_PANEL_WIDTH = 20;
+
 function nextColId() {
   return `col-${Date.now()}-${colIdCounter++}`;
 }
@@ -75,26 +77,9 @@ export function simplifyLayout(layout) {
     return { ...layout, columns: [] };
   }
 
-  // Renormalize column sizes
-  const colTotal = columns.reduce((sum, c) => sum + c.size, 0);
-  if (colTotal > 0 && Math.abs(colTotal - 100) > 0.5) {
-    const scale = 100 / colTotal;
-    columns = columns.map(c => ({ ...c, size: round2(c.size * scale) }));
-  }
-
-  // Renormalize panel sizes within each column
-  columns = columns.map(col => {
-    if (col.panels.length <= 1) return col;
-    const panelTotal = col.panels.reduce((sum, p) => sum + p.size, 0);
-    if (panelTotal > 0 && Math.abs(panelTotal - 100) > 0.5) {
-      const scale = 100 / panelTotal;
-      return {
-        ...col,
-        panels: col.panels.map(p => ({ ...p, size: round2(p.size * scale) }))
-      };
-    }
-    return col;
-  });
+  // Keep the current proportions, including when a stack becomes a singleton.
+  // Retain precision here so repeated open/close operations do not drift.
+  columns = fitSizes(columns).map(col => ({ ...col, panels: fitSizes(col.panels) }));
 
   // Preserve workspace and other top-level fields
   return { ...layout, columns };
@@ -102,6 +87,34 @@ export function simplifyLayout(layout) {
 
 function round2(n) {
   return Math.round(n * 100) / 100;
+}
+
+function fitSizes(items, available = 100) {
+  const weights = items.map(item => Number.isFinite(item.size) && item.size > 0 ? item.size : 1);
+  const total = weights.reduce((sum, size) => sum + size, 0);
+  return items.map((item, index) => ({ ...item, size: weights[index] / total * available }));
+}
+
+/** Allocate a new column from the current ratios, never from remembered widths. */
+export function insertPanelColumn(layout, panel, index = layout.columns.length, width = NEW_PANEL_WIDTH) {
+  const current = simplifyLayout(layout);
+  const allocatedWidth = Number.isFinite(width) && width > 0 && width < 100 ? width : NEW_PANEL_WIDTH;
+  const columns = fitSizes(current.columns, 100 - allocatedWidth);
+  columns.splice(Math.max(0, Math.min(index, columns.length)), 0, {
+    id: nextColId(),
+    size: columns.length ? allocatedWidth : 100,
+    panels: [{ ...panel, size: 100 }],
+  });
+  return {
+    ...current,
+    columns,
+    hiddenPanels: (current.hiddenPanels || []).filter(p => p.panelId !== panel.panelId),
+  };
+}
+
+export function addPanelToRight(layout, panel, width = NEW_PANEL_WIDTH) {
+  if (findPanelLocation(layout, panel.panelId)) return layout;
+  return insertPanelColumn(layout, panel, layout.columns.length, width);
 }
 
 export function rememberPanelPlacement(layout, panelId) {
@@ -124,39 +137,8 @@ export function rememberPanelPlacement(layout, panelId) {
 }
 
 export function restorePanelPlacement(layout, panel) {
-  if (findPanelLocation(layout, panel.panelId)) return layout;
-  const saved = layout.workspace?.panelPlacements?.[panel.panelId];
-  let columns = layout.columns.map(col => ({ ...col, panels: [...col.panels] }));
-  let index = saved ? columns.findIndex(col => col.id === saved.columnId
-    || col.panels.some(p => saved.siblings?.includes(p.panelId))) : -1;
-  const width = Math.max(5, Math.min(95, Number(saved?.width) || Number(panel.width) || 20));
-  if (index >= 0) {
-    const column = columns[index];
-    const height = Math.max(5, Math.min(95, Number(saved.height) || 50));
-    const total = column.panels.reduce((sum, p) => sum + p.size, 0) || 100;
-    column.panels = column.panels.map(p => ({ ...p, size: p.size / total * (100 - height) }));
-    column.panels.splice(Math.max(0, Math.min(saved.panelIndex || 0, column.panels.length)), 0,
-      { panelId: panel.panelId, type: panel.type, size: height });
-    column.size = width;
-  } else {
-    index = saved?.before ? columns.findIndex(col => col.id === saved.before) : -1;
-    if (index < 0 && saved?.after) {
-      const after = columns.findIndex(col => col.id === saved.after);
-      if (after >= 0) index = after + 1;
-    }
-    if (index < 0) index = Math.min(saved?.columnIndex ?? columns.length, columns.length);
-    columns.splice(Math.max(0, index), 0, {
-      id: saved?.columnId || nextColId(), size: width,
-      panels: [{ panelId: panel.panelId, type: panel.type, size: 100 }],
-    });
-  }
-  const others = columns.reduce((sum, col, i) => sum + (i === index ? 0 : col.size), 0);
-  columns = columns.map((col, i) => ({ ...col,
-    size: columns.length === 1 ? 100 : i === index ? width : col.size / (others || 1) * (100 - width),
-  }));
-  return simplifyLayout({ ...layout, columns,
-    hiddenPanels: (layout.hiddenPanels || []).filter(p => p.panelId !== panel.panelId),
-  });
+  // Compatibility for older callers: reopening follows the same right-edge rule.
+  return addPanelToRight(layout, panel);
 }
 
 // ---------------------------------------------------------------------------
@@ -267,52 +249,32 @@ export function removePanelFromLayout(layout, panelId) {
  * If target is in an existing stack, dragged panel appends after target.
  */
 export function executeStackDrop(layout, targetPanelId, draggedPanelId) {
-  const dragLoc = findPanelLocation(layout, draggedPanelId);
-  const targetLoc = findPanelLocation(layout, targetPanelId);
-  if (!dragLoc || !targetLoc) return layout;
-  if (draggedPanelId === targetPanelId) return layout;
-
-  // Get dragged panel info before removing
-  const draggedPanel = layout.columns[dragLoc.columnIndex].panels[dragLoc.panelIndex];
-
-  // Remove dragged panel from its current location
-  let result = removePanelFromLayout(layout, draggedPanelId);
-
-  // Recalculate target location after removal (indices may have shifted)
-  const newTargetLoc = findPanelLocation(result, targetPanelId);
-  if (!newTargetLoc) return layout;
-
-  // Insert dragged panel after target in the target's column
-  const col = result.columns[newTargetLoc.columnIndex];
-  const newPanels = [...col.panels];
-  const insertIndex = newTargetLoc.panelIndex + 1;
-  newPanels.splice(insertIndex, 0, { ...draggedPanel });
-
-  // Redistribute sizes equally
-  const equalSize = round2(100 / newPanels.length);
-  const resizedPanels = newPanels.map(p => ({ ...p, size: equalSize }));
-
-  const columns = result.columns.map((c, i) => {
-    if (i !== newTargetLoc.columnIndex) return c;
-    return { ...c, panels: resizedPanels };
-  });
-
-  return simplifyLayout({ ...result, columns });
+  return executeEdgeDrop(layout, targetPanelId, draggedPanelId, 'bottom');
 }
 
 /**
  * Edge drop: top/bottom inserts into stack, left/right creates new column.
  */
-export function executeEdgeDrop(layout, targetPanelId, draggedPanelId, zone) {
+export function executeEdgeDrop(layout, targetPanelId, draggedPanelId, zone, newColumnWidth = NEW_PANEL_WIDTH) {
   const dragLoc = findPanelLocation(layout, draggedPanelId);
   const targetLoc = findPanelLocation(layout, targetPanelId);
   if (!dragLoc || !targetLoc) return layout;
   if (draggedPanelId === targetPanelId) return layout;
 
-  const draggedPanel = layout.columns[dragLoc.columnIndex].panels[dragLoc.panelIndex];
+  const sourceColumn = layout.columns[dragLoc.columnIndex];
+  const draggedPanel = sourceColumn.panels[dragLoc.panelIndex];
 
-  // Remove dragged panel
+  // Reordering an intact column keeps its width and all other column ratios.
+  if ((zone === 'left' || zone === 'right') && sourceColumn.panels.length === 1) {
+    const columns = layout.columns.filter(col => col.id !== sourceColumn.id);
+    const targetIndex = columns.findIndex(col => col.id === layout.columns[targetLoc.columnIndex].id);
+    columns.splice(targetIndex + (zone === 'right' ? 1 : 0), 0, sourceColumn);
+    return { ...layout, columns };
+  }
+
   let result = removePanelFromLayout(layout, draggedPanelId);
+  const sameColumn = dragLoc.columnIndex === targetLoc.columnIndex;
+  if (!sameColumn || zone === 'left' || zone === 'right') result = simplifyLayout(result);
 
   // Recalculate target location after removal
   const newTargetLoc = findPanelLocation(result, targetPanelId);
@@ -321,39 +283,21 @@ export function executeEdgeDrop(layout, targetPanelId, draggedPanelId, zone) {
   if (zone === 'top' || zone === 'bottom') {
     // Insert into the target's column stack
     const col = result.columns[newTargetLoc.columnIndex];
-    const newPanels = [...col.panels];
+    const newPanels = sameColumn ? [...col.panels] : fitSizes(col.panels, 50);
     const insertIndex = zone === 'top' ? newTargetLoc.panelIndex : newTargetLoc.panelIndex + 1;
-    newPanels.splice(insertIndex, 0, { ...draggedPanel });
-
-    // Redistribute sizes equally
-    const equalSize = round2(100 / newPanels.length);
-    const resizedPanels = newPanels.map(p => ({ ...p, size: equalSize }));
+    newPanels.splice(insertIndex, 0, { ...draggedPanel, size: sameColumn ? draggedPanel.size : 50 });
 
     const columns = result.columns.map((c, i) => {
       if (i !== newTargetLoc.columnIndex) return c;
-      return { ...c, panels: resizedPanels };
+      return { ...c, panels: newPanels };
     });
 
     return simplifyLayout({ ...result, columns });
   }
 
   if (zone === 'left' || zone === 'right') {
-    // Create a new column for the dragged panel
-    const targetCol = result.columns[newTargetLoc.columnIndex];
-    const newColumn = {
-      id: nextColId(),
-      size: targetCol.size / 2,
-      panels: [{ ...draggedPanel, size: 100 }]
-    };
-
-    // Halve the target column's size
-    const columns = [...result.columns];
-    columns[newTargetLoc.columnIndex] = { ...targetCol, size: targetCol.size / 2 };
-
     const insertIndex = zone === 'left' ? newTargetLoc.columnIndex : newTargetLoc.columnIndex + 1;
-    columns.splice(insertIndex, 0, newColumn);
-
-    return simplifyLayout({ ...result, columns });
+    return insertPanelColumn(result, draggedPanel, insertIndex, newColumnWidth);
   }
 
   return layout;
