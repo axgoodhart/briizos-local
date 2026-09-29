@@ -35,7 +35,7 @@
 .interaction-panel .chat-input-toolbar:not(:has(.model-picker-trigger[aria-expanded='true'])) {
   height: var(--interaction-bar-height);
   overflow: hidden;
-  opacity: 0.72;
+  opacity: 1;
   backdrop-filter: none;
 }
 

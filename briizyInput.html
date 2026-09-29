@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Spatial - Bioluminescent Constellations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #030407;
+            --glass-base: rgba(12, 16, 26, 0.4);
+            --glass-border: rgba(140, 200, 255, 0.15);
+            --glass-highlight: rgba(255, 255, 255, 0.1);
+            
+            --bio-cyan: #00f0ff;
+            --bio-purple: #b026ff;
+            --bio-blue: #0066ff;
+            
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --text-tertiary: rgba(255, 255, 255, 0.3);
+            
+            --font-brand: 'Cinzel', serif;
+            --font-ui: 'Outfit', sans-serif;
+            
+            --noise-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-deep);
+            overflow: hidden;
+            font-family: var(--font-ui);
+            color: var(--text-primary);
+            cursor: crosshair;
+        }
+
+        /* Ambient Bioluminescent Background */
+        .ambient-nebula {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 0;
+            animation: drift 30s infinite alternate ease-in-out;
+        }
+
+        .nebula-1 {
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, var(--bio-purple) 0%, transparent 70%);
+            top: -20vh;
+            left: -10vw;
+            animation-delay: 0s;
+        }
+
+        .nebula-2 {
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, var(--bio-cyan) 0%, transparent 70%);
+            bottom: -10vh;
+            right: -10vw;
+            animation-delay: -15s;
+        }
+
+        .nebula-3 {
+            width: 40vw;
+            height: 40vw;
+            background: radial-gradient(circle, var(--bio-blue) 0%, transparent 70%);
+            top: 40vh;
+            left: 30vw;
+            opacity: 0.2;
+            animation-delay: -7s;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(5vw, -5vh) scale(1.1); }
+            100% { transform: translate(-3vw, 8vh) scale(0.95); }
+        }
+
+        /* Brand Watermark */
+        .brand-watermark {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            opacity: 0.5;
+            mix-blend-mode: screen;
+        }
+
+        .brand-logo {
+            font-family: var(--font-brand);
+            font-size: 1.2rem;
+            letter-spacing: 0.3em;
+            color: var(--text-secondary);
+        }
+
+        .brand-sub {
+            font-size: 0.65rem;
+            letter-spacing: 0.4em;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+        }
+
+        .instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            color: var(--text-tertiary);
+            pointer-events: none;
+            transition: opacity 1s ease;
+            text-align: center;
+        }
+
+        .instruction.hidden {
+            opacity: 0;
+        }
+
+        /* Constellation Node (Input Tool) */
+        .constellation-node {
+            position: absolute;
+            width: 420px;
+            background: var(--glass-base);
+            background-image: var(--noise-url);
+            backdrop-filter: blur(32px) saturate(180%);
+            -webkit-backdrop-filter: blur(32px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 
+                0 30px 60px -12px rgba(0,0,0, 0.9),
+                inset 0 0 0 1px rgba(255,255,255,0.05),
+                inset 0 0 30px rgba(0, 240, 255, 0.03);
+            z-index: 100;
+            cursor: default;
+            transform-origin: center center;
+            
+            /* Spawn Animation */
+            animation: nodeBloom 0.27s cubic-bezier(0.46, .81, 0.3, 1.2) forwards;
+        }
+
+        /* Bioluminescent Aura behind the node */
+        .constellation-node::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, var(--bio-cyan), var(--bio-purple));
+            z-index: -1;
+            opacity: 0;
+            filter: blur(20px);
+            transition: opacity 0.5s ease;
+        }
+
+        .constellation-node:focus-within::before {
+            opacity:.3;
+        }
+
+        .constellation-node {
+    /* existing styles */
+    transform: translate(-50%, -50%);
+}
+@keyframes nodeBloom {
+    0% { 
+        opacity: 0; 
+        transform: translate(-50%, -50%) scale(0.85) translateY(20px);
+        filter: blur(10px);
+    }
+    100% { 
+        opacity: 1; 
+        transform: translate(-50%, -50%) scale(1) translateY(0);
+        filter: blur(0);
+    }
+}
+
+        /* Chips Section */
+        .node-chips {
+            display: flex;
+            gap: 8px;
+            overflow:scroll;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 30px;
+            padding: 6px 14px;
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chip::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+
+        .chip:hover {
+            color: var(--text-primary);
+            border-color: var(--bio-cyan);
+            background: rgba(0, 240, 255, 0.05);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.1);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+        }
+
+        .chip:hover::after {
+            transform: translateX(100%);
+        }
+
+        /* Input Area */
+        .node-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .node-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: var(--font-ui);
+            font-size: 1.2rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            padding: 4px 0;
+            caret-color: var(--bio-cyan);
+        }
+
+        .node-input::placeholder {
+            color: var(--text-tertiary);
+            transition: color 0.3s ease;
+        }
+
+        .node-input:focus::placeholder {
+            color: transparent;
+        }
+
+        .input-underline {
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .input-underline::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 1px;
+            background: linear-gradient(90deg, var(--bio-cyan), var(--bio-purple));
+            box-shadow: 0 0 10px var(--bio-cyan);
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .node-input:focus ~ .input-underline::after {
+            width: 100%;
+        }
+
+        /* Toolbar */
+        .node-toolbar {
+            display: flex;
+            overflow:scroll;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .tools-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .icon-btn svg {
+            width: 18px;
+            height: 18px;
+            transition: stroke 0.3s ease, filter 0.3s ease;
+        }
+
+        .icon-btn:hover svg {
+            stroke: var(--bio-cyan);
+            filter: drop-shadow(0 0 5px var(--bio-cyan));
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .icon-btn.active svg {
+            stroke: var(--bio-purple);
+            filter: drop-shadow(0 0 8px var(--bio-purple));
+        }
+
+        .timer-btn {
+            display: flex;
+            gap: 6px;
+            border-radius: 16px;
+            padding: 6px 12px;
+        }
+
+        .timer-text {
+            font-size: 0.8rem;
+            font-weight: 500;
+            width: 18px;
+            text-align: left;
+        }
+
+        .timer-btn:hover .timer-text {
+            color: var(--bio-cyan);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 8px 20px;
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .submit-btn:hover::before {
+            left: 100%;
+        }
+
+        .submit-btn svg {
+            width: 14px;
+            height: 14px;
+            transition: transform 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--bio-purple);
+            box-shadow: 0 0 20px rgba(176, 38, 255, 0.3);
+        }
+
+        .submit-btn:hover svg {
+            transform: translate(2px, -2px);
+            stroke: var(--bio-purple);
+        }
+
+        /* Transformation to Star (Submission) */
+        .constellation-node.submitted {
+            animation: collapseToStar .4s cubic-bezier(0.6,.01, 0.4, 1) forwards;
+            pointer-events: none;
+        }
+
+
+@keyframes collapseToStar {
+    0% {
+
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        filter:brightness(1)blur(0px);
+        transform: translate(-50%, -50%);
+        width: 420px;
+        height: 180px;
+        border-radius: 20px;
+        background: var(--glass-base);
+    }
+    5% {
+        filter:brightness(20)blur(2px);
+        transform:translate(-50%, -50%);
+
+    }
+
+    20% { height: 100px; 
+        width:2px;
+        transform:translate(-50%, -50%);
+                fiter:brightness(20)blur(5px);
+
+    }
+    50% {
+        transform: translate(-50%, -50%);
+        height: 20px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 30px var(--bio-cyan);
+        fiter:brightness(20)blur(10px);
+    }
+
+    95% {
+                fiter:brightness(20)blur(2px);
+
+    }
+    100% {
+        transform: translate(-50%, -50%);
+        width: 8px;
+        height: 8px;
+        padding: 0;
+        border-radius: 100px;
+        background: #fff;
+        border: none;
+        box-shadow:
+            0 0 10px #fff,
+            0 0 20px var(--bio-cyan),
+            0 0 40px var(--bio-purple),
+            0 0 80px var(--bio-cyan);
+                fiter:brightness(1)blur(0px);
+                overflow:hidden;
+
+    }
+}
+
+        /* Subtle connecting lines (optional, for constellation vibe, created via JS) */
+        .constellation-line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.3), transparent);
+            height: 1px;
+            transform-origin: 0 50%;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            animation: fadeInLine 1s ease forwards;
+        }
+
+        @keyframes fadeInLine {
+            to { opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Background -->
+    <div class="ambient-nebula nebula-1"></div>
+    <div class="ambient-nebula nebula-2"></div>
+    <div class="ambient-nebula nebula-3"></div>
+
+    <!-- Branding -->
+    <div class="brand-watermark">
+        <div class="brand-logo">APPLE</div>
+        <div class="brand-sub">Spatial Computing Labs // VisionOS</div>
+    </div>
+
+    <!-- Initial Instruction -->
+    <div class="instruction" id="instructionText">
+        Click anywhere to manifest a thought.
+    </div>
+
+    <script>
+        const container = document.body;
+        const instruction = document.getElementById('instructionText');
+        let activeNode = null;
+        const stars = []; // Array to store coordinates of submitted nodes
+
+        // Timers array for cycle
+        const timers = ['0s', '2s', '5s', '10s'];
+
+        container.addEventListener('click', (e) => {
+            // Prevent spawning if clicking inside an active node or UI elements
+            if (e.target.closest('.constellation-node') || e.target.closest('.brand-watermark')) {
+            console.log('clicked constellation node');
+                return;
+            }
+
+            // Hide instruction on first click
+            if (!instruction.classList.contains('hidden')) {
+                instruction.classList.add('hidden');
+            }
+
+       else {     spawnNode(e.clientX, e.clientY);}
+        });
+
+        function spawnNode(clickX, clickY) {
+            // If an unsubmitted node exists, remove it gracefully
+            if (activeNode && !activeNode.classList.contains('submitted')) {
+
+                activeNode.classList.add('removal');
+                const nodeToRemove = activeNode;
+                setTimeout(() => nodeToRemove.remove(), 300);
+            }
+
+            const node = document.createElement('div');
+            node.className = 'constellation-node';
+
+            // Boundary checks to keep node fully on screen
+            const nodeWidth = 420;
+            const nodeHeight = 180; // Estimated max height
+            
+            let x = clickX;
+            let y = clickY;
+
+            if (x - nodeWidth / 2 < 20) x = nodeWidth / 2 + 20;
+            if (x + nodeWidth / 2 > window.innerWidth - 20) x = window.innerWidth - nodeWidth / 2 - 20;
+            if (y - nodeHeight / 2 < 20) y = nodeHeight / 2 + 20;
+            if (y + nodeHeight / 2 > window.innerHeight - 20) y = window.innerHeight - nodeHeight / 2 - 20;
+
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+
+            node.innerHTML = `
+                <div class="node-chips">
+                    <div class="chip">Insight</div>
+                    <div class="chip">Action Item</div>
+                    <div class="chip">Spatial Marker</div>
+                    <div class="chip">Reference</div>
+                </div>
+                <div class="node-input-wrapper">
+                    <input type="text" class="node-input" placeholder="Constellate a thought..." autocomplete="off">
+                    <div class="input-underline"></div>
+                </div>
+                <div class="node-toolbar">
+                    <div class="tools-left">
+                        <button class="icon-btn upload-btn" title="Attach Data">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                            </svg>
+                        </button>
+                        <button class="icon-btn timer-btn" title="Set Delay">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                            <span class="timer-text">0s</span>
+                        </button>
+                    </div>
+                    <button class="submit-btn">
+                        Materialize
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(node);
+            activeNode = node;
+
+            bindNodeEvents(node, x, y);
+
+            // Auto-focus input after entrance animation begins
+            setTimeout(() => {
+                const input = node.querySelector('.node-input');
+                if(input) input.focus();
+            }, 100);
+        }
+
+        function bindNodeEvents(node, startX, startY) {
+            const input = node.querySelector('.node-input');
+            const chips = node.querySelectorAll('.chip');
+            const uploadBtn = node.querySelector('.upload-btn');
+            const timerBtn = node.querySelector('.timer-btn');
+            const timerText = node.querySelector('.timer-text');
+            const submitBtn = node.querySelector('.submit-btn');
+
+            // Chip click populates input
+            chips.forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const prefix = `[${chip.innerText}] `;
+                    if (!input.value.startsWith(prefix)) {
+                        input.value = prefix + input.value.replace(/^\[.*?\]\s*/, '');
+                    }
+                    input.focus();
+                });
+            });
+
+            // Fake upload interaction
+            uploadBtn.addEventListener('click', () => {
+                uploadBtn.classList.toggle('active');
+            });
+
+            // Timer cycle
+            let timerIndex = 0;
+            timerBtn.addEventListener('click', () => {
+                timerIndex = (timerIndex + 1) % timers.length;
+                timerText.innerText = timers[timerIndex];
+                
+                // Visual feedback
+                timerBtn.style.transform = 'scale(0.9)';
+                setTimeout(() => timerBtn.style.transform = 'scale(1)', 150);
+            });
+
+            // Submit interaction
+            const submitAction = () => {
+                if(input.value.trim() === '') return; // Don't submit empty
+                
+                node.classList.add('submitted');
+                activeNode = null; // Free up active node slot
+
+                // Record star coordinates for potential constellation lines
+                const newStar = { x: startX, y: startY };
+                
+                // Optional: Draw line to previous star
+                if (stars.length > 0) {
+                    const prevStar = stars[stars.length - 1];
+                    drawLine(prevStar, newStar);
+                }
+                
+                stars.push(newStar);
+            };
+
+            submitBtn.addEventListener('click', submitAction);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitAction();
+            });
+        }
+
+        function drawLine(p1, p2) {
+            const length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+
+            const line = document.createElement('div');
+            line.className = 'constellation-line';
+            line.style.width = `${length}px`;
+            line.style.left = `${p1.x}px`;
+            line.style.top = `${p1.y}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+
+            container.appendChild(line);
+        }
+
+    </script>
+</body>
+</html>
