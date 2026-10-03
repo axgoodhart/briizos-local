@@ -1,5 +1,6 @@
 import { lockDragSelection } from '../../lib/dragSelection';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Editor, Extension, Node } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -13,10 +14,10 @@ import logger from '../../lib/logger';
 /* ── Rich text for notes folios ──────────────────────────────────────
    TipTap core (no React bindings — this is Preact country) plus Aida's
    toolbar: B/I/U, link, code, font family + size, headings, alignment,
-   lists, quote, and line height. Docked by default as a single-row
-   strip above the book that scrolls horizontally when cramped;
-   double-clicking its handle tears it off into a draggable floating
-   pill (and docks it back). Documents serialize to JSON and live in
+   lists, quote, and line height. Docked by default as a vertical rail
+   on the journal's left edge (font, size, line height and link open
+   popovers to its right); double-clicking its handle tears it off into
+   a draggable floating pill (and docks it back). Documents serialize to JSON and live in
    folio.content.doc. */
 
 /* Font size isn't an official extension — tiny custom one on textStyle. */
@@ -217,13 +218,69 @@ const I = {
   bullets: <span className="jr-sf-symbol" aria-hidden="true">􀋲</span>,
   numbers: <span className="jr-sf-symbol" aria-hidden="true">􀋴</span>,
   chevron: <span className="jr-sf-symbol" aria-hidden="true">􀆈</span>,
+  lineHeight: <span className="jr-sf-symbol" aria-hidden="true">􀑹</span>,
 };
 
-/* ── Editor toolbar (docked strip / floating pill / float tray) ──────── */
+/* ── Editor toolbar (side rail / docked strip / floating pill / float tray) ── */
 
-function Btn({ active, onClick, title, children, wide }) {
+const SIZE_PRESETS = [10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 40];
+
+/* Popover that opens to the right of the side rail. Portaled to <body> so
+   the rail's blur/overflow never clips it. */
+function SidePopover({ anchorRef, railRef, onClose, className = '', children }) {
+  const popRef = useRef(null);
+  const [pos, setPos] = useState(null);
+
+  useLayoutEffect(() => {
+    const place = () => {
+      const a = anchorRef.current?.getBoundingClientRect();
+      const r = railRef.current?.getBoundingClientRect();
+      const p = popRef.current;
+      if (!a || !r || !p) return;
+      const left = r.right + 8;
+      const top = Math.max(8, Math.min(a.top, window.innerHeight - p.offsetHeight - 8));
+      setPos((prev) => (prev && prev.left === left && prev.top === top ? prev : { left, top }));
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchorRef, railRef]);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (popRef.current?.contains(e.target) || anchorRef.current?.contains(e.target)) return;
+      onClose();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [anchorRef, onClose]);
+
+  return createPortal(
+    <div
+      ref={popRef}
+      className={'rt-pop ' + className}
+      style={pos ? { left: `${pos.left}px`, top: `${pos.top}px` } : { left: 0, top: 0, visibility: 'hidden' }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
+function Btn({ active, onClick, title, children, wide, btnRef }) {
   return (
     <button
+      ref={btnRef}
       type="button"
       className={'rt-btn' + (active ? ' is-active' : '') + (wide ? ' rt-btn--wide' : '')}
       title={title}
@@ -246,17 +303,23 @@ export function EditorToolbar({
 }) {
   const isTray = placement === 'tray';
   const isDocked = placement === 'docked';
+  const isSide = placement === 'side';
+  const [pop, setPop] = useState(null); // 'font' | 'size' | 'line' — side-rail popovers
   const [expanded, setExpanded] = useState(false);
   const [pos, setPos] = useState(null); // non-null once the user drags
   const [autoPos, setAutoPos] = useState(null); // default tracks the book's center
   const [link, setLinkPanel] = useState(null); // { range, text, url } when open
   const [, force] = useState(0); // re-render after async font-library load
   const toolbarRef = useRef(null);
+  const fontBtnRef = useRef(null);
+  const sizeBtnRef = useRef(null);
+  const lineBtnRef = useRef(null);
+  const linkBtnRef = useRef(null);
   const stopDragRef = useRef(null);
   useEffect(() => () => stopDragRef.current?.(), []);
 
   useEffect(() => {
-    if (isTray || isDocked || pos) return;
+    if (isTray || isDocked || isSide || pos) return;
     const rootEl = rootRef?.current;
     const bookEl = bookRef?.current;
     const tbEl = toolbarRef.current;
@@ -276,7 +339,7 @@ export function EditorToolbar({
     ro.observe(bookEl);
     ro.observe(tbEl);
     return () => ro.disconnect();
-  }, [isTray, isDocked, pos, rootRef, bookRef]);
+  }, [isTray, isDocked, isSide, pos, rootRef, bookRef]);
 
   if (!editor || editor.isDestroyed) return null;
 
@@ -321,13 +384,20 @@ export function EditorToolbar({
     window.addEventListener('pointerup', up);
   };
 
-  const effectivePos = isTray || isDocked ? null : (pos || autoPos);
+  const effectivePos = isTray || isDocked || isSide ? null : (pos || autoPos);
 
   const c = () => editor.chain().focus();
 
   /* Link panel — inline Text/URL rows (window.prompt doesn't exist in
      Electron renderers, and this is nicer anyway). */
+  const togglePop = (id) => {
+    setLinkPanel(null);
+    setPop((p) => (p === id ? null : id));
+  };
+  const closePop = () => setPop(null);
+
   const toggleLinkPanel = () => {
+    setPop(null);
     if (link) {
       setLinkPanel(null);
       return;
@@ -382,6 +452,11 @@ export function EditorToolbar({
     FONT_FAMILIES.some((f) => f.value === family) ||
     (systemFonts || []).some((f) => f.value === family);
 
+  const familyLabel =
+    FONT_FAMILIES.find((f) => f.value === family)?.label ||
+    (systemFonts || []).find((f) => f.value === family)?.label ||
+    family.replace(/['"]/g, '').split(',')[0];
+
   const onFamilyChange = (value) => {
     if (value === '__load-system') {
       // Re-render once the library arrives; the select keeps its value.
@@ -412,19 +487,131 @@ export function EditorToolbar({
       <Btn active={editor.isActive('orderedList')} title="Numbered list" onClick={() => c().toggleOrderedList().run()}>{I.numbers}</Btn>
       <Btn active={editor.isActive('blockquote')} title="Quote" onClick={() => c().toggleBlockquote().run()}>{I.quote}</Btn>
       <span className="rt-sep" />
-      <select
-        className="rt-family rt-lineheight"
-        title="Line height"
-        value={lineHeight}
-        onMouseDown={(e) => e.stopPropagation()}
-        onChange={(e) => c().setLineHeight(e.currentTarget.value || null).run()}
-      >
-        <option value="">line ↕ auto</option>
-        {LINE_HEIGHTS.map((v) => (
-          <option key={v} value={v}>line ↕ {v}</option>
-        ))}
-      </select>
+      {isSide ? (
+        <Btn
+          btnRef={lineBtnRef}
+          active={pop === 'line'}
+          title={`Line height: ${lineHeight || 'auto'}`}
+          onClick={() => togglePop('line')}
+        >
+          {I.lineHeight}
+        </Btn>
+      ) : (
+        <select
+          className="rt-family rt-lineheight"
+          title="Line height"
+          value={lineHeight}
+          onMouseDown={(e) => e.stopPropagation()}
+          onChange={(e) => c().setLineHeight(e.currentTarget.value || null).run()}
+        >
+          <option value="">line ↕ auto</option>
+          {LINE_HEIGHTS.map((v) => (
+            <option key={v} value={v}>line ↕ {v}</option>
+          ))}
+        </select>
+      )}
     </>
+  );
+
+  const pickFont = (value) => {
+    c().setFontFamily(value).run();
+    setPop(null);
+  };
+
+  const fontPopover = (
+    <div className="rt-pop__list">
+      {FONT_FAMILIES.map((f) => (
+        <button
+          key={f.label}
+          type="button"
+          className={'rt-pop__item' + (f.value === family ? ' is-active' : '')}
+          style={{ fontFamily: f.value }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => pickFont(f.value)}
+        >
+          {f.label}
+        </button>
+      ))}
+      {!knownFamily && (
+        <button type="button" className="rt-pop__item is-active" style={{ fontFamily: family }} onMouseDown={(e) => e.preventDefault()} onClick={() => pickFont(family)}>
+          {familyLabel}
+        </button>
+      )}
+      {systemFonts === null && canQueryLocalFonts() && (
+        <button type="button" className="rt-pop__item rt-pop__item--action" onMouseDown={(e) => e.preventDefault()} onClick={() => onFamilyChange('__load-system')}>
+          ↻ load my computer's fonts…
+        </button>
+      )}
+      {systemFonts?.length > 0 && (
+        <>
+          <div className="rt-pop__label">my computer</div>
+          {systemFonts.map((f) => (
+            <button
+              key={f.label}
+              type="button"
+              className={'rt-pop__item' + (f.value === family ? ' is-active' : '')}
+              style={{ fontFamily: f.value }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pickFont(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </>
+      )}
+    </div>
+  );
+
+  const sizePopover = (
+    <div className="rt-pop__sizes">
+      <input
+        className="rt-size rt-pop__size"
+        type="number"
+        min="9"
+        max="72"
+        placeholder="14"
+        title="Font size"
+        value={size}
+        autoFocus
+        onChange={(e) => editor.chain().setFontSize(parseInt(e.currentTarget.value, 10) || null).run()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            setPop(null);
+            editor.commands.focus();
+          }
+        }}
+      />
+      <div className="rt-pop__chips">
+        {SIZE_PRESETS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={'rt-pop__chip' + (String(n) === String(size) ? ' is-active' : '')}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { c().setFontSize(n).run(); setPop(null); }}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const linePopover = (
+    <div className="rt-pop__list">
+      {['', ...LINE_HEIGHTS].map((v) => (
+        <button
+          key={v || 'auto'}
+          type="button"
+          className={'rt-pop__item' + (v === lineHeight ? ' is-active' : '')}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => { c().setLineHeight(v || null).run(); setPop(null); }}
+        >
+          line ↕ {v || 'auto'}
+        </button>
+      ))}
+    </div>
   );
 
   /* Docked shows every tool in the one row (no chevron reveal); the pill
@@ -441,7 +628,7 @@ export function EditorToolbar({
         >
           {I.drag}
         </button>
-      ) : isDocked ? (
+      ) : isDocked || isSide ? (
         <button
           type="button"
           className="rt-btn rt-btn--drag rt-btn--dock-handle"
@@ -449,7 +636,7 @@ export function EditorToolbar({
           aria-label="Formatting toolbar handle; double-click to float"
           onDoubleClick={() => {
             onTogglePlacement?.();
-            logger.info('journal', 'Toolbar floated from top strip', { folioId: toolbarId });
+            logger.info('journal', isSide ? 'Toolbar floated from side rail' : 'Toolbar floated from top strip', { folioId: toolbarId });
           }}
         >
           {I.drag}
@@ -463,7 +650,7 @@ export function EditorToolbar({
           onPointerDown={startDrag}
           onDoubleClick={() => {
             onTogglePlacement?.();
-            logger.info('journal', 'Toolbar docked to top strip', { folioId: toolbarId });
+            logger.info('journal', 'Toolbar docked to side rail', { folioId: toolbarId });
           }}
         >
           {I.drag}
@@ -473,42 +660,55 @@ export function EditorToolbar({
       <Btn active={editor.isActive('bold')} title="Bold (⌘B)" onClick={() => c().toggleBold().run()}>{I.bold}</Btn>
       <Btn active={editor.isActive('italic')} title="Italic (⌘I)" onClick={() => c().toggleItalic().run()}>{I.italic}</Btn>
       <Btn active={editor.isActive('underline')} title="Underline (⌘U)" onClick={() => c().toggleUnderline().run()}>{I.underline}</Btn>
-      <Btn active={editor.isActive('link') || !!link} title="Link" onClick={toggleLinkPanel}>{I.link}</Btn>
+      <Btn btnRef={linkBtnRef} active={editor.isActive('link') || !!link} title="Link" onClick={toggleLinkPanel}>{I.link}</Btn>
       <Btn active={editor.isActive('code')} title="Inline code" onClick={() => c().toggleCode().run()}>{I.code}</Btn>
       <span className="rt-sep" />
-      <select
-        className="rt-family"
-        title="Font"
-        value={family}
-        onMouseDown={(e) => e.stopPropagation()}
-        onChange={(e) => onFamilyChange(e.currentTarget.value)}
-      >
-        {FONT_FAMILIES.map((f) => (
-          <option key={f.label} value={f.value}>{f.label}</option>
-        ))}
-        {!knownFamily && <option value={family}>{family.replace(/['"]/g, '').split(',')[0]}</option>}
-        {systemFonts === null && canQueryLocalFonts() && (
-          <option value="__load-system">↻ load my computer's fonts…</option>
-        )}
-        {systemFonts?.length > 0 && (
-          <optgroup label="my computer">
-            {systemFonts.map((f) => (
+      {isSide ? (
+        <>
+          <Btn btnRef={fontBtnRef} active={pop === 'font'} title={`Font: ${familyLabel}`} onClick={() => togglePop('font')}>
+            <span className="rt-glyph rt-glyph--font" style={{ fontFamily: family }}>Aa</span>
+          </Btn>
+          <Btn btnRef={sizeBtnRef} active={pop === 'size'} title="Font size" onClick={() => togglePop('size')}>
+            <span className={'rt-glyph rt-glyph--size' + (size ? '' : ' is-placeholder')}>{size || '14'}</span>
+          </Btn>
+        </>
+      ) : (
+        <>
+          <select
+            className="rt-family"
+            title="Font"
+            value={family}
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e) => onFamilyChange(e.currentTarget.value)}
+          >
+            {FONT_FAMILIES.map((f) => (
               <option key={f.label} value={f.value}>{f.label}</option>
             ))}
-          </optgroup>
-        )}
-      </select>
-      <input
-        className="rt-size"
-        type="number"
-        min="9"
-        max="72"
-        placeholder="14"
-        title="Font size"
-        value={size}
-        onMouseDown={(e) => e.stopPropagation()}
-        onChange={(e) => c().setFontSize(parseInt(e.currentTarget.value, 10) || null).run()}
-      />
+            {!knownFamily && <option value={family}>{family.replace(/['"]/g, '').split(',')[0]}</option>}
+            {systemFonts === null && canQueryLocalFonts() && (
+              <option value="__load-system">↻ load my computer's fonts…</option>
+            )}
+            {systemFonts?.length > 0 && (
+              <optgroup label="my computer">
+                {systemFonts.map((f) => (
+                  <option key={f.label} value={f.value}>{f.label}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          <input
+            className="rt-size"
+            type="number"
+            min="9"
+            max="72"
+            placeholder="14"
+            title="Font size"
+            value={size}
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e) => c().setFontSize(parseInt(e.currentTarget.value, 10) || null).run()}
+          />
+        </>
+      )}
       <span className="rt-sep" />
       {isDocked ? (
         secondaryTools
@@ -520,10 +720,39 @@ export function EditorToolbar({
     </div>
   );
 
+  const linkPanel = link && (
+    <div className="rt-linkpanel" onMouseDown={(e) => e.stopPropagation()}>
+      <label className="rt-linkrow">
+        <span className="rt-linklabel">Text</span>
+        <input
+          className="rt-linkinput"
+          type="text"
+          value={link.text}
+          placeholder="the text you had highlighted, or otherwise blank"
+          ref={(el) => link.text === '' && el?.focus()}
+          onInput={(e) => setLinkPanel({ ...link, text: e.currentTarget.value })}
+          onKeyDown={linkKeys}
+        />
+      </label>
+      <label className="rt-linkrow">
+        <span className="rt-linklabel">URL</span>
+        <input
+          className="rt-linkinput"
+          type="text"
+          value={link.url}
+          placeholder="https://"
+          ref={(el) => link.text !== '' && el?.focus()}
+          onInput={(e) => setLinkPanel({ ...link, url: e.currentTarget.value })}
+          onKeyDown={linkKeys}
+        />
+      </label>
+    </div>
+  );
+
   return (
     <div
       ref={toolbarRef}
-      className={'rt-toolbar' + (isTray ? ' rt-toolbar--tray' : '') + (isDocked ? ' rt-toolbar--docked' : '')}
+      className={'rt-toolbar' + (isTray ? ' rt-toolbar--tray' : '') + (isDocked ? ' rt-toolbar--docked' : '') + (isSide ? ' rt-toolbar--side' : '')}
       style={effectivePos ? { left: `${effectivePos.x}px`, top: `${effectivePos.y}px`, right: 'auto', transform: 'none' } : undefined}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -540,33 +769,20 @@ export function EditorToolbar({
         toolsRow
       )}
 
-      {link && (
-        <div className="rt-linkpanel" onMouseDown={(e) => e.stopPropagation()}>
-          <label className="rt-linkrow">
-            <span className="rt-linklabel">Text</span>
-            <input
-              className="rt-linkinput"
-              type="text"
-              value={link.text}
-              placeholder="the text you had highlighted, or otherwise blank"
-              ref={(el) => link.text === '' && el?.focus()}
-              onInput={(e) => setLinkPanel({ ...link, text: e.currentTarget.value })}
-              onKeyDown={linkKeys}
-            />
-          </label>
-          <label className="rt-linkrow">
-            <span className="rt-linklabel">URL</span>
-            <input
-              className="rt-linkinput"
-              type="text"
-              value={link.url}
-              placeholder="https://"
-              ref={(el) => link.text !== '' && el?.focus()}
-              onInput={(e) => setLinkPanel({ ...link, url: e.currentTarget.value })}
-              onKeyDown={linkKeys}
-            />
-          </label>
-        </div>
+      {link && (isSide ? (
+        <SidePopover anchorRef={linkBtnRef} railRef={toolbarRef} onClose={() => setLinkPanel(null)} className="rt-pop--link">
+          {linkPanel}
+        </SidePopover>
+      ) : linkPanel)}
+
+      {isSide && pop === 'font' && (
+        <SidePopover anchorRef={fontBtnRef} railRef={toolbarRef} onClose={closePop} className="rt-pop--fonts">{fontPopover}</SidePopover>
+      )}
+      {isSide && pop === 'size' && (
+        <SidePopover anchorRef={sizeBtnRef} railRef={toolbarRef} onClose={closePop} className="rt-pop--size">{sizePopover}</SidePopover>
+      )}
+      {isSide && pop === 'line' && (
+        <SidePopover anchorRef={lineBtnRef} railRef={toolbarRef} onClose={closePop} className="rt-pop--line">{linePopover}</SidePopover>
       )}
 
       {!isDocked && expanded && (

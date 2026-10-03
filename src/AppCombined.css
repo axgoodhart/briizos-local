@@ -1199,19 +1199,19 @@ body {
 .app-header.shrinkable {
     overflow: hidden;
     transition: all .2s cubic-bezier(.5, .9, .5, 1);
-    transition-delay: 5s;}
+    transition-delay: 2s;}
 .app-header.shrunk {
-    transition-delay: 5s;}
+    transition-delay: 2s;}
 .app-header.shrinkable:hover,
 .app-header.shrunk:hover {
     height: var(--cc-app-header-height);
-    transition-delay: 0s;}
+    transition-delay: .1s;}
 .app-header.shrunk:not(:hover) .title-text,
 .app-header.shrunk:not(:hover) .header-dock-slot,
 .app-header.shrunk:not(:hover) .header-right {
     opacity: 0;
     transition: all 1s;
-    transition-delay: 4s;
+    transition-delay: 1.5s;
     pointer-events: none;
     user-select: none;}
 .app-header.shrunk:hover .title-text,
@@ -1236,27 +1236,25 @@ body {
     place-items: center;
     border: 1px solid color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 74%, transparent);
     border-radius: var(--cc-radius-slight);
-    background: color-mix(in oklab, var(--ui-header-bg, #050708) 88%, transparent);
+    background: transparent;
     color: var(--palette-accent-primary, #42dbe8);
     box-shadow: 0 0 0 1px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 20%, transparent), 0 0 10px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 24%, transparent);
     cursor: pointer;
     font-family: 'SF Pro Display', 'SF Pro Symbols', 'Apple Symbols', sans-serif !important;
     font-size: 19px;
     line-height: 1;
-    text-shadow: 0 0 7px currentColor;
-    transition: color .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;}
+    text-shadow: 0 0 2px currentColor;
+    transition: all .3s ease;}
 .header-shrink-toggle:hover,
 .header-shrink-toggle:focus-visible,
 .header-shrink-toggle.is-active {
     border-color: var(--palette-accent-primary, #42dbe8);
-    background: color-mix(in oklab, var(--ui-header-bg, #050708) 72%, var(--palette-accent-primary, #42dbe8));
     color: color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 74%, white);
     box-shadow: 0 0 0 1px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 34%, transparent), 0 0 14px color-mix(in oklab, var(--palette-accent-primary, #42dbe8) 48%, transparent);
     outline: none;
     opacity: 1;}
 .header-shrink-toggle.is-active {
-    right: 50%;
-    transform: translateX(50%)scaleY(.5);}
+    transform:scaleY(.6);}
 .header-shrink-toggle:focus-visible {
     outline: 1px solid currentColor;
     outline-offset: 2px;}
@@ -1337,7 +1335,8 @@ body {
 .header-weather {
     font-weight: 600;}
 .app--vertical-header {
-    --vertical-header-width: 96px;
+    --vertical-header-width: var(--app-v-head-w, 96px);
+    --vertical-header-bg: var(--ui-v-header-bg, --ui-header-bg);
     position: relative;}
 .app--vertical-header .app-header {
     position: absolute;
@@ -1539,6 +1538,45 @@ body {
     border-top: 1px solid var(--ui-chat-header-border);
     border-radius: var(--cc-radius-none) !important;
     transition: all .3s;}
+.panel-header-tools {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    margin-left: 16px;
+    display: flex;
+    align-items: center;
+    text-transform: none;
+    letter-spacing: 0;
+    text-shadow: none;}
+.panel-header-tools .jvb {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;}
+.panel-header-tools .jvb::-webkit-scrollbar {
+    display: none;}
+.panel-header-tools .jr-btn {
+    padding: 2px 10px;
+    font-size: 12px;
+    white-space: nowrap;}
+.panel-header-tools .jvb__chip {
+    padding: 2px 12px;
+    font-size: 12px;}
+.panel-header-tools .jvb__scrolltoggle {
+    padding: 2px 10px;}
+.panel-header-tools .jvb__tagswrap {
+    height: 22px;
+    width: 110px;}
+.panel-header-tools .jvb__tags {
+    width: 110px;
+    padding: 2px 12px;}
+.panel-header-tools .jvb__tags.is-expanded {
+    width: 200px;
+    padding: 2px 16px;
+    transform: none;}
 .panel-header-actions {
     display: flex;
     gap: var(--cc-gap-small);
@@ -8274,298 +8312,316 @@ body {
     --theme-components-overlays-organizermodal-tab-count-background-1bm8l: rgb(0, 34, 41);
     --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgb(0, 34, 41);
     --dna-frame-border-width: 1px;}
-:root[data-theme='transparent'] {
+
+:root[data-theme='cloudfrost'] {
     --fdock-height: 52px;
-    --ui-app-border-radius: 10px;
-    --chat-input-text-color: transparent;
-    --palette-accent-primary: transparent;
-    --palette-neon-accent: transparent;
-    --palette-success: transparent;
-    --palette-warning: transparent;
-    --palette-danger: transparent;
-    --palette-text-main: transparent;
-    --palette-text-faint: transparent;
-    --palette-text-soft: transparent;
-    --palette-text-subtle: transparent;
-    --palette-text-muted: transparent;
-    --palette-text-dim: transparent;
-    --palette-white: transparent;
-    --ui-body-bg: transparent;
-    font-family: Nokie !important;
-    --ui-app-bg: orange, yellow;
-    --ui-app-border: 10px solid transparent;
-    --ui-app-shadow: inset 0 0 40px white;
-    --ui-text-primary: transparent;
-    --ui-header-text: transparent;
-    --ui-header-bg: linear-gradient(to bottom, transparent, darkred, violet);
-    --ui-title-icon: transparent;
-    --ui-title-icon-glow: 0 0 8px var(--palette-accent-primary);
-    --ui-title-gradient: linear-gradient(120deg, teal, black, magenta, transparent, purple, black, teal);
-    --ui-title-stroke: 2px white;
-    --ui-button-ghost-border-strong: transparent;
-    --ui-button-ghost-text: transparent;
-    --ui-button-ghost-text-hover: transparent;
-    --ui-button-ghost-bg-hover: transparent;
-    --ui-panel-header-text: yellow;
-    font-weight: 800;
-    --ui-panel-btn: transparent;
-    --ui-panel-btn-hover: transparent;
-    --ui-chat-header-text: transparent;
-    --ui-chat-header-bg: transparent;
-    --ui-chat-header-border: transparent;
-    --ui-chat-input-bg: linear-gradient(transparent, transparent);
-    --ui-chat-input-text: transparent;
-    --ui-chat-placeholder: transparent;
-    --ui-modal-bg: linear-gradient(135deg, transparent 0%, transparent 100%);
-    --ui-modal-border: transparent;
-    --ui-modal-header-bg: transparent;
-    --ui-modal-header-border: transparent;
-    --ui-modal-title: transparent;
-    --ui-modal-close: transparent;
-    --ui-modal-tabs-bg: transparent;
-    --ui-modal-tabs-border: transparent;
-    --ui-modal-tab-text: transparent;
-    --ui-modal-tab-hover-text: transparent;
-    --ui-modal-tab-hover-bg: transparent;
-    --ui-modal-tab-active-text: transparent;
-    --ui-modal-tab-active-bg: transparent;
-    --ui-settings-section-desc: var(--palette-text-subtle);
-    --ui-settings-label: transparent;
-    --ui-settings-hint: var(--palette-text-muted);
-    --ui-settings-input-bg: transparent;
-    --ui-settings-input-border: transparent;
-    --ui-settings-input-text: transparent;
-    --ui-settings-input-placeholder: transparent;
-    --ui-settings-input-focus-border: transparent;
-    --ui-settings-input-focus-shadow: 0 0 10px transparent;
-    --ui-settings-toggle-bg: transparent;
-    --ui-settings-toggle-border: transparent;
-    --ui-settings-toggle-text: transparent;
-    --ui-settings-toggle-bg-hover: transparent;
-    --ui-settings-toggle-border-hover: transparent;
-    --ui-settings-radio-bg: transparent;
-    --ui-settings-radio-border: transparent;
-    --ui-settings-radio-bg-hover: transparent;
-    --ui-settings-radio-border-hover: transparent;
-    --ui-settings-radio-bg-active: transparent;
-    --ui-settings-radio-border-active: transparent;
-    --ui-settings-radio-shadow-active: 0 0 15px transparent;
-    --ui-settings-radio-label: transparent;
-    --ui-settings-radio-label-active: transparent;
-    --ui-modal-footer-bg: transparent;
-    --ui-modal-footer-border: transparent;
-    --ui-modal-save-bg: transparent;
-    --ui-modal-save-border: transparent;
-    --ui-modal-save-text: transparent;
-    --ui-modal-save-bg-hover: transparent;
-    --ui-modal-save-shadow-hover: 0 0 15px transparent;
-    --ui-provider-tab-bg: transparent;
-    --ui-provider-tab-border: transparent;
-    --ui-provider-tab-text: transparent;
-    --ui-provider-tab-bg-hover: transparent;
-    --ui-provider-tab-text-hover: transparent;
-    --ui-provider-tab-bg-active: transparent;
-    --ui-provider-tab-border-active: transparent;
-    --ui-provider-tab-text-active: transparent;
-    --ui-slider-thumb-bg: transparent;
-    --ui-slider-thumb-shadow: 0 0 6px transparent;
-    --ui-markdown-code-bg: transparent;
-    --ui-markdown-code-color: var(--palette-accent-primary);
-    --ui-markdown-th-bg: transparent;
-    --ui-controlbar-bg: linear-gradient(240deg, lime, teal, cyan, yellow, magenta);
-    --ui-controlbar-shadow: inset 0 0 8px var(--palette-white), inset 0 0 20px red;
-    --ui-controlbar-filter: blur(0px) brightness(1) saturate(.35);
-    --ui-controlbar-filter-hover: blur(0px) brightness(2) saturate(1);
-    --layout-bg-primary: transparent;
-    --layout-bg-panel: transparent;
-    --layout-bg-panel-header: transparent;
-    --layout-accent-cyan: transparent;
-    --layout-accent-cyan-dim: transparent;
-    --layout-accent-cyan-glow: transparent;
-    --layout-accent-orange: transparent;
-    --layout-accent-orange-dim: transparent;
-    --layout-border-color: transparent;
-    --layout-border-color-hover: transparent;
-    --layout-border-color-active: transparent;
-    --layout-gap: 1px;
-    --layout-panel-radius: 26px;
-    --layout-header-height: 36px;
-    --layout-resize-handle-size: 8px;
-    --layout-transition-fast: 0.15s ease;
-    --layout-transition-normal: 0.2s ease;
-    --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, transparent, transparent);
-    --theme-components-loginoverlay-login-btn-color-1q77m: transparent;
-    --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: transparent;
-    --theme-components-loginoverlay-login-error-background-1iva2: transparent;
-    --theme-components-loginoverlay-login-error-border-9dbrq: transparent;
-    --theme-components-loginoverlay-login-info-color-1tcs7: transparent;
-    --theme-components-loginoverlay-login-input-background-ypdc9: transparent;
-    --theme-components-loginoverlay-login-input-box-shadow-u3asw: transparent;
-    --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: transparent;
-    --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: transparent;
-    --theme-components-loginoverlay-login-logo-circle-background-1mpnj: transparent;
-    --theme-components-loginoverlay-login-logo-circle-background-1pjs9: transparent;
-    --theme-components-loginoverlay-login-logo-circle-background-gradient: linear-gradient(135deg, transparent, transparent, var(--palette-accent-primary));
-    --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: transparent;
-    --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: transparent;
-    --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(90deg, transparent, transparent);
-    --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: transparent;
-    --theme-components-loginoverlay-login-overlay-background-gradient: linear-gradient(135deg, transparent, transparent);
-    --theme-components-loginoverlay-login-subtitle-color-sqqmz: transparent;
-    --theme-components-loginoverlay-login-toggle-link-color-tuiqr: transparent;
-    --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: transparent;
-    --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: transparent;
-    --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: transparent;
-    --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: transparent;
-    --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: transparent;
-    --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: transparent;
-    --theme-components-phantomsection-phantom-drawer-background-1q77m: transparent;
-    --theme-components-phantomsection-phantom-event-row-color-1gv4y: transparent;
-    --theme-components-phantomsection-phantom-event-row-hover-background-i129j: transparent;
-    --theme-components-phantomsection-phantom-events-background-1eqtm: transparent;
-    --theme-components-phantomsection-phantom-events-border-top-1u83g: transparent;
-    --theme-components-phantomsection-phantom-record-hint-color-39knf: transparent;
-    --theme-components-phantomsection-phantom-run-opts-input-border-h3919: transparent;
-    --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: transparent;
-    --theme-components-phantomsection-phantom-status-background-16ah5: transparent;
-    --theme-components-phantomsection-phantom-status-border-bottom-1of2t: transparent;
-    --theme-components-phantomsection-phantom-status-dot-background-1uyf8: transparent;
-    --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: transparent;
-    --theme-components-phantomsection-phantom-status-text-color-fs5n5: transparent;
-    --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: transparent;
-    --theme-components-phantomsection-phantom-tab-color-161cz: transparent;
-    --theme-components-phantomsection-phantom-tabs-background-yq5ln: transparent;
-    --theme-components-phantomsection-phantom-toggle-background-afq8i: transparent;
-    --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: transparent;
-    --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: transparent;
-    --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: transparent;
-    --theme-components-phantomsection-phantom-wf-del-color-13fl3: transparent;
-    --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: transparent;
-    --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: transparent;
-    --theme-components-phantomsection-phantom-wf-name-color-rnz45: transparent;
-    --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: transparent;
-    --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: transparent;
-    --theme-components-phantomsection-phantom-wf-run-border-p8yj7: transparent;
-    --theme-components-phantomsection-phantom-wf-run-color-13c30: transparent;
-    --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: transparent;
-    --theme-components-phantomsection-root-app-1jpsf: transparent;
-    --theme-components-phantomsection-root-app-b5mm4: green;
-    --theme-components-phantomsection-root-app-o0md2: black;
-    --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: white;
-    --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: white;
-    --theme-components-controlbar-controlbar-cb-label-color-sqqmz: pink;
-    --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: transparent, inset 0px 0px 11px lime;
-    --theme-components-controlbar-controlbar-notes-icon-color-qo8di: white;
-    --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: none;
-    --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: white;
+    --ui-corner-shape: scoop;
+    --ui-border-radius: 4px;
+    --chat-input-border-color: #f1e7ce;
+    --ui-forest-card-radius: 10px;
+    --ui-font-main: "MADE TOMMY";
+    --ui-logofont: "MADE TOMMY Outline";
+    --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01) 50%, rgba(53, 152, 125, 0.1) 100%);
+    --holo-blue: #ffffff;
+    --text-primary: #ffffff;
+    --chat-input-text-color: #ffffff;
+    --palette-accent-primary-soft: #35987d;
+    --palette-accent-briizlogo: #abddff;
+    --palette-accent-primary: rgb(255, 255, 255);
+    ;
+    --palette-neon-accent: #e0ccdc;
+    --palette-success: #e0ccdc;
+    --palette-warning: #e0ccdc;
+    --palette-danger: #ada7c2;
+    --palette-text-main: #ffffff;
+    --palette-text-faint: #abddff;
+    --palette-text-soft: #35987d;
+    --palette-text-subtle: #35987d;
+    --palette-text-muted: #583b55;
+    --palette-text-dim: #583b55;
+    --palette-white: #ffffff;
+    --ui-body-bg: black;
+    --ui-app-bg: linear-gradient(185deg, yellow, pink, skyblue, cyan);
+    --ui-app-border: 2px solid rgba(171, 221, 255, 0.4);
+    --ui-app-shadow: 0 0 50px rgba(88, 59, 85, 0.9), inset 0 0 20px rgba(53, 152, 125, 0.15);
+    --ui-text-primary: #fff;
+    --ui-header-text: #defae8;
+    --ui-header-bg: radial-gradient(circle at top right, darkblue, lightgreen, deepskyblue 50%, rgba(255,255,200,.3)), linear-gradient(90deg, rgb(88, 159, 245), rgb(0, 193, 130)50%, plum, palegoldenrod,rgb(0, 0, 200) 100%);
+    --ui-title-icon: #ffffff;
+    --ui-title-icon-glow: 0 0 12px white;
+    --ui-title-gradient: linear-gradient(135deg, deepskyblue 0%, #ffffff, #35987d 50%, #35987d 100%);
+    --ui-title-stroke: 0.5px rgba(255, 255, 255, 0);
+    --ui-button-ghost-border-strong: rgba(53, 152, 125, 0.5);
+    --ui-button-ghost-text: #abddff;
+    --ui-button-ghost-text-hover: #ffffff;
+    --ui-button-ghost-bg-hover: rgba(53, 152, 125, 0.15);
+    --ui-panel-header-text: #35987d;
+    --ui-panel-btn: #abddff;
+    --ui-panel-btn-hover: #ffffff;
+    --ui-chat-header-text: #35987d;
+    --ui-chat-header-bg: radial-gradient(circle at left, rgba(0, 90, 125, 0.8), gold);
+    --ui-chat-header-border: #35987d;
+    --ui-chat-input-bg: rgba(88, 59, 85, 0.95);
+    --ui-chat-input-text: #ffffff;
+    --ui-chat-placeholder: rgba(53, 152, 125, 0.4);
+    --ui-modal-bg: linear-gradient(to top left, rgba(550, 90, 125, 1), brown,pink, deepskyblue);
+    --ui-modal-border: rgba(53, 152, 125, 0.6);
+    --ui-modal-header-bg: linear-gradient(rgba(196, 173, 4), rgba(53, 152, 225,1));
+    --ui-modal-header-border: rgba(53, 152, 125, 0.2);
+    --ui-modal-title: #ffffff;
+    --ui-modal-close: #583b55;
+    --ui-modal-tabs-bg: rgba(88, 59, 85, 0.4);
+    --ui-modal-tabs-border: rgba(53, 152, 125, 0.1);
+    --ui-modal-tab-text: white;
+    --ui-modal-tab-hover-text: white;
+    --ui-modal-tab-hover-bg: var(--ui-modal-header-bg);
+    --ui-modal-tab-active-text: #ffffff;
+    --ui-modal-tab-active-bg: #583b55;
+    --ui-settings-section-desc: rgb(222, 250, 232);
+    --ui-settings-label: #abddff;
+    --ui-settings-hint: #ffffff;
+    ;
+    --ui-settings-input-bg: rgba(88, 59, 85, 0.5);
+    --ui-settings-input-border: rgba(53, 152, 125, 0.3);
+    --ui-settings-input-text: #ffffff;
+    --ui-settings-input-placeholder: #583b55;
+    --ui-settings-input-focus-border: #ffffff;
+    --ui-settings-input-focus-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+    --ui-settings-toggle-bg: rgba(53, 152, 125, 0.1);
+    --ui-settings-toggle-border: rgba(53, 152, 125, 0.3);
+    --ui-settings-toggle-text: white;
+    --ui-settings-toggle-bg-hover: rgba(53, 152, 125, 0.2);
+    --ui-settings-toggle-border-hover: rgba(53, 152, 125, 0.5);
+    --ui-settings-radio-bg: rgba(0, 13, 95, 0.4);
+    --ui-settings-radio-border: rgba(53, 152, 125, 0.2);
+    --ui-settings-radio-bg-hover: rgba(53, 152, 125, 0.1);
+    --ui-settings-radio-border-hover: rgba(53, 152, 125, 0.4);
+    --ui-settings-radio-bg-active: rgba(0, 13, 95, 0.6);
+    --ui-settings-radio-border-active: #ffffff;
+    --ui-settings-radio-shadow-active: 0 0 20px rgba(255, 255, 255, 0.2);
+    --ui-settings-radio-label: rgb(224, 204, 220);
+    --ui-settings-radio-label-active: white;
+    --ui-modal-footer-bg: rgba(88, 59, 85, 0.4);
+    --ui-modal-footer-border: rgba(53, 152, 125, 0.1);
+    --ui-modal-save-bg: linear-gradient(45deg, #35987d, #35987d);
+    --ui-modal-save-border: rgba(255, 255, 255, 0.1);
+    --ui-modal-save-text: #ffffff;
+    --ui-modal-save-bg-hover: linear-gradient(45deg, #35987d, #35987d);
+    --ui-modal-save-shadow-hover: 0 0 20px rgba(53, 152, 125, 0.4);
+    --ui-provider-tab-bg: rgba(255, 255, 255, 0.02);
+    --ui-provider-tab-border: rgba(255, 255, 255, 0.05);
+    --ui-provider-tab-text: #35987d;
+    --ui-provider-tab-bg-hover: rgba(53, 152, 125, 0.08);
+    --ui-provider-tab-text-hover: #abddff;
+    --ui-provider-tab-bg-active: rgba(53, 152, 125, 0.2);
+    --ui-provider-tab-border-active: #35987d;
+    --ui-provider-tab-text-active: #ffffff;
+    --ui-slider-thumb-bg: #ffffff;
+    --ui-slider-thumb-shadow: 0 0 10px #ffffff;
+    --ui-markdown-code-bg: rgba(88, 59, 85, 0.8);
+    --ui-markdown-code-color: #e0ccdc;
+    --ui-markdown-th-bg: rgba(53, 152, 125, 0.15);
+    --ui-controlbar-bg: linear-gradient(to bottom right, rgba(88, 59, 85, 0.5), rgba(0, 13, 95, 0.4)), url(https://i.ibb.co/fR1xqhj/Faceless-blur.png);
+    --ui-controlbar-shadow: 0 -2px 20px rgba(88, 59, 85, 0.8), 0 0 15px rgba(53, 152, 125, 0.2);
+    --ui-controlbar-filter: contrast(1.1) saturate(1.2);
+    --ui-controlbar-filter-hover: contrast(1.2) saturate(1.5) brightness(1.1);
+    --layout-bg-primary: white;
+    --layout-bg-panel: linear-gradient(to bottom left, transparent, white 130%), linear-gradient(to bottom right, rgba(206, 0, 230, 0.61), rgba(0, 13, 95, 0.61) 70%, red 110%, yellow);
+    --layout-bg-panel-header: linear-gradient(to left, rgb(53, 152, 125), rgb(0, 13, 95)50%, rgb(240, 240, 255) 100%);
+    --layout-accent-cyan: skyblue;
+    --layout-accent-cyan-dim: gray;
+    --layout-accent-cyan-glow: gold;
+    --layout-accent-orange: #abddff;
+    --layout-accent-orange-dim: rgba(171, 221, 255, 0.15);
+    --layout-border-color: rgba(53, 152, 125, 0.2);
+    --layout-border-color-hover: rgba(255, 255, 255, 0.4);
+    --layout-border-color-active: #ffffff;
+    --layout-gap: 2px;
+    --layout-panel-radius: 12px;
+    --layout-header-height: 32px;
+    --layout-resize-handle-size: 2px;
+    --layout-transition-fast: 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    --layout-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --log-section-bg: rgb(0, 13, 95);
+    --log-section-border: rgba(53, 152, 125, 0.15);
+    --log-section-header-color: #35987d;
+    --theme-components-loginoverlay-login-btn-background-gradient: linear-gradient(45deg, #35987d, #35987d);
+    --theme-components-loginoverlay-login-btn-color-1q77m: #ffffff;
+    --theme-components-loginoverlay-login-btn-hover-not-disabled-box-shadow-183ir: 0 0 25px rgba(53, 152, 125, 0.5);
+    --theme-components-loginoverlay-login-error-background-1iva2: rgba(173, 167, 194, 0.1);
+    --theme-components-loginoverlay-login-error-border-9dbrq: rgba(173, 167, 194, 0.3);
+    --theme-components-loginoverlay-login-info-color-1tcs7: #35987d;
+    --theme-components-loginoverlay-login-input-background-ypdc9: rgba(88, 59, 85, 0.6);
+    --theme-components-loginoverlay-login-input-box-shadow-u3asw: inset 0 0 10px rgba(53, 152, 125, 0.2);
+    --theme-components-loginoverlay-login-input-focus-box-shadow-1iz3u: 0 0 15px rgba(255, 255, 255, 0.3);
+    --theme-components-loginoverlay-login-input-placeholder-color-1ll6h: rgba(53, 152, 125, 0.4);
+    --theme-components-loginoverlay-login-logo-circle-background-1mpnj: #35987d;
+    --theme-components-loginoverlay-login-logo-circle-background-1pjs9: #ffffff;
+    --theme-components-loginoverlay-login-logo-circle-background-gradient: conic-gradient(from 180deg at 50% 50%, #ffffff, #35987d, #35987d, #ffffff);
+    --theme-components-loginoverlay-login-logo-circle-box-shadow-1hvbq: 0 0 40px rgba(53, 152, 125, 0.6);
+    --theme-components-loginoverlay-login-logo-circle-box-shadow-qr99k: 0 0 20px rgba(255, 255, 255, 0.4);
+    --theme-components-loginoverlay-login-logo-text-background-gradient: linear-gradient(to right, #ffffff, #35987d);
+    --theme-components-loginoverlay-login-logo-text-text-shadow-11uwi: 0 0 10px rgba(53, 152, 125, 0.5);
+    --theme-components-loginoverlay-login-overlay-background-gradient: radial-gradient(circle at center, rgba(88, 59, 85, 0.98), rgba(88, 59, 85, 1));
+    --theme-components-loginoverlay-login-subtitle-color-sqqmz: #abddff;
+    --theme-components-loginoverlay-login-toggle-link-color-tuiqr: #ffffff;
+    --theme-components-phantomsection-phantom-btn-danger-border-color-1d4wr: rgba(173, 167, 194, 0.4);
+    --theme-components-phantomsection-phantom-btn-danger-not-disabled-hover-background-1swzb: rgba(173, 167, 194, 0.15);
+    --theme-components-phantomsection-phantom-btn-primary-border-color-kf5iz: rgba(224, 204, 220, 0.4);
+    --theme-components-phantomsection-phantom-btn-primary-not-disabled-hover-background-1ak3j: rgba(224, 204, 220, 0.15);
+    --theme-components-phantomsection-phantom-btn-record-launch-border-color-1j9jl: rgba(255, 255, 255, 0.4);
+    --theme-components-phantomsection-phantom-btn-record-launch-hover-background-12szs: rgba(255, 255, 255, 0.15);
+    --theme-components-phantomsection-phantom-drawer-background-1q77m: #000;
+    --theme-components-phantomsection-phantom-event-row-color-1gv4y: #ffffff;
+    --theme-components-phantomsection-phantom-event-row-hover-background-i129j: rgba(53, 152, 125, 0.1);
+    --theme-components-phantomsection-phantom-events-background-1eqtm: #583b55;
+    --theme-components-phantomsection-phantom-events-border-top-1u83g: rgba(53, 152, 125, 0.3);
+    --theme-components-phantomsection-phantom-record-hint-color-39knf: #583b55;
+    --theme-components-phantomsection-phantom-run-opts-input-border-h3919: rgba(53, 152, 125, 0.2);
+    --theme-components-phantomsection-phantom-run-opts-input-focus-border-color-1rpa6: #ffffff;
+    --theme-components-phantomsection-phantom-status-background-16ah5: rgba(53, 152, 125, 0.05);
+    --theme-components-phantomsection-phantom-status-border-bottom-1of2t: rgba(53, 152, 125, 0.15);
+    --theme-components-phantomsection-phantom-status-dot-background-1uyf8: #583b55;
+    --theme-components-phantomsection-phantom-status-error-phantom-status-dot-background-sabad: #ada7c2;
+    --theme-components-phantomsection-phantom-status-text-color-fs5n5: #35987d;
+    --theme-components-phantomsection-phantom-status-waiting-phantom-status-dot-background-ujrr8: #e0ccdc;
+    --theme-components-phantomsection-phantom-tab-color-161cz: #35987d;
+    --theme-components-phantomsection-phantom-tabs-background-yq5ln: rgb(0, 13, 95);
+    --theme-components-phantomsection-phantom-toggle-background-afq8i: #000;
+    --theme-components-phantomsection-phantom-toggle-border-top-2mdx5: rgba(53, 152, 125, 0.2);
+    --theme-components-phantomsection-phantom-toggle-dot-background-1p0ut: #35987d;
+    --theme-components-phantomsection-phantom-toggle-open-border-top-color-1glmw: #583b55;
+    --theme-components-phantomsection-phantom-wf-del-color-13fl3: #ada7c2;
+    --theme-components-phantomsection-phantom-wf-del-hover-background-f4575: rgba(173, 167, 194, 0.1);
+    --theme-components-phantomsection-phantom-wf-inspect-hover-background-avbmd: rgba(255, 255, 255, 0.1);
+    --theme-components-phantomsection-phantom-wf-name-color-rnz45: #ffffff;
+    --theme-components-phantomsection-phantom-wf-row-hover-background-1f6dx: rgba(53, 152, 125, 0.08);
+    --theme-components-phantomsection-phantom-wf-row-selected-background-1vsvg: rgba(255, 255, 255, 0.1);
+    --theme-components-phantomsection-phantom-wf-run-border-p8yj7: rgba(224, 204, 220, 0.3);
+    --theme-components-phantomsection-phantom-wf-run-color-13c30: #e0ccdc;
+    --theme-components-phantomsection-phantom-wf-run-hover-background-walzz: rgba(224, 204, 220, 0.1);
+    --theme-components-phantomsection-root-app-1jpsf: #35987d;
+    --theme-components-phantomsection-root-app-b5mm4: #35987d;
+    --theme-components-phantomsection-root-app-o0md2: #583b55;
+    --theme-components-controlbar-controlbar-briiztorm-icon-color-hav81: #ffffff;
+    --theme-components-controlbar-controlbar-briiztorm-icon-webkit-text-stroke-9ja92: transparent;
+    --theme-components-controlbar-controlbar-calendar-icon-color-i0tgi: #e0ccdc;
+    --theme-components-controlbar-controlbar-calendar-icon-webkit-text-stroke-1g777: transparent;
+    --theme-components-controlbar-controlbar-cb-label-color-sqqmz: #abddff;
+    --theme-components-controlbar-controlbar-cb-toggle-hover-box-shadow-1bm8l: 0 0 10px rgba(53, 152, 125, 0.2);
+    --theme-components-controlbar-controlbar-notes-icon-color-qo8di: #ffffff;
+    --theme-components-controlbar-controlbar-notes-icon-webkit-text-stroke-o0md2: transparent;
+    --theme-components-controlbar-controlbar-organizer-icon-color-26sfj: #e0ccdc;
     --theme-components-controlbar-controlbar-organizer-icon-webkit-text-stroke-b5mm4: transparent;
-    --theme-components-notes-noteswidget-create-note-btn-border-1efjr: transparent;
-    --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, transparent 40%, transparent 40%, transparent 50%, transparent 50%), linear-gradient(135deg, transparent 60%, transparent 60%, transparent 70%, transparent 70%), linear-gradient(135deg, transparent 80%, transparent 80%, transparent 90%, transparent 90%);
-    --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: transparent;
-    --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(to bottom, transparent, black, transparent);
-    --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: transparent;
-    --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(to bottom, transparent, transparent);
+    --theme-components-notes-noteswidget-create-note-btn-border-1efjr: rgba(53, 152, 125, 0.5);
+    --theme-components-notes-noteswidget-drawer-resize-handle-after-background-image-gradient: linear-gradient(135deg, #ffffff 25%, transparent 25%, transparent 50%, #ffffff 50%, #ffffff 75%, transparent 75%);
+    --theme-components-notes-noteswidget-floating-note-active-box-shadow-1x3oe: 0 10px 40px rgba(88, 59, 85, 0.8);
+    --theme-components-notes-noteswidget-floating-note-background-gradient: linear-gradient(180deg, #583b55 0%, #583b55 100%);
+    --theme-components-notes-noteswidget-floating-note-box-shadow-op6ip: 0 8px 32px rgba(88, 59, 85, 0.5);
+    --theme-components-notes-noteswidget-floating-note-note-card-background-gradient: linear-gradient(165deg, rgba(88, 59, 85, 0.4), rgba(88, 59, 85, 0.8));
     --theme-components-notes-noteswidget-floating-note-note-textarea-background-1p7wk: transparent;
-    --theme-components-notes-noteswidget-note-btn-color-26sfj: transparent;
-    --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: transparent;
-    --theme-components-notes-noteswidget-note-card-background-48988: transparent;
-    --theme-components-notes-noteswidget-note-card-border-9zuog: transparent;
-    --theme-components-notes-noteswidget-note-card-border-top-12gea: transparent;
-    --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: transparent;
-    --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: transparent;
-    --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: transparent;
-    --theme-components-notes-noteswidget-note-header-background-qxrmc: transparent;
-    --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: transparent;
-    --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, transparent 45%, transparent 55%, transparent 55%);
-    --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: transparent;
-    --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: transparent;
-    --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: transparent;
-    --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: transparent;
-    --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: transparent;
-    --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom left, transparent, transparent, transparent);
-    --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, transparent 0%, transparent 100%);
-    --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: transparent;
-    --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: transparent;
-    --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: transparent;
-    --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: transparent;
-    --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: transparent;
-    --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: transparent;
-    --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: pink;
-    --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: transparent;
-    --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: transparent;
-    --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: transparent;
-    --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: transparent;
-    --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: transparent;
-    --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: transparent;
-    --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: transparent;
-    --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: transparent;
-    --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: transparent;
-    --theme-components-overlays-calendarmodal-calendar-header-background-1oise: transparent;
-    --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: transparent;
-    --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, transparent 0%, transparent 100%);
-    --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: transparent;
-    --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: transparent;
-    --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: transparent;
-    --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: transparent;
-    --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: transparent;
-    --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: transparent;
-    --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: transparent;
-    --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: transparent;
-    --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: transparent;
-    --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: transparent;
-    --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: transparent;
-    --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: transparent;
-    --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: transparent;
-    --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: transparent;
-    --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: transparent;
-    --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: transparent;
-    --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: transparent;
-    --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: transparent;
-    --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: transparent;
-    --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: transparent;
-    --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: transparent;
-    --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: transparent;
-    --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: transparent;
-    --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: transparent;
-    --theme-components-overlays-organizermodal-org-item-check-border-1i94y: transparent;
-    --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: transparent;
-    --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: transparent;
-    --theme-components-overlays-organizermodal-org-item-row-background-1d738: transparent;
-    --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: transparent;
-    --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: transparent;
-    --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: transparent;
-    --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: transparent;
-    --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: transparent;
-    --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: transparent;
-    --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: transparent;
-    --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: transparent;
-    --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: transparent;
-    --theme-components-overlays-organizermodal-org-quick-add-background-1oise: transparent;
-    --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: transparent;
-    --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: transparent;
-    --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: transparent;
-    --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: transparent;
-    --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: transparent;
-    --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(135deg, transparent 0%, transparent 100%);
-    --theme-components-overlays-organizermodal-organizer-modal-border-d763t: transparent;
-    --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: transparent;
-    --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: transparent;
-    --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: transparent;
-    --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: transparent;
-    --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: transparent;
-    --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: transparent;
-    --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: transparent;
-    --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: transparent;
-    --theme-components-overlays-organizermodal-tab-count-background-1bm8l: transparent;
-    --theme-components-overlays-organizermodal-to-box-shadow-n09w3: transparent;}
-:root[data-theme='peppermint-foil'] {
+    --theme-components-notes-noteswidget-note-btn-color-26sfj: #ffffff;
+    --theme-components-notes-noteswidget-note-btn-hover-background-rlxn3: rgba(255, 255, 255, 0.1);
+    --theme-components-notes-noteswidget-note-card-background-48988: rgba(88, 59, 85, 0.85);
+    --theme-components-notes-noteswidget-note-card-border-9zuog: rgba(53, 152, 125, 0.25);
+    --theme-components-notes-noteswidget-note-card-border-top-12gea: #35987d;
+    --theme-components-notes-noteswidget-note-card-box-shadow-1rf5c: 0 4px 15px rgba(88, 59, 85, 0.4);
+    --theme-components-notes-noteswidget-note-card-hover-border-color-hm0l4: #ffffff;
+    --theme-components-notes-noteswidget-note-card-hover-box-shadow-ypdc9: 0 8px 25px rgba(88, 59, 85, 0.6);
+    --theme-components-notes-noteswidget-note-header-background-qxrmc: rgba(53, 152, 125, 0.1);
+    --theme-components-notes-noteswidget-note-header-border-bottom-kz1a9: rgba(53, 152, 125, 0.2);
+    --theme-components-notes-noteswidget-note-resize-handle-background-image-gradient: linear-gradient(135deg, transparent 45%, #35987d 45%, #35987d 55%, transparent 55%);
+    --theme-components-notes-noteswidget-notes-add-btn-border-1plkp: #35987d;
+    --theme-components-notes-noteswidget-notes-close-btn-background-i0tgi: #ada7c2;
+    --theme-components-notes-noteswidget-notes-close-btn-box-shadow-9ja92: 0 0 10px rgba(173, 167, 194, 0.4);
+    --theme-components-notes-noteswidget-notes-close-btn-hover-background-gpmda: #ada7c2;
+    --theme-components-notes-noteswidget-notes-close-btn-hover-border-color-1lj9y: rgba(255, 255, 255, 0.2);
+    --theme-components-notes-noteswidget-notes-drawer-background-gradient: linear-gradient(to bottom, #583b55, #583b55);
+    --theme-components-notes-noteswidget-notes-title-text-shadow-o0md2: 0 0 10px rgba(53, 152, 125, 0.8);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-background-yovd6: rgba(53, 152, 125, 0.1);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-border-1i94y: rgba(53, 152, 125, 0.3);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-background-1fshh: rgba(173, 167, 194, 0.4);
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-close-hover-border-color-1lj9y: #ada7c2;
+    --theme-components-overlays-briiztormoverlay-briiztorm-btn-hover-background-1trbk: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-briiztormoverlay-briiztorm-header-background-gradient: linear-gradient(90deg, #583b55 0%, #583b55 100%);
+    --theme-components-overlays-briiztormoverlay-briiztorm-header-border-bottom-1jdub: rgba(53, 152, 125, 0.4);
+    --theme-components-overlays-briiztormoverlay-briiztorm-overlay-background-afq8i: rgba(88, 59, 85, 0.98);
+    --theme-components-overlays-briiztormoverlay-briiztorm-title-text-shadow-19dnh: 0 0 15px rgba(255, 255, 255, 0.6);
+    --theme-components-overlays-calendarmodal-cal-cell-background-xc5kq: rgba(255, 255, 255, 0.02);
+    --theme-components-overlays-calendarmodal-cal-cell-hover-background-iliqk: rgba(53, 152, 125, 0.15);
+    --theme-components-overlays-calendarmodal-cal-cell-selected-background-1mg6o: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-calendarmodal-cal-cell-selected-box-shadow-1rqic: inset 0 0 10px rgba(255, 255, 255, 0.3);
+    --theme-components-overlays-calendarmodal-cal-daily-done-btn-border-1i94y: rgba(53, 152, 125, 0.3);
+    --theme-components-overlays-calendarmodal-cal-daily-done-btn-checked-background-5xil6: rgba(224, 204, 220, 0.2);
+    --theme-components-overlays-calendarmodal-cal-daily-item-background-1d738: rgba(88, 59, 85, 0.4);
+    --theme-components-overlays-calendarmodal-cal-daily-item-border-1w8u1: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-calendarmodal-cal-daily-item-hover-background-10wdq: rgba(255, 255, 255, 0.05);
+    --theme-components-overlays-calendarmodal-cal-daily-item-rec-color-lx85k: #35987d;
+    --theme-components-overlays-calendarmodal-cal-daily-today-badge-color-1q77m: #ffffff;
+    --theme-components-overlays-calendarmodal-cal-daynum-color-ygsz5: #ffffff;
+    --theme-components-overlays-calendarmodal-calendar-btn-close-border-1gvsk: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-calendarmodal-calendar-btn-close-hover-background-vmrwx: rgba(173, 167, 194, 0.1);
+    --theme-components-overlays-calendarmodal-calendar-header-background-1oise: rgba(88, 59, 85, 0.3);
+    --theme-components-overlays-calendarmodal-calendar-header-border-bottom-9zuog: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-calendarmodal-calendar-modal-background-gradient: linear-gradient(135deg, #583b55 0%, #583b55 100%);
+    --theme-components-overlays-calendarmodal-calendar-modal-border-1jdub: rgba(53, 152, 125, 0.5);
+    --theme-components-overlays-calendarmodal-calendar-nav-background-1jtgs: rgba(88, 59, 85, 0.2);
+    --theme-components-overlays-calendarmodal-calendar-nav-border-bottom-kz1a9: rgba(53, 152, 125, 0.1);
+    --theme-components-overlays-calendarmodal-calendar-overlay-background-gb7i3: rgba(88, 59, 85, 0.85);
+    --theme-components-overlays-calendarmodal-nav-btn-background-1uokm: rgba(53, 152, 125, 0.1);
+    --theme-components-overlays-calendarmodal-nav-btn-border-1bm8l: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-calendarmodal-nav-btn-hover-background-4pwci: rgba(53, 152, 125, 0.25);
+    --theme-components-overlays-calendarmodal-nav-btn-hover-border-color-1jdcc: #35987d;
+    --theme-components-overlays-calendarmodal-nav-btn-today-background-9ls9m: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-calendarmodal-quick-add-btn-background-jlh43: #35987d;
+    --theme-components-overlays-calendarmodal-quick-add-btn-hover-background-1m6k2: #35987d;
+    --theme-components-overlays-calendarmodal-quick-add-input-background-xo1bj: rgba(88, 59, 85, 0.6);
+    --theme-components-overlays-calendarmodal-quick-add-input-focus-border-color-19dnh: #ffffff;
+    --theme-components-overlays-livecanvas-canvas-header-background-8mqiq: rgba(53, 152, 125, 0.1);
+    --theme-components-overlays-livecanvas-canvas-header-border-bottom-33gfy: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-livecanvas-canvas-modal-background-1of2t: #583b55;
+    --theme-components-overlays-livecanvas-canvas-modal-border-rlxn3: rgba(53, 152, 125, 0.4);
+    --theme-components-overlays-livecanvas-canvas-modal-box-shadow-1x3oe: 0 20px 60px rgba(88, 59, 85, 0.9);
+    --theme-components-overlays-organizermodal-org-filter-btn-active-background-1j6gx: #35987d;
+    --theme-components-overlays-organizermodal-org-filter-btn-active-border-color-1xb8f: #35987d;
+    --theme-components-overlays-organizermodal-org-filter-btn-background-1kr6b: rgba(88, 59, 85, 0.4);
+    --theme-components-overlays-organizermodal-org-filter-btn-border-1ytae: rgba(53, 152, 125, 0.3);
+    --theme-components-overlays-organizermodal-org-filter-btn-color-fs5n5: #35987d;
+    --theme-components-overlays-organizermodal-org-filter-btn-hover-color-rnz45: #ffffff;
+    --theme-components-overlays-organizermodal-org-item-check-border-1i94y: rgba(53, 152, 125, 0.4);
+    --theme-components-overlays-organizermodal-org-item-check-checked-background-5xil6: rgba(224, 204, 220, 0.2);
+    --theme-components-overlays-organizermodal-org-item-rec-color-lx85k: #35987d;
+    --theme-components-overlays-organizermodal-org-item-row-background-1d738: rgba(88, 59, 85, 0.4);
+    --theme-components-overlays-organizermodal-org-item-row-hover-background-10wdq: rgba(53, 152, 125, 0.1);
+    --theme-components-overlays-organizermodal-org-qa-btn-background-jlh43: #35987d;
+    --theme-components-overlays-organizermodal-org-qa-btn-border-1jdcc: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-organizermodal-org-qa-btn-hover-background-1m6k2: #35987d;
+    --theme-components-overlays-organizermodal-org-qa-name-background-xo1bj: rgba(88, 59, 85, 0.5);
+    --theme-components-overlays-organizermodal-org-qa-name-focus-border-color-19dnh: #ffffff;
+    --theme-components-overlays-organizermodal-org-qa-rec-toggle-active-border-color-1jdub: #35987d;
+    --theme-components-overlays-organizermodal-org-qa-rec-toggle-background-qxrmc: rgba(88, 59, 85, 0.4);
+    --theme-components-overlays-organizermodal-org-qa-rec-toggle-border-rlxn3: rgba(53, 152, 125, 0.3);
+    --theme-components-overlays-organizermodal-org-quick-add-background-1oise: rgba(53, 152, 125, 0.05);
+    --theme-components-overlays-organizermodal-org-quick-add-border-19ivk: rgba(53, 152, 125, 0.15);
+    --theme-components-overlays-organizermodal-org-rec-panel-background-1wu8q: rgba(88, 59, 85, 0.2);
+    --theme-components-overlays-organizermodal-org-section-title-border-bottom-vmrwx: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-organizermodal-organizer-btn-secondary-border-1gvsk: rgba(53, 152, 125, 0.3);
+    --theme-components-overlays-organizermodal-organizer-header-border-bottom-9zuog: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-organizermodal-organizer-modal-background-gradient: linear-gradient(180deg, #583b55 0%, #583b55 100%);
+    --theme-components-overlays-organizermodal-organizer-modal-border-d763t: rgba(53, 152, 125, 0.8);
+    --theme-components-overlays-organizermodal-organizer-modal-border-eerk1: rgba(53, 152, 125, 0.4);
+    --theme-components-overlays-organizermodal-organizer-overlay-background-gowbr: rgba(88, 59, 85, 0.9);
+    --theme-components-overlays-organizermodal-organizer-tab-active-background-1w8u1: rgba(255, 255, 255, 0.1);
+    --theme-components-overlays-organizermodal-organizer-tab-active-color-26sfj: #ffffff;
+    --theme-components-overlays-organizermodal-organizer-tab-color-1plkp: #35987d;
+    --theme-components-overlays-organizermodal-organizer-tab-hover-background-762aa: rgba(53, 152, 125, 0.1);
+    --theme-components-overlays-organizermodal-organizer-tabs-background-1jtgs: rgba(88, 59, 85, 0.3);
+    --theme-components-overlays-organizermodal-organizer-tabs-border-bottom-kz1a9: rgba(53, 152, 125, 0.2);
+    --theme-components-overlays-organizermodal-tab-count-background-1bm8l: #35987d;
+    --theme-components-overlays-organizermodal-to-box-shadow-n09w3: 0 10px 30px rgba(88, 59, 85, 0.5);
+}
+
+    :root[data-theme='peppermint-foil'] {
     --fdock-height: 52px;
     --ui-border-radius: 16px;
     --chat-input-border-color: #a6e5b2;
@@ -11588,13 +11644,13 @@ body {
     --layout-transition-fast: 0.15s ease;
     --layout-transition-normal: 0.2s ease;}
 .tile-layout {
-    --panel-layout-duration: 280ms;
+    --panel-layout-duration: 400ms;
     --panel-transfer-exit-duration: 80ms;
     --panel-transfer-enter-duration: 100ms;
     --panel-layout-easing: cubic-bezier(0.22, 1, 0.36, 1);
-    --panel-enter-brightness: 10;
+    --panel-enter-brightness: 100;
     --panel-exit-brightness: 0;
-    --panel-placeholder-bg: #242424;
+    --panel-placeholder-bg: var(--ui-app-bg);
     position: relative;
     height: 100%;
     width: 100%;
@@ -20561,7 +20617,7 @@ body {
     width: 100%;
     height: 100%;
     overflow-y: auto;
-    padding: 28px 48px 64px;
+    padding: 0px 48px 64px;
     box-sizing: border-box;
     background: linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%) 0 0 / 20px 20px, linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.02) 75%) 0 0 / 20px 20px, linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.02) 75%) 0 0 / 20px 20px;
     background-size: 12.80% 12.80%;
@@ -20579,17 +20635,17 @@ body {
 .journals-home:has(.jr-card.is-selected) .jr-card:not(.is-selected) .jr-card__cover {
     transform: rotateX(20deg)rotateY(10deg)translateZ(0px)skewX(-10deg)scale(.56);}
 .jr-actions {
-    position: fixed;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
-    justify-content: center;
-    align-items: center;
+    position:sticky;;
+    top:5px;
+    left:70px;
+    justify-content: flex-start;
+    align-items: flex-start;
     gap: 18px;
-    padding: 0px 0 8px;
+    padding: 0px 0 0%;
     z-index: 10;}
 .jr-action {
+    user-select:none;
     appearance: none;
     width: 42px;
     height: 42px;
@@ -20613,9 +20669,10 @@ body {
 .jr-action.is-stub {
     display: none;
     cursor: default;}
-.jr-action:disabled:not(.jr-action--current) {
+.jr-action:disabled:not(.jr-action--current), .jr-action--disabled, .jr-action:disabled:not(.jr-action--current):hover {
     opacity: 0.35;
-    cursor: default;}
+    color:deeppink;
+    cursor:not-allowed}
 .jr-action--danger:not(:disabled) {
     color: #ff9a9a;
     border-color: rgba(255, 110, 110, 0.35);}
@@ -20639,10 +20696,14 @@ body {
     max-width: 280px;
     opacity: 1;}
 .jr-home-button {
-    position: fixed;
-    top: 50px;
-    left: 20px;
-    z-index: 10;}
+    display:flex;
+    position: sticky;
+display: flex;
+float:left;
+    position: sticky;
+    top: 5px;
+    left: 5px;
+transform:translateX(-45px);    z-index: 10;}
 .jr-home-button:hover {
     background: cyan;
     color: black;}
@@ -20654,11 +20715,11 @@ body {
 .jr-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 36px 34px;
+    gap: 36px 14px;
     max-width: 1480px;
     margin: 0 auto;
     justify-items: center;
-    padding-top: 90px;
+    padding-top: 30px;
     z-index: 5;
     perspective: 1000px;}
 .jr-empty {
@@ -21763,6 +21824,128 @@ body {
     border-color: rgba(120, 180, 255, 0.7);}
 .rt-lineheight {
     max-width: 96px;}
+.rt-toolbar--side {
+    position: relative;
+    inset: auto;
+    left: auto;
+    top: auto;
+    transform: none;
+    flex: none;
+    align-self: flex-start;
+    width: 40px;
+    max-height: 100%;
+    box-sizing: border-box;
+    padding: 6px 3px;
+    border-radius: 20px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+    box-shadow: 0 7px 22px rgba(0, 0, 0, 0.38);}
+.rt-toolbar--side::-webkit-scrollbar {
+    display: none;}
+.rt-toolbar--side .rt-btn--dock-handle {
+    cursor: pointer;}
+.rt-toolbar--side .rt-row {
+    flex-direction: column;
+    align-items: center;}
+.rt-toolbar--side .rt-sep {
+    width: 20px;
+    height: 1px;
+    margin: 5px 0;}
+.rt-toolbar--side .rt-row--secondary {
+    align-items: center;}
+.rt-glyph--font {
+    font-size: 16px;}
+.rt-glyph--size {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;}
+.rt-glyph--size.is-placeholder {
+    opacity: 0.45;}
+.rt-pop {
+    position: fixed;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    max-height: min(60vh, 420px);
+    min-width: 120px;
+    box-sizing: border-box;
+    padding: 5px;
+    background: rgba(22, 24, 28, 0.94);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 14px;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.85);
+    user-select: none;}
+.rt-pop--fonts {
+    width: 200px;}
+.rt-pop--size {
+    width: 150px;}
+.rt-pop--link {
+    width: 280px;
+    padding: 8px 10px;}
+.rt-pop .rt-linkpanel {
+    border-top: 0;
+    margin: 0;}
+.rt-pop__list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;}
+.rt-pop__item {
+    appearance: none;
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    padding: 5px 10px;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 13px;
+    color: inherit;
+    cursor: pointer;}
+.rt-pop__item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;}
+.rt-pop__item.is-active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.62));
+    color: #16161a;}
+.rt-pop__item--action {
+    color: rgba(150, 200, 255, 0.9);}
+.rt-pop__label {
+    padding: 6px 10px 2px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);}
+.rt-pop__sizes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;}
+.rt-pop .rt-pop__size {
+    width: 100%;
+    margin: 0;
+    padding: 5px 8px;}
+.rt-pop__chips {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;}
+.rt-pop__chip {
+    appearance: none;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+    padding: 4px 0;
+    font-size: 12px;
+    color: inherit;
+    cursor: pointer;}
+.rt-pop__chip:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;}
+.rt-pop__chip.is-active {
+    background: rgba(255, 255, 255, 0.85);
+    color: #16161a;}
 .rt-linkpanel {
     display: flex;
     flex-direction: column;
@@ -21927,7 +22110,7 @@ body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 12px 10px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 12px;}
@@ -22037,13 +22220,30 @@ body {
     font-size: 12px;
     line-height: 1.45;
     color: rgba(255, 255, 255, 0.35);}
+.jv-cluster {
+    flex: none;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 4px;}
+.jv-cluster.is-closed {
+    column-gap: 0;}
+.jv-cluster .jvs__search {
+    grid-area: 1 / 1;
+    width: 210px;}
+.jv-cluster .jvs-toggle {
+    grid-area: 1 / 2;}
+.jv-cluster .jvs {
+    grid-area: 2 / 1;}
+.jv-cluster>.rt-toolbar--side {
+    grid-area: 2 / 2;}
 .jvs-toggle {
     appearance: none;
     flex: none;
-    align-self: first baseline;
-    width: 18px;
-    height: 56px;
-    border-radius: 9px;
+    width: 40px;
+    min-height: 34px;
+    border-radius: 17px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.04);
     color: rgba(255, 255, 255, 0.6);
@@ -27229,15 +27429,22 @@ html.app-drag-selection-lock webview {
     background: black;
     display: flex;
     overflow: hidden;
-    height: 42px;
     justify-content: center;
     align-items: center;}
+    #jr-search {
+    display: flex; 
+    position:sticky !important;
+    top:5px;right:5px;left:auto;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    }
 .jr-panel-control-group .jr-action {
     border: none;
     background: none;
     box-shadow: none;}
 .jr-panel-control-group .jr-action:not(:disabled):hover {
     color: var(--accent-cyan);
+    border:1px solid white;
     text-shadow: 0 0 2px var(--accent-cyan);}
 .jv-choice,
 .interface-choices {
@@ -27528,6 +27735,8 @@ html.app-drag-selection-lock webview {
 .briizy-companion-actions {
     display: flex;
     gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
     margin-bottom: 6px;}
 .briizy-companion-actions button:last-child {
     margin-left: auto;}
@@ -27656,8 +27865,7 @@ html.app-drag-selection-lock webview {
 .interaction-panel .conversation-browser {
     display: contents !important;}
 .interaction-panel .chat-input-toolbar.toolbar-mode-conversations {
-    grid-template-columns: minmax(112px, 15.5%) minmax(168px, 32.5%) minmax(0, 1fr);}
-.interaction-panel .conversation-facets,
+}.interaction-panel .conversation-facets,
 .interaction-panel .conversation-list,
 .interaction-panel .conversation-preview {
     grid-row: 2;
@@ -27715,6 +27923,9 @@ html.app-drag-selection-lock webview {
     min-width: 0;
     height: 100%;
     padding: 0;}
+    .conversation-new {
+        font-family:SF Pro Display;
+    }
 .interaction-panel .conversation-search-clear,
 .interaction-panel .conversation-new {
     display: flex;
@@ -27729,7 +27940,7 @@ html.app-drag-selection-lock webview {
     transition: color 120ms linear, transform 80ms linear;}
 .interaction-panel .conversation-search-clear:active,
 .interaction-panel .conversation-new:active {
-    transform: translateY(1px);}
+    transform: translateY(1px);} 
 .interaction-panel .conversation-facet,
 .interaction-panel .conversation-facet-child,
 .interaction-panel .conversation-facet-clear,
@@ -27979,6 +28190,14 @@ html.app-drag-selection-lock webview {
     font-size: var(--cc-font-size-small);
     font-weight: 450;
     letter-spacing: -0.025em;}
+
+
+.interaction-panel .conversation-preview-avatar-glyph, .interaction-panel .conversation-row-tag-btn, .interaction-panel .conversation-search>span, .interaction-panel .interaction-toolbar-switch-segment>span:last-child, .interaction-panel .conversation-facet>span:first-child,
+.interaction-panel .conversation-facet-clear>span:first-child{
+    font-family:SF Pro Display !important;
+}
+
+
 .interaction-panel .interaction-toolbar-switch-segment.conversations {
     border-right: 1px solid var(--interaction-line);}
 .interaction-panel .interaction-toolbar-switch-segment:hover {

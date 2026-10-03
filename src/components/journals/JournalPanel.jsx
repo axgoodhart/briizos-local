@@ -381,6 +381,7 @@ export function JournalPanel({
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const searchRef = useRef(null);
+  const [headerSlot, setHeaderSlot] = useState(null); // header host for the open journal's tool row
 
   useEffect(() => {
     api.list().then(setJournals).catch((err) => {
@@ -470,6 +471,7 @@ export function JournalPanel({
     <div className="panel journal-panel">
       <div className="panel-header">
         <span className="panel-header-title">Journal</span>
+        <div className="panel-header-tools" ref={setHeaderSlot} />
       </div>
       <div className="panel-content">
         {openJournal ? (
@@ -478,6 +480,7 @@ export function JournalPanel({
             pageUrl={getPageUrl(openJournal.page, { journalId: openJournal.id, surface: 'panel' })}
             coverUrl={getCoverUrl(openJournal.cover, { journalId: openJournal.id, surface: 'panel' })}
             onBack={() => setOpenId(null)}
+            headerSlot={headerSlot}
             onJournalChange={(updated) =>
               setJournals((prev) => prev.map((j) => (j.id === updated.id ? { ...j, ...updated } : j)))}
             onPopOut={onPopOutJournal ? () => {
@@ -490,6 +493,8 @@ export function JournalPanel({
         ) : (
           <div className="journals-home" onClick={() => setSelectedId(null)}>
 
+
+
               <button
                 type="button"
                 className="jr-action jr-action--current jr-home-button"
@@ -500,10 +505,47 @@ export function JournalPanel({
               >
                 {Icon.home}
               </button>
-            <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
+
+              <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
+
+                <div className="jr-panel-control-group" id="jr-search">
+
+                  <button
+                    type="button"
+                    className={'jr-action' + (searchOpen ? ' is-active' : '')}
+                    title="Search journals"
+                    onClick={() => {
+                      if (searchOpen) setQuery('');
+                      setSearchOpen(!searchOpen);
+                    }}
+                  >
+                    {Icon.search}
+                  </button>
+
+                  <div className={'jr-searchbar' + (searchOpen ? ' is-open' : '')}>
+                    <input
+                      ref={searchRef}
+                      className="jr-input jr-searchbar__input"
+                      type="text"
+                      value={query}
+                      placeholder="Filter by title or globaltag…"
+                      onInput={(e) => setQuery(e.currentTarget.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setQuery('');
+                          setSearchOpen(false);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
               <button type="button" className="jr-action" title="New journal" onClick={() => setCreating(true)}>
                 {Icon.plus}
               </button>
+
+
+
 
               <button type="button" className="jr-action is-stub" title="Chat (coming soon)" disabled>
                 {Icon.chat}
@@ -526,37 +568,6 @@ export function JournalPanel({
                   onClick={() => setTrashOpen(true)}>{Icon.archive}</button></div>
 
 
-                <div className="jr-panel-control-group">
-
-                <button
-                  type="button"
-                  className={'jr-action' + (searchOpen ? ' is-active' : '')}
-                  title="Search journals"
-                  onClick={() => {
-                    if (searchOpen) setQuery('');
-                    setSearchOpen(!searchOpen);
-                  }}
-                >
-                  {Icon.search}
-                </button>
-
-              <div className={'jr-searchbar' + (searchOpen ? ' is-open' : '')}>
-                <input
-                  ref={searchRef}
-                  className="jr-input jr-searchbar__input"
-                  type="text"
-                  value={query}
-                  placeholder="Filter by title or globaltag…"
-                  onInput={(e) => setQuery(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setQuery('');
-                      setSearchOpen(false);
-                    }
-                  }}
-                />
-                </div>
-              </div>
             </div>
 
             <div className="jr-grid">

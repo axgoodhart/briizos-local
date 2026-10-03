@@ -554,7 +554,6 @@ function TasksPanel() {
       {/* Prioritize with briizify — setup drawer + docked priorifact,
           with its corner tab pinned bottom-right over the Phantom row */}
       <BriizifySection
-        focused={briizifyFocused}
         onFocusedChange={setBriizifyFocused}
       />
 

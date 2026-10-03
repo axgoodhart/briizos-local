@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from './api.js';
 import { TEMPLATES } from './templates.js';
 import {
@@ -1103,7 +1104,9 @@ function ScrollStack({ group, pageUrl, cursorFolioId, folioPageProps, onVisibleP
 
 /* ── Sidebar: folio jumps + linked project files ─────────────────────── */
 
-function Sidebar({ open, query, setQuery, groups, currentIdx, onJumpGroup, projects }) {
+/* Bento cluster: search + collapse button on top, page list beside the
+   formatting rail below. */
+function Sidebar({ open, query, setQuery, groups, currentIdx, onJumpGroup, projects, toggle, rail }) {
   const q = query.trim().toLowerCase();
   const visible = groups
     .map((g, i) => ({ g, i }))
@@ -1115,8 +1118,8 @@ function Sidebar({ open, query, setQuery, groups, currentIdx, onJumpGroup, proje
   };
 
   return (
-    <aside className={'jvs' + (open ? '' : ' is-closed')}>
-      <div className="jvs__top">
+    <div className={'jv-cluster' + (open ? '' : ' is-closed')}>
+      {open && (
         <input
           className="jvs__search"
           type="text"
@@ -1125,47 +1128,53 @@ function Sidebar({ open, query, setQuery, groups, currentIdx, onJumpGroup, proje
           onInput={(e) => setQuery(e.currentTarget.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
-        <div className="jvs__groups">
-          {visible.map(({ g, i }) => (
-            <button
-              type="button"
-              key={`${g.key}-${g.start}`}
-              className={'jvs__group' + (i === currentIdx ? ' is-current' : '')}
-              title={g.folios.length > 1 ? `${g.folios.length} pages` : '1 page'}
-              onClick={() => onJumpGroup(g)}
-            >
-              {g.title}
-            </button>
-          ))}
-          {!visible.length && <p className="jvs__hint">No pages match.</p>}
-        </div>
-      </div>
-
-      <div className="jvs__files">
-        <h4 className="jvs__filehead">project files</h4>
-        {visibleProjects.map((p) => (
-          <div className="jvs__proj" key={p.id || p.name}>
-            <span className="jvs__projname">{p.name}</span>
-            {projectFileRows(p).map(({ file, dups }) => (
-              <div className="jvs__filerow" key={file.id || file.path || file.name}>
-                <button
-                  type="button"
-                  className="jvs__file"
-                  title={file.path || file.name}
-                  onClick={() => openFile(file)}
-                >
-                  {file.name}
-                </button>
-                {dups > 1 && <span className="jvs__dup">{dups} duplicates?</span>}
-              </div>
+      )}
+      {toggle}
+      <aside className={'jvs' + (open ? '' : ' is-closed')}>
+        <div className="jvs__top">
+          <div className="jvs__groups">
+            {visible.map(({ g, i }) => (
+              <button
+                type="button"
+                key={`${g.key}-${g.start}`}
+                className={'jvs__group' + (i === currentIdx ? ' is-current' : '')}
+                title={g.folios.length > 1 ? `${g.folios.length} pages` : '1 page'}
+                onClick={() => onJumpGroup(g)}
+              >
+                {g.title}
+              </button>
             ))}
+            {!visible.length && <p className="jvs__hint">No pages match.</p>}
           </div>
-        ))}
-        {!projects.length && (
-          <p className="jvs__hint">Mention a canvas project with <strong>@Name</strong> on any page to link its files here.</p>
-        )}
-      </div>
-    </aside>
+        </div>
+
+        <div className="jvs__files">
+          <h4 className="jvs__filehead">project files</h4>
+          {visibleProjects.map((p) => (
+            <div className="jvs__proj" key={p.id || p.name}>
+              <span className="jvs__projname">{p.name}</span>
+              {projectFileRows(p).map(({ file, dups }) => (
+                <div className="jvs__filerow" key={file.id || file.path || file.name}>
+                  <button
+                    type="button"
+                    className="jvs__file"
+                    title={file.path || file.name}
+                    onClick={() => openFile(file)}
+                  >
+                    {file.name}
+                  </button>
+                  {dups > 1 && <span className="jvs__dup">{dups} duplicates?</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+          {!projects.length && (
+            <p className="jvs__hint">Mention a canvas project with <strong>@Name</strong> on any page to link its files here.</p>
+          )}
+        </div>
+      </aside>
+      {rail}
+    </div>
   );
 }
 
@@ -1363,6 +1372,7 @@ function FolioJournalView({
   variant = 'panel',
   onPopOut = null,
   floatChrome = null,
+  headerSlot, // panel-header host: undefined = render the tool row inline, null = host not mounted yet
 }) {
   /* Float variant: the slimmed-down pop-out editor. Always single-page,
      no sidebar/typography/tag chrome; the floating shell owns close/dock. */
@@ -2042,8 +2052,40 @@ function FolioJournalView({
     selecting,
   });
 
+  /* The tool row: panel mode portals it into the panel header, giving the
+     book the vertical space back. */
+  const toolRow = (
+    <div className="jvb">
+      <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
+      {onPopOut && (
+      <button type="button" className="jr-btn" title="Pop out journal" aria-label="Pop out journal" onClick={onPopOut}>↗</button>
+      )}
+      <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
+      <span className="jv-pageno">
+        {single
+          ? `page ${slotIdx + 1} / ${slots.length}`
+          : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`}
+      </span>
+      {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
+      <PageJumper
+        group={activeGroup}
+        page={activePage}
+        onJump={jumpToFolio}
+      />
+      {activeGroup?.type === 'notes' && (
+        <JournalChoice label="Reading mode" value={activeScrolled} options={[[false, "Pages"], [true, "Scroll"]]} onChange={setActiveScroll} />
+      )}
+      {hasNotes && (
+        <JournalChoice label="Text interaction" value={selecting} options={[[false, "Edit"], [true, "Select"]]} onChange={setSelecting} />
+      )}
+      {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
+    </div>
+  );
+  const headerTools = !isFloat && headerSlot && folios?.length > 0 ? createPortal(toolRow, headerSlot) : null;
+
   return (
     <>
+      {headerTools}
       {isFloat && (
         <FloatJournalHeader
           title={journal.title}
@@ -2111,18 +2153,6 @@ function FolioJournalView({
         </>
       )}
 
-      {toolbarEditor && !isFloat && !selecting && (
-        <EditorToolbar
-          editor={toolbarEditor}
-          key={toolbarId}
-          toolbarId={toolbarId}
-          rootRef={rootRef}
-          bookRef={bookRef}
-          placement={toolbarFloating ? 'floating' : 'docked'}
-          onTogglePlacement={() => setToolbarFloating((f) => !f)}
-        />
-      )}
-
       {isFloat && folios?.length > 0 && floatTray === 'format' && toolbarEditor && !selecting && (
         <div ref={floatTrayRef} className="jv-float-tray jv-float-tray--format" id="journal-float-tools">
           <div className="jv-float-tray__scroll" role="region" tabIndex={0} aria-label="Formatting tools; scroll horizontally for more">
@@ -2168,16 +2198,27 @@ function FolioJournalView({
               currentIdx={activeGroupIdx}
               onJumpGroup={(g) => jumpToFolio(g.folios[0])}
               projects={linkedProjects}
+              toggle={(
+                <button
+                  type="button"
+                  className="jvs-toggle"
+                  title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                >{sidebarOpen ? '‹' : '›'}</button>
+              )}
+              rail={toolbarEditor && !selecting ? (
+                <EditorToolbar
+                  editor={toolbarEditor}
+                  key={toolbarId}
+                  toolbarId={toolbarId}
+                  rootRef={rootRef}
+                  bookRef={bookRef}
+                  placement={toolbarFloating ? 'floating' : 'side'}
+                  onTogglePlacement={() => setToolbarFloating((f) => !f)}
+                />
+              ) : null}
             />
-          )}
-          {!isFloat && (
-            <button
-              type="button"
-              className="jvs-toggle"
-              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-            >{sidebarOpen ? '‹' : '›'}</button>
           )}
 
           <div className="jv-center">
@@ -2217,33 +2258,7 @@ function FolioJournalView({
               )}
             </div>
 
-            {!isFloat && (
-              <div className="jvb">
-                <button type="button" className="jr-btn" title="Typography" onClick={() => setTypoOpen(true)}>Aa</button>
-                {onPopOut && (
-                <button type="button" className="jr-btn" title="Pop out journal" aria-label="Pop out journal" onClick={onPopOut}>↗</button>
-                )}
-                <button type="button" className="jr-btn" onClick={() => setAdding(true)}>+ folio</button>
-                <span className="jv-pageno">
-                  {single
-                    ? `page ${slotIdx + 1} / ${slots.length}`
-                    : `spread ${Math.floor(leftSlotIdx / 2) + 1} / ${Math.max(1, Math.ceil(slots.length / 2))}`}
-                </span>
-                {activeGroup && <span className="jvb__chip">{activeGroup.title}</span>}
-                <PageJumper
-                  group={activeGroup}
-                  page={activePage}
-                  onJump={jumpToFolio}
-                />
-                {activeGroup?.type === 'notes' && (
-                  <JournalChoice label="Reading mode" value={activeScrolled} options={[[false, "Pages"], [true, "Scroll"]]} onChange={setActiveScroll} />
-                )}
-                {hasNotes && (
-                  <JournalChoice label="Text interaction" value={selecting} options={[[false, "Edit"], [true, "Select"]]} onChange={setSelecting} />
-                )}
-                {activeGroup && <TagStrip tags={activeTags} onSave={saveActiveTags} />}
-              </div>
-            )}
+            {!isFloat && headerSlot === undefined && toolRow}
           </div>
         </div>
       )}

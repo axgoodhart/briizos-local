@@ -3,6 +3,7 @@ export const BUILT_IN_THEMES = Object.freeze([
   { id: 'autumn-candle', label: 'Autumn Candle', description: 'Toasty and crackled pastel theme.', mode: 'dark', immutable: true },
   { id: 'burnt-chestnut', label: 'Burnt Chestnut', description: 'A medium-toned spring palette.', mode: 'light', immutable: true },
   { id: 'caspian-sea', label: 'Caspian Sea', description: 'A minimal translucent treatment that reveals the desktop.', mode: 'dark', immutable: true },
+  { id: 'cloudfrost', label: 'Cloudfrost', description: 'A touch of winter wind and color.', mode: 'light', immutable: true },
   { id: 'default', label: 'Dark Neon', description: 'Default briizOS interface.', mode: 'dark', immutable: true },
   { id: 'glacial-dusk', label: 'Glacial Dusk', description: 'A muted winter palette.', mode: 'dark', immutable: true },
   { id: 'great-wave', label: 'Great Wave', description: 'A muted Kanagawa-inspired palette.', mode: 'dark', immutable: true },

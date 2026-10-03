@@ -1,10 +1,31 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useOrganizer } from '../../context/OrganizerContext';
 import { useBriizify } from '../../hooks/useBriizify';
 import logger from '../../lib/logger';
 import BriizifySetup from './BriizifySetup';
 import Priorifact from './Priorifact';
 import '../../AppCombined.css';
+
+const PRESENTATION_KEY = 'briizos-briizify-presentation';
+
+function readPresentation() {
+  try {
+    const saved = window.localStorage.getItem(PRESENTATION_KEY);
+    if (saved === null) return { visible: false, focused: false };
+    const value = JSON.parse(saved);
+    if (value && typeof value.visible === 'boolean' && typeof value.focused === 'boolean') {
+      return { visible: value.visible, focused: value.focused };
+    }
+    logger.warn('tasks.briizify', 'The saved Briizify visibility choice was invalid; Briizify will start hidden.', {
+      saved,
+    });
+  } catch (error) {
+    logger.warn('tasks.briizify', 'Could not read Briizify visibility; Briizify will start hidden.', {
+      error: error?.message,
+    });
+  }
+  return { visible: false, focused: false };
+}
 
 /**
  * BriizifySection — the Tasks Panel home of the prioritize feature
@@ -15,78 +36,115 @@ import '../../AppCombined.css';
  * the tab opens the request setup; with a plan, it shows/hides the
  * docked Priorifact artifact.
  */
-function BriizifySection({ focused = false, onFocusedChange }) {
+function BriizifySection({ onFocusedChange }) {
   const briizify = useBriizify();
   const { items } = useOrganizer();
   const [setupOpen, setSetupOpen] = useState(false);
-  const [artifactHidden, setArtifactHidden] = useState(false);
+  const [presentation, setPresentationState] = useState(readPresentation);
+  const presentationRef = useRef(presentation);
+  const requestVersionRef = useRef(0);
+
+  const setPresentation = useCallback((changes) => {
+    const previous = presentationRef.current;
+    const next = { ...previous, ...changes };
+    if (previous.visible === next.visible && previous.focused === next.focused) return;
+    presentationRef.current = next;
+    setPresentationState(next);
+    try {
+      window.localStorage.setItem(PRESENTATION_KEY, JSON.stringify(next));
+      logger.info('tasks.briizify', 'Briizify visibility and focus choice saved for reopening and restarting', {
+        presentation: next,
+      });
+    } catch (error) {
+      logger.warn('tasks.briizify', 'Briizify visibility changed for this session, but the choice could not be saved.', {
+        presentation: next,
+        error: error?.message,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    logger.info('tasks.briizify', 'Briizify opened with its remembered visibility and focus choice', {
+      presentation: presentationRef.current,
+    });
+    return () => { requestVersionRef.current += 1; };
+  }, []);
 
   const busy = briizify.status === 'thinking' || briizify.status === 'clarifying';
   const hasPlan = !!briizify.plan && briizify.status !== 'loading';
-  const showSetup = setupOpen || busy;
+  const artifactHidden = !presentation.visible;
+  const showSetup = setupOpen || busy
+    || (briizify.status !== 'loading' && !hasPlan && !artifactHidden);
   const artifactEngaged = hasPlan && !artifactHidden && !showSetup;
   const engaged = showSetup || artifactEngaged;
+  const focused = presentation.focused && artifactEngaged;
 
-  useEffect(() => {
-    if (focused && !artifactEngaged) onFocusedChange?.(false);
-  }, [artifactEngaged, focused, onFocusedChange]);
+  useLayoutEffect(() => {
+    onFocusedChange?.(focused);
+  }, [focused, onFocusedChange]);
 
   const handleTab = useCallback(() => {
     if (showSetup) {
+      requestVersionRef.current += 1;
       if (busy) briizify.cancelRequest();
       setSetupOpen(false);
+      setPresentation({ visible: false });
       return;
     }
     if (hasPlan) {
-      if (!artifactHidden) onFocusedChange?.(false);
-      setArtifactHidden((hidden) => !hidden);
+      setPresentation({ visible: artifactHidden });
       return;
     }
     setSetupOpen(true);
-  }, [showSetup, busy, hasPlan, briizify, artifactHidden, onFocusedChange]);
+    setPresentation({ visible: true });
+  }, [showSetup, busy, hasPlan, briizify, artifactHidden, setPresentation]);
 
   const handleGenerate = useCallback(async (payload) => {
+    const version = ++requestVersionRef.current;
     const plan = await briizify.generate(payload);
-    if (plan) {
+    if (plan && version === requestVersionRef.current) {
       setSetupOpen(false);
-      setArtifactHidden(false);
+      setPresentation({ visible: true });
     }
-  }, [briizify]);
+  }, [briizify, setPresentation]);
 
   const handleAnswer = useCallback(async (answer) => {
+    const version = ++requestVersionRef.current;
     const plan = await briizify.answerClarification(answer);
-    if (plan) {
+    if (plan && version === requestVersionRef.current) {
       setSetupOpen(false);
-      setArtifactHidden(false);
+      setPresentation({ visible: true });
     }
-  }, [briizify]);
+  }, [briizify, setPresentation]);
 
   const handleCancel = useCallback(() => {
+    requestVersionRef.current += 1;
     if (busy) briizify.cancelRequest();
     setSetupOpen(false);
-  }, [busy, briizify]);
+    if (!hasPlan) setPresentation({ visible: false });
+  }, [busy, briizify, hasPlan, setPresentation]);
 
   const handleEndPlan = useCallback(async () => {
-    onFocusedChange?.(false);
+    requestVersionRef.current += 1;
+    setPresentation({ visible: false });
     await briizify.endPlan();
-    setArtifactHidden(false);
-  }, [briizify, onFocusedChange]);
+  }, [briizify, setPresentation]);
 
   const handleChangePlan = useCallback(() => {
-    onFocusedChange?.(false);
+    setPresentation({ visible: true });
     setSetupOpen(true);
-  }, [onFocusedChange]);
+  }, [setPresentation]);
 
   const handleFocus = useCallback(() => {
     if (!artifactEngaged) return;
     const nextFocused = !focused;
-    onFocusedChange?.(nextFocused);
+    setPresentation({ focused: nextFocused });
     logger.info(
       'tasks.briizify',
       nextFocused ? 'Priorifact focus mode opened' : 'Priorifact focus mode closed',
       { presentation: nextFocused ? 'focused' : 'ambient' },
     );
-  }, [artifactEngaged, focused, onFocusedChange]);
+  }, [artifactEngaged, focused, setPresentation]);
 
   return (
     <div className={`briizify-section${engaged ? ' engaged' : ''}${focused ? ' focused' : ''}`}>

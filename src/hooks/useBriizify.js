@@ -57,6 +57,7 @@ export function useBriizify() {
 
   const threadRef = useRef(null);
   const requestRef = useRef(null);
+  const requestVersionRef = useRef(0);
   const clarifyCountRef = useRef(0);
   const planRef = useRef(null);
   const scheduleMutationRef = useRef(false);
@@ -85,7 +86,16 @@ export function useBriizify() {
         setStatus('idle');
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      requestVersionRef.current += 1;
+      if (requestRef.current) {
+        logger.info('tasks.briizify', 'Briizify request stopped because its Tasks panel closed; a late response will not reopen it.');
+      }
+      if (threadRef.current) releaseBriizifyThread(threadRef.current);
+      threadRef.current = null;
+      requestRef.current = null;
+    };
   }, []);
 
   const persist = useCallback(async (nextPlan) => {
@@ -121,14 +131,30 @@ export function useBriizify() {
     setQuestion(null);
 
     const request = requestRef.current;
+    const version = requestVersionRef.current;
+    const isCurrent = () => version === requestVersionRef.current;
     try {
-      if (!threadRef.current) threadRef.current = await createBriizifyThread();
+      if (!threadRef.current) {
+        const createdThreadId = await createBriizifyThread();
+        if (!isCurrent()) {
+          releaseBriizifyThread(createdThreadId);
+          return null;
+        }
+        threadRef.current = createdThreadId;
+      }
       const threadId = threadRef.current;
 
       await api.localData.threads.messages.append(threadId, { role: 'user', content: userText });
+      if (!isCurrent()) return null;
       const prompt = buildBriizifyPrompt(request, isAnswer ? userText : null);
       const text = await runBriizifyTurn(threadId, prompt);
       await api.localData.threads.messages.append(threadId, { role: 'assistant', content: text });
+      if (!isCurrent()) {
+        logger.info('tasks.briizify', 'A late Briizify response was kept in its conversation without reopening the cancelled request.', {
+          threadId,
+        });
+        return null;
+      }
 
       const parsed = parseBriizifyResponse(text, {
         channels: request.channels,
@@ -160,12 +186,14 @@ export function useBriizify() {
       finishThread();
       resetRequest();
       await persist(nextPlan);
+      if (!isCurrent()) return null;
       logger.info('tasks.briizify', `Priorifact created: ${nextPlan.activities.length} activities`, {
         date: nextPlan.date,
         timeframe: nextPlan.timeframe,
       });
       return nextPlan;
     } catch (roundError) {
+      if (!isCurrent()) return null;
       logger.error('tasks.briizify', 'briizify request failed', { error: roundError?.message });
       setError(roundError?.message || 'briizify request failed');
       setStatus(planRef.current ? 'ready' : 'idle');
@@ -178,6 +206,7 @@ export function useBriizify() {
   /** Kick off a plan request with the fully-assembled setup payload. */
   const generate = useCallback(async (payload) => {
     if (status === 'thinking' || status === 'clarifying') return null;
+    requestVersionRef.current += 1;
     requestRef.current = payload;
     clarifyCountRef.current = 0;
     const scopeLabel = payload.timeframe === 'today' ? payload.date : 'this week';
@@ -194,6 +223,7 @@ export function useBriizify() {
   }, [runRound, status]);
 
   const cancelRequest = useCallback(() => {
+    requestVersionRef.current += 1;
     logger.info('tasks.briizify', 'briizify request cancelled');
     finishThread();
     resetRequest();

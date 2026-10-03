@@ -41,6 +41,7 @@ const SETTING_KEYS = new Set([
   'studio_briizclerk_url',
   'shell_mode',
   'ambient_workspace',
+  'briizy_quick_chat_session',
 ]);
 const SHELL_MODES = ['grid', 'windowed', 'hybrid'];
 const AMBIENT_WINDOW_FIELDS = ['id', 'app', 'title', 'x', 'y', 'width', 'height', 'z', 'minimized', 'closed', 'filled', 'prevBounds'];
@@ -349,6 +350,13 @@ class LocalDataService extends EventEmitter {
         });
       });
       return value;
+    }
+    if (key === 'briizy_quick_chat_session') {
+      v.object(value, key, ['threadId', 'lastMessageAt']);
+      return {
+        threadId: v.string(value.threadId, `${key}.threadId`, { nullable: true, max: 200 }),
+        lastMessageAt: v.number(value.lastMessageAt, `${key}.lastMessageAt`, { min: 0, max: 1e15 }),
+      };
     }
     if (key === 'ui_theme_library') return validateThemeLibrary(value);
     // Preserve the original payload even when recovery cannot validate a theme.

@@ -4,6 +4,8 @@ import { getBuiltInThemeCss } from '../themes/themeFiles';
 import structuralCss from '../AppCombined.css?raw';
 import { rulesForOverrides } from './themeRuntime';
 
+if (import.meta.hot) import.meta.hot.accept(); // ?raw CSS imports have no HMR boundary; without this every CSS save reloads the page
+
 // Keep the authored tree, including comments, duplicate declarations and conditions.
 // CSSOM is used for the current rendered result, never as the serialization format.
 const sourceCache = new Map();
