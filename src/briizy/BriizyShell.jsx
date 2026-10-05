@@ -14,7 +14,7 @@
  *    component decides nothing (I6).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import moodSheet from './assets/briizy-moods.png';
 
@@ -48,6 +48,7 @@ const DRIFT_MAX_MS = 48000;
 const EDGE_MARGIN = 28;
 const WINDOW_PADDING_PX = 24;
 const BUBBLE_WIDTH_PX = 296;
+const BUBBLE_RISE_RATIO = 0.62; // bubble bottom sits at 62% of the avatar's height (.briizy-bubble bottom)
 
 const shell = () => (typeof window !== 'undefined' ? window.briizy?.shell : null);
 
@@ -71,11 +72,12 @@ function getScreenWorkArea() {
   return { x: 0, y: 0, width: typeof window !== 'undefined' ? window.innerWidth : 1280, height: typeof window !== 'undefined' ? window.innerHeight : 800 };
 }
 
-function windowSizeFor(avatarW, avatarH, hasBubble) {
-  if (hasBubble) {
+/** Window size from the measured bubble, so any bubble content (chat, long replies) fits. */
+function windowSizeFor(avatarW, avatarH, bubble) {
+  if (bubble) {
     return {
-      width: avatarW + BUBBLE_WIDTH_PX + WINDOW_PADDING_PX * 2 + 12,
-      height: Math.max(avatarH, 240) + WINDOW_PADDING_PX * 2 + 24,
+      width: avatarW + Math.max(BUBBLE_WIDTH_PX, bubble.width) + WINDOW_PADDING_PX * 2 + 12,
+      height: Math.ceil(Math.max(avatarH, avatarH * BUBBLE_RISE_RATIO + bubble.height)) + WINDOW_PADDING_PX * 2,
     };
   }
   return {
@@ -101,17 +103,17 @@ export function BriizyShell() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [quickChat, setQuickChat] = useState({ requestId: null, status: 'idle', response: '' });
+  const [bubbleSize, setBubbleSize] = useState(null);
 
   const avatarWidth = normalizeAvatarSizePx(avatarSizePx);
   const avatarHeight = Math.round(avatarWidth * AVATAR_ASPECT_RATIO);
 
   const avatarRef = useRef(null);
   const bubbleRef = useRef(null);
+  const bubbleSizeRef = useRef(null);
   const interactiveRef = useRef(false);
   const driftTimer = useRef(null);
   const bubbleTimer = useRef(null);
-  /** Lets the drift scheduler see the current suggestion without re-subscribing. */
-  const suggestionRef = useRef(null);
 
   /* ── Interactivity handshake ─────────────────────────────────────── */
 
@@ -217,15 +219,14 @@ export function BriizyShell() {
   // moves the window origin via shell.updateBounds. The avatar itself stays
   // anchored inside the window (bottom padding) and only bobs.
 
-  const syncWindowBounds = useCallback((hasBubble, nextSide) => {
-    const { width: winW, height: winH } = windowSizeFor(avatarWidth, avatarHeight, hasBubble);
-    // Notify main to resize; position stays where drift put it.
-    shell()?.updateBounds?.({ width: winW, height: winH });
-  }, [avatarWidth, avatarHeight]);
+  const syncWindowBounds = useCallback(() => {
+    const { width: winW, height: winH } = windowSizeFor(avatarWidth, avatarHeight, bubbleSizeRef.current);
+    // Resize in place; main keeps the avatar's corner still (avatar sits right when bubble points left).
+    shell()?.updateBounds?.({ width: winW, height: winH, anchor: side === 'left' ? 'right' : 'left' });
+  }, [avatarWidth, avatarHeight, side]);
 
   const drift = useCallback(() => {
-    const hasBubble = !!suggestionRef.current;
-    const { width: winW, height: winH } = windowSizeFor(avatarWidth, avatarHeight, hasBubble);
+    const { width: winW, height: winH } = windowSizeFor(avatarWidth, avatarHeight, bubbleSizeRef.current);
     const workArea = getScreenWorkArea();
     const maxX = workArea.x + workArea.width - winW - EDGE_MARGIN;
     const maxY = workArea.y + workArea.height - winH - EDGE_MARGIN;
@@ -261,12 +262,11 @@ export function BriizyShell() {
       });
     }
 
-    // Ensure window size matches current avatar (no bubble yet).
-    syncWindowBounds(false, side);
+    syncWindowBounds();
 
     const scheduleDrift = () => {
       driftTimer.current = window.setTimeout(() => {
-        if (!suggestionRef.current && !interactiveRef.current) drift();
+        if (!bubbleSizeRef.current && !interactiveRef.current) drift();
         scheduleDrift();
       }, DRIFT_MIN_MS + Math.random() * (DRIFT_MAX_MS - DRIFT_MIN_MS));
     };
@@ -277,7 +277,7 @@ export function BriizyShell() {
       // but side may need flipping if window straddles center.
       const workArea = getScreenWorkArea();
       // Keep window on-screen by drifting if needed; main also clamps.
-      if (!suggestionRef.current && !interactiveRef.current) drift();
+      if (!bubbleSizeRef.current && !interactiveRef.current) drift();
     };
     // Screen avail size change is not a window resize in small-window mode,
     // so listen to screen orientation if available.
@@ -288,15 +288,39 @@ export function BriizyShell() {
       window.clearTimeout(driftTimer.current);
       window.removeEventListener('resize', onResize);
     };
-  }, [drift, syncWindowBounds, side]);
+  }, [drift, syncWindowBounds]);
 
-  // Keep window sized correctly when bubble appears/dismisses or avatar resizes.
+  const hasBubble = !!(suggestion || result || chatOpen);
+
+  // Measure whatever bubble is up; content changes (replies, approval text) re-measure too.
+  useLayoutEffect(() => {
+    const node = bubbleRef.current;
+    if (!hasBubble || !node) {
+      setBubbleSize(null);
+      return undefined;
+    }
+    const measure = () => setBubbleSize((current) => (
+      current?.width === node.offsetWidth && current?.height === node.offsetHeight
+        ? current
+        : { width: node.offsetWidth, height: node.offsetHeight }
+    ));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasBubble]);
+
+  // Window follows the measured bubble (or shrinks back to the avatar when none).
   useEffect(() => {
-    const hasBubble = !!(suggestion || result || chatOpen);
-    syncWindowBounds(hasBubble, side);
-  }, [suggestion, result, avatarWidth, avatarHeight, side, syncWindowBounds]);
+    bubbleSizeRef.current = bubbleSize;
+    syncWindowBounds();
+  }, [bubbleSize, syncWindowBounds]);
 
-  useEffect(() => { suggestionRef.current = suggestion; }, [suggestion]);
+  // Quick chat needs the keyboard; the overlay is otherwise never focusable.
+  useEffect(() => {
+    shell()?.setChatActive?.(chatOpen);
+  }, [chatOpen]);
+
 
   /* ── Actions ─────────────────────────────────────────────────────── */
 
@@ -329,7 +353,7 @@ export function BriizyShell() {
     if (result) return result.result?.ok ? 'working' : 'error';
     if (suggestion || chatOpen) return 'speaking';
     return avatar;
-  }, [avatar, suggestion, result]);
+  }, [avatar, suggestion, result, chatOpen]);
 
   const cell = AVATAR_CELLS[effectiveAvatar] ?? AVATAR_CELLS.idle;
   const statusLine = status ? describeStatus(status) : '';
@@ -369,6 +393,7 @@ export function BriizyShell() {
                   <input
                     aria-label="Message Briizy"
                     placeholder="Talk to Briizy…"
+                    autoFocus
                     value={chatInput}
                     disabled={['queued', 'working'].includes(quickChat.status)}
                     onChange={(event) => setChatInput(event.target.value)}

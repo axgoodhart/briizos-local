@@ -84,6 +84,7 @@ contextBridge.exposeInMainWorld('briizy', {
   shell: {
     ready: () => ipcRenderer.send('briizy:shell:ready'),
     setInteractive: (interactive) => ipcRenderer.send('briizy:shell:set-interactive', !!interactive),
+    setChatActive: (active) => ipcRenderer.send('briizy:shell:set-chat-active', !!active),
     hide: () => ipcRenderer.send('briizy:shell:hide'),
     openInApp: (options) => ipcRenderer.send('briizy:shell:open-in-app', options || {}),
     decide: (decision) => ipcRenderer.invoke('briizy:shell:decide', decision),

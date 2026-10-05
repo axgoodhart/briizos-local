@@ -142,6 +142,8 @@
 
 .briizy-bubble__body {
   margin: 0;
+  max-height: 260px; /* long chat replies scroll instead of growing the window off-screen */
+  overflow-y: auto;
   font-size: 13px;
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.9);

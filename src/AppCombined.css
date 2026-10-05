@@ -1336,8 +1336,9 @@ body {
     font-weight: 600;}
 .app--vertical-header {
     --vertical-header-width: var(--app-v-head-w, 96px);
-    --vertical-header-bg: var(--ui-v-header-bg, --ui-header-bg);
-    position: relative;}
+    position:relative;}
+        .app--vertical-header .app-header{
+    background: var(--ui-v-header-bg, --ui-header-bg) !important}
 .app--vertical-header .app-header {
     position: absolute;
     inset: 0 auto 0 0;
@@ -9828,6 +9829,7 @@ body {
     --ui-text-primary: var(--palette-text-main);
     --ui-header-text: var(--palette-white);
     --ui-header-bg: url(https://i.ibb.co/99vdhvrS/briizos.png);
+    --ui-v-header-bg: url(https://i.ibb.co/JRvfw5rP/Wasn-t-There-a-Piano-Here-blur.png);
     --ui-controlbar-bg-size: 200% 800%;
     --ui-controlbar-bg-position: 50% 10%;
     --ui-controlbar-bg-speed: 1000s;

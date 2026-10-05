@@ -33,6 +33,7 @@ const SHELL_CHANNELS = Object.freeze({
   actionResult: 'briizy:shell:action-result',
   // overlay → main
   setInteractive: 'briizy:shell:set-interactive',
+  setChatActive: 'briizy:shell:set-chat-active',
   decide: 'briizy:shell:decide',
   openInApp: 'briizy:shell:open-in-app',
   hide: 'briizy:shell:hide',
@@ -66,6 +67,7 @@ class BriizyShell {
     this.window = null;
     this.interactive = false;
     this.visible = false;
+    this.anchor = 'right'; // which side the avatar sits on inside the window; resizes keep that corner still
     this.getMainWindow = () => null;
     this.unsubscribers = [];
   }
@@ -219,13 +221,51 @@ class BriizyShell {
     const current = this.window.getBounds();
     const width = Math.round(Number(nextBounds.width)) || current.width;
     const height = Math.round(Number(nextBounds.height)) || current.height;
-    let x = Number.isFinite(nextBounds.x) ? Math.round(nextBounds.x) : current.x;
-    let y = Number.isFinite(nextBounds.y) ? Math.round(nextBounds.y) : current.y;
-    // Keep at least 40px of the window visible so it never drifts completely off-screen.
-    const minVisible = 40;
-    x = Math.min(Math.max(x, workArea.x - width + minVisible), workArea.x + workArea.width - minVisible);
-    y = Math.min(Math.max(y, workArea.y - height + minVisible), workArea.y + workArea.height - minVisible);
+    if (nextBounds.anchor === 'left' || nextBounds.anchor === 'right') this.anchor = nextBounds.anchor;
+    const moving = Number.isFinite(nextBounds.x) || Number.isFinite(nextBounds.y);
+    let x;
+    let y;
+    if (moving) {
+      x = Number.isFinite(nextBounds.x) ? Math.round(nextBounds.x) : current.x;
+      y = Number.isFinite(nextBounds.y) ? Math.round(nextBounds.y) : current.y;
+      // Keep at least 40px of the window visible so it never drifts completely off-screen.
+      const minVisible = 40;
+      x = Math.min(Math.max(x, workArea.x - width + minVisible), workArea.x + workArea.width - minVisible);
+      y = Math.min(Math.max(y, workArea.y - height + minVisible), workArea.y + workArea.height - minVisible);
+    } else {
+      // Resize in place: avatar's bottom corner stays put, bubble grows up and outward, fully on-screen.
+      x = this.anchor === 'right' ? current.x + current.width - width : current.x;
+      y = current.y + current.height - height;
+      x = Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - width);
+      y = Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - height);
+    }
+    if (x === current.x && y === current.y && width === current.width && height === current.height) return;
     this.window.setBounds({ x, y, width, height });
+    if (!moving) {
+      this._log('debug', 'The avatar window was resized to fit its speech bubble or chat box.', {
+        from: { width: current.width, height: current.height },
+        to: { width, height },
+        anchoredSide: this.anchor,
+      });
+    }
+  }
+
+  /**
+   * The overlay is normally unfocusable so it never steals typing from real work.
+   * While the quick-chat box is open it must take the keyboard, so it becomes
+   * focusable for exactly that span.
+   */
+  setChatActive(active) {
+    if (!this.window || this.window.isDestroyed()) return;
+    const next = !!active;
+    this.window.setFocusable(next);
+    if (next) this.window.focus();
+    else this.window.blur();
+    this._log('info', next
+      ? 'Briizy quick chat opened, so the avatar window can take keyboard input until it closes.'
+      : 'Briizy quick chat closed, so the avatar window gave the keyboard back and no longer takes focus.', {
+      focusable: next,
+    });
   }
 
   show() {
@@ -285,8 +325,7 @@ class BriizyShell {
       const { contentW, contentH } = this._windowBoundsForAvatar(presentation.avatarSizePx, false);
       const cur = this.window.getBounds();
       if (cur.width !== contentW || cur.height !== contentH) {
-        // Preserve position, just resize (or re-anchor to bottom-right if never moved).
-        this.setWindowBounds({ x: cur.x, y: cur.y, width: contentW, height: contentH });
+        this.setWindowBounds({ width: contentW, height: contentH });
       }
     }
     if (presentation.avatarVisible) {
@@ -355,8 +394,8 @@ class BriizyShell {
       const presentation = this.getPresentation();
       const { contentW, contentH } = this._windowBoundsForAvatar(presentation.avatarSizePx, true);
       const cur = this.window.getBounds();
-      if (cur.width !== contentW || cur.height !== contentH) {
-        this.setWindowBounds({ x: cur.x, y: cur.y, width: contentW, height: contentH });
+      if (cur.width < contentW || cur.height < contentH) {
+        this.setWindowBounds({ width: Math.max(cur.width, contentW), height: Math.max(cur.height, contentH) });
       }
     }
     this._send(SHELL_CHANNELS.suggestion, suggestion);
@@ -466,6 +505,7 @@ class BriizyShell {
 
     const handlers = [
       [SHELL_CHANNELS.setInteractive, (_event, interactive) => this.setInteractive(interactive)],
+      [SHELL_CHANNELS.setChatActive, (_event, active) => this.setChatActive(active)],
       [SHELL_CHANNELS.hide, () => this.setAvatarVisible(false)],
       [SHELL_CHANNELS.ready, () => {
         this._log('debug', 'The screen-memory avatar interface finished loading. This reports the controls only, not capture permission or screenshot success.');
