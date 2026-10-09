@@ -502,5 +502,12 @@ contextBridge.exposeInMainWorld('api', {
   forestOpenDirectoryDialog: () => ipcRenderer.invoke('forest-dialog-open-directory'),
   forestFilehawkCheck: (filePaths) => ipcRenderer.invoke('forest-filehawk-check', filePaths),
   forestFilehawkLocate: (name, excludePaths, dirs) => ipcRenderer.invoke('forest-filehawk-locate', name, excludePaths, dirs),
+  forestAutoTag: (input) => ipcRenderer.invoke('forest-autotag-suggest', input),
+  forestHuntRun: (input) => ipcRenderer.invoke('forest-hunt-run', input),
+  onForestHuntProgress: (callback) => {
+    const handler = (_event, update) => callback(update);
+    ipcRenderer.on('forest-hunt-progress', handler);
+    return () => ipcRenderer.removeListener('forest-hunt-progress', handler);
+  },
   forestConsolidateProject: (name, filePaths) => ipcRenderer.invoke('forest-consolidate-project', name, filePaths),
 });

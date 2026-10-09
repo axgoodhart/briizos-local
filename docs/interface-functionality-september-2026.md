@@ -46,6 +46,25 @@ The floating Forest body has a stable containing block for its overlays. Decorat
 
 Source: `src/components/forest/app.js`, structural rules in `src/AppCombined.css`, and matching appearance rules in every shipped theme. Watch choices survive normalization and save with each project file’s existing database metadata.
 
+**Auto tags (October 2026).** Projects with fewer than 12 tags are topped up to 12 by the Background helpers model. It runs about 4 seconds after Forest opens and again when files are added, but only for projects whose file list changed since the last check. It sends the name, tags, milestones, relevance note and file list. It also reads the opening lines of at most 3 plain-text files: 2 by default, a third only if the first two held fewer than 80 lines. The total stays under 200 non-empty lines. Tags that are deleted or undone are remembered per project and never suggested again. Source: `electron/forest-ai.js` (`runAutoTag`), renderer queue in `src/components/forest/app.js`.
+
+**File Hunter tray.** Triple-click a card's top rail (title area) to toggle the tray; Escape also closes it. Double-click rename now waits 320 ms so a third click can open the tray instead. The tray replaces the old Hunter slideout, which remains only for FileHawk's Relocate. Its controls are:
+- **Kinds:** Docs and Code, Image and Video, Emails and Texts (mail files, including ~/Library/Mail), PDF and ebooks, Folders.
+- **Date range:** a fixed range picker.
+- **Modes:** Single (1 result, description required), Top Hits (about 10, AI-ranked), Exhaustive (every match, capped at 300, no AI ranking).
+
+Each search runs in three steps:
+1. The AI turns the description, or the project's context if there is none, into name and content terms, sizes and dates.
+2. Spotlight (`mdfind`) searches the default or custom search folders. If Spotlight returns nothing, Forest falls back to the older name-only folder walk.
+3. In Single and Top Hits, the AI picks the best matches.
+
+Results never join a project automatically. The tray is warm in dark themes and cool in light themes; `themeRuntime.js` sets `data-theme-mode` on the document root. Source: `electron/forest-ai.js` (`runHunt`).
+
+**Changes.** The top-bar Changes button opens a log of auto-tag runs and File Hunter results, and shows a count of entries not yet seen.
+- Files are added to a project only from this view, one at a time or with Add all.
+- Each auto-tag run can be undone for its project for 7 days. After that the entry is kept as a record with no actions.
+- The history is stored with the board view state (`changes`, max 150 entries) in `electron/local-data-service.js`.
+
 ## Journals
 
 Pages and Scroll are always visible, with the selected mode marked. Edit and Select use the same two-choice presentation. Wheel navigation applies to wide spreads as well as narrow and floating journals; continuous-scroll mode keeps ordinary scrolling. Nested scrollable page content can consume scrolling until it reaches its boundary.

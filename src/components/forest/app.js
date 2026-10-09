@@ -35,6 +35,8 @@ const filehawkPanel = host.querySelector('#forest-filehawkPanel');
 const filehawkBtn = host.querySelector('#forest-filehawkBtn');
 const sortActivityBtn = host.querySelector('#forest-sortActivityBtn');
 const dimToggle = host.querySelector('#forest-dimToggle');
+const changesBtn = host.querySelector('#forest-changesBtn');
+const changesModal = host.querySelector('#forest-changesModal');
 
 
 
@@ -62,6 +64,7 @@ const TYPE_ORDER = [
   'data',
   'archive',
   'model',
+  'folder',
   'other',
 ];
 
@@ -78,6 +81,7 @@ const TYPE_LABELS = {
   data: 'Data',
   archive: 'Archives',
   model: '3D',
+  folder: 'Folders',
   other: 'Files',
 };
 
@@ -92,10 +96,14 @@ const state = {
   hunterResults: [],
   hunterLoading: false,
   hunterDirs: [],
-  hunterQueryStr: '',          // Hunter manual search query
-  hunterTypes: new Set(),      // active type filters
-  hunterSelected: new Set(),   // selected result paths (multi-add)
   hunterRelocate: null,        // { fileId, fileName } when relocating a missing file
+  // File Hunter tray (triple-click a card's top rail)
+  trayProjectId: null,
+  tray: null,                  // see freshTray()
+  // Changes modal
+  changes: [],                 // newest first: auto-tag runs and File Hunter searches
+  changesOpen: false,
+  changesFocusId: null,
   // FileHawk panel
   filehawkOpen: false,
   filehawkStatus: {},          // file.path -> 'ok' | 'modified' | 'missing'
@@ -120,7 +128,45 @@ let saveTimer = null;
 let lastSaveErrorMessage = null;
 let dragDepth = 0;
 let filehawkTimer = null;
+let autoTagTimer = null;
+let autoTagRunning = false;
+let autoTagBlocked = false;      // no usable AI model this session
+const autoTagSkipped = new Set(); // projectId:signature pairs that failed this session
+let renameTimer = null;
+let huntUnsubscribe = null;
+let trayPrefs = null;            // kinds/date/mode carried between tray openings
 const PROJECT_CARD_WIDTH = 360;
+
+// ==== AUTO TAG ====
+const AUTO_TAG_TARGET = 12;
+const AUTO_TAG_START_DELAY_MS = 4000;   // let the board settle after opening
+const AUTO_TAG_GAP_MS = 1200;           // pause between projects
+const AUTO_TAG_REJECTED_MAX = 100;
+
+// ==== FILE HUNTER ====
+const HUNT_KINDS = [
+  { key: 'docs', label: 'Docs and Code', on: true },
+  { key: 'media', label: 'Image and Video', on: true },
+  { key: 'mail', label: 'Emails and Texts', on: false },
+  { key: 'books', label: 'PDF and ebooks', on: true },
+  { key: 'folders', label: 'Folders', on: false },
+];
+const HUNT_DATE_RANGES = [
+  ['any', 'any'],
+  ['day', 'past day'],
+  ['week', 'past week'],
+  ['month', 'past month'],
+  ['quarter', 'past 3 months'],
+  ['year', 'past year'],
+  ['older', 'over a year ago'],
+];
+const HUNT_MODES = [['single', 'Single'], ['top', 'Top Hits'], ['all', 'Exhaustive']];
+const RENAME_AFTER_DBLCLICK_MS = 320;   // waits out a possible third click
+
+// ==== CHANGES ====
+const CHANGES_MAX = 150;
+const TAG_UNDO_WINDOW_MS = 7 * 86400000;
+const CHANGE_RESULTS_PREVIEW = 12;
 
 function uid() {
   return globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -356,6 +402,7 @@ function fileBadgeLabel(file) {
     data: 'DATA',
     archive: 'ZIP',
     model: '3D',
+    folder: 'DIR',
     other: 'FILE',
   };
 
@@ -373,7 +420,7 @@ function sortFiles(a, b) {
 }
 
 function normalizeFile(file = {}) {
-  const ext = normalizeText(file.ext || (file.name?.split('.').pop() ?? '')).replace(/^\./, '');
+  const ext = file.typeGroup === 'folder' ? '' : normalizeText(file.ext || (file.name?.split('.').pop() ?? '')).replace(/^\./, '');
 
   return {
     id: file.id || uid(),
@@ -438,6 +485,27 @@ function normalizeProject(project = {}) {
       ? Number(project.size)
       : null,
     relevance: typeof project.relevance === 'string' ? project.relevance : '',
+    autoTag: {
+      signature: typeof project.autoTag?.signature === 'string' ? project.autoTag.signature : '',
+      checkedAt: project.autoTag?.checkedAt || null,
+      rejected: dedupe((project.autoTag?.rejected || []).map(cleanTag)).slice(-AUTO_TAG_REJECTED_MAX),
+    },
+  };
+}
+
+function normalizeChange(change) {
+  if (!change || (change.kind !== 'tags' && change.kind !== 'search')) return null;
+  return {
+    ...change,
+    id: change.id || uid(),
+    at: change.at || new Date().toISOString(),
+    projectName: change.projectName || 'Untitled Project',
+    seen: change.seen !== false,
+    tags: Array.isArray(change.tags) ? change.tags : [],
+    filesRead: Array.isArray(change.filesRead) ? change.filesRead : [],
+    results: Array.isArray(change.results) ? change.results : [],
+    addedPaths: Array.isArray(change.addedPaths) ? change.addedPaths : [],
+    aiNotes: Array.isArray(change.aiNotes) ? change.aiNotes : [],
   };
 }
 
@@ -446,10 +514,12 @@ function serializeState() {
     version: 1,
     viewport: { ...state.viewport },
     hunterDirs: [...state.hunterDirs],
+    changes: state.changes.map((change) => ({ ...change })),
     projects: state.projects.map((project) => ({
       ...project,
       files: project.files.map((file) => ({ ...file })),
       tags: [...project.tags],
+      autoTag: { ...project.autoTag, rejected: [...project.autoTag.rejected] },
       milestones: (project.milestones || []).map((m) => ({
         ...m,
         fileIds: [...(m.fileIds || [])],
@@ -625,7 +695,7 @@ function renderProject(project) {
 
   return `
     <article
-      class="project-card ${project.expanded ? 'expanded' : ''} ${state.selectedProjectId === project.id ? 'forest-selected' : ''} ${hasCover ? 'has-cover' : ''}"
+      class="project-card ${project.expanded ? 'expanded' : ''} ${state.selectedProjectId === project.id ? 'forest-selected' : ''} ${hasCover ? 'has-cover' : ''} ${state.trayProjectId === project.id ? 'has-hunt-tray' : ''}"
       data-id="${project.id}"
       style="left:${project.x}px; top:${project.y}px; --accent:${project.accent}; --accent-rgb:${project.accentRgb};"
     >
@@ -651,7 +721,7 @@ function renderProject(project) {
           </div>
         </div>
 
-        <div class="project-controls">
+        <div class="forest-project-controls">
           <button class="icon-btn" data-action="open-viewer" title="Open Project Viewer">⊞</button>
           <button class="icon-btn" data-action="toggle-expand" title="${project.expanded ? 'Collapse project' : 'Expand project'}">${project.expanded ? '–' : '+'}</button>
         </div>
@@ -678,7 +748,7 @@ function renderProject(project) {
         </div>
       `}
 
-      ${project.expanded ? `
+      ${withHuntTray(project, project.expanded ? `
         <div class="project-body">
           ${hasCover ? `
             <div class="project-tags">
@@ -697,7 +767,6 @@ function renderProject(project) {
 
           <div class="project-actions">
             <button class="forest-action-btn" data-action="open-viewer" title="Full-screen project view with timeline">⊞ Viewer</button>
-            <button class="forest-action-btn" data-action="hunter-search" title="Search filesystem for related files">⌕ Hunter</button>
             <button class="forest-action-btn" data-action="consolidate" title="Copy files to ~/Documents/projungle/projects/${escapeAttr(project.name)}">⤓ Consolidate</button>
             ${hasCover ? '<button class="forest-action-btn" data-action="remove-cover" title="Remove cover image">✕ Cover</button>' : ''}
           </div>
@@ -721,7 +790,7 @@ function renderProject(project) {
             return `<div class="file-list">${listFiles.map((file) => renderFileRow(project.id, file, hasCover && file.id === project.coverFileId)).join('')}</div>`;
           })()}
         </div>
-      ` : ''}
+      ` : '')}
     </article>
   `;
 }
@@ -1404,37 +1473,13 @@ function closeViewer() {
   projectViewer.innerHTML = '';
 }
 
-/* ── Hunter ─────────────────────────────────────────────────────────── */
-
-let hunterDebounce = null;
-
-function hunterSuggestKeywords(project) {
-  return [...(project.tags || []), ...project.name.toLowerCase().split(/\s+/)]
-    .filter((k) => k.length > 2);
-}
-
-function openHunter(projectId) {
-  const project = getProject(projectId);
-  if (!project) return;
-  state.hunterProjectId = projectId;
-  state.hunterRelocate = null;
-  state.hunterQueryStr = '';
-  state.hunterTypes = new Set();
-  state.hunterSelected = new Set();
-  state.hunterResults = [];
-  hunterPanel.classList.remove('forest-hidden');
-  renderHunterPanel();
-  runHunterSearch(); // initial suggestions
-}
+/* ── Relocate (FileHawk repair) ─────────────────────────────────────── */
 
 function openHunterRelocate(projectId, file) {
   const project = getProject(projectId);
   if (!project) return;
   state.hunterProjectId = projectId;
   state.hunterRelocate = { fileId: file.id, fileName: file.name };
-  state.hunterQueryStr = file.name;
-  state.hunterTypes = new Set();
-  state.hunterSelected = new Set();
   state.hunterResults = [];
   state.hunterLoading = true;
   hunterPanel.classList.remove('forest-hidden');
@@ -1442,94 +1487,43 @@ function openHunterRelocate(projectId, file) {
   window.api
     .forestFilehawkLocate(file.name, project.files.map((f) => f.path), state.hunterDirs)
     .then((res) => { state.hunterResults = res || []; })
-    .catch((err) => { console.error('Relocate search failed:', err); state.hunterResults = []; })
+    .catch((err) => {
+      state.hunterResults = [];
+      dispatchForestLog('error', `FileHawk could not search for “${file.name}”. The project still lists the old location.`, { project: project.name, problem: err?.message, nextStep: 'Try Relocate again, or add the folder it moved to under Search folders.' });
+    })
     .finally(() => { state.hunterLoading = false; refreshHunterResults(); });
 }
 
-async function runHunterSearch() {
-  const project = getProject(state.hunterProjectId);
-  if (destroyed || !project || state.hunterRelocate) return;
-
-  state.hunterLoading = true;
-  state.hunterSelected = new Set();
-  refreshHunterResults();
-
-  const excludePaths = project.files.map((f) => f.path);
-  const types = state.hunterTypes.size ? Array.from(state.hunterTypes) : null;
-  const q = state.hunterQueryStr.trim();
-
-  try {
-    const opts = q
-      ? { query: q, types, excludePaths, customDirs: state.hunterDirs, limit: 80 }
-      : { keywords: hunterSuggestKeywords(project), types, excludePaths, customDirs: state.hunterDirs, limit: 40 };
-    const results = await window.api.forestHunterQuery(opts);
-    if (destroyed) return;
-    state.hunterResults = results || [];
-  } catch (err) {
-    console.error('Hunter query failed:', err);
-    state.hunterResults = [];
-  }
-
-  state.hunterLoading = false;
-  refreshHunterResults();
-}
-
-const HUNTER_TYPES = ['image', 'video', 'audio', 'pdf', 'document', 'spreadsheet', 'slides', 'design', 'code', 'archive', 'data'];
-
 function hunterResultsMarkup() {
-  const relocate = state.hunterRelocate;
-  const selected = state.hunterSelected;
-  const results = state.hunterResults;
-  const showingSuggestions = !state.hunterQueryStr.trim() && !relocate;
-
-  if (state.hunterLoading) {
-    return '<div class="hunter-loading">Searching your filesystem…</div>';
-  }
-  if (!results.length) {
-    const msg = state.hunterQueryStr.trim() || relocate
-      ? 'No matching files found.'
-      : 'No suggestions yet — type above to search.';
-    return `<div class="hunter-empty">${msg}</div>`;
-  }
-
-  const head = showingSuggestions
-    ? '<div class="hunter-section-label">Suggested related files</div>'
-    : `<div class="hunter-count">${results.length} match${results.length === 1 ? '' : 'es'}</div>`;
-
-  const rows = results.map((file) => `
-    <div class="hunter-result ${selected.has(file.path) ? 'forest-selected' : ''}">
-      ${relocate ? '' : `<input type="checkbox" class="hunter-check" data-action="hunter-select" data-path="${escapeAttr(file.path)}" ${selected.has(file.path) ? 'checked' : ''} />`}
+  if (state.hunterLoading) return '<div class="hunter-loading">Searching your filesystem…</div>';
+  if (!state.hunterResults.length) return '<div class="hunter-empty">No matching files found.</div>';
+  const rows = state.hunterResults.map((file) => `
+    <div class="hunter-result">
       <div class="file-badge">${escapeHtml(fileBadgeLabel(file))}</div>
       <div class="file-copy">
         <div class="forest-file-name">${escapeHtml(file.name)}</div>
         <div class="file-sub">${escapeHtml(file.path)}</div>
       </div>
-      <button class="forest-action-btn hunter-add-btn" data-action="${relocate ? 'hunter-relink' : 'hunter-add-file'}" data-path="${escapeAttr(file.path)}">${relocate ? 'Use this' : '+ Add'}</button>
+      <button class="forest-action-btn hunter-add-btn" data-action="hunter-relink" data-path="${escapeAttr(file.path)}">Use this</button>
     </div>
   `).join('');
-
-  const addbar = (!relocate && selected.size)
-    ? `<div class="hunter-addbar"><button class="forest-action-btn forest-primary" data-action="hunter-add-selected">+ Add ${selected.size} selected</button></div>`
-    : '';
-
-  return `${head}<div class="hunter-results">${rows}</div>${addbar}`;
+  return `<div class="hunter-count">${state.hunterResults.length} match${state.hunterResults.length === 1 ? '' : 'es'}</div><div class="hunter-results">${rows}</div>`;
 }
 
 function refreshHunterResults() {
   if (destroyed) return;
-  const el = host.querySelector('#hunterResults');
+  const el = hunterPanel.querySelector('.hunter-results-region');
   if (el) el.innerHTML = hunterResultsMarkup();
   else renderHunterPanel();
 }
 
 function renderHunterPanel() {
   const project = getProject(state.hunterProjectId);
-  if (!project) {
+  const relocate = state.hunterRelocate;
+  if (!project || !relocate) {
     hunterPanel.classList.add('forest-hidden');
     return;
   }
-
-  const relocate = state.hunterRelocate;
 
   const dirList = state.hunterDirs.length
     ? state.hunterDirs
@@ -1541,50 +1535,552 @@ function renderHunterPanel() {
         `).join('')
     : '<div class="hunter-dir-default">Default: Desktop, Documents, Downloads, Pictures, Movies, Music</div>';
 
-  const typeChips = HUNTER_TYPES
-    .map((t) => `<button class="hunter-type-chip ${state.hunterTypes.has(t) ? 'forest-active' : ''}" data-action="hunter-type" data-type="${t}">${TYPE_LABELS[t] || t}</button>`)
-    .join('');
-
   hunterPanel.innerHTML = `
     <div class="cv-slideout-head">
       <div class="cv-slideout-title">
-        <span class="cv-slideout-kicker">${relocate ? 'Relocate' : '⌕ Hunter'}</span>
-        <h3>${relocate ? `Find “${escapeHtml(relocate.fileName)}”` : escapeHtml(project.name)}</h3>
+        <span class="cv-slideout-kicker">Relocate</span>
+        <h3>Find “${escapeHtml(relocate.fileName)}”</h3>
       </div>
       <button class="icon-btn" data-action="close-hunter" title="Close">✕</button>
     </div>
-
-    ${relocate
-      ? `<div class="cv-slideout-sub">Pick the file's new location to re-link it.</div>`
-      : `
-        <div class="hunter-search-row">
-          <input class="hunter-search-input" data-role="hunter-query" placeholder="Search files by name…" value="${escapeAttr(state.hunterQueryStr)}" autocomplete="off" spellcheck="false" />
-        </div>
-        <div class="hunter-type-chips">${typeChips}</div>
-      `}
-
+    <div class="cv-slideout-sub">Pick the file's new location to re-link it.</div>
     <details class="hunter-dirs-section">
-      <summary class="hunter-dirs-toggle">Search folders</summary>
+      <summary class="hunter-dirs-toggle">Search folders (also used by File Hunter)</summary>
       <div class="hunter-dirs-list">${dirList}</div>
       <button class="forest-action-btn hunter-add-dir-btn" data-action="hunter-add-dir">+ Add folder</button>
     </details>
-
-    <div id="hunterResults" class="hunter-results-region">${hunterResultsMarkup()}</div>
+    <div class="hunter-results-region">${hunterResultsMarkup()}</div>
   `;
-}
-
-function positionHunterPanel() {
-  /* Hunter is now a fixed right-side slideout; positioning handled by CSS. */
 }
 
 function closeHunter() {
   state.hunterProjectId = null;
   state.hunterResults = [];
   state.hunterRelocate = null;
-  state.hunterSelected = new Set();
-  state.hunterQueryStr = '';
   hunterPanel.classList.add('forest-hidden');
   hunterPanel.innerHTML = '';
+}
+
+/* ── Shared helpers for background updates ──────────────────────────── */
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Background work must not wipe out a title or tag the person is typing.
+function renderWhenIdle() {
+  const active = document.activeElement;
+  if (active && world.contains(active) && active.matches('.project-title-input, .tag-input')) {
+    active.addEventListener('blur', () => setTimeout(() => { if (!destroyed) render(); }, 0), { once: true });
+    return;
+  }
+  render();
+}
+
+function rememberRejected(project, tags) {
+  project.autoTag.rejected = dedupe([...project.autoTag.rejected, ...tags.map(cleanTag)]).slice(-AUTO_TAG_REJECTED_MAX);
+}
+
+function removeProjectTag(project, tag) {
+  project.tags = project.tags.filter((entry) => entry !== tag);
+  rememberRejected(project, [tag]);
+}
+
+/* ── Auto tags ──────────────────────────────────────────────────────── */
+
+function projectFileSignature(project) {
+  return String(hashString(project.files.map((file) => file.path).sort().join('\n')));
+}
+
+function needsAutoTag(project) {
+  const signature = projectFileSignature(project);
+  return project.tags.length < AUTO_TAG_TARGET
+    && project.autoTag.signature !== signature
+    && !autoTagSkipped.has(`${project.id}:${signature}`);
+}
+
+function queueAutoTag(delay = AUTO_TAG_GAP_MS) {
+  if (destroyed || autoTagBlocked || autoTagRunning) return;
+  clearTimeout(autoTagTimer);
+  autoTagTimer = setTimeout(runAutoTagQueue, delay);
+}
+
+async function runAutoTagQueue() {
+  autoTagTimer = null;
+  if (destroyed || !loaded || autoTagRunning || autoTagBlocked) return;
+  const pending = state.projects.filter(needsAutoTag);
+  if (!pending.length) return;
+
+  autoTagRunning = true;
+  try {
+    const configured = await window.api.isAIConfigured?.();
+    if (destroyed) return;
+    if (!configured) {
+      autoTagBlocked = true;
+      dispatchForestLog('warn', `Forest auto tags are waiting: ${pending.length} project${pending.length === 1 ? ' has' : 's have'} fewer than ${AUTO_TAG_TARGET} tags, but no AI model is connected, so no files were read and nothing was changed.`, {
+        projects: pending.map((project) => project.name),
+        nextStep: 'Connect OpenAI, Claude or Gemini in Settings → Model, then reopen Forest.',
+      });
+      return;
+    }
+    dispatchForestLog('info', `Forest is filling in tags for ${pending.length} project${pending.length === 1 ? '' : 's'} with fewer than ${AUTO_TAG_TARGET} tags`, {
+      projects: pending.map((project) => `${project.name} (${project.tags.length} tags)`),
+      fileReadLimit: 'Up to 200 lines from at most 3 files per project, usually 2 or fewer',
+    });
+    for (const project of pending) {
+      if (destroyed || autoTagBlocked) return;
+      const live = getProject(project.id);
+      if (!live || !needsAutoTag(live)) continue;
+      await autoTagProject(live);
+      await wait(AUTO_TAG_GAP_MS);
+    }
+  } finally {
+    autoTagRunning = false;
+  }
+  if (!destroyed && !autoTagBlocked && state.projects.some(needsAutoTag)) queueAutoTag();
+}
+
+async function autoTagProject(project) {
+  const signature = projectFileSignature(project);
+  const result = await window.api.forestAutoTag({
+    projectId: project.id,
+    name: project.name,
+    tags: [...project.tags],
+    rejected: [...project.autoTag.rejected],
+    need: AUTO_TAG_TARGET - project.tags.length,
+    files: project.files.slice(0, 400).map((file) => ({ name: file.name, path: file.path, ext: file.ext, typeGroup: file.typeGroup, size: file.size })),
+    milestones: (project.milestones || []).map((m) => m.label).slice(0, 20),
+    relevance: project.relevance,
+  }).catch((error) => ({ ok: false, error: error?.message || 'Unknown problem' }));
+  if (destroyed) return;
+
+  const live = getProject(project.id);
+  if (!live) return;
+  if (!result?.ok) {
+    autoTagSkipped.add(`${project.id}:${signature}`);
+    if (/Settings/.test(result?.error || '')) autoTagBlocked = true; // a setup problem affects every project
+    return;
+  }
+
+  const rejected = new Set(live.autoTag.rejected);
+  const room = Math.max(0, AUTO_TAG_TARGET - live.tags.length);
+  const added = dedupe((result.tags || []).map(cleanTag))
+    .filter((tag) => tag && !live.tags.includes(tag) && !rejected.has(tag))
+    .slice(0, room);
+  live.tags = dedupe([...live.tags, ...added]);
+  live.autoTag = { ...live.autoTag, signature, checkedAt: new Date().toISOString() };
+
+  if (added.length) {
+    addChange({
+      kind: 'tags',
+      projectId: live.id,
+      projectName: live.name,
+      tags: added,
+      filesRead: (result.filesRead || []).map((file) => ({ name: file.name, lines: file.lines })),
+      model: result.model || '',
+    });
+  }
+  renderWhenIdle();
+  scheduleSave();
+}
+
+/* ── File Hunter tray ───────────────────────────────────────────────── */
+
+function freshTray() {
+  return {
+    description: '',
+    kinds: trayPrefs ? { ...trayPrefs.kinds } : Object.fromEntries(HUNT_KINDS.map((kind) => [kind.key, kind.on])),
+    dateRange: trayPrefs?.dateRange || 'any',
+    mode: trayPrefs?.mode || 'top',
+    running: false,
+    runId: null,
+    stage: '',
+    error: '',
+    lastChangeId: null,
+    lastCount: 0,
+  };
+}
+
+function huntProblem(tray) {
+  if (!HUNT_KINDS.some((kind) => tray.kinds[kind.key])) return 'Turn on at least one kind of file to search for.';
+  if (tray.mode === 'single' && !tray.description.trim()) return 'Single searches need a description of the file you want.';
+  return '';
+}
+
+function withHuntTray(project, body) {
+  if (state.trayProjectId !== project.id || !state.tray) return body;
+  return `<div class="hunt-stack">${body}${renderHuntTray(project)}</div>`;
+}
+
+function renderHuntStatus(tray) {
+  if (tray.running) return `<p class="hunt-status is-running" role="status">${escapeHtml(tray.stage || 'Starting…')}</p>`;
+  if (tray.error) return `<p class="hunt-status is-error" role="alert">${escapeHtml(tray.error)}</p>`;
+  if (tray.lastChangeId) {
+    const found = tray.lastCount
+      ? `Found ${tray.lastCount} file${tray.lastCount === 1 ? '' : 's'}.`
+      : 'Nothing matched.';
+    return `<p class="hunt-status" role="status">${found} <button class="hunt-status-link" type="button" data-action="hunt-view-changes" data-change-id="${escapeAttr(tray.lastChangeId)}">View in Changes</button></p>`;
+  }
+  return '';
+}
+
+function renderHuntTray(project) {
+  const tray = state.tray;
+  const single = tray.mode === 'single';
+  const problem = huntProblem(tray);
+  const lock = tray.running ? 'disabled' : '';
+  return `
+    <section class="hunt-tray" data-role="hunt-tray" aria-label="File Hunter for ${escapeAttr(project.name)}">
+      <div class="hunt-head">
+        <div class="hunt-titles">
+          <h3 class="hunt-title">File Hunter</h3>
+          <p class="hunt-sub">search locally for:</p>
+        </div>
+        <button class="hunt-start" type="button" data-action="hunt-start" ${problem || tray.running ? 'disabled' : ''} title="${escapeAttr(problem || (tray.running ? 'Searching…' : 'Start searching'))}">
+          <span class="hunt-start-label">${tray.running ? 'HUNTING' : 'START'}</span>
+          <span class="hunt-start-arrow" aria-hidden="true">􀄫</span>
+        </button>
+      </div>
+      <textarea class="hunt-desc" data-role="hunt-desc" rows="3" spellcheck="false" aria-required="${single}" ${lock}
+        placeholder="describe files by size, key-words, date range, etc.&#10;${single ? '(required)' : '(optional)'}">${escapeHtml(tray.description)}</textarea>
+      <div class="hunt-kinds">
+        ${HUNT_KINDS.map((kind) => `
+          <span class="hunt-kind-label">${kind.label}</span>
+          <button class="hunt-switch" type="button" role="switch" aria-label="${kind.label}" aria-checked="${!!tray.kinds[kind.key]}" data-action="hunt-kind" data-kind="${kind.key}" ${lock}><span class="hunt-switch-knob"></span></button>
+        `).join('')}
+      </div>
+      <label class="hunt-date">
+        <span class="hunt-date-label">DATE RANGE</span>
+        <select class="hunt-date-select" data-role="hunt-date" ${lock}>
+          ${HUNT_DATE_RANGES.map(([key, label]) => `<option value="${key}" ${tray.dateRange === key ? 'selected' : ''}>${label}</option>`).join('')}
+        </select>
+      </label>
+      <div class="hunt-modes" role="radiogroup" aria-label="How many results">
+        ${HUNT_MODES.map(([key, label]) => `<button class="hunt-mode" type="button" role="radio" aria-checked="${tray.mode === key}" data-action="hunt-mode" data-mode="${key}" ${lock}>${label}</button>`).join('')}
+      </div>
+      ${renderHuntStatus(tray)}
+    </section>
+  `;
+}
+
+function captureTrayFocus() {
+  const active = document.activeElement;
+  if (!active || !world.contains(active) || !active.matches('[data-role="hunt-desc"]')) return null;
+  return { start: active.selectionStart, end: active.selectionEnd };
+}
+
+function restoreTrayFocus(focus) {
+  if (!focus) return;
+  const input = world.querySelector('[data-role="hunt-desc"]');
+  if (!input || input.disabled) return;
+  input.focus({ preventScroll: true });
+  input.setSelectionRange(focus.start, focus.end);
+}
+
+function refreshTray() {
+  if (destroyed) return;
+  const project = getProject(state.trayProjectId);
+  const el = world.querySelector('[data-role="hunt-tray"]');
+  if (!project || !state.tray || !el) {
+    render();
+    return;
+  }
+  const focus = captureTrayFocus();
+  el.outerHTML = renderHuntTray(project);
+  restoreTrayFocus(focus);
+}
+
+function rememberTrayPrefs() {
+  if (state.tray) trayPrefs = { kinds: { ...state.tray.kinds }, dateRange: state.tray.dateRange, mode: state.tray.mode };
+}
+
+function openHuntTray(projectId) {
+  const project = getProject(projectId);
+  if (!project) return;
+  rememberTrayPrefs();
+  state.trayProjectId = projectId;
+  state.tray = freshTray();
+  state.selectedProjectId = projectId;
+  dispatchForestLog('debug', `File Hunter tray opened on “${project.name}”`, { projectId });
+  render();
+  requestAnimationFrame(() => world.querySelector('[data-role="hunt-desc"]')?.focus({ preventScroll: true }));
+}
+
+function closeHuntTray() {
+  if (!state.trayProjectId) return;
+  rememberTrayPrefs();
+  if (state.tray?.running) {
+    dispatchForestLog('info', 'File Hunter tray closed while a search was still running; its results will still land in Changes.', { projectId: state.trayProjectId });
+  }
+  state.trayProjectId = null;
+  state.tray = null;
+  render();
+}
+
+function toggleHuntTray(projectId) {
+  if (state.trayProjectId === projectId) closeHuntTray();
+  else openHuntTray(projectId);
+}
+
+async function startHunt() {
+  const project = getProject(state.trayProjectId);
+  const tray = state.tray;
+  if (!project || !tray || tray.running) return;
+  const problem = huntProblem(tray);
+  if (problem) {
+    tray.error = problem;
+    refreshTray();
+    return;
+  }
+
+  const runId = uid();
+  Object.assign(tray, { running: true, runId, stage: 'Starting…', error: '', lastChangeId: null, lastCount: 0 });
+  refreshTray();
+
+  const request = {
+    runId,
+    project: { name: project.name, tags: [...project.tags], fileNames: project.files.slice(0, 25).map((file) => file.name) },
+    description: tray.description.trim(),
+    kinds: { ...tray.kinds },
+    dateRange: tray.dateRange,
+    mode: tray.mode,
+    excludePaths: project.files.map((file) => file.path),
+    customDirs: [...state.hunterDirs],
+  };
+
+  let result;
+  try {
+    result = await window.api.forestHuntRun(request);
+  } catch (error) {
+    result = { ok: false, error: error?.message || 'Unknown problem' };
+    dispatchForestLog('error', `File Hunter could not start a search for “${project.name}”. Nothing was added to the project.`, { runId, problem: result.error, nextStep: 'Try START again. If it keeps failing, restart briizOS.' });
+  }
+  if (destroyed) return;
+
+  const current = state.tray && state.tray.runId === runId ? state.tray : null;
+  if (!result?.ok) {
+    if (current) Object.assign(current, { running: false, stage: '', error: result?.error || 'The search failed.' });
+    refreshTray();
+    return;
+  }
+
+  const entry = addChange({
+    kind: 'search',
+    projectId: project.id,
+    projectName: getProject(project.id)?.name || project.name,
+    mode: request.mode,
+    description: request.description,
+    kinds: HUNT_KINDS.filter((kind) => request.kinds[kind.key]).map((kind) => kind.label),
+    dateRange: request.dateRange,
+    summary: result.summary || '',
+    engine: result.engine || 'spotlight',
+    totalMatches: result.totalMatches || 0,
+    truncated: !!result.truncated,
+    aiNotes: result.ai?.notes || [],
+    results: result.results || [],
+    addedPaths: [],
+  });
+  if (current) Object.assign(current, { running: false, stage: '', lastChangeId: entry.id, lastCount: entry.results.length });
+  if (state.trayProjectId) refreshTray();
+}
+
+/* ── Changes ────────────────────────────────────────────────────────── */
+
+function addChange(change) {
+  const entry = normalizeChange({ ...change, id: uid(), at: new Date().toISOString(), seen: state.changesOpen });
+  state.changes = [entry, ...state.changes].slice(0, CHANGES_MAX);
+  updateStats();
+  if (state.changesOpen) renderChanges();
+  scheduleSave(true);
+  return entry;
+}
+
+function getChange(id) {
+  return state.changes.find((change) => change.id === id) || null;
+}
+
+function changeTime(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const rel = relativeDate(iso);
+  return rel === 'Today' || rel === 'Yesterday' ? `${rel}, ${time}` : `${date.toLocaleDateString()} ${time}`;
+}
+
+function dateRangeLabel(key) {
+  return (HUNT_DATE_RANGES.find(([value]) => value === key) || HUNT_DATE_RANGES[0])[1];
+}
+
+function renderTagChange(change, now) {
+  const project = getProject(change.projectId);
+  const age = now - Date.parse(change.at);
+  const undoable = !change.undoneAt && age < TAG_UNDO_WINDOW_MS && project;
+  const daysLeft = Math.max(1, Math.ceil((TAG_UNDO_WINDOW_MS - age) / 86400000));
+  const basis = change.filesRead.length
+    ? `Based on ${change.filesRead.map((file) => `${escapeHtml(file.name)} (${file.lines} line${file.lines === 1 ? '' : 's'})`).join(', ')} plus the project's name and file list.`
+    : "Based on the project's name and file list; no file contents were read.";
+  let actions = '';
+  if (undoable) {
+    actions = `<button class="forest-action-btn" type="button" data-action="change-undo-tags" data-change-id="${escapeAttr(change.id)}"><span aria-hidden="true">􀱍</span> Undo for this project</button>
+      <span class="change-hint">Available for ${daysLeft} more day${daysLeft === 1 ? '' : 's'}</span>`;
+  } else if (change.undoneAt) {
+    actions = `<span class="change-hint">Undone ${escapeHtml(changeTime(change.undoneAt))}</span>`;
+  } else if (!project && age < TAG_UNDO_WINDOW_MS) {
+    actions = '<span class="change-hint">This project is no longer on the board.</span>';
+  }
+  return `
+    <article class="change-entry change-tags ${change.undoneAt ? 'is-undone' : ''} ${change.id === state.changesFocusId ? 'is-focus' : ''} ${change.seen ? '' : 'is-new'}" data-change-id="${escapeAttr(change.id)}">
+      <div class="change-head">
+        <span class="change-kind">Tags added</span>
+        <span class="change-project">${escapeHtml(change.projectName)}</span>
+        <time class="change-time" datetime="${escapeAttr(change.at)}">${escapeHtml(changeTime(change.at))}</time>
+      </div>
+      <div class="change-tag-list">${change.tags.map((tag) => `<span class="change-tag">#${escapeHtml(tag)}</span>`).join('')}</div>
+      <p class="change-note">${basis}</p>
+      ${actions ? `<div class="change-actions">${actions}</div>` : ''}
+    </article>
+  `;
+}
+
+function renderChangeResult(change, result, index, project, inProject) {
+  const isIn = inProject.has(result.path);
+  const meta = [
+    result.isFolder ? 'Folder' : formatBytes(result.size),
+    relativeDate(result.modifiedAt),
+    result.path,
+  ].join(' • ');
+  return `
+    <div class="change-result ${isIn ? 'is-added' : ''}">
+      <div class="file-badge">${escapeHtml(fileBadgeLabel(result))}</div>
+      <div class="file-copy">
+        <div class="forest-file-name">${escapeHtml(result.name)}</div>
+        <div class="file-sub" title="${escapeAttr(result.path)}">${escapeHtml(meta)}</div>
+        ${result.reason ? `<div class="change-reason">${escapeHtml(result.reason)}</div>` : ''}
+      </div>
+      <button class="tiny-btn" type="button" data-action="change-reveal" data-change-id="${escapeAttr(change.id)}" data-index="${index}" title="Show in Finder">↗</button>
+      ${isIn
+        ? '<span class="change-added">Added</span>'
+        : project ? `<button class="forest-action-btn" type="button" data-action="change-add-file" data-change-id="${escapeAttr(change.id)}" data-index="${index}"><span aria-hidden="true">􀅼</span> Add</button>` : ''}
+    </div>
+  `;
+}
+
+function renderSearchChange(change) {
+  const project = getProject(change.projectId);
+  const inProject = new Set(project ? project.files.map((file) => file.path) : []);
+  const pending = project ? change.results.filter((result) => !inProject.has(result.path)).length : 0;
+  const modeLabel = (HUNT_MODES.find(([key]) => key === change.mode) || HUNT_MODES[1])[1];
+  const rows = change.results.map((result, index) => renderChangeResult(change, result, index, project, inProject));
+  const shown = rows.slice(0, CHANGE_RESULTS_PREVIEW).join('');
+  const rest = rows.slice(CHANGE_RESULTS_PREVIEW);
+  const notes = [
+    change.engine === 'folder-walk' ? 'Spotlight returned nothing usable, so only file names were checked.' : '',
+    change.truncated ? `Showing the first ${change.results.length} of ${change.totalMatches} matches.` : '',
+    ...change.aiNotes,
+  ].filter(Boolean);
+  return `
+    <article class="change-entry change-search ${change.id === state.changesFocusId ? 'is-focus' : ''} ${change.seen ? '' : 'is-new'}" data-change-id="${escapeAttr(change.id)}">
+      <div class="change-head">
+        <span class="change-kind">File search · ${escapeHtml(modeLabel)}</span>
+        <span class="change-project">${escapeHtml(change.projectName)}</span>
+        <time class="change-time" datetime="${escapeAttr(change.at)}">${escapeHtml(changeTime(change.at))}</time>
+      </div>
+      <p class="change-query">${change.description ? `“${escapeHtml(change.description)}”` : 'No description: files related to the project'} · ${escapeHtml((change.kinds || []).join(', '))} · ${escapeHtml(dateRangeLabel(change.dateRange))}</p>
+      ${change.summary ? `<p class="change-note">${escapeHtml(change.summary)}</p>` : ''}
+      ${notes.map((note) => `<p class="change-note is-warning">${escapeHtml(note)}</p>`).join('')}
+      ${change.results.length ? `<div class="change-results">${shown}</div>` : '<p class="change-note">Nothing matched.</p>'}
+      ${rest.length ? `<details class="change-more"><summary>Show ${rest.length} more</summary><div class="change-results">${rest.join('')}</div></details>` : ''}
+      <div class="change-actions">
+        ${pending > 1 ? `<button class="forest-action-btn" type="button" data-action="change-add-all" data-change-id="${escapeAttr(change.id)}"><span aria-hidden="true">􀅼</span> Add all ${pending} to project</button>` : ''}
+        ${!project ? '<span class="change-hint">This project is no longer on the board.</span>' : ''}
+      </div>
+    </article>
+  `;
+}
+
+function renderChanges() {
+  if (!state.changesOpen) {
+    changesModal.classList.add('forest-hidden');
+    return;
+  }
+  const now = Date.now();
+  const list = state.changes.length
+    ? state.changes.map((change) => (change.kind === 'tags' ? renderTagChange(change, now) : renderSearchChange(change))).join('')
+    : '<div class="cv-slideout-empty">No changes yet. Auto-added tags and File Hunter results (triple-click a card\'s top rail) will appear here.</div>';
+  changesModal.innerHTML = `
+    <div class="changes-backdrop" data-action="changes-close"></div>
+    <section class="changes-dialog" role="dialog" aria-modal="true" aria-label="Changes">
+      <header class="changes-head">
+        <div class="changes-titles">
+          <span class="cv-slideout-kicker">Forest</span>
+          <h2 class="changes-title">Changes</h2>
+        </div>
+        <p class="changes-sub">Auto-added tags can be undone per project for 7 days. Files only join a project when you add them here.</p>
+        <button class="icon-btn" type="button" data-action="changes-close" title="Close" aria-label="Close"><span aria-hidden="true">􀆄</span></button>
+      </header>
+      <div class="changes-list">${list}</div>
+    </section>
+  `;
+}
+
+function openChanges(focusId = null) {
+  state.changesOpen = true;
+  state.changesFocusId = focusId;
+  changesModal.classList.remove('forest-hidden');
+  renderChanges();
+  const target = focusId ? changesModal.querySelector(`[data-change-id="${CSS.escape(focusId)}"].change-entry`) : null;
+  target?.scrollIntoView({ block: 'start' });
+  if (state.changes.some((change) => !change.seen)) {
+    state.changes.forEach((change) => { change.seen = true; }); // highlight stays until the next render
+    updateStats();
+    scheduleSave();
+  }
+}
+
+function closeChanges() {
+  state.changesOpen = false;
+  state.changesFocusId = null;
+  changesModal.classList.add('forest-hidden');
+  changesModal.innerHTML = '';
+}
+
+function undoTagChange(change) {
+  const project = getProject(change?.projectId);
+  if (!change || change.undoneAt || !project || Date.now() - Date.parse(change.at) >= TAG_UNDO_WINDOW_MS) return;
+  const undo = new Set(change.tags);
+  const removed = project.tags.filter((tag) => undo.has(tag));
+  project.tags = project.tags.filter((tag) => !undo.has(tag));
+  rememberRejected(project, change.tags);
+  change.undoneAt = new Date().toISOString();
+  dispatchForestLog('info', `Undid auto tags on “${project.name}”. Forest will not suggest these tags for this project again.`, {
+    removed: removed.map((tag) => `#${tag}`),
+    alreadyGone: change.tags.filter((tag) => !removed.includes(tag)).map((tag) => `#${tag}`),
+  });
+  render();
+  renderChanges();
+  scheduleSave(true);
+}
+
+function addResultsToProject(change, indexes) {
+  const project = getProject(change?.projectId);
+  if (!change || !project) return;
+  const existing = new Set(project.files.map((file) => file.path));
+  const added = [];
+  indexes.forEach((index) => {
+    const result = change.results[index];
+    if (!result || existing.has(result.path)) return;
+    project.files.push(normalizeFile({ ...result, id: uid(), tags: [] }));
+    existing.add(result.path);
+    added.push(result);
+  });
+  if (!added.length) return;
+  project.files.sort(sortFiles);
+  change.addedPaths = dedupe([...change.addedPaths, ...added.map((result) => result.path)]);
+  dispatchForestLog('info', `Added ${added.length} file${added.length === 1 ? '' : 's'} to “${project.name}” from a File Hunter search. The files stay where they are on disk.`, {
+    files: added.map((result) => result.path),
+  });
+  render();
+  renderChanges();
+  scheduleSave(true);
+  queueAutoTag();
 }
 
 /* ── File Consolidation ─────────────────────────────────────────────── */
@@ -1768,6 +2264,12 @@ function updateStats() {
     filehawkBtn.classList.toggle('has-alert', probs > 0);
     filehawkBtn.innerHTML = probs ? `FileHawk <span class="fh-badge">${probs}</span>` : 'FileHawk';
   }
+
+  if (changesBtn) {
+    const unseen = state.changes.filter((change) => !change.seen).length;
+    changesBtn.classList.toggle('has-new', unseen > 0);
+    changesBtn.innerHTML = unseen ? `Changes <span class="changes-badge">${unseen}</span>` : 'Changes';
+  }
 }
 
 // Tags whose bloom has already sprouted. renderTagStrip rebuilds the strip's
@@ -1874,7 +2376,9 @@ function render() {
   }
 
   const visibleProjects = getVisibleProjects();
+  const trayFocus = captureTrayFocus();
   world.innerHTML = visibleProjects.map(renderProject).join('');
+  restoreTrayFocus(trayFocus);
   updateStats();
   renderTagStrip();
   renderEmptyState(visibleProjects);
@@ -1903,7 +2407,6 @@ function applyTransform() {
   grid.style.setProperty('--major-off-y', `${positiveMod(state.viewport.y, major)}px`);
 
   zoomReadoutEl.textContent = `${Math.round(state.viewport.scale * 100)}%`;
-  positionHunterPanel();
 }
 
 function screenToWorld(clientX, clientY) {
@@ -2197,6 +2700,7 @@ async function handleDrop(event) {
 
     dispatchForestLog('info', 'Files imported into board', { addedFiles: result.addedFiles, ignored, paths: paths.length });
     scheduleSave(true);
+    queueAutoTag();
   } catch (error) {
     console.error(error);
     setSaveStatus('Import failed');
@@ -2318,7 +2822,6 @@ function onForestPointerMove(event) {
     interaction.project.y = interaction.originY + (point.y - interaction.startPointer.y);
     interaction.card.style.left = `${interaction.project.x}px`;
     interaction.card.style.top = `${interaction.project.y}px`;
-    if (interaction.project.id === state.hunterProjectId) positionHunterPanel();
   }
 
   if (interaction.kind === 'pan-cover') {
@@ -2365,6 +2868,16 @@ stage.addEventListener('wheel', (event) => {
 }, { passive: false });
 
 world.addEventListener('click', async (event) => {
+  // Triple-click on a card's top rail toggles its File Hunter tray.
+  if (event.detail === 3 && event.target.closest('.project-header') && !event.target.closest('button, input')) {
+    clearTimeout(renameTimer);
+    renameTimer = null;
+    window.getSelection()?.removeAllRanges();
+    const card = event.target.closest('.project-card');
+    if (card) toggleHuntTray(card.dataset.id);
+    return;
+  }
+
   const actionEl = event.target.closest('[data-action]');
   if (!actionEl) return;
 
@@ -2392,7 +2905,7 @@ world.addEventListener('click', async (event) => {
       if (!tag) return;
 
       if (event.shiftKey && project) {
-        project.tags = project.tags.filter((entry) => entry !== tag);
+        removeProjectTag(project, tag);
         render();
         scheduleSave();
         return;
@@ -2418,8 +2931,7 @@ world.addEventListener('click', async (event) => {
     case 'delete-tag': {
       event.stopPropagation();
       if (!project) return;
-      const tagToDelete = cleanTag(actionEl.dataset.tag);
-      project.tags = project.tags.filter((t) => t !== tagToDelete);
+      removeProjectTag(project, cleanTag(actionEl.dataset.tag));
       render();
       scheduleSave();
       break;
@@ -2431,11 +2943,33 @@ world.addEventListener('click', async (event) => {
       break;
     }
 
-    case 'hunter-search': {
+    case 'hunt-start':
       event.stopPropagation();
-      if (projectId) openHunter(projectId);
+      startHunt();
+      break;
+
+    case 'hunt-kind': {
+      event.stopPropagation();
+      if (!state.tray || state.tray.running) return;
+      const key = actionEl.dataset.kind;
+      state.tray.kinds[key] = !state.tray.kinds[key];
+      state.tray.error = '';
+      refreshTray();
       break;
     }
+
+    case 'hunt-mode':
+      event.stopPropagation();
+      if (!state.tray || state.tray.running) return;
+      state.tray.mode = actionEl.dataset.mode;
+      state.tray.error = '';
+      refreshTray();
+      break;
+
+    case 'hunt-view-changes':
+      event.stopPropagation();
+      openChanges(actionEl.dataset.changeId);
+      break;
 
     case 'consolidate': {
       event.stopPropagation();
@@ -2473,9 +3007,16 @@ world.addEventListener('dblclick', (event) => {
   const label = event.target.closest('.project-title-label');
   if (!label) return;
 
-  const card = label.closest('.project-card');
-  const project = getProject(card?.dataset.id);
-  if (!project) return;
+  const projectId = label.closest('.project-card')?.dataset.id;
+  clearTimeout(renameTimer);
+  renameTimer = setTimeout(() => beginTitleRename(projectId), RENAME_AFTER_DBLCLICK_MS);
+});
+
+function beginTitleRename(projectId) {
+  renameTimer = null;
+  const project = getProject(projectId);
+  const label = world.querySelector(`.project-card[data-id="${CSS.escape(projectId || '')}"] .project-title-label`);
+  if (destroyed || !project || !label) return;
 
   const input = document.createElement('input');
   input.className = 'project-title-input';
@@ -2485,6 +3026,34 @@ world.addEventListener('dblclick', (event) => {
   label.replaceWith(input);
   input.focus();
   input.select();
+}
+
+/* File Hunter tray: description typing and date range */
+world.addEventListener('input', (event) => {
+  if (!event.target.matches('[data-role="hunt-desc"]') || !state.tray) return;
+  state.tray.description = event.target.value;
+  const problem = huntProblem(state.tray);
+  const start = event.target.closest('[data-role="hunt-tray"]')?.querySelector('[data-action="hunt-start"]');
+  if (start && !state.tray.running) {
+    start.disabled = !!problem;
+    start.title = problem || 'Start searching';
+  }
+  if (state.tray.error && !problem) {
+    state.tray.error = '';
+    event.target.closest('[data-role="hunt-tray"]')?.querySelector('.hunt-status.is-error')?.remove();
+  }
+});
+
+world.addEventListener('change', (event) => {
+  if (!event.target.matches('[data-role="hunt-date"]') || !state.tray) return;
+  state.tray.dateRange = event.target.value;
+});
+
+world.addEventListener('keydown', (event) => {
+  if (event.target.matches('[data-role="hunt-desc"]') && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault();
+    startHunt();
+  }
 });
 
 world.addEventListener('keydown', (event) => {
@@ -3367,53 +3936,6 @@ hunterPanel.addEventListener('click', async (event) => {
       closeHunter();
       break;
 
-    case 'hunter-type': {
-      const t = actionEl.dataset.type;
-      if (state.hunterTypes.has(t)) state.hunterTypes.delete(t);
-      else state.hunterTypes.add(t);
-      renderHunterPanel();
-      runHunterSearch();
-      break;
-    }
-
-    case 'hunter-add-file': {
-      event.stopPropagation();
-      const project = getProject(state.hunterProjectId);
-      if (!project) return;
-      const fileRecord = state.hunterResults.find((f) => f.path === actionEl.dataset.path);
-      if (!fileRecord) return;
-      if (!project.files.some((f) => f.path === fileRecord.path)) {
-        project.files.push(normalizeFile(fileRecord));
-        project.files.sort(sortFiles);
-      }
-      state.hunterResults = state.hunterResults.filter((f) => f.path !== fileRecord.path);
-      state.hunterSelected.delete(fileRecord.path);
-      refreshHunterResults();
-      render();
-      scheduleSave();
-      break;
-    }
-
-    case 'hunter-add-selected': {
-      event.stopPropagation();
-      const project = getProject(state.hunterProjectId);
-      if (!project) return;
-      const chosen = state.hunterResults.filter((f) => state.hunterSelected.has(f.path));
-      chosen.forEach((fileRecord) => {
-        if (!project.files.some((f) => f.path === fileRecord.path)) {
-          project.files.push(normalizeFile(fileRecord));
-        }
-      });
-      project.files.sort(sortFiles);
-      const added = new Set(chosen.map((f) => f.path));
-      state.hunterResults = state.hunterResults.filter((f) => !added.has(f.path));
-      state.hunterSelected = new Set();
-      refreshHunterResults();
-      render();
-      scheduleSave();
-      break;
-    }
-
     case 'hunter-relink': {
       event.stopPropagation();
       const project = getProject(state.hunterProjectId);
@@ -3446,13 +3968,9 @@ hunterPanel.addEventListener('click', async (event) => {
         state.hunterDirs.push(dir);
         renderHunterPanel();
         scheduleSave();
-        if (state.hunterRelocate) {
-          const project = getProject(state.hunterProjectId);
-          const file = project?.files.find((f) => f.id === state.hunterRelocate.fileId);
-          if (project && file) openHunterRelocate(project.id, file);
-        } else {
-          runHunterSearch();
-        }
+        const project = getProject(state.hunterProjectId);
+        const file = project?.files.find((f) => f.id === state.hunterRelocate?.fileId);
+        if (project && file) openHunterRelocate(project.id, file);
       }
       break;
     }
@@ -3462,9 +3980,10 @@ hunterPanel.addEventListener('click', async (event) => {
       const idx = Number(actionEl.dataset.index);
       if (idx >= 0 && idx < state.hunterDirs.length) {
         state.hunterDirs.splice(idx, 1);
-        renderHunterPanel();
         scheduleSave();
-        if (!state.hunterRelocate) runHunterSearch();
+        const project = getProject(state.hunterProjectId);
+        const file = project?.files.find((f) => f.id === state.hunterRelocate?.fileId);
+        if (project && file) openHunterRelocate(project.id, file);
       }
       break;
     }
@@ -3472,24 +3991,6 @@ hunterPanel.addEventListener('click', async (event) => {
     default:
       break;
   }
-});
-
-/* Hunter: debounced query typing */
-hunterPanel.addEventListener('input', (event) => {
-  if (!event.target.matches('[data-role="hunter-query"]')) return;
-  state.hunterQueryStr = event.target.value;
-  clearTimeout(hunterDebounce);
-  hunterDebounce = setTimeout(() => runHunterSearch(), 280);
-});
-
-/* Hunter: result multi-select */
-hunterPanel.addEventListener('change', (event) => {
-  const cb = event.target.closest('[data-action="hunter-select"]');
-  if (!cb) return;
-  const p = cb.dataset.path;
-  if (cb.checked) state.hunterSelected.add(p);
-  else state.hunterSelected.delete(p);
-  refreshHunterResults();
 });
 
 /* FileHawk panel actions */
@@ -3565,6 +4066,35 @@ if (collapseAllBtn) {
   });
 }
 if (filehawkBtn) filehawkBtn.addEventListener('click', () => (state.filehawkOpen ? closeFilehawk() : openFilehawk()));
+if (changesBtn) changesBtn.addEventListener('click', () => (state.changesOpen ? closeChanges() : openChanges()));
+
+changesModal.addEventListener('click', async (event) => {
+  const actionEl = event.target.closest('[data-action]');
+  if (!actionEl) return;
+  const change = getChange(actionEl.dataset.changeId);
+
+  switch (actionEl.dataset.action) {
+    case 'changes-close':
+      closeChanges();
+      break;
+    case 'change-undo-tags':
+      undoTagChange(change);
+      break;
+    case 'change-add-file':
+      addResultsToProject(change, [Number(actionEl.dataset.index)]);
+      break;
+    case 'change-add-all':
+      addResultsToProject(change, change ? change.results.map((_, index) => index) : []);
+      break;
+    case 'change-reveal': {
+      const result = change?.results[Number(actionEl.dataset.index)];
+      if (result) await window.api.forestShowItemInFolder(result.path);
+      break;
+    }
+    default:
+      break;
+  }
+});
 
 function onForestDragEnter(event) {
   if (!isFileDrag(event)) return;
@@ -3634,8 +4164,10 @@ function onForestKeyDown(event) {
   }
 
   if (event.key === 'Escape' && document.activeElement !== searchInput) {
+    if (state.changesOpen) { closeChanges(); return; }
     if (state.viewerProjectId) { closeViewer(); return; }
     if (state.hunterProjectId) { closeHunter(); return; }
+    if (state.trayProjectId) { closeHuntTray(); return; }
     state.selectedProjectId = null;
     updateSelectionHighlight();
   }
@@ -3651,7 +4183,10 @@ function forestDestroy() {
     if (loaded) void saveNow();
   }
   destroyed = true;
-  clearTimeout(hunterDebounce);
+  clearTimeout(autoTagTimer);
+  clearTimeout(renameTimer);
+  huntUnsubscribe?.();
+  huntUnsubscribe = null;
   window.removeEventListener('pointermove', onForestPointerMove);
   window.removeEventListener('pointerup', onForestPointerUp);
   window.removeEventListener('blur', onForestWindowBlur);
@@ -3686,6 +4221,7 @@ async function init() {
 
     state.projects = (saved.projects || []).map(normalizeProject);
     state.hunterDirs = Array.isArray(saved.hunterDirs) ? saved.hunterDirs : [];
+    state.changes = (Array.isArray(saved.changes) ? saved.changes : []).map(normalizeChange).filter(Boolean);
 
     if (!state.projects.length) {
       resetView(false);
@@ -3695,6 +4231,16 @@ async function init() {
     render();
     setSaveStatus('Ready');
     startFileHawk();
+    queueAutoTag(AUTO_TAG_START_DELAY_MS);
+    huntUnsubscribe?.();
+    huntUnsubscribe = window.api.onForestHuntProgress?.((update) => {
+      const tray = state.tray;
+      if (destroyed || !tray?.running || tray.runId !== update?.runId) return;
+      tray.stage = update.message || tray.stage;
+      const status = world.querySelector('[data-role="hunt-tray"] .hunt-status');
+      if (status) status.textContent = tray.stage;
+      else refreshTray();
+    }) || null;
     dispatchForestLog('info', 'Forest panel loaded', { projectCount: state.projects.length });
   } catch (error) {
     if (destroyed) return;

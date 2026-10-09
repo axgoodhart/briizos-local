@@ -629,6 +629,8 @@ module.exports = {
   loadState,
   saveState,
   importDroppedPaths,
+  buildFileRecord,
+  typeGroupFromExt,
   hunterDefaultDirs,
   hunterSearch,
   huntFiles,

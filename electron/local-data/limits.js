@@ -16,4 +16,6 @@ module.exports = {
   // Directory entries examined before an import walk gives up (protects
   // against dropping e.g. a home directory — abort instead of hanging).
   FOREST_MAX_SCAN_ENTRIES: 100000,
+  // Forest → Changes history entries kept (auto tags and File Hunter searches).
+  FOREST_MAX_CHANGES: 150,
 };

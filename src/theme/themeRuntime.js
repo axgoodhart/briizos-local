@@ -63,6 +63,7 @@ export function createThemeRuntime(doc = document) {
     const baseThemeId = theme?.baseThemeId || theme?.id || 'default';
     if (!baseThemeId || baseThemeId === 'default') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', baseThemeId);
+    root.setAttribute('data-theme-mode', theme?.mode === 'light' ? 'light' : 'dark');
 
     // Built-in themes now live in the combined stylesheet under their named
     // :root[data-theme] sections. Only a saved custom theme needs a runtime

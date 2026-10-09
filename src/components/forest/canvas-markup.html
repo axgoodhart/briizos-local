@@ -7,10 +7,6 @@
   to match — keep the two in sync if either changes.
 -->
 <div class="forest-shell">
-  <div class="aurora aurora-a"></div>
-  <div class="aurora aurora-b"></div>
-  <div class="aurora aurora-c"></div>
-
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark"></div>
@@ -52,6 +48,7 @@
       <button id="forest-fitBtn" class="ghost-btn" type="button">
         Fit projects
       </button>
+      <button id="forest-changesBtn" class="ghost-btn" type="button" title="Changes — auto tags and File Hunter results">Changes</button>
       <button id="forest-filehawkBtn" class="ghost-btn" type="button" title="FileHawk — file integrity">FileHawk</button>
     </div>
   </header>
@@ -83,8 +80,11 @@
   <!-- Project Viewer overlay -->
   <div id="forest-projectViewer" class="viewer-overlay forest-hidden"></div>
 
-  <!-- Hunter results panel -->
+  <!-- FileHawk relocate panel -->
   <div id="forest-hunterPanel" class="hunter-panel cv-slideout forest-hidden"></div>
+
+  <!-- Changes modal: auto tags and File Hunter results -->
+  <div id="forest-changesModal" class="forest-changes-overlay forest-hidden"></div>
 
   <!-- FileHawk integrity panel -->
   <div id="forest-filehawkPanel" class="cv-slideout forest-hidden"></div>

@@ -49,7 +49,7 @@ const CAPABILITIES = [
   {
     id: 'background',
     label: 'Background helpers',
-    description: 'Conversation titles, tags and memory consolidation after chat turns.',
+    description: 'Conversation titles, tags and memory consolidation after chat turns; Forest auto tags and File Hunter searches.',
     routingField: ROUTING_FIELDS.background,
     codexCapable: true,
   },

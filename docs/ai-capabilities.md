@@ -22,7 +22,7 @@ briizOS routes AI through four separate "capabilities." Each one can use a diffe
 | **Chat** | The main conversation. When you type a message and get a reply, this is it. |
 | **Execubriiz live companion** | Reads along as you write a journal entry and offers ideas, connections, and board edits in real time. |
 | **Execubriiz board & research** | Deeper work: curating your journal board, summarizing entries, running web research when something you wrote could use verification. |
-| **Background helpers** | Invisible housekeeping — generates conversation titles, applies tags so you can find conversations later, and updates what the AI remembers about you. |
+| **Background helpers** | Invisible housekeeping — generates conversation titles, applies tags so you can find conversations later, and updates what the AI remembers about you. Also fills Forest project cards up to 12 tags and plans/ranks File Hunter searches. |
 
 You can see and change which model powers each capability in the **AI Routing** section of Settings.
 

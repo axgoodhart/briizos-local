@@ -44,6 +44,8 @@ const COLORS = {
 };
 
 const CATEGORY_LABELS = {
+  'forest.autotag': 'Forest auto tags',
+  'forest.hunter': 'Forest File Hunter',
   app: 'App startup',
   agent: 'AI',
   'agent.stream': 'AI response',

@@ -23870,7 +23870,7 @@ button.jr-card {
     mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 1));}
 .forest-shell button,
 .forest-shell input {
-    font: inherit;}
+    font:SF Pro Display;}
 .forest-shell button {
     border: 0;}
 .forest-shell input {
@@ -24958,6 +24958,405 @@ button.jr-card {
     display: none;}
 .dim-mode .project-card.expanded .project-body {
     backdrop-filter: blur(70px)brightness(.1);}
+/* ── Forest: File Hunter tray (triple-click a card's top rail) ──────── */
+.project-card.has-hunt-tray {
+    max-height: 1000px;
+    border-bottom-left-radius: 18px;}
+.hunt-stack {
+    display: grid;
+    margin: 10px -20px 0 -3px;}
+.hunt-stack > * {
+    grid-area: 1 / 1;}
+.hunt-stack > .project-body {
+    visibility: hidden;
+    pointer-events: none;}
+.hunt-tray {
+    --hunt-bg: radial-gradient(120% 70% at 18% 0%, rgba(255, 128, 196, 0.38), transparent 62%), linear-gradient(180deg, #a1105e 0%, #ae1347 48%, #b4110f 100%);
+    --hunt-glow: 0 0 30px rgba(255, 72, 120, 0.55), inset 0 0 24px rgba(255, 196, 214, 0.22);
+    --hunt-text: #fcebf2;
+    --hunt-muted: rgba(252, 235, 242, 0.58);
+    --hunt-field: rgba(72, 0, 32, 0.42);
+    --hunt-start: linear-gradient(160deg, #17f2c0, #2fe6e6);
+    --hunt-start-text: #03120e;
+    --hunt-on-track: #04473b;
+    --hunt-on-knob: #1ff0c8;
+    --hunt-off-track: #1d1d1d;
+    --hunt-off-knob: #7b7b7b;
+    --hunt-chip: #050505;
+    --hunt-mode-on: rgba(70, 150, 170, 0.45);
+    --hunt-accent: #33f0e6;
+    --hunt-error: #ffe08a;
+    position: relative;
+    z-index: 12;
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    padding: 0 0 14px;
+    border-radius: 18px 64px 0 18px;
+    background: var(--hunt-bg);
+    box-shadow: var(--hunt-glow);
+    color: var(--hunt-text);
+    cursor: default;
+    overflow: hidden;}
+:root[data-theme-mode='light'] .hunt-tray {
+    --hunt-bg: radial-gradient(120% 70% at 18% 0%, rgba(255, 255, 255, 0.72), transparent 62%), linear-gradient(180deg, #d6edff 0%, #a8d5f4 52%, #7cbfe8 100%);
+    --hunt-glow: 0 0 28px rgba(92, 172, 240, 0.5), inset 0 0 22px rgba(255, 255, 255, 0.5);
+    --hunt-text: #0c2640;
+    --hunt-muted: rgba(12, 38, 64, 0.55);
+    --hunt-field: rgba(255, 255, 255, 0.55);
+    --hunt-start: linear-gradient(160deg, #1a6dd6, #22a5e0);
+    --hunt-start-text: #f4fbff;
+    --hunt-on-track: #b8dbf5;
+    --hunt-on-knob: #1a6dd6;
+    --hunt-off-track: rgba(12, 38, 64, 0.14);
+    --hunt-off-knob: rgba(12, 38, 64, 0.4);
+    --hunt-chip: rgba(255, 255, 255, 0.72);
+    --hunt-mode-on: rgba(26, 109, 214, 0.16);
+    --hunt-accent: #1a6dd6;
+    --hunt-error: #a3221b;}
+.hunt-head {
+    display: grid;
+    grid-template-columns: 1fr 78px;
+    align-items: stretch;}
+.hunt-titles {
+    padding: 12px 0 0 14px;}
+.hunt-title {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.02em;}
+.hunt-sub {
+    margin: 6px 0 0 6px;
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;}
+.forest-shell .hunt-start {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 2px;
+    padding: 12px 6px 10px;
+    border-radius: 0 64px 0 0;
+    background: var(--hunt-start);
+    color: var(--hunt-start-text);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    transition: filter 0.15s ease, opacity 0.15s ease;}
+.forest-shell .hunt-start:hover:not(:disabled) {
+    filter: brightness(1.08);}
+.forest-shell .hunt-start:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;}
+.hunt-start-arrow {
+    font-size: 1.15rem;
+    line-height: 1;}
+.hunt-desc {
+    margin: 0 12px;
+    min-height: 66px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 2px;
+    resize: none;
+    background: var(--hunt-field);
+    color: var(--hunt-text);
+    font: inherit;
+    font-size: 0.92rem;
+    line-height: 1.35;
+    text-align: center;
+    user-select: text;
+    outline: none;}
+.hunt-desc::placeholder {
+    color: var(--hunt-muted);}
+.hunt-desc:focus {
+    box-shadow: inset 0 0 0 1px var(--hunt-accent);}
+.hunt-kinds,
+.hunt-date {
+    display: grid;
+    grid-template-columns: 1fr 96px;
+    align-items: center;
+    column-gap: 12px;
+    padding-left: 12px;}
+.hunt-kinds {
+    row-gap: 7px;}
+.hunt-kind-label,
+.hunt-date-label {
+    text-align: right;
+    font-size: 0.98rem;
+    letter-spacing: 0.02em;}
+.hunt-date-label {
+    letter-spacing: 0.05em;}
+.forest-shell .hunt-switch {
+    position: relative;
+    height: 12px;
+    padding: 0;
+    border-radius: 0;
+    background: var(--hunt-off-track);
+    cursor: pointer;}
+.hunt-switch-knob {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 30%;
+    background: var(--hunt-off-knob);
+    transition: left 0.18s ease, background 0.18s ease;}
+.forest-shell .hunt-switch[aria-checked='true'] {
+    background: var(--hunt-on-track);}
+.hunt-switch[aria-checked='true'] .hunt-switch-knob {
+    left: 70%;
+    background: var(--hunt-on-knob);}
+.hunt-date-select {
+    height: 22px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 0;
+    appearance: none;
+    background: var(--hunt-chip);
+    color: var(--hunt-muted);
+    font: inherit;
+    font-size: 0.95rem;
+    font-style: italic;
+    text-align: center;
+    text-align-last: center;
+    cursor: pointer;}
+.hunt-modes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: 2px 12px 0;
+    background: var(--hunt-chip);}
+.forest-shell .hunt-mode {
+    padding: 3px 2px 6px;
+    border-radius: 0;
+    background: transparent;
+    color: var(--hunt-muted);
+    font-size: 0.98rem;
+    box-shadow: inset 0 -5px 0 transparent;
+    cursor: pointer;}
+.forest-shell .hunt-mode[aria-checked='true'] {
+    background: var(--hunt-mode-on);
+    color: var(--hunt-text);
+    box-shadow: inset 0 -5px 0 var(--hunt-accent);}
+.forest-shell .hunt-switch:focus-visible,
+.forest-shell .hunt-mode:focus-visible,
+.forest-shell .hunt-start:focus-visible,
+.hunt-date-select:focus-visible {
+    outline: 1px solid var(--hunt-accent);
+    outline-offset: 2px;}
+.hunt-tray :disabled {
+    cursor: progress;}
+.hunt-status {
+    margin: 0 12px;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    text-align: center;}
+.hunt-status.is-running {
+    animation: hunt-pulse 1.4s ease-in-out infinite;}
+.hunt-status.is-error {
+    color: var(--hunt-error);}
+.forest-shell .hunt-status-link {
+    padding: 0;
+    background: none;
+    color: var(--hunt-text);
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;}
+@keyframes hunt-pulse {
+    50% {
+        opacity: 0.55;}
+}
+
+/* ── Forest: Changes modal ──────────────────────────────────────────── */
+#forest-changesBtn.has-new {
+    border-color: rgba(31, 240, 200, 0.7) !important;}
+.changes-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #1ff0c8;
+    color: #03120e;
+    font-size: 0.65rem;
+    font-weight: 700;}
+.forest-changes-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 16px;}
+.forest-changes-overlay.forest-hidden {
+    display: none;}
+.changes-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);}
+.changes-dialog {
+    position: relative;
+    width: min(620px, 100%);
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(10, 26, 19, 0.97), rgba(5, 13, 10, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+    color: var(--text);}
+.changes-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);}
+.changes-title {
+    margin: 2px 0 0;
+    font-size: 17px;
+    font-weight: 650;}
+.changes-sub {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--muted);}
+.changes-dialog .icon-btn {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;}
+.changes-dialog .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;}
+.changes-list {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    padding: 10px 12px 14px;
+    overflow-y: auto;
+    user-select: text;}
+.change-entry {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);}
+.change-entry.is-new {
+    border-color: rgba(31, 240, 200, 0.55);}
+.change-entry.is-focus {
+    box-shadow: 0 0 0 1px rgba(31, 240, 200, 0.9), 0 0 24px rgba(31, 240, 200, 0.25);}
+.change-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;}
+.change-kind {
+    font-weight: 650;
+    letter-spacing: 0.02em;}
+.change-project {
+    color: var(--darktext);}
+.change-time {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);}
+.change-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;}
+.change-tag {
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 12px;}
+.change-entry.is-undone .change-tag {
+    text-decoration: line-through;
+    opacity: 0.55;}
+.change-note,
+.change-query {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--muted);}
+.change-query {
+    color: var(--text);}
+.change-note.is-warning {
+    color: #e0a352;}
+.change-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;}
+.change-actions:empty {
+    display: none;}
+.change-hint {
+    font-size: 11px;
+    color: var(--muted);}
+.changes-dialog .forest-action-btn {
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    cursor: pointer;}
+.changes-dialog .forest-action-btn:hover {
+    background: rgba(255, 255, 255, 0.13);}
+.change-results {
+    display: grid;
+    gap: 4px;}
+.change-result {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);}
+.change-result .forest-file-name {
+    font-size: 13px;
+    font-weight: 550;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;}
+.change-result .file-sub {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;}
+.change-reason {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--muted);}
+.change-result.is-added {
+    opacity: 0.6;}
+.change-added {
+    padding: 0 6px;
+    font-size: 11px;
+    color: #1ff0c8;}
+.change-result .tiny-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;}
+.change-more > summary {
+    padding: 4px 2px;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;}
+.change-more[open] > summary {
+    margin-bottom: 4px;}
 .tag-editor {
     margin: 4px 0 12px;}
 .tag-input {

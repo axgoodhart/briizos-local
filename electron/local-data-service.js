@@ -5,7 +5,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
-const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT } = require('./local-data/limits');
+const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT, FOREST_MAX_CHANGES } = require('./local-data/limits');
 const { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES } = require('./built-in-models');
 const { validateThemeLibrary } = require('./theme-library-validation');
 const themeContract = require('../src/theme/themeContract.json');
@@ -2248,6 +2248,7 @@ class LocalDataService extends EventEmitter {
       version: 1,
       viewport: { x: 260, y: 160, scale: 1, ...(view.viewport || {}) },
       hunterDirs: Array.isArray(view.hunterDirs) ? view.hunterDirs : [],
+      changes: Array.isArray(view.changes) ? view.changes : [],
       projects,
     };
   }
@@ -2320,7 +2321,7 @@ class LocalDataService extends EventEmitter {
   }
 
   saveForestState(state = {}) {
-    v.object(state, 'Forest state', ['version', 'viewport', 'hunterDirs', 'projects']);
+    v.object(state, 'Forest state', ['version', 'viewport', 'hunterDirs', 'changes', 'projects']);
     v.object(state.viewport || {}, 'viewport', ['x', 'y', 'scale']);
     const viewport = {
       x: v.number(state.viewport?.x ?? 260, 'viewport.x', { min: -10000000, max: 10000000 }),
@@ -2328,6 +2329,11 @@ class LocalDataService extends EventEmitter {
       scale: v.number(state.viewport?.scale ?? 1, 'viewport.scale', { min: 0.01, max: 100 }),
     };
     const hunterDirs = state.hunterDirs === undefined ? [] : v.stringArray(state.hunterDirs, 'hunterDirs', { maxItems: 100, maxLength: 4096 });
+    const changes = state.changes ?? [];
+    if (!Array.isArray(changes) || changes.length > FOREST_MAX_CHANGES) {
+      v.fail('INVALID_INPUT', `changes must be a list with at most ${FOREST_MAX_CHANGES} items`);
+    }
+    this._jsonValue(changes, 'Forest changes history', 8000000);
     const projects = state.projects ?? [];
     if (!Array.isArray(projects) || projects.length > FOREST_MAX_PROJECTS) {
       v.fail('INVALID_INPUT', `projects must be a list with at most ${FOREST_MAX_PROJECTS} items`);
@@ -2425,7 +2431,7 @@ class LocalDataService extends EventEmitter {
         this.db.prepare('UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
         this.db.prepare('UPDATE forest_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
       }
-      const viewJson = JSON.stringify({ version: 1, viewport, hunterDirs });
+      const viewJson = JSON.stringify({ version: 1, viewport, hunterDirs, changes });
       this.db.prepare(`
         INSERT INTO forest_view_state (singleton_id, value_json, updated_at, revision) VALUES (1, ?, ?, 1)
         ON CONFLICT(singleton_id) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at,
