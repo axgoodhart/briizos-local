@@ -1,0 +1,4873 @@
+{
+  "ok": false,
+  "diagram_type": "architecture",
+  "layout": {
+    "mode": "free"
+  },
+  "viewBox": [
+    1229,
+    6990
+  ],
+  "components": [
+    {
+      "id": "workspace",
+      "type": "frontend",
+      "label": "Workspace shell",
+      "x": 42,
+      "y": 80,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        80
+      ]
+    },
+    {
+      "id": "settings-ui",
+      "type": "frontend",
+      "label": "Dashboard & Settings",
+      "x": 328,
+      "y": 80,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        80
+      ]
+    },
+    {
+      "id": "theme-ui",
+      "type": "frontend",
+      "label": "Theme Studio & Chromap",
+      "x": 614,
+      "y": 80,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        80
+      ]
+    },
+    {
+      "id": "avatar-ui",
+      "type": "frontend",
+      "label": "Briizy avatar & quick chat",
+      "x": 900,
+      "y": 80,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        80
+      ]
+    },
+    {
+      "id": "chat-ui",
+      "type": "frontend",
+      "label": "Interaction & Conversations",
+      "x": 42,
+      "y": 280,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        280
+      ]
+    },
+    {
+      "id": "tasks-ui",
+      "type": "frontend",
+      "label": "Tasks, Briizify & decks",
+      "x": 328,
+      "y": 280,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        280
+      ]
+    },
+    {
+      "id": "sources-ui",
+      "type": "frontend",
+      "label": "Sources & activity logs",
+      "x": 614,
+      "y": 280,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        280
+      ]
+    },
+    {
+      "id": "journals-ui",
+      "type": "frontend",
+      "label": "Journals & Execubriiz",
+      "x": 42,
+      "y": 480,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        480
+      ]
+    },
+    {
+      "id": "notefalls-ui",
+      "type": "frontend",
+      "label": "Notefalls & screen memory",
+      "x": 328,
+      "y": 480,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        480
+      ]
+    },
+    {
+      "id": "forest-ui",
+      "type": "frontend",
+      "label": "Forest & File Hunter",
+      "x": 614,
+      "y": 480,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        480
+      ]
+    },
+    {
+      "id": "organizer-ui",
+      "type": "frontend",
+      "label": "Organizer, Calendar & Notes",
+      "x": 42,
+      "y": 680,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        680
+      ]
+    },
+    {
+      "id": "canvas-ui",
+      "type": "frontend",
+      "label": "Canvases & Live Canvas",
+      "x": 328,
+      "y": 680,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        680
+      ]
+    },
+    {
+      "id": "media-ui",
+      "type": "frontend",
+      "label": "Media & recorder history",
+      "x": 614,
+      "y": 680,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        680
+      ]
+    },
+    {
+      "id": "overlays-ui",
+      "type": "frontend",
+      "label": "Briiztorm, audit & Bfast",
+      "x": 42,
+      "y": 880,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        880
+      ]
+    },
+    {
+      "id": "login-ui",
+      "type": "frontend",
+      "label": "Login & cloud identity",
+      "x": 328,
+      "y": 880,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        880
+      ]
+    },
+    {
+      "id": "canvas-boundary",
+      "type": "security",
+      "label": "Canvas script boundary",
+      "x": 614,
+      "y": 880,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        880
+      ]
+    },
+    {
+      "id": "a-chat",
+      "type": "frontend",
+      "label": "A1 • useChat sends",
+      "x": 42,
+      "y": 1180,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        1180
+      ]
+    },
+    {
+      "id": "a-preload",
+      "type": "messagebus",
+      "label": "A2 • preload window.api",
+      "x": 328,
+      "y": 1180,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        1180
+      ]
+    },
+    {
+      "id": "a-ipc",
+      "type": "backend",
+      "label": "A3 • main chat handlers",
+      "x": 614,
+      "y": 1180,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        1180
+      ]
+    },
+    {
+      "id": "a-dispatch",
+      "type": "backend",
+      "label": "A4 • provider dispatcher",
+      "x": 900,
+      "y": 1180,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        1180
+      ]
+    },
+    {
+      "id": "a-audit",
+      "type": "security",
+      "label": "A5 • audit-before-send",
+      "x": 900,
+      "y": 1390,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        1390
+      ]
+    },
+    {
+      "id": "a-graph",
+      "type": "backend",
+      "label": "A6 • lead LangGraph",
+      "x": 614,
+      "y": 1390,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        1390
+      ]
+    },
+    {
+      "id": "a-factory",
+      "type": "backend",
+      "label": "A7 • createChatModel",
+      "x": 328,
+      "y": 1390,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        1390
+      ]
+    },
+    {
+      "id": "a-provider",
+      "type": "cloud",
+      "label": "A8 • model provider",
+      "x": 42,
+      "y": 1390,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        1390
+      ]
+    },
+    {
+      "id": "a-read",
+      "type": "backend",
+      "label": "Agent direct data reads",
+      "x": 42,
+      "y": 1600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        1600
+      ]
+    },
+    {
+      "id": "a-hooks",
+      "type": "backend",
+      "label": "Title, tags & memory hooks",
+      "x": 328,
+      "y": 1600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        1600
+      ]
+    },
+    {
+      "id": "a-tool",
+      "type": "backend",
+      "label": "A9 • registered graph tool",
+      "x": 614,
+      "y": 1600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        1600
+      ]
+    },
+    {
+      "id": "a-gate",
+      "type": "security",
+      "label": "A10 • graph tool decision",
+      "x": 900,
+      "y": 1600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        1600
+      ]
+    },
+    {
+      "id": "a-bridge",
+      "type": "messagebus",
+      "label": "A11 • renderer tool IPC",
+      "x": 900,
+      "y": 1810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        1810
+      ]
+    },
+    {
+      "id": "a-hook",
+      "type": "frontend",
+      "label": "A12 • useToolBridge",
+      "x": 614,
+      "y": 1810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        1810
+      ]
+    },
+    {
+      "id": "a-render-gate",
+      "type": "security",
+      "label": "A13 • ToolContext gate",
+      "x": 328,
+      "y": 1810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        1810
+      ]
+    },
+    {
+      "id": "a-handler",
+      "type": "frontend",
+      "label": "A14 • tools.js handler",
+      "x": 42,
+      "y": 1810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        1810
+      ]
+    },
+    {
+      "id": "a-local-ipc",
+      "type": "messagebus",
+      "label": "A15 • structured-data IPC",
+      "x": 42,
+      "y": 2020,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        2020
+      ]
+    },
+    {
+      "id": "a-service",
+      "type": "backend",
+      "label": "A16 • LocalDataService",
+      "x": 328,
+      "y": 2020,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        2020
+      ]
+    },
+    {
+      "id": "a-db",
+      "type": "database",
+      "label": "briizos.db • shared authority",
+      "x": 614,
+      "y": 2020,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        2020
+      ]
+    },
+    {
+      "id": "a-change",
+      "type": "messagebus",
+      "label": "A17 • data:changed",
+      "x": 900,
+      "y": 2020,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        2020
+      ]
+    },
+    {
+      "id": "a-result",
+      "type": "messagebus",
+      "label": "A18 • result returns",
+      "x": 42,
+      "y": 2230,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        2230
+      ]
+    },
+    {
+      "id": "a-final",
+      "type": "frontend",
+      "label": "A19 • visible response",
+      "x": 328,
+      "y": 2230,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        2230
+      ]
+    },
+    {
+      "id": "a-confirm",
+      "type": "frontend",
+      "label": "Approval / reject / clarification",
+      "x": 614,
+      "y": 2230,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        2230
+      ]
+    },
+    {
+      "id": "a-ui-refresh",
+      "type": "frontend",
+      "label": "A20 • task appears",
+      "x": 900,
+      "y": 2230,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        2230
+      ]
+    },
+    {
+      "id": "d-trigger",
+      "type": "frontend",
+      "label": "D1 • Forest tag queue",
+      "x": 42,
+      "y": 2580,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        2580
+      ]
+    },
+    {
+      "id": "d-ipc",
+      "type": "messagebus",
+      "label": "D2 • forestAutoTag IPC",
+      "x": 328,
+      "y": 2580,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        2580
+      ]
+    },
+    {
+      "id": "d-read",
+      "type": "backend",
+      "label": "D3 • Forest excerpt reader",
+      "x": 614,
+      "y": 2580,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        2580
+      ]
+    },
+    {
+      "id": "d-files",
+      "type": "external",
+      "label": "Project files on this Mac",
+      "x": 900,
+      "y": 2580,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        2580
+      ]
+    },
+    {
+      "id": "d-factory",
+      "type": "backend",
+      "label": "D4 • createChatModel",
+      "x": 614,
+      "y": 2790,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        2790
+      ]
+    },
+    {
+      "id": "d-provider",
+      "type": "cloud",
+      "label": "D5 • chosen API provider",
+      "x": 328,
+      "y": 2790,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        2790
+      ]
+    },
+    {
+      "id": "d-parse",
+      "type": "backend",
+      "label": "D6 • parse & clean tags",
+      "x": 42,
+      "y": 2790,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        2790
+      ]
+    },
+    {
+      "id": "d-apply",
+      "type": "frontend",
+      "label": "D7 • visible tags added",
+      "x": 42,
+      "y": 3000,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        3000
+      ]
+    },
+    {
+      "id": "d-save",
+      "type": "messagebus",
+      "label": "D8 • Forest autosave IPC",
+      "x": 328,
+      "y": 3000,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        3000
+      ]
+    },
+    {
+      "id": "d-store",
+      "type": "database",
+      "label": "D9 • same briizos.db",
+      "x": 614,
+      "y": 3000,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        3000
+      ]
+    },
+    {
+      "id": "b-control",
+      "type": "frontend",
+      "label": "B1 • capture settings",
+      "x": 42,
+      "y": 3350,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        3350
+      ]
+    },
+    {
+      "id": "b-capture-gate",
+      "type": "security",
+      "label": "B2 • capture privacy gate",
+      "x": 328,
+      "y": 3350,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        3350
+      ]
+    },
+    {
+      "id": "b-native",
+      "type": "backend",
+      "label": "B3 • Swift helper child",
+      "x": 614,
+      "y": 3350,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        3350
+      ]
+    },
+    {
+      "id": "b-screen",
+      "type": "external",
+      "label": "Mac windows / full display",
+      "x": 900,
+      "y": 3350,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        3350
+      ]
+    },
+    {
+      "id": "b-frames",
+      "type": "database",
+      "label": "B4 • local image archive",
+      "x": 614,
+      "y": 3560,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        3560
+      ]
+    },
+    {
+      "id": "b-indexer",
+      "type": "backend",
+      "label": "B5 • indexer / retention",
+      "x": 328,
+      "y": 3560,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        3560
+      ]
+    },
+    {
+      "id": "b-coordinator",
+      "type": "backend",
+      "label": "B6 • assistant coordinator",
+      "x": 42,
+      "y": 3560,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        3560
+      ]
+    },
+    {
+      "id": "b-ocr-db",
+      "type": "database",
+      "label": "B7 • same briizos.db",
+      "x": 900,
+      "y": 3560,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        3560
+      ]
+    },
+    {
+      "id": "b-egress",
+      "type": "security",
+      "label": "B8 • cloud-text consent",
+      "x": 42,
+      "y": 3770,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        3770
+      ]
+    },
+    {
+      "id": "b-extract",
+      "type": "backend",
+      "label": "B9 • task-extraction assistant",
+      "x": 328,
+      "y": 3770,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        3770
+      ]
+    },
+    {
+      "id": "b-factory",
+      "type": "backend",
+      "label": "B10 • createChatModel",
+      "x": 614,
+      "y": 3770,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        3770
+      ]
+    },
+    {
+      "id": "b-provider",
+      "type": "cloud",
+      "label": "B11 • API model provider",
+      "x": 900,
+      "y": 3770,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        3770
+      ]
+    },
+    {
+      "id": "b-staging",
+      "type": "database",
+      "label": "B12 • proposals & staged tasks",
+      "x": 328,
+      "y": 3980,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        3980
+      ]
+    },
+    {
+      "id": "b-inbox",
+      "type": "frontend",
+      "label": "B13 • Notefalls / avatar inbox",
+      "x": 614,
+      "y": 3980,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        3980
+      ]
+    },
+    {
+      "id": "b-accept",
+      "type": "security",
+      "label": "B14 • accept / dismiss / snooze",
+      "x": 900,
+      "y": 3980,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        3980
+      ]
+    },
+    {
+      "id": "b-task",
+      "type": "database",
+      "label": "B15 • accepted task",
+      "x": 900,
+      "y": 4190,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        4190
+      ]
+    },
+    {
+      "id": "b-taskagent",
+      "type": "backend",
+      "label": "B16 • TaskAgent planning",
+      "x": 614,
+      "y": 4190,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        4190
+      ]
+    },
+    {
+      "id": "b-runner",
+      "type": "security",
+      "label": "B17 • AutomationRunner",
+      "x": 328,
+      "y": 4190,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        4190
+      ]
+    },
+    {
+      "id": "b-agent",
+      "type": "backend",
+      "label": "B18 • same agent sendMessage",
+      "x": 42,
+      "y": 4190,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        4190
+      ]
+    },
+    {
+      "id": "b-leak",
+      "type": "security",
+      "label": "Consent gap • agent OCR reads",
+      "x": 42,
+      "y": 4400,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        4400
+      ]
+    },
+    {
+      "id": "b-leakfactory",
+      "type": "backend",
+      "label": "Normal graph continuation",
+      "x": 328,
+      "y": 4400,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        4400
+      ]
+    },
+    {
+      "id": "b-leakprovider",
+      "type": "cloud",
+      "label": "Chat model sees OCR result",
+      "x": 614,
+      "y": 4400,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        4400
+      ]
+    },
+    {
+      "id": "b-leakdb",
+      "type": "database",
+      "label": "Saved screen-text archive",
+      "x": 900,
+      "y": 4400,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        4400
+      ]
+    },
+    {
+      "id": "j-queue",
+      "type": "backend",
+      "label": "Execubriiz journal worker",
+      "x": 42,
+      "y": 4750,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        4750
+      ]
+    },
+    {
+      "id": "j-privacy",
+      "type": "security",
+      "label": "Journal context & privacy",
+      "x": 328,
+      "y": 4750,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        4750
+      ]
+    },
+    {
+      "id": "j-model",
+      "type": "backend",
+      "label": "Direct journal model stream",
+      "x": 614,
+      "y": 4750,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        4750
+      ]
+    },
+    {
+      "id": "j-provider",
+      "type": "cloud",
+      "label": "Journal API model provider",
+      "x": 900,
+      "y": 4750,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        4750
+      ]
+    },
+    {
+      "id": "j-view",
+      "type": "frontend",
+      "label": "Journal board updates",
+      "x": 42,
+      "y": 4960,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        4960
+      ]
+    },
+    {
+      "id": "j-store",
+      "type": "database",
+      "label": "ExecStore • same briizos.db",
+      "x": 328,
+      "y": 4960,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        4960
+      ]
+    },
+    {
+      "id": "j-commit",
+      "type": "security",
+      "label": "Journal mutation controls",
+      "x": 614,
+      "y": 4960,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        4960
+      ]
+    },
+    {
+      "id": "j-research",
+      "type": "backend",
+      "label": "Optional online research",
+      "x": 900,
+      "y": 4960,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        4960
+      ]
+    },
+    {
+      "id": "j-web",
+      "type": "cloud",
+      "label": "Provider web-search APIs",
+      "x": 900,
+      "y": 5170,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        5170
+      ]
+    },
+    {
+      "id": "p-renderer",
+      "type": "frontend",
+      "label": "Any exposed renderer caller",
+      "x": 42,
+      "y": 5510,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        5510
+      ]
+    },
+    {
+      "id": "p-ipc",
+      "type": "security",
+      "label": "Privileged IPC gap",
+      "x": 328,
+      "y": 5510,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        5510
+      ]
+    },
+    {
+      "id": "p-executor",
+      "type": "backend",
+      "label": "Main filesystem / terminal",
+      "x": 614,
+      "y": 5510,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        5510
+      ]
+    },
+    {
+      "id": "p-os",
+      "type": "external",
+      "label": "OS files & child shell",
+      "x": 900,
+      "y": 5510,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        5510
+      ]
+    },
+    {
+      "id": "c-dispatch",
+      "type": "backend",
+      "label": "Codex provider alternative",
+      "x": 42,
+      "y": 5720,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        5720
+      ]
+    },
+    {
+      "id": "c-child",
+      "type": "external",
+      "label": "Codex app-server child",
+      "x": 328,
+      "y": 5720,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        5720
+      ]
+    },
+    {
+      "id": "c-cloud",
+      "type": "cloud",
+      "label": "ChatGPT subscription",
+      "x": 614,
+      "y": 5720,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        5720
+      ]
+    },
+    {
+      "id": "c-visible",
+      "type": "frontend",
+      "label": "Same chat stream display",
+      "x": 900,
+      "y": 5720,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        5720
+      ]
+    },
+    {
+      "id": "cloud-auth",
+      "type": "frontend",
+      "label": "Firebase Auth renderer",
+      "x": 42,
+      "y": 6050,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        6050
+      ]
+    },
+    {
+      "id": "cloud-session",
+      "type": "security",
+      "label": "Gateway session binding",
+      "x": 328,
+      "y": 6050,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        6050
+      ]
+    },
+    {
+      "id": "cloud-gateway",
+      "type": "backend",
+      "label": "CloudGateway in main",
+      "x": 614,
+      "y": 6050,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        6050
+      ]
+    },
+    {
+      "id": "cloud-firestore",
+      "type": "cloud",
+      "label": "Firebase services",
+      "x": 900,
+      "y": 6050,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        6050
+      ]
+    },
+    {
+      "id": "cloud-run",
+      "type": "security",
+      "label": "Remote AutomationRunner",
+      "x": 614,
+      "y": 6260,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        6260
+      ]
+    },
+    {
+      "id": "cloud-db",
+      "type": "database",
+      "label": "Local authority / continuity",
+      "x": 328,
+      "y": 6260,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        6260
+      ]
+    },
+    {
+      "id": "secrets",
+      "type": "security",
+      "label": "OS-backed secret encryption",
+      "x": 42,
+      "y": 6260,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        6260
+      ]
+    },
+    {
+      "id": "logs",
+      "type": "backend",
+      "label": "Main + renderer logger",
+      "x": 900,
+      "y": 6260,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        6260
+      ]
+    },
+    {
+      "id": "x-sources",
+      "type": "frontend",
+      "label": "Sources requests",
+      "x": 42,
+      "y": 6600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        6600
+      ]
+    },
+    {
+      "id": "x-github",
+      "type": "backend",
+      "label": "GitHub adapter in main",
+      "x": 328,
+      "y": 6600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        6600
+      ]
+    },
+    {
+      "id": "x-github-api",
+      "type": "cloud",
+      "label": "GitHub REST API",
+      "x": 614,
+      "y": 6600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        6600
+      ]
+    },
+    {
+      "id": "x-drive",
+      "type": "backend",
+      "label": "Google Drive placeholder",
+      "x": 900,
+      "y": 6600,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        6600
+      ]
+    },
+    {
+      "id": "x-native",
+      "type": "backend",
+      "label": "Local file / Studio adapters",
+      "x": 42,
+      "y": 6810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        42,
+        6810
+      ]
+    },
+    {
+      "id": "x-files",
+      "type": "external",
+      "label": "Mac folders / iCloud / USB",
+      "x": 328,
+      "y": 6810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        328,
+        6810
+      ]
+    },
+    {
+      "id": "x-weather",
+      "type": "cloud",
+      "label": "Geolocation & Open-Meteo",
+      "x": 614,
+      "y": 6810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        614,
+        6810
+      ]
+    },
+    {
+      "id": "x-sites",
+      "type": "external",
+      "label": "Browser sites & Studio apps",
+      "x": 900,
+      "y": 6810,
+      "width": 238,
+      "height": 88,
+      "pos": [
+        900,
+        6810
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "VISIBLE WORKSPACE • main React renderer • containment means mounted UI",
+      "x": 20,
+      "y": 56,
+      "width": 854,
+      "height": 932,
+      "wraps": [
+        "workspace",
+        "settings-ui",
+        "theme-ui",
+        "chat-ui",
+        "tasks-ui",
+        "sources-ui",
+        "journals-ui",
+        "notefalls-ui",
+        "forest-ui",
+        "organizer-ui",
+        "canvas-ui",
+        "media-ui",
+        "overlays-ui",
+        "login-ui",
+        "canvas-boundary"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "SECOND RENDERER • transparent native overlay",
+      "x": 878,
+      "y": 56,
+      "width": 282,
+      "height": 132,
+      "wraps": [
+        "avatar-ui"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "A • renderer submits a conversation",
+      "x": 20,
+      "y": 1156,
+      "width": 568,
+      "height": 132,
+      "wraps": [
+        "a-chat",
+        "a-preload"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "A • main-process entry",
+      "x": 592,
+      "y": 1156,
+      "width": 568,
+      "height": 132,
+      "wraps": [
+        "a-ipc",
+        "a-dispatch"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "A • main graph and model adapters",
+      "x": 292,
+      "y": 1354,
+      "width": 882,
+      "height": 354,
+      "wraps": [
+        "a-factory",
+        "a-graph",
+        "a-audit",
+        "a-tool",
+        "a-gate",
+        "a-hooks"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "A • renderer executes after its policy decision",
+      "x": 20,
+      "y": 1786,
+      "width": 854,
+      "height": 132,
+      "wraps": [
+        "a-hook",
+        "a-render-gate",
+        "a-handler"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "A • main persistence authority",
+      "x": 20,
+      "y": 1996,
+      "width": 1140,
+      "height": 132,
+      "wraps": [
+        "a-local-ipc",
+        "a-service",
+        "a-db",
+        "a-change"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "D • renderer-initiated direct call",
+      "x": 20,
+      "y": 2556,
+      "width": 568,
+      "height": 132,
+      "wraps": [
+        "d-trigger",
+        "d-ipc"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "D • main reads files and constructs request",
+      "x": 592,
+      "y": 2556,
+      "width": 282,
+      "height": 342,
+      "wraps": [
+        "d-read",
+        "d-factory"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "B • main capture policy",
+      "x": 306,
+      "y": 3326,
+      "width": 282,
+      "height": 132,
+      "wraps": [
+        "b-capture-gate"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "B • main screen-memory scheduler",
+      "x": 20,
+      "y": 3536,
+      "width": 568,
+      "height": 132,
+      "wraps": [
+        "b-indexer",
+        "b-coordinator"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "B • local native helper process",
+      "x": 592,
+      "y": 3326,
+      "width": 282,
+      "height": 342,
+      "wraps": [
+        "b-native",
+        "b-frames"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "B • main assistant pipeline • consent enforced here",
+      "x": 20,
+      "y": 3746,
+      "width": 854,
+      "height": 132,
+      "wraps": [
+        "b-egress",
+        "b-extract",
+        "b-factory"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "B • main accepted-task execution • separate from text analysis",
+      "x": 20,
+      "y": 4166,
+      "width": 1140,
+      "height": 132,
+      "wraps": [
+        "b-agent",
+        "b-runner",
+        "b-taskagent",
+        "b-task"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "J • main journal jobs • separate from general ToolContext",
+      "x": 20,
+      "y": 4726,
+      "width": 854,
+      "height": 132,
+      "wraps": [
+        "j-queue",
+        "j-privacy",
+        "j-model"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "J • main commit authority",
+      "x": 292,
+      "y": 4924,
+      "width": 596,
+      "height": 144,
+      "wraps": [
+        "j-store",
+        "j-commit"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "PRIVILEGED MAIN • raw IPC outside renderer approvals",
+      "x": 306,
+      "y": 5486,
+      "width": 568,
+      "height": 132,
+      "wraps": [
+        "p-ipc",
+        "p-executor"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "CODEX CHILD • installed CLI owns sandbox enforcement",
+      "x": 306,
+      "y": 5696,
+      "width": 282,
+      "height": 132,
+      "wraps": [
+        "c-child"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "CLOUD GATEWAY • main owns continuity and command execution",
+      "x": 306,
+      "y": 6026,
+      "width": 568,
+      "height": 342,
+      "wraps": [
+        "cloud-session",
+        "cloud-gateway",
+        "cloud-run",
+        "cloud-db"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "EXTERNAL ADAPTER • main owns GitHub requests",
+      "x": 306,
+      "y": 6576,
+      "width": 282,
+      "height": 132,
+      "wraps": [
+        "x-github"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "canvas-ui",
+      "to": "canvas-boundary",
+      "label": "renders",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          724
+        ],
+        [
+          590,
+          724
+        ],
+        [
+          590,
+          924
+        ],
+        [
+          614,
+          924
+        ]
+      ],
+      "labelAt": [
+        590,
+        814
+      ]
+    },
+    {
+      "from": "a-chat",
+      "to": "a-preload",
+      "label": "invoke",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          1224
+        ],
+        [
+          328,
+          1224
+        ]
+      ],
+      "labelAt": [
+        304,
+        1214
+      ]
+    },
+    {
+      "from": "a-preload",
+      "to": "a-ipc",
+      "label": "IPC",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          1224
+        ],
+        [
+          614,
+          1224
+        ]
+      ],
+      "labelAt": [
+        590,
+        1214
+      ]
+    },
+    {
+      "from": "a-ipc",
+      "to": "a-dispatch",
+      "label": "dispatch",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          1224
+        ],
+        [
+          900,
+          1224
+        ]
+      ],
+      "labelAt": [
+        876,
+        1214
+      ]
+    },
+    {
+      "from": "a-dispatch",
+      "to": "a-audit",
+      "label": "API-key",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          1019,
+          1268
+        ],
+        [
+          1019,
+          1390
+        ]
+      ],
+      "labelAt": [
+        991,
+        1332
+      ]
+    },
+    {
+      "from": "a-audit",
+      "to": "a-graph",
+      "label": "recorded",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          900,
+          1434
+        ],
+        [
+          852,
+          1434
+        ]
+      ],
+      "labelAt": [
+        876,
+        1424
+      ]
+    },
+    {
+      "from": "a-graph",
+      "to": "a-factory",
+      "label": "build",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          1425.95
+        ],
+        [
+          566,
+          1425.95
+        ]
+      ],
+      "labelAt": [
+        590,
+        1416
+      ]
+    },
+    {
+      "from": "a-factory",
+      "to": "a-provider",
+      "label": "request",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          328,
+          1425.95
+        ],
+        [
+          280,
+          1425.95
+        ]
+      ],
+      "labelAt": [
+        304,
+        1416
+      ]
+    },
+    {
+      "from": "a-graph",
+      "to": "a-tool",
+      "label": "tool call",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          755.05,
+          1478
+        ],
+        [
+          755.05,
+          1539
+        ],
+        [
+          733,
+          1539
+        ],
+        [
+          733,
+          1600
+        ]
+      ],
+      "labelAt": [
+        744,
+        1529
+      ]
+    },
+    {
+      "from": "a-tool",
+      "to": "a-gate",
+      "label": "decide",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          1644
+        ],
+        [
+          900,
+          1644
+        ]
+      ],
+      "labelAt": [
+        876,
+        1634
+      ]
+    },
+    {
+      "from": "a-gate",
+      "to": "a-bridge",
+      "label": "allowed",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          1033,
+          1688
+        ],
+        [
+          1033,
+          1810
+        ]
+      ],
+      "labelAt": [
+        1005,
+        1752
+      ]
+    },
+    {
+      "from": "a-bridge",
+      "to": "a-hook",
+      "label": "IPC",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          900,
+          1854
+        ],
+        [
+          852,
+          1854
+        ]
+      ],
+      "labelAt": [
+        876,
+        1844
+      ]
+    },
+    {
+      "from": "a-hook",
+      "to": "a-render-gate",
+      "label": "execute",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          1854
+        ],
+        [
+          566,
+          1854
+        ]
+      ],
+      "labelAt": [
+        590,
+        1844
+      ]
+    },
+    {
+      "from": "a-render-gate",
+      "to": "a-handler",
+      "label": "allowed",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          328,
+          1854
+        ],
+        [
+          280,
+          1854
+        ]
+      ],
+      "labelAt": [
+        304,
+        1844
+      ]
+    },
+    {
+      "from": "a-handler",
+      "to": "a-local-ipc",
+      "label": "create",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          161,
+          1898
+        ],
+        [
+          161,
+          2020
+        ]
+      ],
+      "labelAt": [
+        136,
+        1962
+      ]
+    },
+    {
+      "from": "a-local-ipc",
+      "to": "a-service",
+      "label": "forward",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          2064
+        ],
+        [
+          328,
+          2064
+        ]
+      ],
+      "labelAt": [
+        304,
+        2054
+      ]
+    },
+    {
+      "from": "a-service",
+      "to": "a-db",
+      "label": "commit",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          2073.1
+        ],
+        [
+          614,
+          2073.1
+        ]
+      ],
+      "labelAt": [
+        590,
+        2063
+      ]
+    },
+    {
+      "from": "a-service",
+      "to": "a-change",
+      "label": "emit",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          447,
+          2108
+        ],
+        [
+          447,
+          2132
+        ],
+        [
+          876,
+          2132
+        ],
+        [
+          876,
+          2064
+        ],
+        [
+          900,
+          2064
+        ]
+      ],
+      "labelAt": [
+        662,
+        2122
+      ]
+    },
+    {
+      "from": "a-change",
+      "to": "a-ui-refresh",
+      "label": "reload",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          1019,
+          2108
+        ],
+        [
+          1019,
+          2230
+        ]
+      ],
+      "labelAt": [
+        994,
+        2172
+      ]
+    },
+    {
+      "from": "a-local-ipc",
+      "to": "a-result",
+      "label": "return",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          161,
+          2108
+        ],
+        [
+          161,
+          2230
+        ]
+      ],
+      "labelAt": [
+        136,
+        2172
+      ]
+    },
+    {
+      "from": "a-graph",
+      "to": "a-final",
+      "label": "final stream",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          726,
+          1478
+        ],
+        [
+          726,
+          1502
+        ],
+        [
+          304,
+          1502
+        ],
+        [
+          304,
+          2274
+        ],
+        [
+          328,
+          2274
+        ]
+      ],
+      "labelAt": [
+        515,
+        1492
+      ]
+    },
+    {
+      "from": "a-provider",
+      "to": "a-graph",
+      "label": "model reply",
+      "variant": "dashed",
+      "route": "auto",
+      "points": [
+        [
+          161,
+          1390
+        ],
+        [
+          161,
+          1366
+        ],
+        [
+          733,
+          1366
+        ],
+        [
+          733,
+          1390
+        ]
+      ],
+      "labelAt": [
+        447,
+        1356
+      ]
+    },
+    {
+      "from": "a-graph",
+      "to": "a-read",
+      "label": "read only",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          710.95,
+          1478
+        ],
+        [
+          710.95,
+          1539
+        ],
+        [
+          161,
+          1539
+        ],
+        [
+          161,
+          1600
+        ]
+      ],
+      "labelAt": [
+        436,
+        1529
+      ]
+    },
+    {
+      "from": "a-graph",
+      "to": "a-hooks",
+      "label": "hooks",
+      "variant": "dashed",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          1441
+        ],
+        [
+          590,
+          1441
+        ],
+        [
+          590,
+          1644
+        ],
+        [
+          566,
+          1644
+        ]
+      ],
+      "labelAt": [
+        590,
+        1571
+      ]
+    },
+    {
+      "from": "a-gate",
+      "to": "a-confirm",
+      "label": "interrupt",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          1138,
+          1644
+        ],
+        [
+          1162,
+          1644
+        ],
+        [
+          1162,
+          2342
+        ],
+        [
+          733,
+          2342
+        ],
+        [
+          733,
+          2318
+        ]
+      ],
+      "labelAt": [
+        1162,
+        1983
+      ]
+    },
+    {
+      "from": "a-confirm",
+      "to": "a-gate",
+      "label": "resume",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          2274
+        ],
+        [
+          590,
+          2274
+        ],
+        [
+          590,
+          1712
+        ],
+        [
+          1005,
+          1712
+        ],
+        [
+          1005,
+          1688
+        ]
+      ],
+      "labelAt": [
+        590,
+        1983
+      ]
+    },
+    {
+      "from": "a-result",
+      "to": "a-graph",
+      "label": "next turn",
+      "variant": "dashed",
+      "route": "auto",
+      "points": [
+        [
+          42,
+          2274
+        ],
+        [
+          10,
+          2274
+        ],
+        [
+          10,
+          1315
+        ],
+        [
+          733,
+          1315
+        ],
+        [
+          733,
+          1390
+        ]
+      ],
+      "labelAt": [
+        43,
+        1558
+      ]
+    },
+    {
+      "from": "d-trigger",
+      "to": "d-ipc",
+      "label": "IPC",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          2624
+        ],
+        [
+          328,
+          2624
+        ]
+      ],
+      "labelAt": [
+        304,
+        2614
+      ]
+    },
+    {
+      "from": "d-ipc",
+      "to": "d-read",
+      "label": "read",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          2624
+        ],
+        [
+          614,
+          2624
+        ]
+      ],
+      "labelAt": [
+        590,
+        2614
+      ]
+    },
+    {
+      "from": "d-read",
+      "to": "d-files",
+      "label": "opens",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          2624
+        ],
+        [
+          900,
+          2624
+        ]
+      ],
+      "labelAt": [
+        876,
+        2614
+      ]
+    },
+    {
+      "from": "d-read",
+      "to": "d-factory",
+      "label": "prompt",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          733,
+          2668
+        ],
+        [
+          733,
+          2790
+        ]
+      ],
+      "labelAt": [
+        708,
+        2732
+      ]
+    },
+    {
+      "from": "d-factory",
+      "to": "d-provider",
+      "label": "invoke",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          2834
+        ],
+        [
+          566,
+          2834
+        ]
+      ],
+      "labelAt": [
+        590,
+        2824
+      ]
+    },
+    {
+      "from": "d-provider",
+      "to": "d-parse",
+      "label": "reply",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          328,
+          2834
+        ],
+        [
+          280,
+          2834
+        ]
+      ],
+      "labelAt": [
+        304,
+        2824
+      ]
+    },
+    {
+      "from": "d-parse",
+      "to": "d-apply",
+      "label": "return",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          161,
+          2878
+        ],
+        [
+          161,
+          3000
+        ]
+      ],
+      "labelAt": [
+        136,
+        2942
+      ]
+    },
+    {
+      "from": "d-apply",
+      "to": "d-save",
+      "label": "autosave",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          3044
+        ],
+        [
+          328,
+          3044
+        ]
+      ],
+      "labelAt": [
+        304,
+        3034
+      ]
+    },
+    {
+      "from": "d-save",
+      "to": "d-store",
+      "label": "write",
+      "variant": "emphasis",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          3044
+        ],
+        [
+          614,
+          3044
+        ]
+      ],
+      "labelAt": [
+        590,
+        3034
+      ]
+    },
+    {
+      "from": "b-control",
+      "to": "b-capture-gate",
+      "label": "configure",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          3394
+        ],
+        [
+          328,
+          3394
+        ]
+      ],
+      "labelAt": [
+        304,
+        3384
+      ]
+    },
+    {
+      "from": "b-capture-gate",
+      "to": "b-native",
+      "label": "permitted",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          3387
+        ],
+        [
+          614,
+          3387
+        ]
+      ],
+      "labelAt": [
+        590,
+        3377
+      ]
+    },
+    {
+      "from": "b-native",
+      "to": "b-screen",
+      "label": "capture",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          3394
+        ],
+        [
+          900,
+          3394
+        ]
+      ],
+      "labelAt": [
+        876,
+        3384
+      ]
+    },
+    {
+      "from": "b-native",
+      "to": "b-frames",
+      "label": "JPEG",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          733,
+          3438
+        ],
+        [
+          733,
+          3560
+        ]
+      ],
+      "labelAt": [
+        712,
+        3502
+      ]
+    },
+    {
+      "from": "b-native",
+      "to": "b-indexer",
+      "label": "metadata",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          3401
+        ],
+        [
+          590,
+          3401
+        ],
+        [
+          590,
+          3597
+        ],
+        [
+          566,
+          3597
+        ]
+      ],
+      "labelAt": [
+        590,
+        3489
+      ]
+    },
+    {
+      "from": "b-indexer",
+      "to": "b-coordinator",
+      "label": "frame",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          328,
+          3604
+        ],
+        [
+          280,
+          3604
+        ]
+      ],
+      "labelAt": [
+        304,
+        3594
+      ]
+    },
+    {
+      "from": "b-indexer",
+      "to": "b-ocr-db",
+      "label": "OCR row",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          3611
+        ],
+        [
+          590,
+          3611
+        ],
+        [
+          590,
+          3672
+        ],
+        [
+          1019,
+          3672
+        ],
+        [
+          1019,
+          3648
+        ]
+      ],
+      "labelAt": [
+        590,
+        3632
+      ]
+    },
+    {
+      "from": "b-coordinator",
+      "to": "b-egress",
+      "label": "batch",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          161,
+          3648
+        ],
+        [
+          161,
+          3770
+        ]
+      ],
+      "labelAt": [
+        138,
+        3712
+      ]
+    },
+    {
+      "from": "b-egress",
+      "to": "b-extract",
+      "label": "allowed",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          3814
+        ],
+        [
+          328,
+          3814
+        ]
+      ],
+      "labelAt": [
+        304,
+        3804
+      ]
+    },
+    {
+      "from": "b-extract",
+      "to": "b-factory",
+      "label": "prompt",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          3807
+        ],
+        [
+          614,
+          3807
+        ]
+      ],
+      "labelAt": [
+        590,
+        3797
+      ]
+    },
+    {
+      "from": "b-factory",
+      "to": "b-provider",
+      "label": "invoke",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          3807
+        ],
+        [
+          900,
+          3807
+        ]
+      ],
+      "labelAt": [
+        876,
+        3797
+      ]
+    },
+    {
+      "from": "b-extract",
+      "to": "b-staging",
+      "label": "stage",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          447,
+          3858
+        ],
+        [
+          447,
+          3980
+        ]
+      ],
+      "labelAt": [
+        424,
+        3922
+      ]
+    },
+    {
+      "from": "b-staging",
+      "to": "b-inbox",
+      "label": "publish",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          4024
+        ],
+        [
+          614,
+          4024
+        ]
+      ],
+      "labelAt": [
+        590,
+        4014
+      ]
+    },
+    {
+      "from": "b-inbox",
+      "to": "b-accept",
+      "label": "decision",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          4024
+        ],
+        [
+          900,
+          4024
+        ]
+      ],
+      "labelAt": [
+        876,
+        4014
+      ]
+    },
+    {
+      "from": "b-accept",
+      "to": "b-task",
+      "label": "accept",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          1019,
+          4068
+        ],
+        [
+          1019,
+          4190
+        ]
+      ],
+      "labelAt": [
+        994,
+        4132
+      ]
+    },
+    {
+      "from": "b-task",
+      "to": "b-taskagent",
+      "label": "plan",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          900,
+          4234
+        ],
+        [
+          852,
+          4234
+        ]
+      ],
+      "labelAt": [
+        876,
+        4224
+      ]
+    },
+    {
+      "from": "b-taskagent",
+      "to": "b-runner",
+      "label": "opt-in",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          4234
+        ],
+        [
+          566,
+          4234
+        ]
+      ],
+      "labelAt": [
+        590,
+        4224
+      ]
+    },
+    {
+      "from": "b-runner",
+      "to": "b-agent",
+      "label": "send",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          328,
+          4234
+        ],
+        [
+          280,
+          4234
+        ]
+      ],
+      "labelAt": [
+        304,
+        4224
+      ]
+    },
+    {
+      "from": "b-leak",
+      "to": "b-leakdb",
+      "label": "query",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          161,
+          4488
+        ],
+        [
+          161,
+          4512
+        ],
+        [
+          876,
+          4512
+        ],
+        [
+          876,
+          4444
+        ],
+        [
+          900,
+          4444
+        ]
+      ],
+      "labelAt": [
+        519,
+        4502
+      ]
+    },
+    {
+      "from": "b-leak",
+      "to": "b-leakfactory",
+      "label": "OCR",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          4451
+        ],
+        [
+          328,
+          4451
+        ]
+      ],
+      "labelAt": [
+        304,
+        4441
+      ]
+    },
+    {
+      "from": "b-leakfactory",
+      "to": "b-leakprovider",
+      "label": "next call",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          4444
+        ],
+        [
+          614,
+          4444
+        ]
+      ],
+      "labelAt": [
+        590,
+        4434
+      ]
+    },
+    {
+      "from": "b-provider",
+      "to": "b-extract",
+      "label": "reply",
+      "variant": "dashed",
+      "route": "auto",
+      "points": [
+        [
+          1019,
+          3858
+        ],
+        [
+          1019,
+          3882
+        ],
+        [
+          590,
+          3882
+        ],
+        [
+          590,
+          3821
+        ],
+        [
+          566,
+          3821
+        ]
+      ],
+      "labelAt": [
+        805,
+        3872
+      ]
+    },
+    {
+      "from": "j-queue",
+      "to": "j-privacy",
+      "label": "context",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          4794
+        ],
+        [
+          328,
+          4794
+        ]
+      ],
+      "labelAt": [
+        304,
+        4784
+      ]
+    },
+    {
+      "from": "j-privacy",
+      "to": "j-model",
+      "label": "eligible",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          4794
+        ],
+        [
+          614,
+          4794
+        ]
+      ],
+      "labelAt": [
+        590,
+        4784
+      ]
+    },
+    {
+      "from": "j-model",
+      "to": "j-provider",
+      "label": "stream",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          4787
+        ],
+        [
+          900,
+          4787
+        ]
+      ],
+      "labelAt": [
+        876,
+        4777
+      ]
+    },
+    {
+      "from": "j-provider",
+      "to": "j-commit",
+      "label": "validated",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          900,
+          4801
+        ],
+        [
+          876,
+          4801
+        ],
+        [
+          876,
+          4997
+        ],
+        [
+          852,
+          4997
+        ]
+      ],
+      "labelAt": [
+        876,
+        4889
+      ]
+    },
+    {
+      "from": "j-commit",
+      "to": "j-store",
+      "label": "commit",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          5004
+        ],
+        [
+          566,
+          5004
+        ]
+      ],
+      "labelAt": [
+        590,
+        4994
+      ]
+    },
+    {
+      "from": "j-store",
+      "to": "j-view",
+      "label": "notify",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          328,
+          5004
+        ],
+        [
+          280,
+          5004
+        ]
+      ],
+      "labelAt": [
+        304,
+        4994
+      ]
+    },
+    {
+      "from": "j-commit",
+      "to": "j-research",
+      "label": "full mode",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          5011
+        ],
+        [
+          900,
+          5011
+        ]
+      ],
+      "labelAt": [
+        876,
+        5001
+      ]
+    },
+    {
+      "from": "j-research",
+      "to": "j-web",
+      "label": "search",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          1019,
+          5048
+        ],
+        [
+          1019,
+          5170
+        ]
+      ],
+      "labelAt": [
+        994,
+        5112
+      ]
+    },
+    {
+      "from": "p-renderer",
+      "to": "p-ipc",
+      "label": "raw IPC",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          5554
+        ],
+        [
+          328,
+          5554
+        ]
+      ],
+      "labelAt": [
+        304,
+        5544
+      ]
+    },
+    {
+      "from": "p-ipc",
+      "to": "p-executor",
+      "label": "executes",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          5554
+        ],
+        [
+          614,
+          5554
+        ]
+      ],
+      "labelAt": [
+        590,
+        5544
+      ]
+    },
+    {
+      "from": "p-executor",
+      "to": "p-os",
+      "label": "effects",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          5554
+        ],
+        [
+          900,
+          5554
+        ]
+      ],
+      "labelAt": [
+        876,
+        5544
+      ]
+    },
+    {
+      "from": "c-dispatch",
+      "to": "c-child",
+      "label": "stdio",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          5764
+        ],
+        [
+          328,
+          5764
+        ]
+      ],
+      "labelAt": [
+        304,
+        5754
+      ]
+    },
+    {
+      "from": "c-child",
+      "to": "c-cloud",
+      "label": "OAuth",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          5757
+        ],
+        [
+          614,
+          5757
+        ]
+      ],
+      "labelAt": [
+        590,
+        5747
+      ]
+    },
+    {
+      "from": "c-child",
+      "to": "c-visible",
+      "label": "text",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          5771
+        ],
+        [
+          590,
+          5771
+        ],
+        [
+          590,
+          5832
+        ],
+        [
+          1019,
+          5832
+        ],
+        [
+          1019,
+          5808
+        ]
+      ],
+      "labelAt": [
+        590,
+        5792
+      ]
+    },
+    {
+      "from": "cloud-auth",
+      "to": "cloud-session",
+      "label": "session",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          6094
+        ],
+        [
+          328,
+          6094
+        ]
+      ],
+      "labelAt": [
+        304,
+        6084
+      ]
+    },
+    {
+      "from": "cloud-session",
+      "to": "cloud-gateway",
+      "label": "bind",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          6087
+        ],
+        [
+          614,
+          6087
+        ]
+      ],
+      "labelAt": [
+        590,
+        6077
+      ]
+    },
+    {
+      "from": "cloud-gateway",
+      "to": "cloud-firestore",
+      "label": "Bearer",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          852,
+          6094
+        ],
+        [
+          900,
+          6094
+        ]
+      ],
+      "labelAt": [
+        876,
+        6084
+      ]
+    },
+    {
+      "from": "cloud-gateway",
+      "to": "cloud-run",
+      "label": "dispatch",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          733,
+          6138
+        ],
+        [
+          733,
+          6260
+        ]
+      ],
+      "labelAt": [
+        703,
+        6202
+      ]
+    },
+    {
+      "from": "cloud-gateway",
+      "to": "cloud-db",
+      "label": "snapshot",
+      "variant": "security",
+      "route": "auto",
+      "points": [
+        [
+          614,
+          6101
+        ],
+        [
+          590,
+          6101
+        ],
+        [
+          590,
+          6304
+        ],
+        [
+          566,
+          6304
+        ]
+      ],
+      "labelAt": [
+        590,
+        6193
+      ]
+    },
+    {
+      "from": "secrets",
+      "to": "cloud-db",
+      "label": "store key",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          6304
+        ],
+        [
+          328,
+          6304
+        ]
+      ],
+      "labelAt": [
+        304,
+        6294
+      ]
+    },
+    {
+      "from": "x-sources",
+      "to": "x-github",
+      "label": "IPC",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          6644
+        ],
+        [
+          328,
+          6644
+        ]
+      ],
+      "labelAt": [
+        304,
+        6634
+      ]
+    },
+    {
+      "from": "x-github",
+      "to": "x-github-api",
+      "label": "token",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          566,
+          6644
+        ],
+        [
+          614,
+          6644
+        ]
+      ],
+      "labelAt": [
+        590,
+        6634
+      ]
+    },
+    {
+      "from": "x-native",
+      "to": "x-files",
+      "label": "OS calls",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          6847
+        ],
+        [
+          328,
+          6847
+        ]
+      ],
+      "labelAt": [
+        304,
+        6837
+      ]
+    },
+    {
+      "from": "x-native",
+      "to": "x-sites",
+      "label": "launch",
+      "variant": "default",
+      "route": "auto",
+      "points": [
+        [
+          280,
+          6861
+        ],
+        [
+          304,
+          6861
+        ],
+        [
+          304,
+          6922
+        ],
+        [
+          1019,
+          6922
+        ],
+        [
+          1019,
+          6898
+        ]
+      ],
+      "labelAt": [
+        304,
+        6882
+      ]
+    }
+  ],
+  "labels": [
+    {
+      "text": "renders",
+      "x": 568,
+      "y": 804,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        590,
+        814
+      ]
+    },
+    {
+      "text": "invoke",
+      "x": 285,
+      "y": 1204,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        304,
+        1214
+      ]
+    },
+    {
+      "text": "IPC",
+      "x": 575,
+      "y": 1204,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        590,
+        1214
+      ]
+    },
+    {
+      "text": "dispatch",
+      "x": 852,
+      "y": 1204,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        876,
+        1214
+      ]
+    },
+    {
+      "text": "API-key",
+      "x": 969,
+      "y": 1322,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        991,
+        1332
+      ]
+    },
+    {
+      "text": "recorded",
+      "x": 852,
+      "y": 1414,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        876,
+        1424
+      ]
+    },
+    {
+      "text": "build",
+      "x": 573,
+      "y": 1406,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        590,
+        1416
+      ]
+    },
+    {
+      "text": "request",
+      "x": 282,
+      "y": 1406,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        1416
+      ]
+    },
+    {
+      "text": "tool call",
+      "x": 717,
+      "y": 1519,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        744,
+        1529
+      ]
+    },
+    {
+      "text": "decide",
+      "x": 857,
+      "y": 1624,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        876,
+        1634
+      ]
+    },
+    {
+      "text": "allowed",
+      "x": 983,
+      "y": 1742,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        1005,
+        1752
+      ]
+    },
+    {
+      "text": "IPC",
+      "x": 861,
+      "y": 1834,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        876,
+        1844
+      ]
+    },
+    {
+      "text": "execute",
+      "x": 568,
+      "y": 1834,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        590,
+        1844
+      ]
+    },
+    {
+      "text": "allowed",
+      "x": 282,
+      "y": 1834,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        1844
+      ]
+    },
+    {
+      "text": "create",
+      "x": 116,
+      "y": 1952,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        136,
+        1962
+      ]
+    },
+    {
+      "text": "forward",
+      "x": 282,
+      "y": 2044,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        2054
+      ]
+    },
+    {
+      "text": "commit",
+      "x": 571,
+      "y": 2053,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        590,
+        2063
+      ]
+    },
+    {
+      "text": "emit",
+      "x": 647,
+      "y": 2112,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        662,
+        2122
+      ]
+    },
+    {
+      "text": "reload",
+      "x": 974,
+      "y": 2162,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        994,
+        2172
+      ]
+    },
+    {
+      "text": "return",
+      "x": 116,
+      "y": 2162,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        136,
+        2172
+      ]
+    },
+    {
+      "text": "final stream",
+      "x": 481,
+      "y": 1482,
+      "width": 68,
+      "height": 14,
+      "labelAt": [
+        515,
+        1492
+      ]
+    },
+    {
+      "text": "model reply",
+      "x": 416,
+      "y": 1346,
+      "width": 63,
+      "height": 14,
+      "labelAt": [
+        447,
+        1356
+      ]
+    },
+    {
+      "text": "read only",
+      "x": 409,
+      "y": 1519,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        436,
+        1529
+      ]
+    },
+    {
+      "text": "hooks",
+      "x": 573,
+      "y": 1561,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        590,
+        1571
+      ]
+    },
+    {
+      "text": "interrupt",
+      "x": 1135,
+      "y": 1973,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        1162,
+        1983
+      ]
+    },
+    {
+      "text": "resume",
+      "x": 571,
+      "y": 1973,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        590,
+        1983
+      ]
+    },
+    {
+      "text": "next turn",
+      "x": 16,
+      "y": 1548,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        43,
+        1558
+      ]
+    },
+    {
+      "text": "IPC",
+      "x": 289,
+      "y": 2604,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        304,
+        2614
+      ]
+    },
+    {
+      "text": "read",
+      "x": 575,
+      "y": 2604,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        590,
+        2614
+      ]
+    },
+    {
+      "text": "opens",
+      "x": 859,
+      "y": 2604,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        876,
+        2614
+      ]
+    },
+    {
+      "text": "prompt",
+      "x": 688,
+      "y": 2722,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        708,
+        2732
+      ]
+    },
+    {
+      "text": "invoke",
+      "x": 571,
+      "y": 2814,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        590,
+        2824
+      ]
+    },
+    {
+      "text": "reply",
+      "x": 287,
+      "y": 2814,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        304,
+        2824
+      ]
+    },
+    {
+      "text": "return",
+      "x": 116,
+      "y": 2932,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        136,
+        2942
+      ]
+    },
+    {
+      "text": "autosave",
+      "x": 280,
+      "y": 3024,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        304,
+        3034
+      ]
+    },
+    {
+      "text": "write",
+      "x": 573,
+      "y": 3024,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        590,
+        3034
+      ]
+    },
+    {
+      "text": "configure",
+      "x": 277,
+      "y": 3374,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        304,
+        3384
+      ]
+    },
+    {
+      "text": "permitted",
+      "x": 563,
+      "y": 3367,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        590,
+        3377
+      ]
+    },
+    {
+      "text": "capture",
+      "x": 854,
+      "y": 3374,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        876,
+        3384
+      ]
+    },
+    {
+      "text": "JPEG",
+      "x": 697,
+      "y": 3492,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        712,
+        3502
+      ]
+    },
+    {
+      "text": "metadata",
+      "x": 566,
+      "y": 3479,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        590,
+        3489
+      ]
+    },
+    {
+      "text": "frame",
+      "x": 287,
+      "y": 3584,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        304,
+        3594
+      ]
+    },
+    {
+      "text": "OCR row",
+      "x": 568,
+      "y": 3622,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        590,
+        3632
+      ]
+    },
+    {
+      "text": "batch",
+      "x": 121,
+      "y": 3702,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        138,
+        3712
+      ]
+    },
+    {
+      "text": "allowed",
+      "x": 282,
+      "y": 3794,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        3804
+      ]
+    },
+    {
+      "text": "prompt",
+      "x": 571,
+      "y": 3787,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        590,
+        3797
+      ]
+    },
+    {
+      "text": "invoke",
+      "x": 857,
+      "y": 3787,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        876,
+        3797
+      ]
+    },
+    {
+      "text": "stage",
+      "x": 407,
+      "y": 3912,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        424,
+        3922
+      ]
+    },
+    {
+      "text": "publish",
+      "x": 568,
+      "y": 4004,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        590,
+        4014
+      ]
+    },
+    {
+      "text": "decision",
+      "x": 852,
+      "y": 4004,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        876,
+        4014
+      ]
+    },
+    {
+      "text": "accept",
+      "x": 974,
+      "y": 4122,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        994,
+        4132
+      ]
+    },
+    {
+      "text": "plan",
+      "x": 861,
+      "y": 4214,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        876,
+        4224
+      ]
+    },
+    {
+      "text": "opt-in",
+      "x": 571,
+      "y": 4214,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        590,
+        4224
+      ]
+    },
+    {
+      "text": "send",
+      "x": 289,
+      "y": 4214,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        304,
+        4224
+      ]
+    },
+    {
+      "text": "query",
+      "x": 502,
+      "y": 4492,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        519,
+        4502
+      ]
+    },
+    {
+      "text": "OCR",
+      "x": 289,
+      "y": 4431,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        304,
+        4441
+      ]
+    },
+    {
+      "text": "next call",
+      "x": 563,
+      "y": 4424,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        590,
+        4434
+      ]
+    },
+    {
+      "text": "reply",
+      "x": 788,
+      "y": 3862,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        805,
+        3872
+      ]
+    },
+    {
+      "text": "context",
+      "x": 282,
+      "y": 4774,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        4784
+      ]
+    },
+    {
+      "text": "eligible",
+      "x": 566,
+      "y": 4774,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        590,
+        4784
+      ]
+    },
+    {
+      "text": "stream",
+      "x": 857,
+      "y": 4767,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        876,
+        4777
+      ]
+    },
+    {
+      "text": "validated",
+      "x": 849,
+      "y": 4879,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        876,
+        4889
+      ]
+    },
+    {
+      "text": "commit",
+      "x": 571,
+      "y": 4984,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        590,
+        4994
+      ]
+    },
+    {
+      "text": "notify",
+      "x": 285,
+      "y": 4984,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        304,
+        4994
+      ]
+    },
+    {
+      "text": "full mode",
+      "x": 849,
+      "y": 4991,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        876,
+        5001
+      ]
+    },
+    {
+      "text": "search",
+      "x": 974,
+      "y": 5102,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        994,
+        5112
+      ]
+    },
+    {
+      "text": "raw IPC",
+      "x": 282,
+      "y": 5534,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        5544
+      ]
+    },
+    {
+      "text": "executes",
+      "x": 566,
+      "y": 5534,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        590,
+        5544
+      ]
+    },
+    {
+      "text": "effects",
+      "x": 854,
+      "y": 5534,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        876,
+        5544
+      ]
+    },
+    {
+      "text": "stdio",
+      "x": 287,
+      "y": 5744,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        304,
+        5754
+      ]
+    },
+    {
+      "text": "OAuth",
+      "x": 573,
+      "y": 5737,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        590,
+        5747
+      ]
+    },
+    {
+      "text": "text",
+      "x": 575,
+      "y": 5782,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        590,
+        5792
+      ]
+    },
+    {
+      "text": "session",
+      "x": 282,
+      "y": 6074,
+      "width": 44,
+      "height": 14,
+      "labelAt": [
+        304,
+        6084
+      ]
+    },
+    {
+      "text": "bind",
+      "x": 575,
+      "y": 6067,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        590,
+        6077
+      ]
+    },
+    {
+      "text": "Bearer",
+      "x": 857,
+      "y": 6074,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        876,
+        6084
+      ]
+    },
+    {
+      "text": "dispatch",
+      "x": 679,
+      "y": 6192,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        703,
+        6202
+      ]
+    },
+    {
+      "text": "snapshot",
+      "x": 566,
+      "y": 6183,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        590,
+        6193
+      ]
+    },
+    {
+      "text": "store key",
+      "x": 277,
+      "y": 6284,
+      "width": 53,
+      "height": 14,
+      "labelAt": [
+        304,
+        6294
+      ]
+    },
+    {
+      "text": "IPC",
+      "x": 289,
+      "y": 6624,
+      "width": 30,
+      "height": 14,
+      "labelAt": [
+        304,
+        6634
+      ]
+    },
+    {
+      "text": "token",
+      "x": 573,
+      "y": 6624,
+      "width": 34,
+      "height": 14,
+      "labelAt": [
+        590,
+        6634
+      ]
+    },
+    {
+      "text": "OS calls",
+      "x": 280,
+      "y": 6827,
+      "width": 48,
+      "height": 14,
+      "labelAt": [
+        304,
+        6837
+      ]
+    },
+    {
+      "text": "launch",
+      "x": 285,
+      "y": 6872,
+      "width": 39,
+      "height": 14,
+      "labelAt": [
+        304,
+        6882
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "source": "renderer",
+  "error": "Architecture layout validation failed:\n- Label \"configure\" has only 48px between \"b-control\" and \"b-capture-gate\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.\n- Label \"permitted\" has only 48px between \"b-capture-gate\" and \"b-native\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.\n- Label \"next call\" has only 48px between \"b-leakfactory\" and \"b-leakprovider\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.\n- Label \"full mode\" has only 48px between \"j-commit\" and \"j-research\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.\n- Label \"store key\" has only 48px between \"secrets\" and \"cloud-db\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.\n- [composition/label-route-clearance] showcase architecture label \"execute\" on connections[12] id \"a-hook-to-a-render-gate\" \"a-hook\" -> \"a-render-gate\" label \"execute\" is 0px from connections[25] id \"a-confirm-to-a-gate\" \"a-confirm\" -> \"a-gate\" label \"resume\" segment 1 [590, 2274] -> [590, 1712] (label rect [568, 1834, 44, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.\n- [composition/label-route-clearance] showcase architecture label \"allowed\" on connections[13] id \"a-render-gate-to-a-handler\" \"a-render-gate\" -> \"a-handler\" label \"allowed\" is 0px from connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" label \"final stream\" segment 2 [304, 1502] -> [304, 2274] (label rect [282, 1834, 44, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.\n- [composition/label-route-clearance] showcase architecture label \"forward\" on connections[15] id \"a-local-ipc-to-a-service\" \"a-local-ipc\" -> \"a-service\" label \"forward\" is 0px from connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" label \"final stream\" segment 2 [304, 1502] -> [304, 2274] (label rect [282, 2044, 44, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.\n- [composition/label-route-clearance] showcase architecture label \"commit\" on connections[16] id \"a-service-to-a-db\" \"a-service\" -> \"a-db\" label \"commit\" is 0px from connections[25] id \"a-confirm-to-a-gate\" \"a-confirm\" -> \"a-gate\" label \"resume\" segment 1 [590, 2274] -> [590, 1712] (label rect [571, 2053, 39, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.\n- [composition/label-route-clearance] showcase architecture label \"full mode\" on connections[64] id \"j-commit-to-j-research\" \"j-commit\" -> \"j-research\" label \"full mode\" is 0px from connections[61] id \"j-provider-to-j-commit\" \"j-provider\" -> \"j-commit\" label \"validated\" segment 1 [876, 4801] -> [876, 4997] (label rect [849, 4991, 53, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+  "diagnostics": [
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"execute\" on connections[12] id \"a-hook-to-a-render-gate\" \"a-hook\" -> \"a-render-gate\" label \"execute\" is 0px from connections[25] id \"a-confirm-to-a-gate\" \"a-confirm\" -> \"a-gate\" label \"resume\" segment 1 [590, 2274] -> [590, 1712] (label rect [568, 1834, 44, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 12,
+        "id": "a-hook-to-a-render-gate",
+        "from": "a-hook",
+        "to": "a-render-gate"
+      },
+      "evidence": {
+        "label": "execute",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 25,
+          "id": "a-confirm-to-a-gate",
+          "from": "a-confirm",
+          "to": "a-gate"
+        },
+        "segmentIndex": 1,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "a-hook-to-a-render-gate",
+            "from": "a-hook",
+            "to": "a-render-gate",
+            "label": "execute",
+            "variant": "emphasis"
+          },
+          "relationIndex": 12,
+          "label": "execute",
+          "x": 568.2,
+          "y": 1834,
+          "width": 43.6,
+          "height": 14,
+          "lx": 590,
+          "ly": 1844
+        },
+        "from": [
+          590,
+          2274
+        ],
+        "to": [
+          590,
+          1712
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"allowed\" on connections[13] id \"a-render-gate-to-a-handler\" \"a-render-gate\" -> \"a-handler\" label \"allowed\" is 0px from connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" label \"final stream\" segment 2 [304, 1502] -> [304, 2274] (label rect [282, 1834, 44, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 13,
+        "id": "a-render-gate-to-a-handler",
+        "from": "a-render-gate",
+        "to": "a-handler"
+      },
+      "evidence": {
+        "label": "allowed",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 20,
+          "id": "a-graph-to-a-final",
+          "from": "a-graph",
+          "to": "a-final"
+        },
+        "segmentIndex": 2,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "a-render-gate-to-a-handler",
+            "from": "a-render-gate",
+            "to": "a-handler",
+            "label": "allowed",
+            "variant": "security"
+          },
+          "relationIndex": 13,
+          "label": "allowed",
+          "x": 282.2,
+          "y": 1834,
+          "width": 43.6,
+          "height": 14,
+          "lx": 304,
+          "ly": 1844
+        },
+        "from": [
+          304,
+          1502
+        ],
+        "to": [
+          304,
+          2274
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"forward\" on connections[15] id \"a-local-ipc-to-a-service\" \"a-local-ipc\" -> \"a-service\" label \"forward\" is 0px from connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" label \"final stream\" segment 2 [304, 1502] -> [304, 2274] (label rect [282, 2044, 44, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 15,
+        "id": "a-local-ipc-to-a-service",
+        "from": "a-local-ipc",
+        "to": "a-service"
+      },
+      "evidence": {
+        "label": "forward",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 20,
+          "id": "a-graph-to-a-final",
+          "from": "a-graph",
+          "to": "a-final"
+        },
+        "segmentIndex": 2,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "a-local-ipc-to-a-service",
+            "from": "a-local-ipc",
+            "to": "a-service",
+            "label": "forward",
+            "variant": "emphasis"
+          },
+          "relationIndex": 15,
+          "label": "forward",
+          "x": 282.2,
+          "y": 2044,
+          "width": 43.6,
+          "height": 14,
+          "lx": 304,
+          "ly": 2054
+        },
+        "from": [
+          304,
+          1502
+        ],
+        "to": [
+          304,
+          2274
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"commit\" on connections[16] id \"a-service-to-a-db\" \"a-service\" -> \"a-db\" label \"commit\" is 0px from connections[25] id \"a-confirm-to-a-gate\" \"a-confirm\" -> \"a-gate\" label \"resume\" segment 1 [590, 2274] -> [590, 1712] (label rect [571, 2053, 39, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 16,
+        "id": "a-service-to-a-db",
+        "from": "a-service",
+        "to": "a-db"
+      },
+      "evidence": {
+        "label": "commit",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 25,
+          "id": "a-confirm-to-a-gate",
+          "from": "a-confirm",
+          "to": "a-gate"
+        },
+        "segmentIndex": 1,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "a-service-to-a-db",
+            "from": "a-service",
+            "to": "a-db",
+            "label": "commit",
+            "variant": "emphasis"
+          },
+          "relationIndex": 16,
+          "label": "commit",
+          "x": 570.6,
+          "y": 2053.1,
+          "width": 38.8,
+          "height": 14,
+          "lx": 590,
+          "ly": 2063.1
+        },
+        "from": [
+          590,
+          2274
+        ],
+        "to": [
+          590,
+          1712
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"full mode\" on connections[64] id \"j-commit-to-j-research\" \"j-commit\" -> \"j-research\" label \"full mode\" is 0px from connections[61] id \"j-provider-to-j-commit\" \"j-provider\" -> \"j-commit\" label \"validated\" segment 1 [876, 4801] -> [876, 4997] (label rect [849, 4991, 53, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 64,
+        "id": "j-commit-to-j-research",
+        "from": "j-commit",
+        "to": "j-research"
+      },
+      "evidence": {
+        "label": "full mode",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 61,
+          "id": "j-provider-to-j-commit",
+          "from": "j-provider",
+          "to": "j-commit"
+        },
+        "segmentIndex": 1,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "j-commit-to-j-research",
+            "from": "j-commit",
+            "to": "j-research",
+            "label": "full mode",
+            "variant": "security"
+          },
+          "relationIndex": 64,
+          "label": "full mode",
+          "x": 849.4,
+          "y": 4991,
+          "width": 53.199999999999996,
+          "height": 14,
+          "lx": 876,
+          "ly": 5001
+        },
+        "from": [
+          876,
+          4801
+        ],
+        "to": [
+          876,
+          4997
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"configure\" has only 48px between \"b-control\" and \"b-capture-gate\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "b-control-to-b-capture-gate",
+        "from": "b-control",
+        "to": "b-capture-gate"
+      },
+      "evidence": {
+        "clearGapPx": 48,
+        "minimumGapPx": 70,
+        "labelWidthPx": 53.199999999999996,
+        "obstacles": [
+          "b-control",
+          "b-capture-gate"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 70px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"permitted\" has only 48px between \"b-capture-gate\" and \"b-native\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "b-capture-gate-to-b-native",
+        "from": "b-capture-gate",
+        "to": "b-native"
+      },
+      "evidence": {
+        "clearGapPx": 48,
+        "minimumGapPx": 70,
+        "labelWidthPx": 53.199999999999996,
+        "obstacles": [
+          "b-capture-gate",
+          "b-native"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 70px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"next call\" has only 48px between \"b-leakfactory\" and \"b-leakprovider\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "b-leakfactory-to-b-leakprovider",
+        "from": "b-leakfactory",
+        "to": "b-leakprovider"
+      },
+      "evidence": {
+        "clearGapPx": 48,
+        "minimumGapPx": 70,
+        "labelWidthPx": 53.199999999999996,
+        "obstacles": [
+          "b-leakfactory",
+          "b-leakprovider"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 70px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"full mode\" has only 48px between \"j-commit\" and \"j-research\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "j-commit-to-j-research",
+        "from": "j-commit",
+        "to": "j-research"
+      },
+      "evidence": {
+        "clearGapPx": 48,
+        "minimumGapPx": 70,
+        "labelWidthPx": 53.199999999999996,
+        "obstacles": [
+          "j-commit",
+          "j-research"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 70px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"store key\" has only 48px between \"secrets\" and \"cloud-db\"; it needs at least 70px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "secrets-to-cloud-db",
+        "from": "secrets",
+        "to": "cloud-db"
+      },
+      "evidence": {
+        "clearGapPx": 48,
+        "minimumGapPx": 70,
+        "labelWidthPx": 53.199999999999996,
+        "obstacles": [
+          "cloud-db",
+          "secrets"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 70px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    }
+  ],
+  "contract": "archify-architecture-layout-v1"
+}

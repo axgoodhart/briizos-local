@@ -1,0 +1,12 @@
+{
+  "artifact": "briizos-runtime.html",
+  "artifactSha256": "d1efc1eb42472e332f42ddcde66cbeceafeb50cf3ce6b53d9b67221207906d15",
+  "reviewedCaptures": [
+    "visual-check/briizos-runtime.visual-check.1440x900.light.png",
+    "visual-check/briizos-runtime.visual-check.2048x1320.dark.png"
+  ],
+  "scope": "Viewport node fit, text, theme contrast and containment; does not claim interactive controls or every route were inspected",
+  "placementReview": "One positions-only alternative failed; restored passing candidate and finalized with review-3 evidence",
+  "remainingRouting": "Graph branch crossings use bridge markers; geometry gates pass",
+  "browserPreview": "Local file URL blocked by in-app browser policy; no workaround used"
+}

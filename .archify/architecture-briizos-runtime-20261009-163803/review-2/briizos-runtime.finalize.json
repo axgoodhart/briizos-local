@@ -1,0 +1,545 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-09T23:57:54.094Z",
+  "specification": {
+    "path": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/candidate.json",
+    "sha256": "b680d60e470bf6e04909ca9621fba6fc9159c3965fb0be11de54cbdaa576bf32",
+    "bytes": 91539
+  },
+  "artifact": {
+    "path": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/briizos-runtime.html",
+    "sha256": "d1efc1eb42472e332f42ddcde66cbeceafeb50cf3ce6b53d9b67221207906d15",
+    "bytes": 1063907
+  },
+  "stages": {
+    "validate": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": null,
+      "command": [
+        "/Users/alex/.nvm/versions/node/v22.23.1/bin/node",
+        "/Users/alex/.agents/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/candidate.json",
+        "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/briizos-runtime.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "/Users/alex/Documents/Cufolio/briizOS/briizOS.local",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "deliver",
+        "receiptId": "2c20b739-febb-49d6-bb1a-6c2556aef12c",
+        "stage": "render",
+        "type": "architecture",
+        "input": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/candidate.json",
+        "output": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/briizos-runtime.html",
+        "error": "Architecture layout validation failed:\n- [clean-flow/edge-through-node] architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" crosses component \"a-hooks\" (unrelated to this relationship) on segment 1 [726, 1609] -> [447, 1609] (2px clearance) — adjust fromSide/toSide, set route/via, or move the component.\n- [clean-flow/edge-through-node] architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" crosses component \"a-tool\" (unrelated to this relationship) on segment 0 [726, 1478] -> [726, 1609] (2px clearance) — adjust fromSide/toSide, set route/via, or move the component.\n- [composition/ambiguous-corridor] showcase architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" shares a 24px corridor with connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" at [447, 1688] -> [447, 1712] (segments 2 and 3; minimum 8px) — adjust route/via or fromSide/toSide so distinct connections do not visually merge.\n- Label \"read only\" overlaps component \"a-graph\" — adjust labelDx/labelDy/labelSegment or set labelAt.\n  label rect: [563, 1404, 53, 14]\n  component \"a-graph\" rect: [614, 1390, 238, 88]\n  Suggested fix: set labelAt [590, 1492] or set labelDy 79 (below); or set labelAt [590, 1382] or set labelDy -31 (above)\n- Label \"read only\" overlaps component \"a-read\" — adjust labelDx/labelDy/labelSegment or set labelAt.\n  label rect: [563, 1404, 53, 14]\n  component \"a-read\" rect: [328, 1390, 238, 88]\n  Suggested fix: set labelAt [590, 1492] or set labelDy 79 (below); or set labelAt [590, 1382] or set labelDy -31 (above)\n- [composition/label-route-clearance] showcase architecture label \"recorded\" on connections[5] id \"a-audit-to-a-graph\" \"a-audit\" -> \"a-graph\" label \"recorded\" is 0px from connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" label \"hooks\" segment 0 [852, 1419] -> [876, 1419] (label rect [852, 1414, 48, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.\n- [composition/label-route-clearance] showcase architecture label \"decide\" on connections[9] id \"a-tool-to-a-gate\" \"a-tool\" -> \"a-gate\" label \"decide\" is 0px from connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" label \"hooks\" segment 1 [876, 1419] -> [876, 1712] (label rect [857, 1624, 39, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+        "diagnostics": [
+          {
+            "code": "clean-flow/edge-through-node",
+            "severity": "error",
+            "message": "[clean-flow/edge-through-node] architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" crosses component \"a-hooks\" (unrelated to this relationship) on segment 1 [726, 1609] -> [447, 1609] (2px clearance) — adjust fromSide/toSide, set route/via, or move the component.",
+            "subject": {
+              "diagramType": "architecture",
+              "collection": "connections",
+              "index": 20,
+              "id": "a-graph-to-a-final",
+              "from": "a-graph",
+              "to": "a-final"
+            },
+            "evidence": {
+              "obstacleKind": "component",
+              "obstacleId": "a-hooks",
+              "segmentIndex": 1,
+              "from": [
+                726,
+                1609
+              ],
+              "to": [
+                447,
+                1609
+              ],
+              "clearancePx": 2
+            },
+            "supportedFixes": [
+              "adjust fromSide/toSide, set route/via, or move the component"
+            ]
+          },
+          {
+            "code": "clean-flow/edge-through-node",
+            "severity": "error",
+            "message": "[clean-flow/edge-through-node] architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" crosses component \"a-tool\" (unrelated to this relationship) on segment 0 [726, 1478] -> [726, 1609] (2px clearance) — adjust fromSide/toSide, set route/via, or move the component.",
+            "subject": {
+              "diagramType": "architecture",
+              "collection": "connections",
+              "index": 20,
+              "id": "a-graph-to-a-final",
+              "from": "a-graph",
+              "to": "a-final"
+            },
+            "evidence": {
+              "obstacleKind": "component",
+              "obstacleId": "a-tool",
+              "segmentIndex": 0,
+              "from": [
+                726,
+                1478
+              ],
+              "to": [
+                726,
+                1609
+              ],
+              "clearancePx": 2
+            },
+            "supportedFixes": [
+              "adjust fromSide/toSide, set route/via, or move the component"
+            ]
+          },
+          {
+            "code": "composition/ambiguous-corridor",
+            "severity": "error",
+            "message": "[composition/ambiguous-corridor] showcase architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" shares a 24px corridor with connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" at [447, 1688] -> [447, 1712] (segments 2 and 3; minimum 8px) — adjust route/via or fromSide/toSide so distinct connections do not visually merge.",
+            "subject": {
+              "diagramType": "architecture",
+              "collection": "connections",
+              "index": 20,
+              "id": "a-graph-to-a-final",
+              "from": "a-graph",
+              "to": "a-final"
+            },
+            "evidence": {
+              "otherRelationship": {
+                "diagramType": "architecture",
+                "collection": "connections",
+                "index": 23,
+                "id": "a-graph-to-a-hooks",
+                "from": "a-graph",
+                "to": "a-hooks"
+              },
+              "overlapLengthPx": 24,
+              "minimumPx": 8,
+              "from": [
+                447,
+                1688
+              ],
+              "to": [
+                447,
+                1712
+              ],
+              "segmentIndex": 2,
+              "otherSegmentIndex": 3
+            },
+            "supportedFixes": [
+              "adjust route/via or fromSide/toSide so distinct connections do not visually merge"
+            ]
+          },
+          {
+            "code": "composition/label-route-clearance",
+            "severity": "error",
+            "message": "[composition/label-route-clearance] showcase architecture label \"recorded\" on connections[5] id \"a-audit-to-a-graph\" \"a-audit\" -> \"a-graph\" label \"recorded\" is 0px from connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" label \"hooks\" segment 0 [852, 1419] -> [876, 1419] (label rect [852, 1414, 48, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+            "subject": {
+              "diagramType": "architecture",
+              "collection": "connections",
+              "index": 5,
+              "id": "a-audit-to-a-graph",
+              "from": "a-audit",
+              "to": "a-graph"
+            },
+            "evidence": {
+              "label": "recorded",
+              "otherRelationship": {
+                "diagramType": "architecture",
+                "collection": "connections",
+                "index": 23,
+                "id": "a-graph-to-a-hooks",
+                "from": "a-graph",
+                "to": "a-hooks"
+              },
+              "segmentIndex": 0,
+              "clearancePx": 0,
+              "minimumPx": 4,
+              "labelRect": {
+                "relation": {
+                  "id": "a-audit-to-a-graph",
+                  "from": "a-audit",
+                  "to": "a-graph",
+                  "label": "recorded",
+                  "variant": "emphasis"
+                },
+                "relationIndex": 5,
+                "label": "recorded",
+                "x": 851.8,
+                "y": 1414,
+                "width": 48.4,
+                "height": 14,
+                "lx": 876,
+                "ly": 1424
+              },
+              "from": [
+                852,
+                1418.95
+              ],
+              "to": [
+                876,
+                1418.95
+              ]
+            },
+            "supportedFixes": [
+              "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+            ]
+          },
+          {
+            "code": "composition/label-route-clearance",
+            "severity": "error",
+            "message": "[composition/label-route-clearance] showcase architecture label \"decide\" on connections[9] id \"a-tool-to-a-gate\" \"a-tool\" -> \"a-gate\" label \"decide\" is 0px from connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" label \"hooks\" segment 1 [876, 1419] -> [876, 1712] (label rect [857, 1624, 39, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+            "subject": {
+              "diagramType": "architecture",
+              "collection": "connections",
+              "index": 9,
+              "id": "a-tool-to-a-gate",
+              "from": "a-tool",
+              "to": "a-gate"
+            },
+            "evidence": {
+              "label": "decide",
+              "otherRelationship": {
+                "diagramType": "architecture",
+                "collection": "connections",
+                "index": 23,
+                "id": "a-graph-to-a-hooks",
+                "from": "a-graph",
+                "to": "a-hooks"
+              },
+              "segmentIndex": 1,
+              "clearancePx": 0,
+              "minimumPx": 4,
+              "labelRect": {
+                "relation": {
+                  "id": "a-tool-to-a-gate",
+                  "from": "a-tool",
+                  "to": "a-gate",
+                  "label": "decide",
+                  "variant": "emphasis"
+                },
+                "relationIndex": 9,
+                "label": "decide",
+                "x": 856.6,
+                "y": 1624,
+                "width": 38.8,
+                "height": 14,
+                "lx": 876,
+                "ly": 1634
+              },
+              "from": [
+                876,
+                1418.95
+              ],
+              "to": [
+                876,
+                1712
+              ]
+            },
+            "supportedFixes": [
+              "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+            ]
+          },
+          {
+            "code": "layout/constraint",
+            "severity": "error",
+            "message": "Label \"read only\" overlaps component \"a-graph\" — adjust labelDx/labelDy/labelSegment or set labelAt.\n  label rect: [563, 1404, 53, 14]\n  component \"a-graph\" rect: [614, 1390, 238, 88]\n  Suggested fix: set labelAt [590, 1492] or set labelDy 79 (below); or set labelAt [590, 1382] or set labelDy -31 (above)",
+            "subject": {
+              "diagramType": "architecture"
+            },
+            "evidence": {},
+            "supportedFixes": []
+          },
+          {
+            "code": "layout/constraint",
+            "severity": "error",
+            "message": "Label \"read only\" overlaps component \"a-read\" — adjust labelDx/labelDy/labelSegment or set labelAt.\n  label rect: [563, 1404, 53, 14]\n  component \"a-read\" rect: [328, 1390, 238, 88]\n  Suggested fix: set labelAt [590, 1492] or set labelDy 79 (below); or set labelAt [590, 1382] or set labelDy -31 (above)",
+            "subject": {
+              "diagramType": "architecture"
+            },
+            "evidence": {},
+            "supportedFixes": []
+          }
+        ],
+        "provenance": "failed",
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      },
+      "execution": "embedded-in-deliver"
+    },
+    "deliver": {
+      "status": "not-run",
+      "execution": "blocked-by-validate"
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "clean-flow/edge-through-node",
+      "severity": "error",
+      "message": "[clean-flow/edge-through-node] architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" crosses component \"a-hooks\" (unrelated to this relationship) on segment 1 [726, 1609] -> [447, 1609] (2px clearance) — adjust fromSide/toSide, set route/via, or move the component.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 20,
+        "id": "a-graph-to-a-final",
+        "from": "a-graph",
+        "to": "a-final"
+      },
+      "evidence": {
+        "obstacleKind": "component",
+        "obstacleId": "a-hooks",
+        "segmentIndex": 1,
+        "from": [
+          726,
+          1609
+        ],
+        "to": [
+          447,
+          1609
+        ],
+        "clearancePx": 2
+      },
+      "supportedFixes": [
+        "adjust fromSide/toSide, set route/via, or move the component"
+      ]
+    },
+    {
+      "code": "clean-flow/edge-through-node",
+      "severity": "error",
+      "message": "[clean-flow/edge-through-node] architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" crosses component \"a-tool\" (unrelated to this relationship) on segment 0 [726, 1478] -> [726, 1609] (2px clearance) — adjust fromSide/toSide, set route/via, or move the component.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 20,
+        "id": "a-graph-to-a-final",
+        "from": "a-graph",
+        "to": "a-final"
+      },
+      "evidence": {
+        "obstacleKind": "component",
+        "obstacleId": "a-tool",
+        "segmentIndex": 0,
+        "from": [
+          726,
+          1478
+        ],
+        "to": [
+          726,
+          1609
+        ],
+        "clearancePx": 2
+      },
+      "supportedFixes": [
+        "adjust fromSide/toSide, set route/via, or move the component"
+      ]
+    },
+    {
+      "code": "composition/ambiguous-corridor",
+      "severity": "error",
+      "message": "[composition/ambiguous-corridor] showcase architecture connections[20] id \"a-graph-to-a-final\" \"a-graph\" -> \"a-final\" shares a 24px corridor with connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" at [447, 1688] -> [447, 1712] (segments 2 and 3; minimum 8px) — adjust route/via or fromSide/toSide so distinct connections do not visually merge.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 20,
+        "id": "a-graph-to-a-final",
+        "from": "a-graph",
+        "to": "a-final"
+      },
+      "evidence": {
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 23,
+          "id": "a-graph-to-a-hooks",
+          "from": "a-graph",
+          "to": "a-hooks"
+        },
+        "overlapLengthPx": 24,
+        "minimumPx": 8,
+        "from": [
+          447,
+          1688
+        ],
+        "to": [
+          447,
+          1712
+        ],
+        "segmentIndex": 2,
+        "otherSegmentIndex": 3
+      },
+      "supportedFixes": [
+        "adjust route/via or fromSide/toSide so distinct connections do not visually merge"
+      ]
+    },
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"recorded\" on connections[5] id \"a-audit-to-a-graph\" \"a-audit\" -> \"a-graph\" label \"recorded\" is 0px from connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" label \"hooks\" segment 0 [852, 1419] -> [876, 1419] (label rect [852, 1414, 48, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 5,
+        "id": "a-audit-to-a-graph",
+        "from": "a-audit",
+        "to": "a-graph"
+      },
+      "evidence": {
+        "label": "recorded",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 23,
+          "id": "a-graph-to-a-hooks",
+          "from": "a-graph",
+          "to": "a-hooks"
+        },
+        "segmentIndex": 0,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "a-audit-to-a-graph",
+            "from": "a-audit",
+            "to": "a-graph",
+            "label": "recorded",
+            "variant": "emphasis"
+          },
+          "relationIndex": 5,
+          "label": "recorded",
+          "x": 851.8,
+          "y": 1414,
+          "width": 48.4,
+          "height": 14,
+          "lx": 876,
+          "ly": 1424
+        },
+        "from": [
+          852,
+          1418.95
+        ],
+        "to": [
+          876,
+          1418.95
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "composition/label-route-clearance",
+      "severity": "error",
+      "message": "[composition/label-route-clearance] showcase architecture label \"decide\" on connections[9] id \"a-tool-to-a-gate\" \"a-tool\" -> \"a-gate\" label \"decide\" is 0px from connections[23] id \"a-graph-to-a-hooks\" \"a-graph\" -> \"a-hooks\" label \"hooks\" segment 1 [876, 1419] -> [876, 1712] (label rect [857, 1624, 39, 14]; minimum 4px) — adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 9,
+        "id": "a-tool-to-a-gate",
+        "from": "a-tool",
+        "to": "a-gate"
+      },
+      "evidence": {
+        "label": "decide",
+        "otherRelationship": {
+          "diagramType": "architecture",
+          "collection": "connections",
+          "index": 23,
+          "id": "a-graph-to-a-hooks",
+          "from": "a-graph",
+          "to": "a-hooks"
+        },
+        "segmentIndex": 1,
+        "clearancePx": 0,
+        "minimumPx": 4,
+        "labelRect": {
+          "relation": {
+            "id": "a-tool-to-a-gate",
+            "from": "a-tool",
+            "to": "a-gate",
+            "label": "decide",
+            "variant": "emphasis"
+          },
+          "relationIndex": 9,
+          "label": "decide",
+          "x": 856.6,
+          "y": 1624,
+          "width": 38.8,
+          "height": 14,
+          "lx": 876,
+          "ly": 1634
+        },
+        "from": [
+          876,
+          1418.95
+        ],
+        "to": [
+          876,
+          1712
+        ]
+      },
+      "supportedFixes": [
+        "adjust labelAt, labelDx, labelDy, or labelSegment; otherwise adjust the other relationship route/via/channel"
+      ]
+    },
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"read only\" overlaps component \"a-graph\" — adjust labelDx/labelDy/labelSegment or set labelAt.\n  label rect: [563, 1404, 53, 14]\n  component \"a-graph\" rect: [614, 1390, 238, 88]\n  Suggested fix: set labelAt [590, 1492] or set labelDy 79 (below); or set labelAt [590, 1382] or set labelDy -31 (above)",
+      "subject": {
+        "diagramType": "architecture"
+      },
+      "evidence": {},
+      "supportedFixes": []
+    },
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"read only\" overlaps component \"a-read\" — adjust labelDx/labelDy/labelSegment or set labelAt.\n  label rect: [563, 1404, 53, 14]\n  component \"a-read\" rect: [328, 1390, 238, 88]\n  Suggested fix: set labelAt [590, 1492] or set labelDy 79 (below); or set labelAt [590, 1382] or set labelDy -31 (above)",
+      "subject": {
+        "diagramType": "architecture"
+      },
+      "evidence": {},
+      "supportedFixes": []
+    }
+  ],
+  "evidence": {
+    "receipt": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/review-2/briizos-runtime.finalize.json",
+    "summaryReceipt": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/review-2/briizos-runtime.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "validate",
+  "finishedAt": "2026-10-09T23:57:54.639Z",
+  "durationMs": 545,
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-09T23:44:43.130Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  }
+}

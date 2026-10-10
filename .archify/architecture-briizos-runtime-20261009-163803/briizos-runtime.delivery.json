@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "724d2f25-6d01-44fb-8e9e-6ae9e04f0e1c",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/candidate.json",
+  "output": "/Users/alex/Documents/Cufolio/briizOS/briizOS.local/.archify/architecture-briizos-runtime-20261009-163803/briizos-runtime.html",
+  "specification": {
+    "sha256": "da2a69d2c4382e3db5182b1676c2aa0041b363847b341c9b9e0079e483cfe253",
+    "bytes": 91538
+  },
+  "artifact": {
+    "sha256": "d1efc1eb42472e332f42ddcde66cbeceafeb50cf3ce6b53d9b67221207906d15",
+    "bytes": 1063907
+  }
+}

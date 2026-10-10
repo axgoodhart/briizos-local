@@ -1,0 +1,3995 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "briizOS \u2022 runtime, models & authorization",
+    "output": ".archify/architecture-briizos-runtime-20261009-163803/briizos-runtime.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/axgoodhart/briizos-local.git",
+      "revision": "881061e74f60db796a1ba473fa73414c45d8bcd6",
+      "provider": "github",
+      "link_mode": "web"
+    },
+    "views": [
+      {
+        "id": "visible",
+        "label": "Visible runtime",
+        "focus": [
+          "workspace",
+          "settings-ui",
+          "theme-ui",
+          "avatar-ui",
+          "chat-ui",
+          "tasks-ui",
+          "sources-ui",
+          "journals-ui",
+          "notefalls-ui",
+          "forest-ui",
+          "organizer-ui",
+          "canvas-ui",
+          "media-ui",
+          "overlays-ui",
+          "login-ui",
+          "canvas-boundary"
+        ],
+        "note": "Mounted user surfaces and the two renderer windows."
+      },
+      {
+        "id": "agent",
+        "label": "Complete agent & renderer path",
+        "focus": [
+          "a-chat",
+          "a-preload",
+          "a-ipc",
+          "a-dispatch",
+          "a-audit",
+          "a-graph",
+          "a-factory",
+          "a-provider",
+          "a-read",
+          "a-hooks",
+          "a-tool",
+          "a-gate",
+          "a-bridge",
+          "a-hook",
+          "a-render-gate",
+          "a-handler",
+          "a-local-ipc",
+          "a-service",
+          "a-db",
+          "a-change",
+          "a-result",
+          "a-final",
+          "a-confirm",
+          "a-ui-refresh"
+        ],
+        "note": "Follow A1\u2013A20: input, provider, approval, task write, tool return and visible response."
+      },
+      {
+        "id": "direct",
+        "label": "Direct createChatModel path",
+        "focus": [
+          "d-trigger",
+          "d-ipc",
+          "d-read",
+          "d-files",
+          "d-factory",
+          "d-provider",
+          "d-parse",
+          "d-apply",
+          "d-save",
+          "d-store"
+        ],
+        "note": "Forest queue \u2192 excerpts \u2192 model.invoke \u2192 clean tags \u2192 visible board \u2192 local save."
+      },
+      {
+        "id": "background",
+        "label": "Behind-window models",
+        "focus": [
+          "b-control",
+          "b-capture-gate",
+          "b-native",
+          "b-screen",
+          "b-frames",
+          "b-indexer",
+          "b-coordinator",
+          "b-ocr-db",
+          "b-egress",
+          "b-extract",
+          "b-factory",
+          "b-provider",
+          "b-staging",
+          "b-inbox",
+          "b-accept",
+          "b-task",
+          "b-taskagent",
+          "b-runner",
+          "b-agent",
+          "b-leak",
+          "b-leakfactory",
+          "b-leakprovider",
+          "b-leakdb",
+          "j-queue",
+          "j-privacy",
+          "j-model",
+          "j-provider",
+          "j-view",
+          "j-store",
+          "j-commit",
+          "j-research",
+          "j-web"
+        ],
+        "note": "Capture and cloud-text consent are separate; review the agent OCR consent gap too."
+      },
+      {
+        "id": "authority",
+        "label": "Authorization & external ownership",
+        "focus": [
+          "a-gate",
+          "a-render-gate",
+          "a-confirm",
+          "a-read",
+          "canvas-boundary",
+          "d-ipc",
+          "d-read",
+          "b-capture-gate",
+          "b-egress",
+          "b-leak",
+          "j-privacy",
+          "j-commit",
+          "p-renderer",
+          "p-ipc",
+          "p-executor",
+          "p-os",
+          "c-dispatch",
+          "c-child",
+          "c-cloud",
+          "cloud-auth",
+          "cloud-session",
+          "cloud-gateway",
+          "cloud-firestore",
+          "cloud-run",
+          "cloud-db",
+          "secrets",
+          "logs",
+          "x-sources",
+          "x-github",
+          "x-github-api",
+          "x-drive",
+          "x-native",
+          "x-files",
+          "x-weather",
+          "x-sites"
+        ],
+        "note": "Configured checks, missing enforcement, local effect authority and outside services."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "workspace",
+      "type": "frontend",
+      "label": "Workspace shell",
+      "sublabel": "Grid / floating / hybrid; dock & header",
+      "pos": [
+        42,
+        80
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1315,
+          "end_line": 1347
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1396,
+          "end_line": 1585
+        },
+        {
+          "path": "src/main.jsx",
+          "line": 1,
+          "end_line": 17
+        }
+      ]
+    },
+    {
+      "id": "settings-ui",
+      "type": "frontend",
+      "label": "Dashboard & Settings",
+      "sublabel": "Models, AI routes, permissions & capture",
+      "pos": [
+        328,
+        80
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1680,
+          "end_line": 1703
+        },
+        {
+          "path": "src/components/overlays/DashboardOverlay.jsx",
+          "line": 1,
+          "end_line": 15
+        },
+        {
+          "path": "src/components/overlays/DashboardOverlay.jsx",
+          "line": 49,
+          "end_line": 69
+        }
+      ]
+    },
+    {
+      "id": "theme-ui",
+      "type": "frontend",
+      "label": "Theme Studio & Chromap",
+      "sublabel": "One AppCombined.css; editable theme state",
+      "pos": [
+        614,
+        80
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 61,
+          "end_line": 68
+        },
+        {
+          "path": "src/theme/ThemeProvider.jsx",
+          "line": 1,
+          "end_line": 17
+        },
+        {
+          "path": "src/theme/ThemeProvider.jsx",
+          "line": 121,
+          "end_line": 131
+        }
+      ]
+    },
+    {
+      "id": "avatar-ui",
+      "type": "frontend",
+      "label": "Briizy avatar & quick chat",
+      "sublabel": "Separate overlay window; chat proxy",
+      "pos": [
+        900,
+        80
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/shell.js",
+          "line": 119,
+          "end_line": 156
+        },
+        {
+          "path": "src/components/briizy/BriizyQuickChatController.jsx",
+          "line": 22,
+          "end_line": 35
+        },
+        {
+          "path": "src/briizy/BriizyShell.jsx",
+          "line": 1,
+          "end_line": 32
+        }
+      ],
+      "tag": "Visibility \u2260 capture"
+    },
+    {
+      "id": "chat-ui",
+      "type": "frontend",
+      "label": "Interaction & Conversations",
+      "sublabel": "Chat, Day, Research, Code, Report",
+      "pos": [
+        42,
+        280
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/InteractionPanel.jsx",
+          "line": 1,
+          "end_line": 33
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1319,
+          "end_line": 1320
+        }
+      ]
+    },
+    {
+      "id": "tasks-ui",
+      "type": "frontend",
+      "label": "Tasks, Briizify & decks",
+      "sublabel": "Prioritization, steps and automation",
+      "pos": [
+        328,
+        280
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/TasksPanel.jsx",
+          "line": 1,
+          "end_line": 31
+        },
+        {
+          "path": "src/components/TasksPanel.jsx",
+          "line": 550,
+          "end_line": 565
+        },
+        {
+          "path": "src/hooks/useTaskAutomation.js",
+          "line": 37,
+          "end_line": 62
+        }
+      ]
+    },
+    {
+      "id": "sources-ui",
+      "type": "frontend",
+      "label": "Sources & activity logs",
+      "sublabel": "Local files, GitHub, Drive setup & logs",
+      "pos": [
+        614,
+        280
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/SourcesPanel.jsx",
+          "line": 152,
+          "end_line": 198
+        },
+        {
+          "path": "src/components/SourcesPanel.jsx",
+          "line": 501,
+          "end_line": 534
+        },
+        {
+          "path": "src/components/SourcesPanel.jsx",
+          "line": 590,
+          "end_line": 605
+        }
+      ]
+    },
+    {
+      "id": "journals-ui",
+      "type": "frontend",
+      "label": "Journals & Execubriiz",
+      "sublabel": "Shelf, floating editor, board and Trash",
+      "pos": [
+        42,
+        480
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1325,
+          "end_line": 1335
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1641,
+          "end_line": 1659
+        },
+        {
+          "path": "src/components/journals/ExecubriizView.jsx",
+          "line": 1,
+          "end_line": 32
+        }
+      ]
+    },
+    {
+      "id": "notefalls-ui",
+      "type": "frontend",
+      "label": "Notefalls & screen memory",
+      "sublabel": "Timeline, proposals, goals and learning",
+      "pos": [
+        328,
+        480
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1336,
+          "end_line": 1337
+        },
+        {
+          "path": "src/components/notefalls/NotefallsPanel.jsx",
+          "line": 1,
+          "end_line": 35
+        },
+        {
+          "path": "electron/preload.js",
+          "line": 36,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "forest-ui",
+      "type": "frontend",
+      "label": "Forest & File Hunter",
+      "sublabel": "Project files, FileHawk, tags & changes",
+      "pos": [
+        614,
+        480
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/Forest.jsx",
+          "line": 1,
+          "end_line": 35
+        },
+        {
+          "path": "src/components/forest/app.js",
+          "line": 1587,
+          "end_line": 1609
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1338,
+          "end_line": 1339
+        }
+      ]
+    },
+    {
+      "id": "organizer-ui",
+      "type": "frontend",
+      "label": "Organizer, Calendar & Notes",
+      "sublabel": "Projects, placements and sticky notes",
+      "pos": [
+        42,
+        680
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1595,
+          "end_line": 1622
+        },
+        {
+          "path": "src/context/OrganizerContext.jsx",
+          "line": 1,
+          "end_line": 35
+        },
+        {
+          "path": "src/hooks/usePlacements.js",
+          "line": 1,
+          "end_line": 30
+        }
+      ]
+    },
+    {
+      "id": "canvas-ui",
+      "type": "frontend",
+      "label": "Canvases & Live Canvas",
+      "sublabel": "HTML tools / embedded sites / saved tiles",
+      "pos": [
+        328,
+        680
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1339,
+          "end_line": 1347
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1660,
+          "end_line": 1678
+        },
+        {
+          "path": "src/components/canvases/CanvasSurface.jsx",
+          "line": 54,
+          "end_line": 78
+        }
+      ]
+    },
+    {
+      "id": "media-ui",
+      "type": "frontend",
+      "label": "Media & recorder history",
+      "sublabel": "Audio/video files; app activity sessions",
+      "pos": [
+        614,
+        680
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1322,
+          "end_line": 1324
+        },
+        {
+          "path": "src/hooks/useRecorder.js",
+          "line": 9,
+          "end_line": 39
+        },
+        {
+          "path": "electron/main.js",
+          "line": 728,
+          "end_line": 776
+        }
+      ]
+    },
+    {
+      "id": "overlays-ui",
+      "type": "frontend",
+      "label": "Briiztorm, audit & Bfast",
+      "sublabel": "3D projects, AI evidence & notices",
+      "pos": [
+        42,
+        880
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 1589,
+          "end_line": 1594
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1608,
+          "end_line": 1610
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1707,
+          "end_line": 1710
+        }
+      ]
+    },
+    {
+      "id": "login-ui",
+      "type": "frontend",
+      "label": "Login & cloud identity",
+      "sublabel": "Firebase email/password; local data lives on",
+      "pos": [
+        328,
+        880
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/context/AuthContext.jsx",
+          "line": 78,
+          "end_line": 106
+        },
+        {
+          "path": "src/App.jsx",
+          "line": 1707,
+          "end_line": 1707
+        }
+      ]
+    },
+    {
+      "id": "canvas-boundary",
+      "type": "security",
+      "label": "Canvas script boundary",
+      "sublabel": "Scripts + same-origin + forms permitted",
+      "pos": [
+        614,
+        880
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/canvases/CanvasSurface.jsx",
+          "line": 31,
+          "end_line": 45
+        },
+        {
+          "path": "src/components/canvases/CanvasSurface.jsx",
+          "line": 58,
+          "end_line": 78
+        },
+        {
+          "path": "electron/main.js",
+          "line": 220,
+          "end_line": 226
+        }
+      ],
+      "tag": "Weak isolation \u2022 inferred risk"
+    },
+    {
+      "id": "a-chat",
+      "type": "frontend",
+      "label": "A1 \u2022 useChat sends",
+      "sublabel": "Save input; register chat surface policy",
+      "pos": [
+        42,
+        1180
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useChat.js",
+          "line": 771,
+          "end_line": 803
+        },
+        {
+          "path": "src/hooks/useChat.js",
+          "line": 928,
+          "end_line": 977
+        }
+      ],
+      "tag": "Selected files join prompt"
+    },
+    {
+      "id": "a-preload",
+      "type": "messagebus",
+      "label": "A2 \u2022 preload window.api",
+      "sublabel": "Typed functions invoke Electron IPC",
+      "pos": [
+        328,
+        1180
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/preload.js",
+          "line": 437,
+          "end_line": 452
+        }
+      ],
+      "tag": "Isolation \u2260 authorization"
+    },
+    {
+      "id": "a-ipc",
+      "type": "backend",
+      "label": "A3 \u2022 main chat handlers",
+      "sublabel": "stream / resume; caller config forwarded",
+      "pos": [
+        614,
+        1180
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 914,
+          "end_line": 957
+        }
+      ],
+      "tag": "No sender/policy clamp here"
+    },
+    {
+      "id": "a-dispatch",
+      "type": "backend",
+      "label": "A4 \u2022 provider dispatcher",
+      "sublabel": "API-key \u2192 graph; Codex \u2192 app-server",
+      "pos": [
+        900,
+        1180
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/index.js",
+          "line": 99,
+          "end_line": 124
+        }
+      ]
+    },
+    {
+      "id": "a-audit",
+      "type": "security",
+      "label": "A5 \u2022 audit-before-send",
+      "sublabel": "Initial audit row required or turn stops",
+      "pos": [
+        900,
+        1390
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 783,
+          "end_line": 806
+        }
+      ],
+      "tag": "Availability gate, not consent"
+    },
+    {
+      "id": "a-graph",
+      "type": "backend",
+      "label": "A6 \u2022 lead LangGraph",
+      "sublabel": "Prompt + tools + hooks; streamEvents v2",
+      "pos": [
+        614,
+        1390
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 241,
+          "end_line": 281
+        },
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 940,
+          "end_line": 955
+        },
+        {
+          "path": "electron/agent/checkpointer.js",
+          "line": 329,
+          "end_line": 350
+        }
+      ],
+      "tag": "In main process \u2022 no AI server"
+    },
+    {
+      "id": "a-factory",
+      "type": "backend",
+      "label": "A7 \u2022 createChatModel",
+      "sublabel": "Profile / adapter / key must resolve",
+      "pos": [
+        328,
+        1390
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/models.js",
+          "line": 109,
+          "end_line": 157
+        },
+        {
+          "path": "electron/agent/models.js",
+          "line": 294,
+          "end_line": 341
+        }
+      ],
+      "tag": "No universal consent gate"
+    },
+    {
+      "id": "a-provider",
+      "type": "cloud",
+      "label": "A8 \u2022 model provider",
+      "sublabel": "OpenAI / Anthropic / Google; SDK network",
+      "pos": [
+        42,
+        1390
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/models.js",
+          "line": 328,
+          "end_line": 341
+        },
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 951,
+          "end_line": 1033
+        }
+      ],
+      "tag": "Provider output is untrusted"
+    },
+    {
+      "id": "a-read",
+      "type": "backend",
+      "label": "Agent direct data reads",
+      "sublabel": "Local catalog queries; no renderer gate",
+      "pos": [
+        42,
+        1600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 517,
+          "end_line": 538
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 969,
+          "end_line": 984
+        }
+      ],
+      "tag": "Read results can join prompt"
+    },
+    {
+      "id": "a-hooks",
+      "type": "backend",
+      "label": "Title, tags & memory hooks",
+      "sublabel": "Additional invoke calls; automatic writes",
+      "pos": [
+        328,
+        1600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 271,
+          "end_line": 280
+        },
+        {
+          "path": "electron/agent/title.js",
+          "line": 57,
+          "end_line": 89
+        },
+        {
+          "path": "electron/agent/memory.js",
+          "line": 341,
+          "end_line": 360
+        }
+      ],
+      "tag": "Optional background side calls"
+    },
+    {
+      "id": "a-tool",
+      "type": "backend",
+      "label": "A9 \u2022 registered graph tool",
+      "sublabel": "Example: briizos_create_task \u2192 registry",
+      "pos": [
+        614,
+        1600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 269,
+          "end_line": 280
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 321,
+          "end_line": 329
+        }
+      ]
+    },
+    {
+      "id": "a-gate",
+      "type": "security",
+      "label": "A10 \u2022 graph tool decision",
+      "sublabel": "Deny / pass / interrupt for listed tools",
+      "pos": [
+        900,
+        1600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 210,
+          "end_line": 258
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 43,
+          "end_line": 77
+        }
+      ],
+      "tag": "no-asking disables confirmation"
+    },
+    {
+      "id": "a-bridge",
+      "type": "messagebus",
+      "label": "A11 \u2022 renderer tool IPC",
+      "sublabel": "Request ID + params + thread; 60s wait",
+      "pos": [
+        900,
+        1950
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/bridge.js",
+          "line": 31,
+          "end_line": 40
+        },
+        {
+          "path": "electron/agent/bridge.js",
+          "line": 52,
+          "end_line": 75
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 272,
+          "end_line": 276
+        }
+      ],
+      "tag": "Reply sender not validated"
+    },
+    {
+      "id": "a-hook",
+      "type": "frontend",
+      "label": "A12 \u2022 useToolBridge",
+      "sublabel": "Stamp agent flag and originating thread",
+      "pos": [
+        614,
+        1950
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useToolBridge.js",
+          "line": 45,
+          "end_line": 74
+        }
+      ],
+      "tag": "Keeps graph-confirmed flag"
+    },
+    {
+      "id": "a-render-gate",
+      "type": "security",
+      "label": "A13 \u2022 ToolContext gate",
+      "sublabel": "Blacklist; mode + requiresConfirmation",
+      "pos": [
+        328,
+        1950
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/context/ToolContext.jsx",
+          "line": 66,
+          "end_line": 120
+        },
+        {
+          "path": "src/lib/agentSurfaces.js",
+          "line": 131,
+          "end_line": 148
+        },
+        {
+          "path": "src/lib/permissions.js",
+          "line": 27,
+          "end_line": 74
+        }
+      ],
+      "tag": "Graph flag skips confirmation"
+    },
+    {
+      "id": "a-handler",
+      "type": "frontend",
+      "label": "A14 \u2022 tools.js handler",
+      "sublabel": "createThoughtStream \u2192 localData.tasks",
+      "pos": [
+        42,
+        1950
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/lib/tools.js",
+          "line": 24,
+          "end_line": 31
+        },
+        {
+          "path": "src/lib/tools.js",
+          "line": 607,
+          "end_line": 618
+        }
+      ],
+      "tag": "Renderer owns live UI context"
+    },
+    {
+      "id": "a-local-ipc",
+      "type": "messagebus",
+      "label": "A15 \u2022 structured-data IPC",
+      "sublabel": "tasks:create forwards validated input",
+      "pos": [
+        42,
+        2160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/local-data-ipc.js",
+          "line": 121,
+          "end_line": 126
+        },
+        {
+          "path": "electron/local-data-ipc.js",
+          "line": 187,
+          "end_line": 198
+        }
+      ],
+      "tag": "No tool approval at this seam"
+    },
+    {
+      "id": "a-service",
+      "type": "backend",
+      "label": "A16 \u2022 LocalDataService",
+      "sublabel": "Transaction + revision + changed event",
+      "pos": [
+        328,
+        2160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/local-data-service.js",
+          "line": 1103,
+          "end_line": 1138
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 1241,
+          "end_line": 1270
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 1145,
+          "end_line": 1152
+        }
+      ],
+      "tag": "Main owns authoritative writes"
+    },
+    {
+      "id": "a-db",
+      "type": "database",
+      "label": "briizos.db \u2022 shared authority",
+      "sublabel": "Tasks, messages, settings, audit & state",
+      "pos": [
+        614,
+        2160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 1139,
+          "end_line": 1167
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 212,
+          "end_line": 219
+        }
+      ],
+      "tag": "better-sqlite3 \u2022 WAL"
+    },
+    {
+      "id": "a-change",
+      "type": "messagebus",
+      "label": "A17 \u2022 data:changed",
+      "sublabel": "Domain notification to all app windows",
+      "pos": [
+        900,
+        2160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/local-data-ipc.js",
+          "line": 201,
+          "end_line": 206
+        }
+      ]
+    },
+    {
+      "id": "a-result",
+      "type": "messagebus",
+      "label": "A18 \u2022 result returns",
+      "sublabel": "handler \u2192 hook \u2192 bridge \u2192 graph",
+      "pos": [
+        42,
+        2370
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useToolBridge.js",
+          "line": 61,
+          "end_line": 74
+        },
+        {
+          "path": "electron/agent/bridge.js",
+          "line": 33,
+          "end_line": 39
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 272,
+          "end_line": 277
+        }
+      ],
+      "tag": "Next model sees tool result"
+    },
+    {
+      "id": "a-final",
+      "type": "frontend",
+      "label": "A19 \u2022 visible response",
+      "sublabel": "Stream text/tools; save assistant output",
+      "pos": [
+        328,
+        1740
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useChat.js",
+          "line": 550,
+          "end_line": 567
+        },
+        {
+          "path": "src/hooks/useChat.js",
+          "line": 807,
+          "end_line": 840
+        },
+        {
+          "path": "electron/main.js",
+          "line": 914,
+          "end_line": 941
+        }
+      ]
+    },
+    {
+      "id": "a-confirm",
+      "type": "frontend",
+      "label": "Approval / reject / clarification",
+      "sublabel": "Chat resumes graph; tasks can wait",
+      "pos": [
+        900,
+        1735
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useChat.js",
+          "line": 1069,
+          "end_line": 1097
+        },
+        {
+          "path": "src/context/ToolContext.jsx",
+          "line": 103,
+          "end_line": 117
+        },
+        {
+          "path": "electron/automation-runner.js",
+          "line": 193,
+          "end_line": 202
+        }
+      ],
+      "tag": "Rejection prevents listed action"
+    },
+    {
+      "id": "a-ui-refresh",
+      "type": "frontend",
+      "label": "A20 \u2022 task appears",
+      "sublabel": "useTasks reloads after domain change",
+      "pos": [
+        900,
+        2370
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useTasks.js",
+          "line": 1,
+          "end_line": 100
+        },
+        {
+          "path": "src/components/TasksPanel.jsx",
+          "line": 1,
+          "end_line": 31
+        }
+      ]
+    },
+    {
+      "id": "d-trigger",
+      "type": "frontend",
+      "label": "D1 \u2022 Forest tag queue",
+      "sublabel": "Mounted board; changed file signature",
+      "pos": [
+        42,
+        2580
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/app.js",
+          "line": 1593,
+          "end_line": 1638
+        }
+      ],
+      "tag": "Automatic when AI configured"
+    },
+    {
+      "id": "d-ipc",
+      "type": "messagebus",
+      "label": "D2 \u2022 forestAutoTag IPC",
+      "sublabel": "Project paths, names & excerpts request",
+      "pos": [
+        328,
+        2580
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/app.js",
+          "line": 1641,
+          "end_line": 1652
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1102,
+          "end_line": 1104
+        }
+      ],
+      "tag": "No chat/task consent check"
+    },
+    {
+      "id": "d-read",
+      "type": "backend",
+      "label": "D3 \u2022 Forest excerpt reader",
+      "sublabel": "Read file beginnings within size budgets",
+      "pos": [
+        614,
+        2580
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-ai.js",
+          "line": 145,
+          "end_line": 189
+        },
+        {
+          "path": "electron/forest-ai.js",
+          "line": 192,
+          "end_line": 222
+        }
+      ],
+      "tag": "No agent blacklist applied"
+    },
+    {
+      "id": "d-files",
+      "type": "external",
+      "label": "Project files on this Mac",
+      "sublabel": "Plain text/code; actual paths supplied",
+      "pos": [
+        900,
+        2580
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-ai.js",
+          "line": 145,
+          "end_line": 161
+        },
+        {
+          "path": "src/components/forest/app.js",
+          "line": 1643,
+          "end_line": 1651
+        }
+      ]
+    },
+    {
+      "id": "d-factory",
+      "type": "backend",
+      "label": "D4 \u2022 createChatModel",
+      "sublabel": "Background route \u2192 profile \u2192 key",
+      "pos": [
+        614,
+        2790
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-ai.js",
+          "line": 91,
+          "end_line": 103
+        },
+        {
+          "path": "electron/agent/models.js",
+          "line": 294,
+          "end_line": 341
+        }
+      ],
+      "tag": "invoke without LangGraph turn"
+    },
+    {
+      "id": "d-provider",
+      "type": "cloud",
+      "label": "D5 \u2022 chosen API provider",
+      "sublabel": "File excerpts + project metadata leave Mac",
+      "pos": [
+        328,
+        2790
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-ai.js",
+          "line": 212,
+          "end_line": 222
+        },
+        {
+          "path": "electron/agent/models.js",
+          "line": 328,
+          "end_line": 341
+        }
+      ],
+      "tag": "Credentials \u2260 content consent"
+    },
+    {
+      "id": "d-parse",
+      "type": "backend",
+      "label": "D6 \u2022 parse & clean tags",
+      "sublabel": "JSON, dedupe, rejection & tag limits",
+      "pos": [
+        42,
+        2790
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-ai.js",
+          "line": 222,
+          "end_line": 241
+        }
+      ]
+    },
+    {
+      "id": "d-apply",
+      "type": "frontend",
+      "label": "D7 \u2022 visible tags added",
+      "sublabel": "Merge live tags; add change; repaint",
+      "pos": [
+        42,
+        3000
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/app.js",
+          "line": 1655,
+          "end_line": 1682
+        }
+      ],
+      "tag": "No per-tag approval"
+    },
+    {
+      "id": "d-save",
+      "type": "messagebus",
+      "label": "D8 \u2022 Forest autosave IPC",
+      "sublabel": "Board state \u2192 main setForestState",
+      "pos": [
+        328,
+        3000
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/app.js",
+          "line": 543,
+          "end_line": 552
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1047,
+          "end_line": 1051
+        }
+      ]
+    },
+    {
+      "id": "d-store",
+      "type": "database",
+      "label": "D9 \u2022 same briizos.db",
+      "sublabel": "Forest projects and board state stored",
+      "pos": [
+        614,
+        3000
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 1047,
+          "end_line": 1051
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 212,
+          "end_line": 219
+        }
+      ]
+    },
+    {
+      "id": "b-control",
+      "type": "frontend",
+      "label": "B1 \u2022 capture settings",
+      "sublabel": "Capture & cloud-text switches are separate",
+      "pos": [
+        42,
+        3210
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/preload.js",
+          "line": 26,
+          "end_line": 34
+        },
+        {
+          "path": "electron/rewind/config.js",
+          "line": 75,
+          "end_line": 106
+        }
+      ],
+      "tag": "Both default off"
+    },
+    {
+      "id": "b-capture-gate",
+      "type": "security",
+      "label": "B2 \u2022 capture privacy gate",
+      "sublabel": "Enabled; pause; lock; app/title exclusion",
+      "pos": [
+        328,
+        3350
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/rewind/indexer.js",
+          "line": 461,
+          "end_line": 485
+        },
+        {
+          "path": "electron/rewind/privacy.js",
+          "line": 113,
+          "end_line": 157
+        },
+        {
+          "path": "electron/briizy/index.js",
+          "line": 261,
+          "end_line": 281
+        }
+      ],
+      "tag": "No onboardedAt requirement"
+    },
+    {
+      "id": "b-native",
+      "type": "backend",
+      "label": "B3 \u2022 Swift helper child",
+      "sublabel": "ScreenCaptureKit + Vision OCR; stdio",
+      "pos": [
+        614,
+        3440
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/rewind/helper.js",
+          "line": 113,
+          "end_line": 132
+        },
+        {
+          "path": "electron/briizy-helper/BriizyHelper.swift",
+          "line": 454,
+          "end_line": 506
+        }
+      ],
+      "tag": "OS Screen Recording gate"
+    },
+    {
+      "id": "b-screen",
+      "type": "external",
+      "label": "Mac windows / full display",
+      "sublabel": "Frontmost metadata governs exclusions",
+      "pos": [
+        900,
+        3350
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/rewind/privacy.js",
+          "line": 122,
+          "end_line": 157
+        },
+        {
+          "path": "electron/rewind/config.js",
+          "line": 83,
+          "end_line": 101
+        }
+      ],
+      "tag": "Display may include other apps"
+    },
+    {
+      "id": "b-frames",
+      "type": "database",
+      "label": "B4 \u2022 local image archive",
+      "sublabel": "Helper writes JPEG; compactor retains media",
+      "pos": [
+        614,
+        3560
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy-helper/BriizyHelper.swift",
+          "line": 478,
+          "end_line": 503
+        },
+        {
+          "path": "electron/rewind/storage.js",
+          "line": 25,
+          "end_line": 47
+        },
+        {
+          "path": "electron/rewind/compactor.js",
+          "line": 1,
+          "end_line": 40
+        }
+      ],
+      "tag": "userData / rewind"
+    },
+    {
+      "id": "b-indexer",
+      "type": "backend",
+      "label": "B5 \u2022 indexer / retention",
+      "sublabel": "Dedup; OCR row; frame event; retention",
+      "pos": [
+        328,
+        3560
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/rewind/indexer.js",
+          "line": 672,
+          "end_line": 735
+        },
+        {
+          "path": "electron/rewind/indexer.js",
+          "line": 736,
+          "end_line": 773
+        }
+      ],
+      "tag": "Main owns row, helper owns file"
+    },
+    {
+      "id": "b-coordinator",
+      "type": "backend",
+      "label": "B6 \u2022 assistant coordinator",
+      "sublabel": "Stable segment; enabled/quiet/busy/throttle",
+      "pos": [
+        42,
+        3560
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/coordinator.js",
+          "line": 215,
+          "end_line": 255
+        },
+        {
+          "path": "electron/briizy/coordinator.js",
+          "line": 264,
+          "end_line": 292
+        }
+      ],
+      "tag": "Drops stale batches"
+    },
+    {
+      "id": "b-ocr-db",
+      "type": "database",
+      "label": "B7 \u2022 same briizos.db",
+      "sublabel": "OCR, frame metadata, sessions & search",
+      "pos": [
+        900,
+        3560
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/rewind/indexer.js",
+          "line": 681,
+          "end_line": 696
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 212,
+          "end_line": 219
+        }
+      ]
+    },
+    {
+      "id": "b-egress",
+      "type": "security",
+      "label": "B8 \u2022 cloud-text consent",
+      "sublabel": "Must allow analysis; reject pixel/path forms",
+      "pos": [
+        42,
+        3770
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/base.js",
+          "line": 131,
+          "end_line": 154
+        },
+        {
+          "path": "electron/rewind/privacy.js",
+          "line": 168,
+          "end_line": 205
+        }
+      ],
+      "tag": "Pattern filter, not full DLP"
+    },
+    {
+      "id": "b-extract",
+      "type": "backend",
+      "label": "B9 \u2022 task-extraction assistant",
+      "sublabel": "OCR-only prompt; parse JSON & confidence",
+      "pos": [
+        328,
+        3770
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/task-extraction.js",
+          "line": 51,
+          "end_line": 75
+        }
+      ]
+    },
+    {
+      "id": "b-factory",
+      "type": "backend",
+      "label": "B10 \u2022 createChatModel",
+      "sublabel": "Per-assistant model or app default",
+      "pos": [
+        614,
+        3770
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/base.js",
+          "line": 163,
+          "end_line": 178
+        },
+        {
+          "path": "electron/agent/models.js",
+          "line": 113,
+          "end_line": 121
+        }
+      ],
+      "tag": "Does not use Background route"
+    },
+    {
+      "id": "b-provider",
+      "type": "cloud",
+      "label": "B11 \u2022 API model provider",
+      "sublabel": "Screen OCR + app/title/time; no pixels",
+      "pos": [
+        900,
+        3770
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/base.js",
+          "line": 55,
+          "end_line": 87
+        },
+        {
+          "path": "electron/briizy/assistants/base.js",
+          "line": 138,
+          "end_line": 168
+        }
+      ]
+    },
+    {
+      "id": "b-staging",
+      "type": "database",
+      "label": "B12 \u2022 proposals & staged tasks",
+      "sublabel": "Assistant writes extraction + proposal rows",
+      "pos": [
+        328,
+        3980
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/task-extraction.js",
+          "line": 104,
+          "end_line": 154
+        }
+      ],
+      "tag": "Does not create executable task"
+    },
+    {
+      "id": "b-inbox",
+      "type": "frontend",
+      "label": "B13 \u2022 Notefalls / avatar inbox",
+      "sublabel": "Present proposal with provenance",
+      "pos": [
+        614,
+        3980
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/task-extraction.js",
+          "line": 137,
+          "end_line": 150
+        },
+        {
+          "path": "electron/preload.js",
+          "line": 45,
+          "end_line": 49
+        }
+      ]
+    },
+    {
+      "id": "b-accept",
+      "type": "security",
+      "label": "B14 \u2022 accept / dismiss / snooze",
+      "sublabel": "Decision IPC marks actor as user",
+      "pos": [
+        900,
+        3980
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/index.js",
+          "line": 590,
+          "end_line": 623
+        }
+      ],
+      "tag": "IPC assumes a human decision"
+    },
+    {
+      "id": "b-task",
+      "type": "database",
+      "label": "B15 \u2022 accepted task",
+      "sublabel": "Real task committed after acceptance",
+      "pos": [
+        900,
+        4190
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/index.js",
+          "line": 605,
+          "end_line": 623
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 5499,
+          "end_line": 5544
+        }
+      ]
+    },
+    {
+      "id": "b-taskagent",
+      "type": "backend",
+      "label": "B16 \u2022 TaskAgent planning",
+      "sublabel": "Plan steps; execution separately opt-in",
+      "pos": [
+        614,
+        4190
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/briizy/assistants/task-agent.js",
+          "line": 84,
+          "end_line": 115
+        }
+      ]
+    },
+    {
+      "id": "b-runner",
+      "type": "security",
+      "label": "B17 \u2022 AutomationRunner",
+      "sublabel": "Task mode clamped to configured ceiling",
+      "pos": [
+        328,
+        4190
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/automation-runner.js",
+          "line": 51,
+          "end_line": 69
+        },
+        {
+          "path": "electron/automation-runner.js",
+          "line": 158,
+          "end_line": 192
+        }
+      ],
+      "tag": "Only if immediateExecution"
+    },
+    {
+      "id": "b-agent",
+      "type": "backend",
+      "label": "B18 \u2022 same agent sendMessage",
+      "sublabel": "Run \u2192 graph; interrupt \u2192 waiting for user",
+      "pos": [
+        42,
+        4190
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/index.js",
+          "line": 117,
+          "end_line": 124
+        },
+        {
+          "path": "electron/automation-runner.js",
+          "line": 193,
+          "end_line": 208
+        }
+      ],
+      "tag": "Renderer tools need app window"
+    },
+    {
+      "id": "b-leak",
+      "type": "security",
+      "label": "Consent gap \u2022 agent OCR reads",
+      "sublabel": "Search/history tools ignore cloud-text flag",
+      "pos": [
+        42,
+        4400
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 1445,
+          "end_line": 1488
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 1492,
+          "end_line": 1530
+        }
+      ],
+      "tag": "Main read tools skip ToolContext"
+    },
+    {
+      "id": "b-leakfactory",
+      "type": "backend",
+      "label": "Normal graph continuation",
+      "sublabel": "OCR results become tool context",
+      "pos": [
+        328,
+        4400
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 517,
+          "end_line": 538
+        },
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 260,
+          "end_line": 281
+        }
+      ]
+    },
+    {
+      "id": "b-leakprovider",
+      "type": "cloud",
+      "label": "Chat model sees OCR result",
+      "sublabel": "No Briizy consent check on this path",
+      "pos": [
+        614,
+        4500
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 1472,
+          "end_line": 1483
+        },
+        {
+          "path": "electron/agent/lead-agent.js",
+          "line": 260,
+          "end_line": 267
+        }
+      ],
+      "tag": "Consent coverage is incomplete"
+    },
+    {
+      "id": "b-leakdb",
+      "type": "database",
+      "label": "Saved screen-text archive",
+      "sublabel": "Existing history remains queryable",
+      "pos": [
+        900,
+        4400
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/tools.js",
+          "line": 1461,
+          "end_line": 1488
+        }
+      ]
+    },
+    {
+      "id": "j-queue",
+      "type": "backend",
+      "label": "Execubriiz journal worker",
+      "sublabel": "Durable jobs; live / summary / curate",
+      "pos": [
+        42,
+        4750
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 17,
+          "end_line": 34
+        },
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 56,
+          "end_line": 96
+        },
+        {
+          "path": "electron/execubriiz/store.js",
+          "line": 24,
+          "end_line": 25
+        }
+      ],
+      "tag": "Full, unpaused is initial state"
+    },
+    {
+      "id": "j-privacy",
+      "type": "security",
+      "label": "Journal context & privacy",
+      "sublabel": "Private excluded; Invisible sent to model",
+      "pos": [
+        328,
+        4750
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 115,
+          "end_line": 145
+        },
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 228,
+          "end_line": 238
+        }
+      ],
+      "tag": "Separate from chat/task policy"
+    },
+    {
+      "id": "j-model",
+      "type": "backend",
+      "label": "Direct journal model stream",
+      "sublabel": "Scoped model \u2192 live/deep route \u2192 default",
+      "pos": [
+        614,
+        4750
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 163,
+          "end_line": 193
+        },
+        {
+          "path": "electron/execubriiz/model-contract.js",
+          "line": 1,
+          "end_line": 50
+        }
+      ],
+      "tag": "Bound journal tools only"
+    },
+    {
+      "id": "j-provider",
+      "type": "cloud",
+      "label": "Journal API model provider",
+      "sublabel": "Finish/retrieve contract; bounded rounds",
+      "pos": [
+        900,
+        4750
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 188,
+          "end_line": 248
+        }
+      ]
+    },
+    {
+      "id": "j-view",
+      "type": "frontend",
+      "label": "Journal board updates",
+      "sublabel": "Changed IPC \u2192 editor, reactions & status",
+      "pos": [
+        42,
+        4960
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/index.js",
+          "line": 7,
+          "end_line": 18
+        },
+        {
+          "path": "src/components/journals/execubriiz-client.js",
+          "line": 1,
+          "end_line": 42
+        }
+      ]
+    },
+    {
+      "id": "j-store",
+      "type": "database",
+      "label": "ExecStore \u2022 same briizos.db",
+      "sublabel": "Transaction checks generations/revisions",
+      "pos": [
+        328,
+        4960
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/store.js",
+          "line": 235,
+          "end_line": 244
+        },
+        {
+          "path": "electron/execubriiz/store.js",
+          "line": 280,
+          "end_line": 285
+        }
+      ],
+      "tag": "Authoritative commit in main"
+    },
+    {
+      "id": "j-commit",
+      "type": "security",
+      "label": "Journal mutation controls",
+      "sublabel": "Content may auto-apply; structure proposed",
+      "pos": [
+        614,
+        4960
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/store.js",
+          "line": 251,
+          "end_line": 278
+        },
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 250,
+          "end_line": 254
+        }
+      ],
+      "tag": "Protected/fixed/revision checks"
+    },
+    {
+      "id": "j-research",
+      "type": "backend",
+      "label": "Optional online research",
+      "sublabel": "Full curate; block Invisible context",
+      "pos": [
+        900,
+        5070
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/store.js",
+          "line": 278,
+          "end_line": 278
+        },
+        {
+          "path": "electron/execubriiz/runtime.js",
+          "line": 170,
+          "end_line": 175
+        }
+      ],
+      "tag": "No execution tools granted"
+    },
+    {
+      "id": "j-web",
+      "type": "cloud",
+      "label": "Provider web-search APIs",
+      "sublabel": "OpenAI / Anthropic / Google search tools",
+      "pos": [
+        900,
+        5290
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/execubriiz/search.js",
+          "line": 3,
+          "end_line": 21
+        }
+      ],
+      "tag": "Question leaves Mac"
+    },
+    {
+      "id": "p-renderer",
+      "type": "frontend",
+      "label": "Any exposed renderer caller",
+      "sublabel": "window.api has raw file / shell methods",
+      "pos": [
+        42,
+        5510
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/preload.js",
+          "line": 355,
+          "end_line": 365
+        }
+      ],
+      "tag": "Can skip ToolContext entirely"
+    },
+    {
+      "id": "p-ipc",
+      "type": "security",
+      "label": "Privileged IPC gap",
+      "sublabel": "File / shell handlers trust invocation",
+      "pos": [
+        328,
+        5510
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 518,
+          "end_line": 549
+        },
+        {
+          "path": "electron/local-data-ipc.js",
+          "line": 187,
+          "end_line": 198
+        }
+      ],
+      "tag": "No sender/approval recheck"
+    },
+    {
+      "id": "p-executor",
+      "type": "backend",
+      "label": "Main filesystem / terminal",
+      "sublabel": "fs write/delete/move; bash -c spawn",
+      "pos": [
+        614,
+        5510
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent-fs.js",
+          "line": 68,
+          "end_line": 105
+        },
+        {
+          "path": "electron/agent-terminal.js",
+          "line": 5,
+          "end_line": 25
+        }
+      ],
+      "tag": "Operation receipt \u2260 approval"
+    },
+    {
+      "id": "p-os",
+      "type": "external",
+      "label": "OS files & child shell",
+      "sublabel": "User-account filesystem and inherited env",
+      "pos": [
+        900,
+        5510
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent-fs.js",
+          "line": 68,
+          "end_line": 105
+        },
+        {
+          "path": "electron/agent-terminal.js",
+          "line": 17,
+          "end_line": 25
+        }
+      ],
+      "tag": "No app command sandbox"
+    },
+    {
+      "id": "c-dispatch",
+      "type": "backend",
+      "label": "Codex provider alternative",
+      "sublabel": "agent/index branches on profile provider",
+      "pos": [
+        42,
+        5720
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/agent/index.js",
+          "line": 47,
+          "end_line": 49
+        },
+        {
+          "path": "electron/agent/index.js",
+          "line": 99,
+          "end_line": 105
+        }
+      ]
+    },
+    {
+      "id": "c-child",
+      "type": "external",
+      "label": "Codex app-server child",
+      "sublabel": "Local JSON-RPC over stdio; own OAuth",
+      "pos": [
+        328,
+        5720
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/codex-provider.js",
+          "line": 151,
+          "end_line": 155
+        },
+        {
+          "path": "electron/codex-provider.js",
+          "line": 399,
+          "end_line": 454
+        }
+      ],
+      "tag": "read-only / approval never"
+    },
+    {
+      "id": "c-cloud",
+      "type": "cloud",
+      "label": "ChatGPT subscription",
+      "sublabel": "App-server owns actual model transport",
+      "pos": [
+        614,
+        5720
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/codex-provider.js",
+          "line": 429,
+          "end_line": 454
+        },
+        {
+          "path": "electron/codex-provider.js",
+          "line": 261,
+          "end_line": 275
+        }
+      ],
+      "tag": "No briizOS tool bridge wired"
+    },
+    {
+      "id": "c-visible",
+      "type": "frontend",
+      "label": "Same chat stream display",
+      "sublabel": "Agent-message deltas \u2192 useChat events",
+      "pos": [
+        900,
+        5720
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/codex-provider.js",
+          "line": 206,
+          "end_line": 215
+        },
+        {
+          "path": "electron/agent/index.js",
+          "line": 99,
+          "end_line": 105
+        }
+      ]
+    },
+    {
+      "id": "cloud-auth",
+      "type": "frontend",
+      "label": "Firebase Auth renderer",
+      "sublabel": "ID token + UID handed to main gateway",
+      "pos": [
+        42,
+        6050
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/context/AuthContext.jsx",
+          "line": 78,
+          "end_line": 106
+        },
+        {
+          "path": "src/lib/firebase.js",
+          "line": 1,
+          "end_line": 40
+        }
+      ],
+      "tag": "Cloud identity \u2260 local tool approval"
+    },
+    {
+      "id": "cloud-session",
+      "type": "security",
+      "label": "Gateway session binding",
+      "sublabel": "Require fields; confirm UID rebind",
+      "pos": [
+        328,
+        6050
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 77,
+          "end_line": 89
+        },
+        {
+          "path": "electron/main.js",
+          "line": 554,
+          "end_line": 568
+        }
+      ],
+      "tag": "Main trusts supplied token/UID"
+    },
+    {
+      "id": "cloud-gateway",
+      "type": "backend",
+      "label": "CloudGateway in main",
+      "sublabel": "Primary lease; target/schema/expiry checks",
+      "pos": [
+        614,
+        6050
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 163,
+          "end_line": 194
+        },
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 199,
+          "end_line": 227
+        }
+      ],
+      "tag": "Remote command auto-dispatch"
+    },
+    {
+      "id": "cloud-firestore",
+      "type": "cloud",
+      "label": "Firebase services",
+      "sublabel": "Auth + Firestore REST; user collections",
+      "pos": [
+        900,
+        6050
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 124,
+          "end_line": 142
+        },
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 199,
+          "end_line": 227
+        },
+        {
+          "path": "src/context/AuthContext.jsx",
+          "line": 6,
+          "end_line": 12
+        }
+      ],
+      "tag": "Server rules outside this slice"
+    },
+    {
+      "id": "cloud-run",
+      "type": "security",
+      "label": "Remote AutomationRunner",
+      "sublabel": "Task ceiling applies; no local start prompt",
+      "pos": [
+        614,
+        6260
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 1168,
+          "end_line": 1178
+        },
+        {
+          "path": "electron/automation-runner.js",
+          "line": 51,
+          "end_line": 69
+        },
+        {
+          "path": "electron/automation-runner.js",
+          "line": 182,
+          "end_line": 202
+        }
+      ],
+      "tag": "Tool interrupt can stop the run"
+    },
+    {
+      "id": "cloud-db",
+      "type": "database",
+      "label": "Local authority / continuity",
+      "sublabel": "Tasks, organizer & retainedText snapshots",
+      "pos": [
+        328,
+        6260
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 8,
+          "end_line": 8
+        },
+        {
+          "path": "electron/cloud-gateway.js",
+          "line": 263,
+          "end_line": 286
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1139,
+          "end_line": 1144
+        }
+      ]
+    },
+    {
+      "id": "secrets",
+      "type": "security",
+      "label": "OS-backed secret encryption",
+      "sublabel": "safeStorage protects saved API keys",
+      "pos": [
+        42,
+        6400
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/local-data-service.js",
+          "line": 4302,
+          "end_line": 4330
+        },
+        {
+          "path": "electron/agent/models.js",
+          "line": 148,
+          "end_line": 155
+        }
+      ],
+      "tag": "Environment keys take precedence"
+    },
+    {
+      "id": "logs",
+      "type": "backend",
+      "label": "Main + renderer logger",
+      "sublabel": "Live events + SQLite audit/log history",
+      "pos": [
+        900,
+        6260
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/lib/logger.js",
+          "line": 143,
+          "end_line": 156
+        },
+        {
+          "path": "electron/logger.js",
+          "line": 218,
+          "end_line": 227
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1145,
+          "end_line": 1148
+        }
+      ],
+      "tag": "Logs do not grant authority"
+    },
+    {
+      "id": "x-sources",
+      "type": "frontend",
+      "label": "Sources requests",
+      "sublabel": "Local / USB / GitHub; Drive setup UI",
+      "pos": [
+        42,
+        6600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/SourcesPanel.jsx",
+          "line": 1,
+          "end_line": 10
+        },
+        {
+          "path": "electron/main.js",
+          "line": 329,
+          "end_line": 345
+        },
+        {
+          "path": "electron/main.js",
+          "line": 366,
+          "end_line": 427
+        }
+      ]
+    },
+    {
+      "id": "x-github",
+      "type": "backend",
+      "label": "GitHub adapter in main",
+      "sublabel": "REST reads; configured personal token",
+      "pos": [
+        328,
+        6600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/github.js",
+          "line": 22,
+          "end_line": 48
+        },
+        {
+          "path": "electron/github.js",
+          "line": 232,
+          "end_line": 251
+        }
+      ],
+      "tag": "Token encrypted when saved"
+    },
+    {
+      "id": "x-github-api",
+      "type": "cloud",
+      "label": "GitHub REST API",
+      "sublabel": "Repos, branches, file contents & search",
+      "pos": [
+        614,
+        6600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/github.js",
+          "line": 22,
+          "end_line": 48
+        },
+        {
+          "path": "electron/github.js",
+          "line": 344,
+          "end_line": 357
+        }
+      ]
+    },
+    {
+      "id": "x-drive",
+      "type": "backend",
+      "label": "Google Drive placeholder",
+      "sublabel": "OAuth, list and download unimplemented",
+      "pos": [
+        900,
+        6600
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/gdrive.js",
+          "line": 65,
+          "end_line": 88
+        },
+        {
+          "path": "electron/gdrive.js",
+          "line": 120,
+          "end_line": 134
+        }
+      ],
+      "tag": "No working Drive service edge"
+    },
+    {
+      "id": "x-native",
+      "type": "backend",
+      "label": "Local file / Studio adapters",
+      "sublabel": "Folder APIs; Spotlight; app/site launch",
+      "pos": [
+        42,
+        6810
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 329,
+          "end_line": 360
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1077,
+          "end_line": 1100
+        },
+        {
+          "path": "electron/studio.js",
+          "line": 59,
+          "end_line": 78
+        }
+      ]
+    },
+    {
+      "id": "x-files",
+      "type": "external",
+      "label": "Mac folders / iCloud / USB",
+      "sublabel": "OS APIs and mounted paths; no iCloud API",
+      "pos": [
+        328,
+        6810
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/main.js",
+          "line": 329,
+          "end_line": 352
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1227,
+          "end_line": 1234
+        },
+        {
+          "path": "electron/forest-ai.js",
+          "line": 8,
+          "end_line": 13
+        }
+      ]
+    },
+    {
+      "id": "x-weather",
+      "type": "cloud",
+      "label": "Geolocation & Open-Meteo",
+      "sublabel": "Header coords \u2192 main weather fetch",
+      "pos": [
+        614,
+        6810
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/App.jsx",
+          "line": 101,
+          "end_line": 147
+        },
+        {
+          "path": "electron/main.js",
+          "line": 689,
+          "end_line": 726
+        }
+      ],
+      "tag": "Credential / OS permission + fallback"
+    },
+    {
+      "id": "x-sites",
+      "type": "external",
+      "label": "Browser sites & Studio apps",
+      "sublabel": "Canvas webview or shell.openExternal",
+      "pos": [
+        900,
+        6810
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/canvases/CanvasSurface.jsx",
+          "line": 58,
+          "end_line": 78
+        },
+        {
+          "path": "electron/studio.js",
+          "line": 59,
+          "end_line": 78
+        }
+      ],
+      "tag": "Third-party content boundary"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "VISIBLE WORKSPACE \u2022 main React renderer \u2022 containment means mounted UI",
+      "wraps": [
+        "workspace",
+        "settings-ui",
+        "theme-ui",
+        "chat-ui",
+        "tasks-ui",
+        "sources-ui",
+        "journals-ui",
+        "notefalls-ui",
+        "forest-ui",
+        "organizer-ui",
+        "canvas-ui",
+        "media-ui",
+        "overlays-ui",
+        "login-ui",
+        "canvas-boundary"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "SECOND RENDERER \u2022 transparent native overlay",
+      "wraps": [
+        "avatar-ui"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "A \u2022 renderer submits a conversation",
+      "wraps": [
+        "a-chat",
+        "a-preload"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "A \u2022 main-process entry",
+      "wraps": [
+        "a-ipc",
+        "a-dispatch"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "A \u2022 main graph and model adapters",
+      "wraps": [
+        "a-factory",
+        "a-graph",
+        "a-audit",
+        "a-tool",
+        "a-gate",
+        "a-hooks"
+      ],
+      "pad": 36
+    },
+    {
+      "kind": "region",
+      "label": "A \u2022 renderer executes after its policy decision",
+      "wraps": [
+        "a-hook",
+        "a-render-gate",
+        "a-handler"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "A \u2022 main persistence authority",
+      "wraps": [
+        "a-local-ipc",
+        "a-service",
+        "a-db",
+        "a-change"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "D \u2022 renderer-initiated direct call",
+      "wraps": [
+        "d-trigger",
+        "d-ipc"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "D \u2022 main reads files and constructs request",
+      "wraps": [
+        "d-read",
+        "d-factory"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "B \u2022 main capture policy",
+      "wraps": [
+        "b-capture-gate"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "B \u2022 main screen-memory scheduler",
+      "wraps": [
+        "b-indexer",
+        "b-coordinator"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "B \u2022 local native helper process",
+      "wraps": [
+        "b-native",
+        "b-frames"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "B \u2022 main assistant pipeline \u2022 consent enforced here",
+      "wraps": [
+        "b-egress",
+        "b-extract",
+        "b-factory"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "B \u2022 main accepted-task execution \u2022 separate from text analysis",
+      "wraps": [
+        "b-agent",
+        "b-runner",
+        "b-taskagent",
+        "b-task"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "J \u2022 main journal jobs \u2022 separate from general ToolContext",
+      "wraps": [
+        "j-queue",
+        "j-privacy",
+        "j-model"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "J \u2022 main commit authority",
+      "wraps": [
+        "j-store",
+        "j-commit"
+      ],
+      "pad": 36
+    },
+    {
+      "kind": "region",
+      "label": "PRIVILEGED MAIN \u2022 raw IPC outside renderer approvals",
+      "wraps": [
+        "p-ipc",
+        "p-executor"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "CODEX CHILD \u2022 installed CLI owns sandbox enforcement",
+      "wraps": [
+        "c-child"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "CLOUD GATEWAY \u2022 main owns continuity and command execution",
+      "wraps": [
+        "cloud-session",
+        "cloud-gateway",
+        "cloud-run",
+        "cloud-db"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "EXTERNAL ADAPTER \u2022 main owns GitHub requests",
+      "wraps": [
+        "x-github"
+      ],
+      "pad": 22
+    }
+  ],
+  "connections": [
+    {
+      "id": "canvas-ui-to-canvas-boundary",
+      "from": "canvas-ui",
+      "to": "canvas-boundary",
+      "label": "renders",
+      "variant": "security"
+    },
+    {
+      "id": "a-chat-to-a-preload",
+      "from": "a-chat",
+      "to": "a-preload",
+      "label": "invoke",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-preload-to-a-ipc",
+      "from": "a-preload",
+      "to": "a-ipc",
+      "label": "IPC",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-ipc-to-a-dispatch",
+      "from": "a-ipc",
+      "to": "a-dispatch",
+      "label": "dispatch",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-dispatch-to-a-audit",
+      "from": "a-dispatch",
+      "to": "a-audit",
+      "label": "API-key",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-audit-to-a-graph",
+      "from": "a-audit",
+      "to": "a-graph",
+      "label": "recorded",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-graph-to-a-factory",
+      "from": "a-graph",
+      "to": "a-factory",
+      "label": "build",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-factory-to-a-provider",
+      "from": "a-factory",
+      "to": "a-provider",
+      "label": "request",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-graph-to-a-tool",
+      "from": "a-graph",
+      "to": "a-tool",
+      "label": "tool call",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-tool-to-a-gate",
+      "from": "a-tool",
+      "to": "a-gate",
+      "label": "decide",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-gate-to-a-bridge",
+      "from": "a-gate",
+      "to": "a-bridge",
+      "label": "allowed",
+      "variant": "security"
+    },
+    {
+      "id": "a-bridge-to-a-hook",
+      "from": "a-bridge",
+      "to": "a-hook",
+      "label": "IPC",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-hook-to-a-render-gate",
+      "from": "a-hook",
+      "to": "a-render-gate",
+      "label": "execute",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-render-gate-to-a-handler",
+      "from": "a-render-gate",
+      "to": "a-handler",
+      "label": "allowed",
+      "variant": "security"
+    },
+    {
+      "id": "a-handler-to-a-local-ipc",
+      "from": "a-handler",
+      "to": "a-local-ipc",
+      "label": "create",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-local-ipc-to-a-service",
+      "from": "a-local-ipc",
+      "to": "a-service",
+      "label": "forward",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-service-to-a-db",
+      "from": "a-service",
+      "to": "a-db",
+      "label": "commit",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-service-to-a-change",
+      "from": "a-service",
+      "to": "a-change",
+      "label": "emit",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-change-to-a-ui-refresh",
+      "from": "a-change",
+      "to": "a-ui-refresh",
+      "label": "reload",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-local-ipc-to-a-result",
+      "from": "a-local-ipc",
+      "to": "a-result",
+      "label": "return",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-graph-to-a-final",
+      "from": "a-graph",
+      "to": "a-final",
+      "label": "final stream",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-provider-to-a-graph",
+      "from": "a-provider",
+      "to": "a-graph",
+      "label": "model reply",
+      "variant": "dashed"
+    },
+    {
+      "id": "a-graph-to-a-read",
+      "from": "a-graph",
+      "to": "a-read",
+      "label": "read only",
+      "variant": "default"
+    },
+    {
+      "id": "a-graph-to-a-hooks",
+      "from": "a-graph",
+      "to": "a-hooks",
+      "label": "hooks",
+      "variant": "dashed"
+    },
+    {
+      "id": "a-gate-to-a-confirm",
+      "from": "a-gate",
+      "to": "a-confirm",
+      "label": "interrupt",
+      "variant": "security"
+    },
+    {
+      "id": "a-confirm-to-a-gate",
+      "from": "a-confirm",
+      "to": "a-gate",
+      "label": "resume",
+      "variant": "security"
+    },
+    {
+      "id": "a-result-to-a-graph",
+      "from": "a-result",
+      "to": "a-graph",
+      "label": "next turn",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "top",
+      "via": [
+        [
+          10,
+          2414
+        ],
+        [
+          10,
+          1315
+        ],
+        [
+          733,
+          1315
+        ]
+      ]
+    },
+    {
+      "id": "d-trigger-to-d-ipc",
+      "from": "d-trigger",
+      "to": "d-ipc",
+      "label": "IPC",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-ipc-to-d-read",
+      "from": "d-ipc",
+      "to": "d-read",
+      "label": "read",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-read-to-d-files",
+      "from": "d-read",
+      "to": "d-files",
+      "label": "opens",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-read-to-d-factory",
+      "from": "d-read",
+      "to": "d-factory",
+      "label": "prompt",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-factory-to-d-provider",
+      "from": "d-factory",
+      "to": "d-provider",
+      "label": "invoke",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-provider-to-d-parse",
+      "from": "d-provider",
+      "to": "d-parse",
+      "label": "reply",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-parse-to-d-apply",
+      "from": "d-parse",
+      "to": "d-apply",
+      "label": "return",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-apply-to-d-save",
+      "from": "d-apply",
+      "to": "d-save",
+      "label": "autosave",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d-save-to-d-store",
+      "from": "d-save",
+      "to": "d-store",
+      "label": "write",
+      "variant": "emphasis"
+    },
+    {
+      "id": "b-control-to-b-capture-gate",
+      "from": "b-control",
+      "to": "b-capture-gate",
+      "label": "configure",
+      "variant": "default"
+    },
+    {
+      "id": "b-capture-gate-to-b-native",
+      "from": "b-capture-gate",
+      "to": "b-native",
+      "label": "permitted",
+      "variant": "security"
+    },
+    {
+      "id": "b-native-to-b-screen",
+      "from": "b-native",
+      "to": "b-screen",
+      "label": "capture",
+      "variant": "default"
+    },
+    {
+      "id": "b-native-to-b-frames",
+      "from": "b-native",
+      "to": "b-frames",
+      "label": "JPEG",
+      "variant": "default"
+    },
+    {
+      "id": "b-native-to-b-indexer",
+      "from": "b-native",
+      "to": "b-indexer",
+      "label": "metadata",
+      "variant": "default"
+    },
+    {
+      "id": "b-indexer-to-b-coordinator",
+      "from": "b-indexer",
+      "to": "b-coordinator",
+      "label": "frame",
+      "variant": "default"
+    },
+    {
+      "id": "b-indexer-to-b-ocr-db",
+      "from": "b-indexer",
+      "to": "b-ocr-db",
+      "label": "OCR row",
+      "variant": "default"
+    },
+    {
+      "id": "b-coordinator-to-b-egress",
+      "from": "b-coordinator",
+      "to": "b-egress",
+      "label": "batch",
+      "variant": "default"
+    },
+    {
+      "id": "b-egress-to-b-extract",
+      "from": "b-egress",
+      "to": "b-extract",
+      "label": "allowed",
+      "variant": "security"
+    },
+    {
+      "id": "b-extract-to-b-factory",
+      "from": "b-extract",
+      "to": "b-factory",
+      "label": "prompt",
+      "variant": "default"
+    },
+    {
+      "id": "b-factory-to-b-provider",
+      "from": "b-factory",
+      "to": "b-provider",
+      "label": "invoke",
+      "variant": "default"
+    },
+    {
+      "id": "b-extract-to-b-staging",
+      "from": "b-extract",
+      "to": "b-staging",
+      "label": "stage",
+      "variant": "default"
+    },
+    {
+      "id": "b-staging-to-b-inbox",
+      "from": "b-staging",
+      "to": "b-inbox",
+      "label": "publish",
+      "variant": "default"
+    },
+    {
+      "id": "b-inbox-to-b-accept",
+      "from": "b-inbox",
+      "to": "b-accept",
+      "label": "decision",
+      "variant": "default"
+    },
+    {
+      "id": "b-accept-to-b-task",
+      "from": "b-accept",
+      "to": "b-task",
+      "label": "accept",
+      "variant": "security"
+    },
+    {
+      "id": "b-task-to-b-taskagent",
+      "from": "b-task",
+      "to": "b-taskagent",
+      "label": "plan",
+      "variant": "default"
+    },
+    {
+      "id": "b-taskagent-to-b-runner",
+      "from": "b-taskagent",
+      "to": "b-runner",
+      "label": "opt-in",
+      "variant": "default"
+    },
+    {
+      "id": "b-runner-to-b-agent",
+      "from": "b-runner",
+      "to": "b-agent",
+      "label": "send",
+      "variant": "security"
+    },
+    {
+      "id": "b-leak-to-b-leakdb",
+      "from": "b-leak",
+      "to": "b-leakdb",
+      "label": "query",
+      "variant": "security"
+    },
+    {
+      "id": "b-leak-to-b-leakfactory",
+      "from": "b-leak",
+      "to": "b-leakfactory",
+      "label": "OCR",
+      "variant": "security"
+    },
+    {
+      "id": "b-leakfactory-to-b-leakprovider",
+      "from": "b-leakfactory",
+      "to": "b-leakprovider",
+      "label": "next call",
+      "variant": "default"
+    },
+    {
+      "id": "b-provider-to-b-extract",
+      "from": "b-provider",
+      "to": "b-extract",
+      "label": "reply",
+      "variant": "dashed"
+    },
+    {
+      "id": "j-queue-to-j-privacy",
+      "from": "j-queue",
+      "to": "j-privacy",
+      "label": "context",
+      "variant": "default"
+    },
+    {
+      "id": "j-privacy-to-j-model",
+      "from": "j-privacy",
+      "to": "j-model",
+      "label": "eligible",
+      "variant": "security"
+    },
+    {
+      "id": "j-model-to-j-provider",
+      "from": "j-model",
+      "to": "j-provider",
+      "label": "stream",
+      "variant": "default"
+    },
+    {
+      "id": "j-provider-to-j-commit",
+      "from": "j-provider",
+      "to": "j-commit",
+      "label": "validated",
+      "variant": "default"
+    },
+    {
+      "id": "j-commit-to-j-store",
+      "from": "j-commit",
+      "to": "j-store",
+      "label": "commit",
+      "variant": "security"
+    },
+    {
+      "id": "j-store-to-j-view",
+      "from": "j-store",
+      "to": "j-view",
+      "label": "notify",
+      "variant": "default"
+    },
+    {
+      "id": "j-commit-to-j-research",
+      "from": "j-commit",
+      "to": "j-research",
+      "label": "full mode",
+      "variant": "security"
+    },
+    {
+      "id": "j-research-to-j-web",
+      "from": "j-research",
+      "to": "j-web",
+      "label": "search",
+      "variant": "default"
+    },
+    {
+      "id": "p-renderer-to-p-ipc",
+      "from": "p-renderer",
+      "to": "p-ipc",
+      "label": "raw IPC",
+      "variant": "security"
+    },
+    {
+      "id": "p-ipc-to-p-executor",
+      "from": "p-ipc",
+      "to": "p-executor",
+      "label": "executes",
+      "variant": "security"
+    },
+    {
+      "id": "p-executor-to-p-os",
+      "from": "p-executor",
+      "to": "p-os",
+      "label": "effects",
+      "variant": "security"
+    },
+    {
+      "id": "c-dispatch-to-c-child",
+      "from": "c-dispatch",
+      "to": "c-child",
+      "label": "stdio",
+      "variant": "default"
+    },
+    {
+      "id": "c-child-to-c-cloud",
+      "from": "c-child",
+      "to": "c-cloud",
+      "label": "OAuth",
+      "variant": "default"
+    },
+    {
+      "id": "c-child-to-c-visible",
+      "from": "c-child",
+      "to": "c-visible",
+      "label": "text",
+      "variant": "default"
+    },
+    {
+      "id": "cloud-auth-to-cloud-session",
+      "from": "cloud-auth",
+      "to": "cloud-session",
+      "label": "session",
+      "variant": "default"
+    },
+    {
+      "id": "cloud-session-to-cloud-gateway",
+      "from": "cloud-session",
+      "to": "cloud-gateway",
+      "label": "bind",
+      "variant": "security"
+    },
+    {
+      "id": "cloud-gateway-to-cloud-firestore",
+      "from": "cloud-gateway",
+      "to": "cloud-firestore",
+      "label": "Bearer",
+      "variant": "security"
+    },
+    {
+      "id": "cloud-gateway-to-cloud-run",
+      "from": "cloud-gateway",
+      "to": "cloud-run",
+      "label": "dispatch",
+      "variant": "security"
+    },
+    {
+      "id": "cloud-gateway-to-cloud-db",
+      "from": "cloud-gateway",
+      "to": "cloud-db",
+      "label": "snapshot",
+      "variant": "security"
+    },
+    {
+      "id": "secrets-to-cloud-db",
+      "from": "secrets",
+      "to": "cloud-db",
+      "label": "store key",
+      "variant": "default"
+    },
+    {
+      "id": "x-sources-to-x-github",
+      "from": "x-sources",
+      "to": "x-github",
+      "label": "IPC",
+      "variant": "default"
+    },
+    {
+      "id": "x-github-to-x-github-api",
+      "from": "x-github",
+      "to": "x-github-api",
+      "label": "token",
+      "variant": "default"
+    },
+    {
+      "id": "x-native-to-x-files",
+      "from": "x-native",
+      "to": "x-files",
+      "label": "OS calls",
+      "variant": "default"
+    },
+    {
+      "id": "x-native-to-x-sites",
+      "from": "x-native",
+      "to": "x-sites",
+      "label": "launch",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Read the architecture",
+      "items": [
+        "A is one complete API-key agent turn and renderer task creation. D is the direct Forest createChatModel path. B follows background capture, extraction, review and optional execution. J shows the independent journal worker.",
+        "Repeated factory, provider and database boxes are the same runtime roles at different call sites. Region boxes mark process or ownership slices; they do not imply extra sandboxes. Click any component for revision-pinned source evidence."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Renderer ownership",
+      "items": [
+        "React owns panels, shell layout, appContext and the live tool registry. Main owns structured writes; data:changed reloads renderer state. ThemeProvider/Chromap work from AppCombined.css.",
+        "The mounted Sources activity view is the actual log UI in this checkout; AGENTS.md names LogPanel.jsx, but that file is absent. Media playback and recorder session history are distinct features."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Approval levels are narrower than their labels",
+      "items": [
+        "Graph ask-always interrupts only tools in DESTRUCTIVE_TOOLS. Renderer ask-always checks requiresConfirmation; read-only tools and openCanvas can proceed. Unknown threads use this same rule, not deny-everything.",
+        "ask-destructive lets briizos_* mutations pass the graph; renderer exempts its reversible UI set, while other flagged mutations still ask. no-asking disables confirmation but the renderer still checks configured paths."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Approval integrity gaps",
+      "items": [
+        "ToolContext trusts __agentGraphConfirmed to skip confirmation; it is forwarded in renderer params rather than bound to a main-owned one-use authorization. Blacklist checks still precede that flag.",
+        "confirmAction invokes the handler directly with edited params; it does not rerun the per-surface gate. bridge.js accepts tool results by requestId without checking reply sender. Raw filesystem/terminal/structured IPC also skips the renderer executor."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Shell and path gates are heuristic",
+      "items": [
+        "Renderer isDestructiveCommand returns safe for a recognized first verb before checking compound commands or redirection. Graph parsing examines separators first, but treats node, python, git, curl and other powerful tools as safe verbs.",
+        "Blacklists compare strings before main resolves paths. ~/ expansion, .. components and symlinks are not canonicalized by these checks. Shell arguments are not comprehensively governed by the filesystem blacklist. These are code-based limitations, not exploit-test results."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Screen-text consent has a second route",
+      "items": [
+        "Briizy assistants require cloudTextAnalysisAllowed and the pixel/path-pattern scan. The main agent tools search_screen_memory and get_recent_activity read saved OCR without that flag, then return it as model-visible tool output.",
+        "The egress scanner catches known data URI, image magic, binary buffers and selected POSIX path forms. It is a pattern filter, not a universal prohibition on sensitive text or arbitrary path encodings."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Capture controls and actual enforcement",
+      "items": [
+        "Capture defaults off; cloud text analysis defaults off. setConfig({enabled:true}) can start the helper without checking onboardedAt. macOS Screen Recording remains an enforced native gate. Avatar visibility is independent of recording.",
+        "Automatic capture defaults to alternating active-window and full-display screenshots. Exclusions examine frontmost metadata; a permitted front window does not exclude other visible windows from the display image."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Direct calls do not inherit chat policy",
+      "items": [
+        "Forest auto-tags reads up to its excerpt budgets and sends project text using the Background helpers route. It has configuration/read budgets and error logs, but no ToolContext approval, agent blacklist or separate file-content egress consent.",
+        "A configured model/key is a readiness condition. It does not authorize every external transmission. createChatModel checks profiles/adapters/credentials and rejects Codex subscription calls; it does not centralize content consent."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Background helpers and routing",
+      "items": [
+        "The graph adds title, tags, memory extraction and summarization calls when their hook conditions allow. Model selection order is call-site specific; title/memory helpers can inherit the active model ahead of Background routing.",
+        "Briizy assistants use their own configured model or app default; base.callModel does not consult the Background route. Execubriiz uses journal model settings, then live/deep AI route, then app default."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Journal-specific authority",
+      "items": [
+        "Execubriiz starts with full intensity and unpaused preferences. Private entries are filtered in code; Invisible entries may be supplied to the model and withheld from visible source citations.",
+        "Schema/budget/generation/revision/protected/fixed checks govern journal commits. Some content edits apply automatically; structural edits become proposals. Full curation can enqueue web research only when the context has no Invisible material. General chat/task permissions do not govern this worker."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Embedded content is a weak boundary",
+      "items": [
+        "Canvas srcDoc permits scripts with same-origin and forms. The URL probe checks its payload/probeId, but not event.origin or event.source. Same-origin scripted content weakens separation from the privileged parent; exact reach is inferred and was not exercised.",
+        "Main disables webSecurity and allows insecure content in development, skips CSP injection there, and enables webviewTag. Production CSP still includes unsafe-inline/unsafe-eval. This map does not claim a tested exploit or an isolated canvas security sandbox."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Codex is a distinct child process",
+      "items": [
+        "Selecting a Codex profile spawns the installed codex app-server --stdio and uses its ChatGPT OAuth. thread/start and resume request read-only sandbox with approvalPolicy never. Those controls are owned by the installed CLI.",
+        "BriizOS forwards text deltas from that provider; this adapter does not wire the renderer tool bridge or dynamic tools. General createChatModel explicitly refuses Codex subscription models."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Cloud ownership and remote execution",
+      "items": [
+        "Renderer Firebase Auth supplies UID, project ID and token to CloudGateway. Main checks required fields and confirms rebinding, then uses bearer-authenticated Firestore REST. Server security rules and external web/mobile producers are outside electron/ and src/ evidence.",
+        "Primary lease, target device, schema/kind, expiry and deduplication gate command intake. Accepted remote execute_task commands auto-dispatch without a fresh local start approval; task ceiling and subsequent tool interruptions still apply. Device lease coordination uses reads/writes, not an atomic lock."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Storage and observability",
+      "items": [
+        "Main initializes userData/briizos.db with better-sqlite3, WAL and foreign keys. Structured writes use transactions/revisions; logs, AI audit, checkpoints, operation receipts and encrypted secrets share this authority. Captured pixels live in the local rewind archive.",
+        "safeStorage fails closed when encryption is unavailable for saved secrets. Environment API keys take precedence for model calls. Operation receipts deduplicate effects; they are not human approvals. Graph initial audit storage is required before send, while direct helpers have their own narrower logs."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "External dependencies and dormant code",
+      "items": [
+        "Runtime packages: Electron + Node, React/ReactDOM, LangGraph/LangChain adapters, Zod, better-sqlite3, Firebase, Tiptap, theme PostCSS, React DnD, Three/GSAP. See package.json and the component source passports.",
+        "GitHub REST reads are implemented. Google Drive OAuth/list/download are explicit placeholders. iCloud and USB are mounted filesystem access. Native Studio/site launches are external handoffs. Legacy agent Python and old local-db/Firestore modules exist, but they are not the main agent/persistence paths traced here."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Scope and evidence limits",
+      "items": [
+        "Snapshot: electron/ and src/ runtime at revision 881061e74f60db796a1ba473fa73414c45d8bcd6, analyzed 9 October 2026. Existing dirty paths are recorded separately; cited source paths were unchanged in the starting worktree.",
+        "This is static source analysis. It identifies actual checks, trusted parameters and missing gates without starting the application or executing exploit probes. Diagram artifact validation is separate from application behavior verification."
+      ]
+    }
+  ]
+}
