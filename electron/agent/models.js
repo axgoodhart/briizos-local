@@ -26,6 +26,14 @@ const {
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const GPT_5_6_MODEL = /^gpt-5\.6(?:-|$)/i;
+// GPT-5.6 and GPT-6 (gpt-6.1-sol, gpt-6-luna) share the Responses API path and
+// reasoning effort scale. gpt-6.1-sol does not accept effort `none`.
+const GPT_RESPONSES_MODEL = /^gpt-(?:5\.6|6)(?:[.-]|$)/i;
+const GPT_NO_NONE_EFFORT_MODEL = /^gpt-6\.1-sol(?:-|$)/i;
+// Claude 5.5 models only accept adaptive thinking (no budget_tokens) and reject
+// non-default temperature/top_p/top_k. The pinned @langchain/anthropic does not
+// know these IDs yet, so the request is shaped here.
+const CLAUDE_ADAPTIVE_ONLY_MODEL = /^claude-(?:opus|sonnet|haiku)-5-5(?:-|$)/i;
 const GPT_5_6_REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
 const GPT_5_6_REASONING_LABELS = new Map([
   ['fast', 'none'],
@@ -161,12 +169,20 @@ function isGpt56Model(modelName) {
   return GPT_5_6_MODEL.test(String(modelName || ''));
 }
 
+function isGptResponsesModel(modelName) {
+  return GPT_RESPONSES_MODEL.test(String(modelName || ''));
+}
+
+function isClaudeAdaptiveOnlyModel(modelName) {
+  return CLAUDE_ADAPTIVE_ONLY_MODEL.test(String(modelName || ''));
+}
+
 /**
  * GPT-5.6 accepts API values none|low|medium|high|xhigh|max. briizOS uses
  * human-facing labels for those standard efforts, but must never send `light`
  * or `ultra` directly to OpenAI. Ultra is a separate beta multi-agent mode.
  */
-function normalizeGpt56ReasoningEffort(value) {
+function normalizeGpt56ReasoningEffort(value, modelName = null) {
   if (value == null || String(value).trim() === '') return 'medium';
   const label = String(value).trim().toLowerCase().replace(/\s+/g, ' ');
   if (label === 'ultra') {
@@ -175,6 +191,9 @@ function normalizeGpt56ReasoningEffort(value) {
   const effort = GPT_5_6_REASONING_LABELS.get(label) || label;
   if (!GPT_5_6_REASONING_EFFORTS.has(effort)) {
     throw new Error(`Unsupported GPT-5.6 reasoning effort: ${value}. Choose Light, Medium, High, Extra High, Max, or Fast / No reasoning.`);
+  }
+  if (effort === 'none' && GPT_NO_NONE_EFFORT_MODEL.test(String(modelName || ''))) {
+    throw new Error(`${modelName} does not support Fast / No reasoning. Choose Light, Medium, High, Extra High, or Max.`);
   }
   return effort;
 }
@@ -212,12 +231,14 @@ function resolveChatModelRequest({
 
   const common = { model: modelName, streaming: true };
   const outputTokens = maxTokens == null ? resolved.maxTokens : Math.min(maxTokens, resolved.maxTokens || maxTokens);
-  const gpt56Model = provider === 'openai' && isGpt56Model(modelName);
-  const openAIReasoningModel = provider === 'openai' && (/^o[13](?:-|$)/.test(modelName) || /^gpt-5(?:\.|-|$)/.test(modelName));
+  const gpt56Model = provider === 'openai' && isGptResponsesModel(modelName);
+  const claudeAdaptiveOnly = provider === 'claude' && isClaudeAdaptiveOnlyModel(modelName);
+  const openAIReasoningModel = provider === 'openai' && (/^o[13](?:-|$)/.test(modelName) || /^gpt-[56](?:\.|-|$)/.test(modelName));
   const effectiveOpenAIReasoningEffort = provider === 'openai'
-    ? (gpt56Model ? normalizeGpt56ReasoningEffort(reasoningEffort) : reasoningEffort || null)
+    ? (gpt56Model ? normalizeGpt56ReasoningEffort(reasoningEffort, modelName) : reasoningEffort || null)
     : null;
-  if (temperature != null && !openAIReasoningModel && !(provider === 'claude' && thinkingEnabled && resolved.supportsThinking)) {
+  // Gemini deprecated custom sampling params (temperature, top_p, top_k).
+  if (temperature != null && provider !== 'gemini' && !openAIReasoningModel && !claudeAdaptiveOnly && !(provider === 'claude' && thinkingEnabled && resolved.supportsThinking)) {
     common.temperature = temperature;
   }
 
@@ -230,8 +251,10 @@ function resolveChatModelRequest({
     case 'claude': {
       constructorOptions = { ...common };
       if (outputTokens != null) constructorOptions.maxTokens = outputTokens;
-      if (topP != null && !(thinkingEnabled && resolved.supportsThinking)) constructorOptions.topP = topP;
-      if (thinkingEnabled && resolved.supportsThinking) {
+      if (topP != null && !claudeAdaptiveOnly && !(thinkingEnabled && resolved.supportsThinking)) constructorOptions.topP = topP;
+      if (thinkingEnabled && resolved.supportsThinking && claudeAdaptiveOnly) {
+        constructorOptions.thinking = { type: 'adaptive' };
+      } else if (thinkingEnabled && resolved.supportsThinking) {
         const configuredBudget = resolved.thinking?.budget_tokens || 4096;
         const budgetTokens = outputTokens == null
           ? configuredBudget
@@ -255,7 +278,6 @@ function resolveChatModelRequest({
     default: {
       constructorOptions = { ...common };
       if (outputTokens != null) constructorOptions.maxOutputTokens = outputTokens;
-      if (topP != null) constructorOptions.topP = topP;
       break;
     }
   }
@@ -283,7 +305,8 @@ function resolveChatModelRequest({
       supports_thinking: resolved.supportsThinking,
       openai_reasoning_model: openAIReasoningModel,
       openai_responses_api: gpt56Model,
-      gpt_5_6: gpt56Model,
+      gpt_5_6: provider === 'openai' && isGpt56Model(modelName),
+      claude_adaptive_only: claudeAdaptiveOnly,
     },
   };
 }
@@ -349,6 +372,8 @@ module.exports = {
   getRoutingModel,
   ROUTING_FIELDS,
   isGpt56Model,
+  isGptResponsesModel,
+  isClaudeAdaptiveOnlyModel,
   normalizeGpt56ReasoningEffort,
   DEFAULT_MODEL,
   setLocalDataService,

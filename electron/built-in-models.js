@@ -1,10 +1,15 @@
 const BUILT_IN_MODELS = Object.freeze([
   { name: 'codex-subscription', displayName: 'Codex Subscription', provider: 'codex', model: 'codex', maxTokens: null, supportsVision: true, supportsThinking: true },
+  { name: 'claude-opus-5-5', displayName: 'Claude Opus 5.5', provider: 'claude', model: 'claude-opus-5-5', maxTokens: 128000, supportsVision: true, supportsThinking: true, thinking: { type: 'adaptive' } },
+  { name: 'claude-sonnet-5-5', displayName: 'Claude Sonnet 5.5', provider: 'claude', model: 'claude-sonnet-5-5', maxTokens: 128000, supportsVision: true, supportsThinking: true, thinking: { type: 'adaptive' } },
+  { name: 'claude-haiku-5-5', displayName: 'Claude Haiku 5.5', provider: 'claude', model: 'claude-haiku-5-5', maxTokens: 128000, supportsVision: true, supportsThinking: true, thinking: { type: 'adaptive' } },
   { name: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6', provider: 'claude', model: 'claude-sonnet-4-6', maxTokens: 64000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled' } },
   { name: 'claude-opus-4-6', displayName: 'Claude Opus 4.6', provider: 'claude', model: 'claude-opus-4-6', maxTokens: 32000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled', budget_tokens: 10000 } },
   { name: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5', provider: 'claude', model: 'claude-sonnet-4-5-20250929', maxTokens: 64000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled' } },
   { name: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4.5', provider: 'claude', model: 'claude-haiku-4-5-20251001', maxTokens: 16000, supportsVision: true, supportsThinking: false },
   { name: 'claude-opus-4-20250514', displayName: 'Claude Opus 4', provider: 'claude', model: 'claude-opus-4-20250514', maxTokens: 32000, supportsVision: true, supportsThinking: true, thinking: { type: 'enabled', budget_tokens: 10000 } },
+  { name: 'gpt-6.1-sol', displayName: 'GPT-6.1 Sol', provider: 'openai', model: 'gpt-6.1-sol', maxTokens: 128000, supportsVision: true, supportsThinking: false },
+  { name: 'gpt-6-luna', displayName: 'GPT-6 Luna', provider: 'openai', model: 'gpt-6-luna', maxTokens: 128000, supportsVision: true, supportsThinking: false },
   { name: 'gpt-5.6-sol', displayName: 'GPT-5.6 Sol', provider: 'openai', model: 'gpt-5.6-sol', maxTokens: 128000, supportsVision: true, supportsThinking: false },
   { name: 'gpt-5.6-terra', displayName: 'GPT-5.6 Terra', provider: 'openai', model: 'gpt-5.6-terra', maxTokens: 128000, supportsVision: true, supportsThinking: false },
   { name: 'gpt-5.6-luna', displayName: 'GPT-5.6 Luna', provider: 'openai', model: 'gpt-5.6-luna', maxTokens: 128000, supportsVision: true, supportsThinking: false },
@@ -23,7 +28,7 @@ const BUILT_IN_MODELS = Object.freeze([
   { name: 'gemini-omni-flash', displayName: 'Gemini Omni Flash', provider: 'gemini', model: 'gemini-omni-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', provider: 'gemini', model: 'gemini-2.5-pro', maxTokens: 65536, supportsVision: true, supportsThinking: true },
-  { name: 'gemini-3.7-flash', displayName: 'Gemini 3.7 Flash', provider: 'gemini', model: 'gemini-3.7-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', provider: 'gemini', model: 'gemini-3.8-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', provider: 'gemini', model: 'gemini-3.6-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', provider: 'gemini', model: 'gemini-3.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.5-flash-lite', displayName: 'Gemini 3.5 Flash-Lite', provider: 'gemini', model: 'gemini-3.5-flash-lite', maxTokens: 65536, supportsVision: true, supportsThinking: true },
@@ -36,6 +41,7 @@ const RETIRED_BUILT_IN_MODEL_NAMES = Object.freeze([
   'gemini-2.0-flash',
   'claude-sonnet-4-5',
   'gpt-5.4',
+  'gemini-3.7-flash',
 ]);
 
 module.exports = { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES };
