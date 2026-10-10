@@ -7,20 +7,19 @@ import logger from '../lib/logger';
 const ChatSettingsContext = createContext(null);
 
 const DEFAULT_MODELS = {
-  openai: ['gpt-5.4', 'gpt-5-nano', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o', 'o3-mini', 'o4-mini'],
+  openai: ['gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.4', 'gpt-5-nano', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o', 'o3-mini', 'o4-mini'],
   gemini: [
     'gemini-3.1-pro-preview',
     'gemini-3-flash-preview',
     'gemini-omni-flash',
     'gemini-2.5-flash',
     'gemini-2.5-pro',
-    'gemini-3.7-flash',
-    'gemini-3.6-flash',
+    'gemini-3.8-flash',
     'gemini-3.5-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
   ],
-  claude: ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001', 'claude-opus-4-20250514'],
+  claude: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001', 'claude-opus-4-20250514'],
 };
 
 const DEFAULT_STATE = {

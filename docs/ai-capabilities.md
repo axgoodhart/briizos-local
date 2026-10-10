@@ -31,7 +31,7 @@ You can see and change which model powers each capability in the **AI Routing** 
 briizOS works with three cloud AI providers. You bring your own API key for whichever one(s) you want to use.
 
 - **Anthropic (Claude)** — Claude Sonnet 4.6 is the default if nothing else is configured.
-- **OpenAI (GPT)** — Full support including GPT-5.6, reasoning models (o1, o3), and the Responses API. Also supports reasoning effort levels: Fast, Light, Medium, High, Extra High, Max.
+- **OpenAI (GPT)** — Full support including GPT-6.1 Sol, GPT-6 Luna, GPT-5.6, reasoning models (o1, o3), and the Responses API. Also supports reasoning effort levels: Fast, Light, Medium, High, Extra High, Max.
 - **Google (Gemini)** — All current Gemini models.
 
 There is also a **Codex Subscription** connector for users who authenticate through OpenAI's Codex app. Codex can power Chat but cannot power Execubriiz (which needs structured tool calls that Codex doesn't support).
@@ -216,9 +216,9 @@ Constructor classes:
 
 API keys resolve in order: environment variable → `localDataService.getProviderApiKey()` (encrypted in `briizos.db`).
 
-**GPT-5.6 specifics:** Uses the Responses API (`useResponsesApi: true`). Reasoning effort values are normalized through `normalizeGpt56ReasoningEffort()` — accepts UI labels like "Light", "Extra High", maps to API values `none|low|medium|high|xhigh|max`. "Ultra" is explicitly rejected with an error (it's a separate multi-agent beta, not a reasoning level).
+**GPT-5.6 / GPT-6 specifics:** Uses the Responses API (`useResponsesApi: true`); `gpt-6.1-sol` rejects "Fast / No reasoning" (`none`). Reasoning effort values are normalized through `normalizeGpt56ReasoningEffort()` — accepts UI labels like "Light", "Extra High", maps to API values `none|low|medium|high|xhigh|max`. "Ultra" is explicitly rejected with an error (it's a separate multi-agent beta, not a reasoning level).
 
-**Extended thinking (Claude):** When `thinkingEnabled` and the model profile has `supportsThinking: true`, a `thinking` block is added to constructor options with a budget calculated from the configured budget or available output tokens.
+**Extended thinking (Claude):** When `thinkingEnabled` and the model profile has `supportsThinking: true`, a `thinking` block is added to constructor options with a budget calculated from the configured budget or available output tokens. Claude 5.5 models (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`) only accept `thinking: { type: 'adaptive' }` with no budget, and `temperature`/`top_p` are never sent for them.
 
 ### AI Routing (`electron/ai-routing.js`)
 
