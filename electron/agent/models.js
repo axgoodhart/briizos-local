@@ -237,7 +237,8 @@ function resolveChatModelRequest({
   const effectiveOpenAIReasoningEffort = provider === 'openai'
     ? (gpt56Model ? normalizeGpt56ReasoningEffort(reasoningEffort, modelName) : reasoningEffort || null)
     : null;
-  if (temperature != null && !openAIReasoningModel && !claudeAdaptiveOnly && !(provider === 'claude' && thinkingEnabled && resolved.supportsThinking)) {
+  // Gemini deprecated custom sampling params (temperature, top_p, top_k).
+  if (temperature != null && provider !== 'gemini' && !openAIReasoningModel && !claudeAdaptiveOnly && !(provider === 'claude' && thinkingEnabled && resolved.supportsThinking)) {
     common.temperature = temperature;
   }
 
@@ -277,7 +278,6 @@ function resolveChatModelRequest({
     default: {
       constructorOptions = { ...common };
       if (outputTokens != null) constructorOptions.maxOutputTokens = outputTokens;
-      if (topP != null) constructorOptions.topP = topP;
       break;
     }
   }

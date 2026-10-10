@@ -29,6 +29,7 @@ const BUILT_IN_MODELS = Object.freeze([
   { name: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', provider: 'gemini', model: 'gemini-2.5-pro', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', provider: 'gemini', model: 'gemini-3.8-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
+  { name: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', provider: 'gemini', model: 'gemini-3.6-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', provider: 'gemini', model: 'gemini-3.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.5-flash-lite', displayName: 'Gemini 3.5 Flash-Lite', provider: 'gemini', model: 'gemini-3.5-flash-lite', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.1-flash-lite', displayName: 'Gemini 3.1 Flash-Lite', provider: 'gemini', model: 'gemini-3.1-flash-lite', maxTokens: 65536, supportsVision: true, supportsThinking: true },
@@ -41,7 +42,6 @@ const RETIRED_BUILT_IN_MODEL_NAMES = Object.freeze([
   'claude-sonnet-4-5',
   'gpt-5.4',
   'gemini-3.7-flash',
-  'gemini-3.6-flash',
 ]);
 
 module.exports = { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES };
