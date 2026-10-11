@@ -11,7 +11,6 @@ const DEFAULT_MODELS = {
   gemini: [
     'gemini-3.1-pro-preview',
     'gemini-3-flash-preview',
-    'gemini-omni-flash',
     'gemini-2.5-flash',
     'gemini-2.5-pro',
     'gemini-3.8-flash',

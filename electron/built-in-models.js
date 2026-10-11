@@ -25,7 +25,6 @@ const BUILT_IN_MODELS = Object.freeze([
   { name: 'o1', displayName: 'o1', provider: 'openai', model: 'o1', maxTokens: 100000, supportsVision: true, supportsThinking: false },
   { name: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro', provider: 'gemini', model: 'gemini-3.1-pro-preview', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash', provider: 'gemini', model: 'gemini-3-flash-preview', maxTokens: 65536, supportsVision: true, supportsThinking: true },
-  { name: 'gemini-omni-flash', displayName: 'Gemini Omni Flash', provider: 'gemini', model: 'gemini-omni-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', provider: 'gemini', model: 'gemini-2.5-pro', maxTokens: 65536, supportsVision: true, supportsThinking: true },
   { name: 'gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', provider: 'gemini', model: 'gemini-3.8-flash', maxTokens: 65536, supportsVision: true, supportsThinking: true },
@@ -42,6 +41,8 @@ const RETIRED_BUILT_IN_MODEL_NAMES = Object.freeze([
   'claude-sonnet-4-5',
   'gpt-5.4',
   'gemini-3.7-flash',
+  // Not a valid ID; Gemini Omni Flash is a video-generation model, not chat
+  'gemini-omni-flash',
 ]);
 
 module.exports = { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES };
