@@ -30,6 +30,7 @@ const GPT_5_6_MODEL = /^gpt-5\.6(?:-|$)/i;
 // reasoning effort scale. gpt-6.1-sol does not accept effort `none`.
 const GPT_RESPONSES_MODEL = /^gpt-(?:5\.6|6)(?:[.-]|$)/i;
 const GPT_NO_NONE_EFFORT_MODEL = /^gpt-6\.1-sol(?:-|$)/i;
+const GPT_6_MODEL = /^gpt-6(?:[.-]|$)/i;
 // Claude 5.5 models only accept adaptive thinking (no budget_tokens) and reject
 // non-default temperature/top_p/top_k. The pinned @langchain/anthropic does not
 // know these IDs yet, so the request is shaped here.
@@ -68,7 +69,32 @@ function getRoutingModel(capabilityId) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+// The installed @langchain/openai only sends `reasoning` for o* and gpt-5*
+// model names and silently drops it for GPT-6. Apply the same rule to GPT-6
+// on the Responses and Chat Completions delegates that build the request.
+function sendReasoningForGpt6(delegate) {
+  if (!delegate || typeof delegate._getReasoningParams !== 'function') return;
+  const original = delegate._getReasoningParams.bind(delegate);
+  delegate._getReasoningParams = (options) => {
+    const base = original(options);
+    if (base !== undefined || !GPT_6_MODEL.test(String(delegate.model || ''))) return base;
+    let reasoning;
+    if (delegate.reasoning !== undefined) reasoning = { ...delegate.reasoning };
+    if (options?.reasoning !== undefined) reasoning = { ...reasoning, ...options.reasoning };
+    if (options?.reasoningEffort !== undefined && reasoning?.effort === undefined) {
+      reasoning = { ...reasoning, effort: options.reasoningEffort };
+    }
+    return reasoning;
+  };
+}
+
 class AuditedChatOpenAI extends ChatOpenAI {
+  constructor(fields) {
+    super(fields);
+    sendReasoningForGpt6(this.responses);
+    sendReasoningForGpt6(this.completions);
+  }
+
   async invoke(input, options = {}) {
     const invocationRef = { runId: null };
     const correlationCallback = {
