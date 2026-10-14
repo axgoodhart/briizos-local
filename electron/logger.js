@@ -44,8 +44,17 @@ const COLORS = {
 };
 
 const CATEGORY_LABELS = {
-  'forest.autotag': 'Forest auto tags',
-  'forest.hunter': 'Forest File Hunter',
+  forest: 'Islands',
+  'forest.autotag': 'Island auto tags',
+  'forest.desk': 'Desks',
+  'forest.island': 'Islands',
+  'forest.card': 'Island cards',
+  'forest.files': 'Island files',
+  'forest.archive': 'Island archive',
+  'forest.terminal': 'Terminal cards',
+  'forest.agent': 'Island agents',
+  'forest.journal': 'Islands journal',
+  'forest.hunter': 'File Hunter',
   app: 'App startup',
   agent: 'AI',
   'agent.stream': 'AI response',

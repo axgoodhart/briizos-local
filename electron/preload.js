@@ -510,4 +510,23 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('forest-hunt-progress', handler);
   },
   forestConsolidateProject: (name, filePaths) => ipcRenderer.invoke('forest-consolidate-project', name, filePaths),
+  forestOwnedCreate: (input) => ipcRenderer.invoke('forest-owned-create', input),
+  forestOwnedWrite: (filePath, content) => ipcRenderer.invoke('forest-owned-write', filePath, content),
+  forestFilePreview: (filePath, maxBytes) => ipcRenderer.invoke('forest-file-preview', filePath, maxBytes),
+  forestArchiveIsland: (input) => ipcRenderer.invoke('forest-archive-island', input),
+  forestTerminalRun: (input) => ipcRenderer.invoke('forest-terminal-run', input),
+  forestTerminalStop: (input) => ipcRenderer.invoke('forest-terminal-stop', input),
+  forestTerminalSnapshot: (input) => ipcRenderer.invoke('forest-terminal-snapshot', input),
+  forestTerminalClear: (input) => ipcRenderer.invoke('forest-terminal-clear', input),
+  forestOpenExternal: (url) => ipcRenderer.invoke('forest-open-external', url),
+  onForestTerminalData: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('forest-terminal-data', handler);
+    return () => ipcRenderer.removeListener('forest-terminal-data', handler);
+  },
+  onForestTerminalState: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('forest-terminal-state', handler);
+    return () => ipcRenderer.removeListener('forest-terminal-state', handler);
+  },
 });

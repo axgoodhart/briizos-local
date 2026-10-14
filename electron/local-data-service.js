@@ -5,7 +5,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
-const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT, FOREST_MAX_CHANGES } = require('./local-data/limits');
+const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT, FOREST_MAX_CHANGES, FOREST_MAX_DESKS, FOREST_MAX_TEMPLATES } = require('./local-data/limits');
 const { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES } = require('./built-in-models');
 const { validateThemeLibrary } = require('./theme-library-validation');
 const themeContract = require('../src/theme/themeContract.json');
@@ -2249,6 +2249,9 @@ class LocalDataService extends EventEmitter {
       viewport: { x: 260, y: 160, scale: 1, ...(view.viewport || {}) },
       hunterDirs: Array.isArray(view.hunterDirs) ? view.hunterDirs : [],
       changes: Array.isArray(view.changes) ? view.changes : [],
+      desks: Array.isArray(view.desks) ? view.desks : [],
+      activeDeskId: typeof view.activeDeskId === 'string' ? view.activeDeskId : null,
+      templates: view.templates && typeof view.templates === 'object' ? view.templates : { islands: [], cards: [] },
       projects,
     };
   }
@@ -2321,7 +2324,7 @@ class LocalDataService extends EventEmitter {
   }
 
   saveForestState(state = {}) {
-    v.object(state, 'Forest state', ['version', 'viewport', 'hunterDirs', 'changes', 'projects']);
+    v.object(state, 'Forest state', ['version', 'viewport', 'hunterDirs', 'changes', 'projects', 'desks', 'activeDeskId', 'templates']);
     v.object(state.viewport || {}, 'viewport', ['x', 'y', 'scale']);
     const viewport = {
       x: v.number(state.viewport?.x ?? 260, 'viewport.x', { min: -10000000, max: 10000000 }),
@@ -2334,6 +2337,19 @@ class LocalDataService extends EventEmitter {
       v.fail('INVALID_INPUT', `changes must be a list with at most ${FOREST_MAX_CHANGES} items`);
     }
     this._jsonValue(changes, 'Forest changes history', 8000000);
+    const desks = state.desks ?? [];
+    if (!Array.isArray(desks) || desks.length > FOREST_MAX_DESKS) {
+      v.fail('INVALID_INPUT', `desks must be a list with at most ${FOREST_MAX_DESKS} items`);
+    }
+    this._jsonValue(desks, 'Forest desks', 4000000);
+    const activeDeskId = state.activeDeskId == null ? null : v.identifier(state.activeDeskId, 'activeDeskId');
+    const templates = state.templates ?? { islands: [], cards: [] };
+    v.object(templates, 'Forest templates', ['islands', 'cards']);
+    const templateCount = (templates.islands?.length || 0) + (templates.cards?.length || 0);
+    if (!Array.isArray(templates.islands || []) || !Array.isArray(templates.cards || []) || templateCount > FOREST_MAX_TEMPLATES) {
+      v.fail('INVALID_INPUT', `templates must hold island and card lists with at most ${FOREST_MAX_TEMPLATES} items in total`);
+    }
+    this._jsonValue(templates, 'Forest templates', 8000000);
     const projects = state.projects ?? [];
     if (!Array.isArray(projects) || projects.length > FOREST_MAX_PROJECTS) {
       v.fail('INVALID_INPUT', `projects must be a list with at most ${FOREST_MAX_PROJECTS} items`);
@@ -2431,7 +2447,7 @@ class LocalDataService extends EventEmitter {
         this.db.prepare('UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
         this.db.prepare('UPDATE forest_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
       }
-      const viewJson = JSON.stringify({ version: 1, viewport, hunterDirs, changes });
+      const viewJson = JSON.stringify({ version: 2, viewport, hunterDirs, changes, desks, activeDeskId, templates });
       this.db.prepare(`
         INSERT INTO forest_view_state (singleton_id, value_json, updated_at, revision) VALUES (1, ?, ?, 1)
         ON CONFLICT(singleton_id) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at,

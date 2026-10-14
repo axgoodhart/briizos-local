@@ -30,7 +30,7 @@ const STEP_EXTRAS = 4;
 const STEP_DEFS = [
   { id: STEP_SETUP, label: 'timeframe & annotation channels' },
   { id: STEP_WINDOW, label: 'time range' },
-  { id: STEP_CANDIDATES, label: 'Forest projects & tasks' },
+  { id: STEP_CANDIDATES, label: 'Islands & tasks' },
   { id: STEP_EXTRAS, label: 'custom input & detail' },
 ];
 
@@ -606,9 +606,9 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
 
             {/* 3 · candidates */}
             {step === STEP_CANDIDATES && (
-              <div className="bzf-step bzf-step-options" key="options" role="group" aria-label="Forest projects and tasks">
+              <div className="bzf-step bzf-step-options" key="options" role="group" aria-label="Islands and tasks">
                 <div className="bzf-source-label">FOREST</div>
-                {candidateState === 'loading' && <div className="bzf-muted">Reading Forest…</div>}
+                {candidateState === 'loading' && <div className="bzf-muted">Reading Islands…</div>}
                 {candidateState === 'error' && <div className="bzf-muted">Could not load candidates.</div>}
                 <div className="bzf-chip-grid">
                   {projectChips.map((candidate) => (
@@ -624,7 +624,7 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
                     </button>
                   ))}
                   {candidateState === 'ready' && projectChips.length === 0 && (
-                    <span className="bzf-muted">No Forest projects.</span>
+                    <span className="bzf-muted">No islands.</span>
                   )}
                 </div>
 

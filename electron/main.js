@@ -63,6 +63,7 @@ const operationReceipts = require('./agent-op-receipts');
 // all persistent Forest state is owned by LocalDataService.
 const forestFs = require('./forest-fs');
 const forestAi = require('./forest-ai');
+const { registerForestWorkspace, stopAllTerminals: stopForestTerminals } = require('./forest-workspace');
 // briizy work memory: supervised native capture helper + indexer + assistants.
 // Screen data is local-only and stays outside the SyncContract entirely.
 const { createBriizy } = require('./briizy');
@@ -1084,7 +1085,7 @@ ipcMain.handle('forest-dialog-open-directory', async () => {
   const win = BrowserWindow.getFocusedWindow();
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory'],
-    title: 'Add a folder for Forest file searches',
+    title: 'Add a folder for File Hunter searches',
   });
   if (result.canceled || !result.filePaths.length) return null;
   return result.filePaths[0];
@@ -1098,6 +1099,8 @@ ipcMain.handle('forest-filehawk-locate', async (_event, name, excludePaths, dirs
 ipcMain.handle('forest-consolidate-project', async (_event, projectName, filePaths) =>
   forestFs.consolidateProject(projectName, filePaths),
 );
+
+registerForestWorkspace({ ipcMain });
 
 ipcMain.handle('forest-autotag-suggest', async (_event, input) => forestAi.runAutoTag(input || {}));
 ipcMain.handle('forest-hunt-run', async (event, input) => forestAi.runHunt(input || {}, (update) => {
@@ -1308,6 +1311,7 @@ app.on('before-quit', (event) => {
     return;
   }
   langgraph.stop();
+  stopForestTerminals();
   briizyShell?.stop();
   briizyShell = null;
   unregisterBriizyIPC?.();

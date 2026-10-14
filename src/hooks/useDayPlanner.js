@@ -73,7 +73,7 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
         });
       } else if (proposal.kind === 'forest_project') {
         if (typeof handlers.promoteForestSource !== 'function' || !proposal.project) {
-          throw new Error('This Forest project is no longer available to schedule');
+          throw new Error('This island is no longer available to schedule');
         }
         await handlers.promoteForestSource({
           kind: 'forest',

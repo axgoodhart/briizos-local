@@ -685,7 +685,7 @@ function AppContent({ layout, shell, floats }) {
       return;
     }
     addPanel({ id: 'forest', type: 'forest', size: 25, visible: true });
-    logger.info('forest', 'Forest panel opened');
+    logger.info('forest', 'Islands panel opened');
   }, [forestPanel, togglePanelVisibility, addPanel]);
 
   const launchControlBarItem = useCallback((itemId) => {
@@ -1217,7 +1217,7 @@ function AppContent({ layout, shell, floats }) {
     { key: 'k', label: 'Toggle Canvases library', run: () => setCanvasesPopoverOpen((prev) => !prev) },
     { key: 'j', label: 'Toggle Journal', run: () => openJournalPanel() },
     { key: 'l', label: 'Toggle Notefalls', run: () => openNotefallsPanel() },
-    { key: 'f', label: 'Toggle Forest', run: () => openForestPanel() },
+    { key: 'f', label: 'Toggle Islands', run: () => openForestPanel() },
     { key: 'g', label: 'Cycle layout mode (grid → duo → windowed)', run: () => cycleShellMode() },
     {
       key: 'x',

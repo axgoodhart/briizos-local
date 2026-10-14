@@ -40,6 +40,8 @@ The header dock’s glass container now measures its contents instead of using a
 
 ## Forest
 
+**October 13, 2026: Forest was rebuilt as desks, islands and cards. What follows describes the previous board; see `docs/forest-desks/DECISIONS.md` for the current design. Auto tags, File Hunter and the Changes history carried over (Changes now appear in the islands journal log).**
+
 Project membership no longer implies FileHawk monitoring. Each file defaults to unwatched unless explicitly designated. Expanded project cards have Files and FileHawk suggestions tabs. The latter provides Unwatched / Watching choices for all attached files. FileHawk lists and scans only designated files; Stop watching retains the project attachment. Existing automatic project membership is not treated as a manual designation.
 
 The floating Forest body has a stable containing block for its overlays. Decorative aurora layers are suppressed in that mode, nested backdrop blur is removed, and project-card movement no longer animates layout coordinates. These changes address plausible stacking and compositing causes found in the source. The reported visual glitch was not reproduced or verified in a running app, so its resolution remains unconfirmed.

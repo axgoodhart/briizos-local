@@ -13,7 +13,7 @@ export const FLOAT_APPS = Object.freeze({
   tasks: { title: 'Tasks', width: 470, height: 640 },
   journal: { title: 'Journals', width: 660, height: 580 },
   notefalls: { title: 'Notefalls', width: 540, height: 620 },
-  forest: { title: 'Forest', width: 760, height: 580 },
+  forest: { title: 'Islands', width: 760, height: 580 },
 });
 
 const SETTINGS_KEY = 'ambient_workspace';

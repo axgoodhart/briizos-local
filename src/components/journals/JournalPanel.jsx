@@ -11,6 +11,9 @@ import {
   IMPORT_TARGETS, TEXT_FILE_ACCEPT, MAX_FILES, readTextFiles, buildFolios, previewImport,
 } from './import.js';
 import logger from '../../lib/logger';
+import { IslandsJournalStandalone } from '../forest/IslandsJournal.jsx';
+
+const ISLANDS_JOURNAL_ID = 'forest-islands';
 
 /* ── SF Symbols from the supplied symbol catalog ───────────────────────── */
 
@@ -363,6 +366,27 @@ function JournalCard({ journal, selected, onSelect, onPopOut }) {
   );
 }
 
+/* The one journal every Forest island writes into (docs/forest-desks/DECISIONS.md → Journal). */
+function IslandsJournalCard({ selected, onSelect }) {
+  const [count, setCount] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    window.api?.forestLoadState?.().then((state) => { if (alive) setCount(state?.projects?.length ?? 0); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return (
+    <div className={'jr-cardwrap' + (selected ? ' is-selected' : '')}>
+      <button type="button" className={'jr-card jr-card--islands' + (selected ? ' is-selected' : '')} onClick={onSelect} aria-pressed={selected}>
+        <span className="jr-card__cover jr-card__cover--islands" />
+        <span className="jr-card__plaque">
+          <span className="jr-card__name">Islands</span>
+          <span className="jr-card__count">{count == null ? '' : count === 1 ? '1 project' : `${count} projects`}</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
 /* ── Home view ───────────────────────────────────────────────────────── */
 
 export function JournalPanel({
@@ -474,7 +498,9 @@ export function JournalPanel({
         <div className="panel-header-tools" ref={setHeaderSlot} />
       </div>
       <div className="panel-content">
-        {openJournal ? (
+        {openId === ISLANDS_JOURNAL_ID ? (
+          <IslandsJournalStandalone onClose={() => setOpenId(null)} />
+        ) : openJournal ? (
           <JournalView
             journal={openJournal}
             pageUrl={getPageUrl(openJournal.page, { journalId: openJournal.id, surface: 'panel' })}
@@ -571,6 +597,18 @@ export function JournalPanel({
             </div>
 
             <div className="jr-grid">
+              {!query.trim() && (
+                <IslandsJournalCard
+                  selected={selectedId === ISLANDS_JOURNAL_ID}
+                  onSelect={(e) => {
+                    e.stopPropagation();
+                    if (selectedId === ISLANDS_JOURNAL_ID) {
+                      setOpenId(ISLANDS_JOURNAL_ID);
+                      logger.info('forest.journal', 'Opened the islands journal from the Journals app');
+                    } else setSelectedId(ISLANDS_JOURNAL_ID);
+                  }}
+                />
+              )}
               {visible.map((j) => (
                 <JournalCard
                   key={j.id}

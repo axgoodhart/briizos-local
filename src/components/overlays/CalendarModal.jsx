@@ -237,7 +237,7 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
       const created = await window.api.localData.tasks.create({
         title: source.title,
         description: milestone?.description
-          || `Forest work from ${source.project.name}`,
+          || `Island work from ${source.project.name}`,
         status: 'pending',
         priority: 'normal',
         dueAt,
@@ -245,7 +245,7 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
         sourceKey: source.sourceKey,
       });
       task = created.row;
-      logger.info('calendar.placement', 'Forest work promoted to a task', {
+      logger.info('calendar.placement', 'Island work promoted to a task', {
         taskId: task.id,
         forestProjectId: source.project.id,
         milestoneId: milestone?.id || null,

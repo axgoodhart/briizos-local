@@ -32,18 +32,21 @@ Filters and detail controls:
 - forest_project_id
 - limit
 
-## Forest projects
+## Projects (islands)
 
 - Key: `forest_projects`
 - Category: `work`
 - Read tools: `briizos_list_projects`, `briizos_get_project`
 
-The user's real projects, from the Forest board. These are the ONLY "projects" in briizOS.
+The user's real projects, shown as islands on desks in the Islands app. These are the ONLY "projects" in briizOS.
 
 Fields:
 - id, name, tags
-- milestones: [{ name, completed }] (project phases)
+- stage (current), stages (the island's stage list), status (where it stands), field, folder (project folder on disk)
+- cards: [{ kind, title }] (terminal, webview, thoughts, media, agent, docs, goals, planning, ship, monetize)
+- milestones: [{ name, completed }] (dated points on the islands journal calendar)
 - files: attached file names/paths
+- detail only: about (answers to What is it? / What makes it unique? / 3 Best Features), chapter, recentJournal
 - optional scoring fields when set: deadline (YYYY-MM-DD), importance (1-10), size (hours), relevance
 - revision
 Relationships:

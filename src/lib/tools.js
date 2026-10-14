@@ -711,9 +711,9 @@ const tools = {
 
   updateForestProjectScoring: {
     requiresConfirmation: true,
-    description: 'Save optional prioritization signals on a Forest project',
+    description: 'Save optional prioritization signals on a project (an island in Islands)',
     parameters: {
-      project_id: { type: 'string', description: 'Forest project ID' },
+      project_id: { type: 'string', description: 'Project (island) ID' },
       deadline: { type: 'string', description: 'Deadline in YYYY-MM-DD, or null to clear', optional: true },
       importance: { type: 'number', description: 'Importance from 1 to 10, or null to clear', optional: true },
       size: { type: 'number', description: 'Estimated hours, or null to clear', optional: true },
@@ -722,15 +722,15 @@ const tools = {
     handler: async (params) => {
       const state = await window.api.forestLoadState();
       const project = (state?.projects || []).find((candidate) => candidate.id === params.project_id);
-      if (!project) throw new Error(`Forest project "${params.project_id}" not found`);
-      if (!project.revision) throw new Error('Forest project revision is unavailable');
+      if (!project) throw new Error(`Island "${params.project_id}" not found`);
+      if (!project.revision) throw new Error('Island revision is unavailable');
       const patch = {};
       ['deadline', 'importance', 'size', 'relevance'].forEach((field) => {
         if (params[field] !== undefined) patch[field] = params[field];
       });
       if (!Object.keys(patch).length) throw new Error('No scoring fields were supplied');
       const result = await localData().forestProjects.updateScoring(project.id, project.revision, patch);
-      logger.info('agent.prioritize', 'Forest project priority signals saved', {
+      logger.info('agent.prioritize', 'Island priority signals saved', {
         projectId: project.id,
         project: project.name,
         fields: Object.keys(patch),

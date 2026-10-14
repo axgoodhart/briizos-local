@@ -219,7 +219,7 @@ async function suggestProjectTags(input = {}) {
     excerptText ? `Opening lines of ${excerpts.length} file${excerpts.length === 1 ? '' : 's'}:\n${excerptText}` : 'No file contents were read.',
   ].filter(Boolean).join('\n\n');
 
-  const text = await askModel(system, user, 'Forest auto tags');
+  const text = await askModel(system, user, 'Island auto tags');
   const parsed = parseJson(text);
   const proposed = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.tags) ? parsed.tags : [];
   const taken = new Set(existing);
@@ -247,8 +247,8 @@ async function runAutoTag(input = {}) {
   try {
     const result = await suggestProjectTags(input);
     logger.info('forest.autotag', result.tags.length
-      ? `Forest added ${result.tags.length} tag${result.tags.length === 1 ? '' : 's'} to “${projectName}” using ${result.filesRead.length ? `the opening lines of ${result.filesRead.length} file${result.filesRead.length === 1 ? '' : 's'}` : 'its name and file list only'}.`
-      : `Forest looked for new tags for “${projectName}” but the AI found nothing specific enough to add.`, {
+      ? `Added ${result.tags.length} tag${result.tags.length === 1 ? '' : 's'} to “${projectName}” using ${result.filesRead.length ? `the opening lines of ${result.filesRead.length} file${result.filesRead.length === 1 ? '' : 's'}` : 'its name and file list only'}.`
+      : `Looked for new tags for “${projectName}” but the AI found nothing specific enough to add.`, {
       projectId: input.projectId,
       tagsAdded: result.tags,
       filesRead: result.filesRead.map((f) => `${f.name} (${f.lines} lines)`),
@@ -260,7 +260,7 @@ async function runAutoTag(input = {}) {
     return { ok: true, ...result };
   } catch (error) {
     const problem = friendlyAiProblem(error);
-    logger.warn('forest.autotag', `Forest could not suggest tags for “${projectName}”. Existing tags are unchanged; it will try again the next time this project's files change or Forest reopens.`, {
+    logger.warn('forest.autotag', `Could not suggest tags for “${projectName}”. Existing tags are unchanged; it will try again the next time this project's files change or Forest reopens.`, {
       projectId: input.projectId,
       problem,
       model: modelLabel(),
@@ -580,7 +580,7 @@ async function runHunt(input = {}, sendProgress = () => {}) {
   }));
 
   const durationMs = Date.now() - started;
-  logger.info('forest.hunter', `File Hunter finished: ${payload.length} result${payload.length === 1 ? '' : 's'} for “${projectName}” are waiting in Forest → Changes. Nothing is added to the project until you add it there.`, {
+  logger.info('forest.hunter', `File Hunter finished: ${payload.length} result${payload.length === 1 ? '' : 's'} for “${projectName}” are waiting in the island's File Hunter panel and journal. Nothing is added to the project until you add it there.`, {
     runId,
     mode: MODES[mode],
     engine: found.engine === 'spotlight' ? 'Spotlight index' : 'Folder walk (file names only)',

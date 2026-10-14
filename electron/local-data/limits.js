@@ -18,4 +18,7 @@ module.exports = {
   FOREST_MAX_SCAN_ENTRIES: 100000,
   // Forest → Changes history entries kept (auto tags and File Hunter searches).
   FOREST_MAX_CHANGES: 150,
+  // Desks (saved views over islands) and saved island/card templates.
+  FOREST_MAX_DESKS: 200,
+  FOREST_MAX_TEMPLATES: 500,
 };

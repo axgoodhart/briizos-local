@@ -42,7 +42,7 @@ export const EDITABLE_DOCK_ITEMS = Object.freeze([
   { id: 'notes', label: 'Notes', glyph: '􁕍', accent: '#e7dc91' },
   { id: 'canvases', label: 'Canvases', glyph: '􀏜', accent: '#24d9e6' },
   { id: 'journal', label: 'Journals', glyph: '􀬒', accent: '#e5a76a' },
-  { id: 'forest', label: 'Forest', glyph: '􁝯', accent: '#7ee7a1' },
+  { id: 'forest', label: 'Islands', glyph: '􁝯', accent: '#7ee7a1' },
   { id: 'notefalls', label: 'Notefalls', glyph: '􀢾', accent: '#bda6ff' },
   { id: 'sources', label: 'Sources', glyph: '􀫥', accent: '#74dcea' },
   { id: 'tasks', label: 'Tasks', glyph: '􀷾', accent: '#ffd36b' },
