@@ -52,6 +52,7 @@ const CATEGORY_LABELS = {
   'island.files': 'Island files',
   'island.archive': 'Island archive',
   'island.terminal': 'Terminal cards',
+  'island.preview': 'Island webviews',
   'island.agent': 'Island agents',
   'island.journal': 'Islands journal',
   'island.hunter': 'File Hunter',

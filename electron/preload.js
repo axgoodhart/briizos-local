@@ -518,6 +518,9 @@ contextBridge.exposeInMainWorld('api', {
   islandTerminalStop: (input) => ipcRenderer.invoke('island-terminal-stop', input),
   islandTerminalSnapshot: (input) => ipcRenderer.invoke('island-terminal-snapshot', input),
   islandTerminalClear: (input) => ipcRenderer.invoke('island-terminal-clear', input),
+  islandPreviewAcquire: (input) => ipcRenderer.invoke('island-preview-acquire', input),
+  islandPreviewRelease: (input) => ipcRenderer.invoke('island-preview-release', input),
+  islandPreviewSaveCapture: (input) => ipcRenderer.invoke('island-preview-save-capture', input),
   islandOpenExternal: (url) => ipcRenderer.invoke('island-open-external', url),
   onIslandTerminalData: (callback) => {
     const handler = (_event, payload) => callback(payload);

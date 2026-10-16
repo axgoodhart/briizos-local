@@ -13,6 +13,7 @@ const { spawn, execFile } = require('child_process');
 const { app, shell } = require('electron');
 const { logger } = require('./logger');
 const { buildFileRecord } = require('./island-fs');
+const { registerIslandPreviewRuntime, stopAllPreviews } = require('./island-preview-runtime');
 
 // ==== LIMITS ====
 const PREVIEW_MAX_BYTES = 400000;          // text preview cap for a card
@@ -312,6 +313,11 @@ function stopAllTerminals() {
   });
 }
 
+function stopAllIslandProcesses() {
+  stopAllTerminals();
+  stopAllPreviews();
+}
+
 async function openExternal(url) {
   let parsed;
   try { parsed = new URL(String(url || '')); } catch { return { ok: false, error: 'Not a web address' }; }
@@ -331,7 +337,8 @@ function registerIslandWorkspace({ ipcMain }) {
   ipcMain.handle('island-terminal-stop', async (_event, input) => terminalStop(input || {}));
   ipcMain.handle('island-terminal-snapshot', async (_event, input) => terminalSnapshot(input || {}));
   ipcMain.handle('island-terminal-clear', async (_event, input) => terminalClear(input || {}));
-  return stopAllTerminals;
+  registerIslandPreviewRuntime({ ipcMain });
+  return stopAllIslandProcesses;
 }
 
-module.exports = { registerIslandWorkspace, stopAllTerminals };
+module.exports = { registerIslandWorkspace, stopAllTerminals, stopAllIslandProcesses };

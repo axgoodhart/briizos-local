@@ -865,6 +865,7 @@ export function removeCard(islandId, cardId) {
     return { ...current, cards, mainCardId: wasMain ? (cards[0]?.id || null) : current.mainCardId };
   });
   if (card.kind === 'terminal') window.api.islandTerminalStop?.({ cardId, label: card.title });
+  if (card.kind === 'webview') window.api.islandPreviewRelease?.({ cardId, reason: 'the card was removed' });
   if (S.ui.selection?.cardId === cardId) select({ islandId });
   addEntry(islandId, 'card', `Removed the ${cardType(card.kind).label} card “${card.title}”.`);
   log('info', 'island.card', `Removed the card “${card.title}” from “${island.name}”. No files were deleted.`);

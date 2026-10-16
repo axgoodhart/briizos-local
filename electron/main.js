@@ -63,7 +63,7 @@ const operationReceipts = require('./agent-op-receipts');
 // all persistent Island state is owned by LocalDataService.
 const islandFs = require('./island-fs');
 const islandAi = require('./island-ai');
-const { registerIslandWorkspace, stopAllTerminals: stopIslandTerminals } = require('./island-workspace');
+const { registerIslandWorkspace, stopAllIslandProcesses } = require('./island-workspace');
 // briizy work memory: supervised native capture helper + indexer + assistants.
 // Screen data is local-only and stays outside the SyncContract entirely.
 const { createBriizy } = require('./briizy');
@@ -1321,7 +1321,7 @@ app.on('before-quit', (event) => {
     return;
   }
   langgraph.stop();
-  stopIslandTerminals();
+  stopAllIslandProcesses();
   briizyShell?.stop();
   briizyShell = null;
   unregisterBriizyIPC?.();
