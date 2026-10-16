@@ -42,7 +42,7 @@ export const EDITABLE_DOCK_ITEMS = Object.freeze([
   { id: 'notes', label: 'Notes', glyph: '􁕍', accent: '#e7dc91' },
   { id: 'canvases', label: 'Canvases', glyph: '􀏜', accent: '#24d9e6' },
   { id: 'journal', label: 'Journals', glyph: '􀬒', accent: '#e5a76a' },
-  { id: 'forest', label: 'Islands', glyph: '􁝯', accent: '#7ee7a1' },
+  { id: 'island', label: 'Islands', glyph: '􁝯', accent: '#7ee7a1' },
   { id: 'notefalls', label: 'Notefalls', glyph: '􀢾', accent: '#bda6ff' },
   { id: 'sources', label: 'Sources', glyph: '􀫥', accent: '#74dcea' },
   { id: 'tasks', label: 'Tasks', glyph: '􀷾', accent: '#ffd36b' },
@@ -331,7 +331,7 @@ function ControlBar({
   notesOpen,
   canvasesOpen,
   journalOpen,
-  forestOpen,
+  islandOpen,
   notefallsOpen,
   sourcesOpen,
   tasksOpen,
@@ -344,7 +344,7 @@ function ControlBar({
   onToggleNotes,
   onToggleCanvases,
   onToggleJournal,
-  onToggleForest,
+  onToggleIsland,
   onToggleNotefalls,
   onToggleSources,
   onToggleTasks,
@@ -376,7 +376,7 @@ function ControlBar({
     notes: notesOpen,
     canvases: canvasesOpen,
     journal: journalOpen,
-    forest: forestOpen,
+    island: islandOpen,
     notefalls: notefallsOpen,
     sources: sourcesOpen,
     tasks: tasksOpen,
@@ -397,7 +397,7 @@ function ControlBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     controlBarOpen, chatOpen, briiztormOpen, organizerOpen, calendarOpen,
-    mediaOpen, notesOpen, canvasesOpen, journalOpen, forestOpen,
+    mediaOpen, notesOpen, canvasesOpen, journalOpen, islandOpen,
     notefallsOpen, sourcesOpen, tasksOpen,
   ]);
 
@@ -570,9 +570,9 @@ function ControlBar({
         dockItemProps={dockItemProps}
       />
       <HeaderDockButton
-        item={DOCK_ITEMS_BY_ID.get('forest')}
-        active={forestOpen}
-        onLaunch={onToggleForest}
+        item={DOCK_ITEMS_BY_ID.get('island')}
+        active={islandOpen}
+        onLaunch={onToggleIsland}
         dockItemProps={dockItemProps}
       />
       <HeaderDockButton

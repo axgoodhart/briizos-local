@@ -1,5 +1,5 @@
 /**
- * Forest local database — journals, folios, and notefalls.
+ * Island local database — journals, folios, and notefalls.
  *
  * Ported from Projungle's main.js (where this backed the "Keeper" journals
  * tab and the Notefalls feed). Storage stays local-only for now — this is
@@ -7,7 +7,7 @@
  * that preceded this port. Uses Node's built-in node:sqlite (stable in
  * Node 24 / Electron 41) — no native module rebuild needed.
  *
- * DB lives in userData/forest.db so it survives app updates, separate from
+ * DB lives in userData/island.db so it survives app updates, separate from
  * briizOS's own logs DB (data/briizos-local.db) and the agent checkpointer DB.
  */
 const path = require('path');
@@ -19,7 +19,7 @@ let journalsDb = null;
 function getDb() {
   if (journalsDb) return journalsDb;
   const { DatabaseSync } = require('node:sqlite');
-  journalsDb = new DatabaseSync(path.join(app.getPath('userData'), 'forest.db'));
+  journalsDb = new DatabaseSync(path.join(app.getPath('userData'), 'island.db'));
   journalsDb.exec(`
     CREATE TABLE IF NOT EXISTS journals (
       id          TEXT PRIMARY KEY,

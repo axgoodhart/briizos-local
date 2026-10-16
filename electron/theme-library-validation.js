@@ -53,7 +53,7 @@ const TARGET_PROPERTIES = new Map(Object.entries({
 const TARGET_IDS = new Set(TARGET_PROPERTIES.keys());
 const COMPONENT_IDS = new Set([
   'Application', 'ActionDeck', 'Tasks', 'Sources', 'Notes', 'Calendar', 'Organizer',
-  'Dashboard', 'Media', 'Login', 'Canvas', 'Briiztorm', 'Chat', 'Journals', 'Notefalls', 'Forest',
+  'Dashboard', 'Media', 'Login', 'Canvas', 'Briiztorm', 'Chat', 'Journals', 'Notefalls', 'Islands',
 ]);
 const PROPERTIES = new Set([
   'color', 'background', 'borderColor', 'borderWidth', 'borderStyle', 'borderRadius', 'cornerShape',

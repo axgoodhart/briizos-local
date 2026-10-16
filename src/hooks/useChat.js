@@ -102,7 +102,7 @@ export function threadKindForModality(modality) {
 function candidateForPrompt(candidate) {
   if (candidate?.kind === 'project') {
     return {
-      type: 'forest_project',
+      type: 'island_project',
       id: candidate.id,
       name: candidate.name,
       deadline: candidate.deadline || null,
@@ -122,7 +122,7 @@ function candidateForPrompt(candidate) {
     priority: candidate?.priority || 'normal',
     due_at: candidate?.dueAt || candidate?.due_at || null,
     project_id: candidate?.projectId || candidate?.project_id || null,
-    forest_project_id: candidate?.forestProjectId || candidate?.forest_project_id || null,
+    island_project_id: candidate?.islandProjectId || candidate?.island_project_id || null,
     subtasks: Array.isArray(candidate?.subtasks)
       ? candidate.subtasks.map((step) => ({ title: step.title, status: step.status }))
       : [],
@@ -136,7 +136,7 @@ function buildPrioritizeAddendum(candidates = []) {
       '',
       '---',
       '<prioritization_candidates source="self-serve">',
-      'No candidates were pinned in the picker. Fetch open Forest projects and Tasks Panel tasks with the briizOS read tools, then prioritize the relevant active work.',
+      'No candidates were pinned in the picker. Fetch open Island projects and Tasks Panel tasks with the briizOS read tools, then prioritize the relevant active work.',
       '</prioritization_candidates>',
     ].join('\n');
   }

@@ -20,12 +20,12 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
       preferredCandidate: preferredCandidate?.id || null,
     });
     try {
-      const [tasks, forestState] = await Promise.all([
+      const [tasks, islandState] = await Promise.all([
         window.api.localData.tasks.list({ limit: 500 }),
-        window.api.forestLoadState(),
+        window.api.islandLoadState(),
       ]);
       const openTasks = (tasks || []).filter((task) => !CLOSED_TASK_STATUSES.has(task.status));
-      const projects = forestState?.projects || [];
+      const projects = islandState?.projects || [];
       const result = await runDayPlanner({
         date: dateStr,
         events,
@@ -39,9 +39,9 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
       const safeProposals = result.proposals
         .filter((proposal) => (
           (proposal.kind !== 'task' || knownIds.has(proposal.taskId))
-          && (proposal.kind !== 'forest_project' || projectsById.has(proposal.projectId))
+          && (proposal.kind !== 'island_project' || projectsById.has(proposal.projectId))
         ))
-        .map((proposal) => proposal.kind === 'forest_project'
+        .map((proposal) => proposal.kind === 'island_project'
           ? { ...proposal, project: projectsById.get(proposal.projectId) }
           : proposal);
       setProposals(safeProposals);
@@ -71,16 +71,16 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
           startMinute: proposal.startMinute,
           durationMinutes: proposal.durationMinutes,
         });
-      } else if (proposal.kind === 'forest_project') {
-        if (typeof handlers.promoteForestSource !== 'function' || !proposal.project) {
+      } else if (proposal.kind === 'island_project') {
+        if (typeof handlers.promoteIslandSource !== 'function' || !proposal.project) {
           throw new Error('This island is no longer available to schedule');
         }
-        await handlers.promoteForestSource({
-          kind: 'forest',
+        await handlers.promoteIslandSource({
+          kind: 'island',
           title: proposal.title,
           project: proposal.project,
           milestone: null,
-          sourceKey: `forest-project:${proposal.projectId}`,
+          sourceKey: `island-project:${proposal.projectId}`,
         }, {
           date: dateStr,
           startMinute: proposal.startMinute,

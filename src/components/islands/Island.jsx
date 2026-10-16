@@ -178,7 +178,7 @@ const Island = memo(function Island({
       return;
     }
     if (tool === 'folder') {
-      const dir = await window.api.forestOpenDirectoryDialog?.();
+      const dir = await window.api.islandOpenDirectoryDialog?.();
       if (!dir) return;
       const name = dir.split('/').filter(Boolean).pop() || dir;
       const record = { id: uid('file'), name, path: dir, typeGroup: 'folder', ext: '', size: 0, modifiedAt: new Date().toISOString() };

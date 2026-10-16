@@ -4,7 +4,7 @@
 
 This document mirrors `electron/agent/data-catalog.js`, the source of truth for data the in-process agent may read. Reads are local, read-only, and logged as `agent.data`. Values remain stored once; panels and calendar placements are contextual appearances.
 
-The dedicated task, Forest, organizer, placement, and schedule tools remain optimized for common work. `briizos_query_data` provides bounded access to these additional domains: `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status`.
+The dedicated task, Islands, organizer, placement, and schedule tools remain optimized for common work. `briizos_query_data` provides bounded access to these additional domains: `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status`.
 
 ## Tasks
 
@@ -19,22 +19,22 @@ Fields:
 - status: pending | created | running | in_progress | active | waiting | deferred | completed | cancelled | blocked
 - priority: low | normal | medium | high | urgent
 - due_at (ISO timestamp or null)
-- forest_project_id (backlink to a Forest project, or null)
+- island_project_id (backlink to a project in Islands, or null)
 - subtasks: [{ id, title, status, position }]
 - taskLog, created_at, updated_at, revision
 Relationships:
-- forest_project_id → forest_projects.id
+- island_project_id → island_projects.id
 - placements.ref_id → tasks.id
 Filters and detail controls:
 - status
 - priority
 - project_id
-- forest_project_id
+- island_project_id
 - limit
 
 ## Projects (islands)
 
-- Key: `forest_projects`
+- Key: `island_projects`
 - Category: `work`
 - Read tools: `briizos_list_projects`, `briizos_get_project`
 
@@ -50,8 +50,8 @@ Fields:
 - optional scoring fields when set: deadline (YYYY-MM-DD), importance (1-10), size (hours), relevance
 - revision
 Relationships:
-- tasks.forest_project_id → forest_projects.id
-- files belong to exactly one Forest project appearance
+- tasks.island_project_id → island_projects.id
+- files belong to exactly one Island project appearance
 Filters and detail controls:
 - limit; use project_id with briizos_get_project for detail
 
@@ -184,14 +184,14 @@ Filters and detail controls:
 - Category: `knowledge`
 - Read tools: `briizos_query_data`, `read_file`
 
-Files indexed by briizOS through Forest, Media, Notefall attachments, or chat selection. This is metadata; use read_file for contents.
+Files indexed by briizOS through the Islands workspace, Media, Notefall attachments, or chat selection. This is metadata; use read_file for contents.
 
 Fields:
 - id, path, display_name, kind, size, modified_at, availability
-- selected, in_media_queue, forest_project_count
+- selected, in_media_queue, island_project_count
 - created_at, updated_at, revision
 Relationships:
-- Referenced by Forest files, Notefall attachments, Media queue items, and selected chat files
+- Referenced by Islands files, Notefall attachments, Media queue items, and selected chat files
 Filters and detail controls:
 - domain=files, id, query, kind, status (availability), limit
 
@@ -294,7 +294,7 @@ Fields:
 - flightSettings
 - flightPresets
 Relationships:
-- This is a separate visual project representation, not the canonical Forest project domain
+- This is a separate visual project representation, not the canonical Islands project domain
 Filters and detail controls:
 - domain=briiztorm, query, include_content, limit
 
@@ -369,13 +369,13 @@ Filters and detail controls:
 
 | Modality | Injected objects |
 |---|---|
-| `chat` | `tasks`, `forest_projects`, `placements`, `organizer_events`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status` |
-| `plan` | `tasks`, `forest_projects`, `organizer_events`, `placements`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `conversations`, `automation_runs`, `recorder_sessions` |
-| `planner` | `organizer_events`, `placements`, `tasks`, `forest_projects` |
-| `prioritize` | `forest_projects`, `tasks` |
-| `research` | `organizer_notes`, `journals`, `notefall_posts`, `canvases`, `forest_projects`, `files`, `conversations` |
-| `code` | `forest_projects`, `files`, `canvases`, `conversations`, `automation_runs`, `logs`, `system_status` |
-| `report` | `tasks`, `forest_projects`, `organizer_events`, `placements`, `journals`, `notefall_posts`, `conversations`, `automation_runs`, `recorder_sessions`, `logs` |
+| `chat` | `tasks`, `island_projects`, `placements`, `organizer_events`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `canvases`, `files`, `conversations`, `memory`, `recorder_sessions`, `automation_runs`, `media`, `briiztorm`, `workspace`, `settings`, `logs`, `system_status` |
+| `plan` | `tasks`, `island_projects`, `organizer_events`, `placements`, `organizer_notes`, `timers`, `journals`, `notefall_posts`, `conversations`, `automation_runs`, `recorder_sessions` |
+| `planner` | `organizer_events`, `placements`, `tasks`, `island_projects` |
+| `prioritize` | `island_projects`, `tasks` |
+| `research` | `organizer_notes`, `journals`, `notefall_posts`, `canvases`, `island_projects`, `files`, `conversations` |
+| `code` | `island_projects`, `files`, `canvases`, `conversations`, `automation_runs`, `logs`, `system_status` |
+| `report` | `tasks`, `island_projects`, `organizer_events`, `placements`, `journals`, `notefall_posts`, `conversations`, `automation_runs`, `recorder_sessions`, `logs` |
 
 ## Unavailable by design
 

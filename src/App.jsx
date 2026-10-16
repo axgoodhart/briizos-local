@@ -10,7 +10,7 @@ import MediaPanel from './components/MediaPanel';
 import { JournalPanel } from './components/journals/JournalPanel.jsx';
 import { JournalFloat } from './components/journals/JournalFloat.jsx';
 import { CaptureOnboarding, NotefallsPanel } from './components/notefalls/NotefallsPanel.jsx';
-import Forest from './components/forest/Forest.jsx';
+import IslandsPanel from './components/islands/IslandsPanel.jsx';
 import LoginOverlay from './components/LoginOverlay';
 import { TileLayout } from './components/layout/TileLayout';
 import { useLayout } from './hooks/useLayout';
@@ -500,7 +500,7 @@ function AppContent({ layout, shell, floats }) {
   const interactionPanel = getPanelByType('interaction');
   const journalPanel = getPanelByType('journal');
   const notefallsPanel = getPanelByType('notefalls');
-  const forestPanel = getPanelByType('forest');
+  const islandPanel = getPanelByType('island');
   const sourcesPanel = getPanelByType('sources');
   const tasksPanel = getPanelByType('tasks');
 
@@ -679,14 +679,14 @@ function AppContent({ layout, shell, floats }) {
     return () => off?.();
   }, [openInteractionPanel, openNotefallsPanel]);
 
-  const openForestPanel = useCallback(() => {
-    if (forestPanel) {
-      togglePanelVisibility(forestPanel.id);
+  const openIslandPanel = useCallback(() => {
+    if (islandPanel) {
+      togglePanelVisibility(islandPanel.id);
       return;
     }
-    addPanel({ id: 'forest', type: 'forest', size: 25, visible: true });
-    logger.info('forest', 'Islands panel opened');
-  }, [forestPanel, togglePanelVisibility, addPanel]);
+    addPanel({ id: 'island', type: 'island', size: 25, visible: true });
+    logger.info('island', 'Islands panel opened');
+  }, [islandPanel, togglePanelVisibility, addPanel]);
 
   const launchControlBarItem = useCallback((itemId) => {
     switch (itemId) {
@@ -714,8 +714,8 @@ function AppContent({ layout, shell, floats }) {
       case 'journal':
         openJournalPanel();
         break;
-      case 'forest':
-        openForestPanel();
+      case 'island':
+        openIslandPanel();
         break;
       case 'notefalls':
         openNotefallsPanel();
@@ -730,7 +730,7 @@ function AppContent({ layout, shell, floats }) {
         break;
     }
   }, [
-    openForestPanel,
+    openIslandPanel,
     openJournalPanel,
     openNotefallsPanel,
     openSourcesPanel,
@@ -1204,8 +1204,8 @@ function AppContent({ layout, shell, floats }) {
   // Keyboard shortcuts — declarative table (key/label/run) iterated by one
   // handler, instead of a growing switch(e.key) block. Each entry's `run` is
   // symmetric with the others: all the "Toggle X" shortcuts actually toggle,
-  // including Journal/Forest/Notefalls (openJournalPanel/openNotefallsPanel/
-  // openForestPanel now flip visibility instead of no-op'ing when already
+  // including Journal/Island/Notefalls (openJournalPanel/openNotefallsPanel/
+  // openIslandPanel now flip visibility instead of no-op'ing when already
   // open). 'o'/'c' stay open-only on purpose — they always open, never close.
   const shortcuts = useMemo(() => [
     { key: 'b', label: 'Toggle briiZtorm', run: () => setBriiztormOpen((prev) => !prev) },
@@ -1217,7 +1217,7 @@ function AppContent({ layout, shell, floats }) {
     { key: 'k', label: 'Toggle Canvases library', run: () => setCanvasesPopoverOpen((prev) => !prev) },
     { key: 'j', label: 'Toggle Journal', run: () => openJournalPanel() },
     { key: 'l', label: 'Toggle Notefalls', run: () => openNotefallsPanel() },
-    { key: 'f', label: 'Toggle Islands', run: () => openForestPanel() },
+    { key: 'f', label: 'Toggle Islands', run: () => openIslandPanel() },
     { key: 'g', label: 'Cycle layout mode (grid → duo → windowed)', run: () => cycleShellMode() },
     {
       key: 'x',
@@ -1227,7 +1227,7 @@ function AppContent({ layout, shell, floats }) {
         else if (activePanelId) togglePanelFullscreen(activePanelId);
       },
     },
-  ], [openJournalPanel, openNotefallsPanel, openForestPanel, cycleShellMode, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
+  ], [openJournalPanel, openNotefallsPanel, openIslandPanel, cycleShellMode, fullscreenPanelId, activePanelId, togglePanelFullscreen]);
 
   useEffect(() => {
     // Don't hijack Cmd/Ctrl+Shift+<letter> while the user is typing —
@@ -1277,7 +1277,7 @@ function AppContent({ layout, shell, floats }) {
   useEffect(() => {
     const openPriorityPlanner = (event) => {
       const candidate = event.detail?.candidate;
-      if (!candidate?.id || !['task', 'forest_project'].includes(candidate.type)) return;
+      if (!candidate?.id || !['task', 'island_project'].includes(candidate.type)) return;
       setCalendarPlanningFocus(candidate);
       setCalendarOpen(true);
       logger.info('agent.prioritize', 'Priority result handed to day planner', {
@@ -1334,8 +1334,8 @@ function AppContent({ layout, shell, floats }) {
         );
       case 'notefalls':
         return <NotefallsPanel />;
-      case 'forest':
-        return <Forest instanceId={panel.panelId || panel.id || 'forest'} />;
+      case 'island':
+        return <IslandsPanel instanceId={panel.panelId || panel.id || 'island'} />;
       case 'canvas': {
         const canvasFilename = String(panel.panelId || panel.id || '').replace(/^canvas:/, '');
         const canvasEntry = canvasesHook.canvases.find((entry) => entry.filename === canvasFilename);
@@ -1385,7 +1385,7 @@ function AppContent({ layout, shell, floats }) {
     notes: notesOpen,
     canvases: canvasesPopoverOpen,
     journal: floatOpen('journal') || (gridActive && journalPanel?.visible === true),
-    forest: floatOpen('forest') || (gridActive && forestPanel?.visible === true),
+    island: floatOpen('island') || (gridActive && islandPanel?.visible === true),
     notefalls: floatOpen('notefalls') || (gridActive && notefallsPanel?.visible === true),
     sources: floatOpen('sources') || (gridActive && sourcesPanel?.visible === true),
     tasks: floatOpen('tasks') || (gridActive && tasksPanel?.visible === true),
@@ -1459,7 +1459,7 @@ function AppContent({ layout, shell, floats }) {
             notesOpen={notesOpen}
             canvasesOpen={canvasesPopoverOpen}
             journalOpen={journalPanel?.visible === true}
-            forestOpen={forestPanel?.visible === true}
+            islandOpen={islandPanel?.visible === true}
             notefallsOpen={notefallsPanel?.visible === true}
             sourcesOpen={sourcesPanel?.visible === true}
             tasksOpen={tasksPanel?.visible === true}
@@ -1472,7 +1472,7 @@ function AppContent({ layout, shell, floats }) {
             onToggleNotes={() => setNotesOpen(!notesOpen)}
             onToggleCanvases={() => setCanvasesPopoverOpen((prev) => !prev)}
             onToggleJournal={openJournalPanel}
-            onToggleForest={openForestPanel}
+            onToggleIsland={openIslandPanel}
             onToggleNotefalls={openNotefallsPanel}
             onToggleSources={openSourcesPanel}
             onToggleTasks={openTasksPanel}

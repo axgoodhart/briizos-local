@@ -1,5 +1,5 @@
 /**
- * Forest AI helpers — auto tags for project cards and the File Hunter search.
+ * Islands AI helpers — auto tags for project cards and the File Hunter search.
  * Both run on the "Background helpers" model route.
  */
 const path = require('path');
@@ -9,8 +9,8 @@ const { execFile } = require('child_process');
 const { SystemMessage, HumanMessage } = require('@langchain/core/messages');
 const { logger } = require('./logger');
 const { createChatModel, getRoutingModel } = require('./agent/models');
-const { isIgnored } = require('./forest-ignore');
-const forestFs = require('./forest-fs');
+const { isIgnored } = require('./island-ignore');
+const islandFs = require('./island-fs');
 
 // ==== AUTO TAG ====
 const TAG_TARGET = 12;
@@ -219,7 +219,7 @@ async function suggestProjectTags(input = {}) {
     excerptText ? `Opening lines of ${excerpts.length} file${excerpts.length === 1 ? '' : 's'}:\n${excerptText}` : 'No file contents were read.',
   ].filter(Boolean).join('\n\n');
 
-  const text = await askModel(system, user, 'Island auto tags');
+  const text = await askModel(system, user, 'Islands auto tags');
   const parsed = parseJson(text);
   const proposed = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.tags) ? parsed.tags : [];
   const taken = new Set(existing);
@@ -246,7 +246,7 @@ async function runAutoTag(input = {}) {
   const projectName = input.name || 'Untitled Project';
   try {
     const result = await suggestProjectTags(input);
-    logger.info('forest.autotag', result.tags.length
+    logger.info('island.autotag', result.tags.length
       ? `Added ${result.tags.length} tag${result.tags.length === 1 ? '' : 's'} to “${projectName}” using ${result.filesRead.length ? `the opening lines of ${result.filesRead.length} file${result.filesRead.length === 1 ? '' : 's'}` : 'its name and file list only'}.`
       : `Looked for new tags for “${projectName}” but the AI found nothing specific enough to add.`, {
       projectId: input.projectId,
@@ -260,7 +260,7 @@ async function runAutoTag(input = {}) {
     return { ok: true, ...result };
   } catch (error) {
     const problem = friendlyAiProblem(error);
-    logger.warn('forest.autotag', `Could not suggest tags for “${projectName}”. Existing tags are unchanged; it will try again the next time this project's files change or Forest reopens.`, {
+    logger.warn('island.autotag', `Could not suggest tags for “${projectName}”. Existing tags are unchanged; it will try again the next time this project's files change or Islands reopens.`, {
       projectId: input.projectId,
       problem,
       model: modelLabel(),
@@ -329,7 +329,7 @@ async function planSearch(input, kindsOn) {
 // ── File Hunter: search ───────────────────────────────────────────
 
 function searchDirs(input, kindsOn) {
-  const dirs = Array.isArray(input.customDirs) && input.customDirs.length ? input.customDirs : forestFs.hunterDefaultDirs();
+  const dirs = Array.isArray(input.customDirs) && input.customDirs.length ? input.customDirs : islandFs.hunterDefaultDirs();
   const extra = kindsOn.includes('mail') ? [path.join(os.homedir(), 'Library', 'Mail')] : [];
   return [...new Set([...dirs, ...extra])];
 }
@@ -393,7 +393,7 @@ async function statRecords(paths) {
     const batch = await Promise.all(paths.slice(i, i + 64).map(async (p) => {
       try {
         const stat = await fs.stat(p);
-        const record = forestFs.buildFileRecord(p, stat, path.basename(path.dirname(p)));
+        const record = islandFs.buildFileRecord(p, stat, path.basename(path.dirname(p)));
         if (stat.isDirectory()) Object.assign(record, { isFolder: true, typeGroup: 'folder', ext: '', previewable: false });
         return record;
       } catch {
@@ -442,7 +442,7 @@ async function findCandidates(input, plan, kindsOn, timeSpan, progress) {
       ? 'Spotlight is unavailable, so searching folders by file name instead…'
       : 'Spotlight found nothing, so checking folders by file name too…');
     const groups = [...new Set(kindsOn.flatMap((k) => KINDS[k].groups || []))];
-    records = await forestFs.huntFiles({
+    records = await islandFs.huntFiles({
       keywords: plan.nameTerms,
       query: plan.nameTerms.join(' '),
       types: groups.length ? groups : null,
@@ -520,7 +520,7 @@ async function runHunt(input = {}, sendProgress = () => {}) {
   if (mode === 'single' && !description) return { ok: false, runId, error: 'Single file searches need a description of the file.' };
   if (!kindsOn.length) return { ok: false, runId, error: 'Turn on at least one kind of file to search for.' };
 
-  logger.info('forest.hunter', `File Hunter started a ${MODES[mode]} search for “${projectName}”.`, {
+  logger.info('island.hunter', `File Hunter started a ${MODES[mode]} search for “${projectName}”.`, {
     runId,
     description: description || '(none — looking for files related to the project)',
     kinds: kindsOn.map((k) => KINDS[k].label),
@@ -544,7 +544,7 @@ async function runHunt(input = {}, sendProgress = () => {}) {
   try {
     found = await findCandidates(job, plan, kindsOn, timeSpan, progress);
   } catch (error) {
-    logger.error('forest.hunter', `File Hunter could not search the filesystem for “${projectName}”. Nothing was added to the project.`, {
+    logger.error('island.hunter', `File Hunter could not search the filesystem for “${projectName}”. Nothing was added to the project.`, {
       runId,
       problem: error.message,
       nextStep: 'Try again; if it keeps failing, check that the search folders still exist.',
@@ -580,7 +580,7 @@ async function runHunt(input = {}, sendProgress = () => {}) {
   }));
 
   const durationMs = Date.now() - started;
-  logger.info('forest.hunter', `File Hunter finished: ${payload.length} result${payload.length === 1 ? '' : 's'} for “${projectName}” are waiting in the island's File Hunter panel and journal. Nothing is added to the project until you add it there.`, {
+  logger.info('island.hunter', `File Hunter finished: ${payload.length} result${payload.length === 1 ? '' : 's'} for “${projectName}” are waiting in the island's File Hunter panel and journal. Nothing is added to the project until you add it there.`, {
     runId,
     mode: MODES[mode],
     engine: found.engine === 'spotlight' ? 'Spotlight index' : 'Folder walk (file names only)',

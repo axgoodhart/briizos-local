@@ -75,7 +75,7 @@ function addDays(dateStr, days) {
  * exactly one primary action) is on screen at a time:
  *   1. timeframe + annotation channels ("pick time for me" skips view 2)
  *   2. time range on a horizontal day timeline
- *   3. candidates (Forest projects + Tasks)
+ *   3. candidates (Island projects + Tasks)
  *   4. exogenous input + detail preference → FINISHED fires the AI
  * The header pips walk back to any view already reached; the footer
  * carries back on the left and PROCEED / FINISHED on the right.
@@ -114,18 +114,18 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
   const today = useMemo(() => formatDateYMD(new Date()), []);
   const rangeEnd = useMemo(() => (timeframe === 'this_week' ? addDays(today, 6) : today), [timeframe, today]);
 
-  // Forest projects + open tasks for the candidate grid.
+  // Island projects + open tasks for the candidate grid.
   useEffect(() => {
     let active = true;
     (async () => {
       setCandidateState('loading');
       try {
-        const [forestState, tasks] = await Promise.all([
-          api.forestLoadState?.(),
+        const [islandState, tasks] = await Promise.all([
+          api.islandLoadState?.(),
           api.localData?.tasks?.list({ limit: 500 }),
         ]);
         if (!active) return;
-        const projects = (forestState?.projects || []).map((project) => ({
+        const projects = (islandState?.projects || []).map((project) => ({
           key: `project:${project.id}`,
           kind: 'project',
           id: project.id,
@@ -360,7 +360,7 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
       .filter((candidate) => selectedKeys.has(candidate.key))
       .map((candidate) => (candidate.kind === 'project'
         ? {
-          type: 'forest_project',
+          type: 'island_project',
           id: candidate.id,
           name: candidate.label,
           deadline: candidate.deadline,
@@ -607,7 +607,7 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
             {/* 3 · candidates */}
             {step === STEP_CANDIDATES && (
               <div className="bzf-step bzf-step-options" key="options" role="group" aria-label="Islands and tasks">
-                <div className="bzf-source-label">FOREST</div>
+                <div className="bzf-source-label">ISLANDS</div>
                 {candidateState === 'loading' && <div className="bzf-muted">Reading Islands…</div>}
                 {candidateState === 'error' && <div className="bzf-muted">Could not load candidates.</div>}
                 <div className="bzf-chip-grid">
@@ -619,7 +619,7 @@ function BriizifySetup({ organizerItems, status, question, error, onGenerate, on
                       onClick={() => toggleKey(candidate.key)}
                       aria-pressed={selectedKeys.has(candidate.key)}
                     >
-                      {selectedKeys.has(candidate.key) && <span className="bzf-candidate-badge">F</span>}
+                      {selectedKeys.has(candidate.key) && <span className="bzf-candidate-badge">I</span>}
                       {candidate.label}
                     </button>
                   ))}

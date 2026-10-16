@@ -174,9 +174,9 @@ contextBridge.exposeInMainWorld('api', {
       get: () => invokeLocalData('local-data:briiztorm:get'),
       set: (key, value) => invokeLocalData('local-data:briiztorm:set', key, value),
     },
-    forestProjects: {
+    islandProjects: {
       updateScoring: (projectId, expectedRevision, patch) =>
-        invokeLocalData('local-data:forest-projects:update-scoring', projectId, expectedRevision, patch),
+        invokeLocalData('local-data:island-projects:update-scoring', projectId, expectedRevision, patch),
     },
     tasks: {
       list: (filters) => invokeLocalData('local-data:tasks:list', filters),
@@ -463,17 +463,17 @@ contextBridge.exposeInMainWorld('api', {
   mediaDescribeFiles: (filePaths) => ipcRenderer.invoke('media-describe-files', filePaths),
   mediaGetFilePath: (file) => webUtils.getPathForFile(file),
 
-  // Forest API (journals, notefalls, infinite-forest project board) —
+  // Island API (journals, notefalls, infinite-island project board) —
   // ported from Projungle. All local-only for now.
-  journalsList: () => ipcRenderer.invoke('forest-journals-list'),
-  journalsCreate: (input) => ipcRenderer.invoke('forest-journals-create', input),
-  journalsDelete: (id) => ipcRenderer.invoke('forest-journals-delete', id),
-  journalsUpdate: (id, patch) => ipcRenderer.invoke('forest-journals-update', id, patch),
-  foliosList: (journalId) => ipcRenderer.invoke('forest-folios-list', journalId),
-  foliosCreate: (journalId, folio, opts) => ipcRenderer.invoke('forest-folios-create', journalId, folio, opts),
-  foliosDelete: (id) => ipcRenderer.invoke('forest-folios-delete', id),
-  foliosUpdate: (id, patch) => ipcRenderer.invoke('forest-folios-update', id, patch),
-  journalsAttachImages: () => ipcRenderer.invoke('forest-journals-attach-images'),
+  journalsList: () => ipcRenderer.invoke('island-journals-list'),
+  journalsCreate: (input) => ipcRenderer.invoke('island-journals-create', input),
+  journalsDelete: (id) => ipcRenderer.invoke('island-journals-delete', id),
+  journalsUpdate: (id, patch) => ipcRenderer.invoke('island-journals-update', id, patch),
+  foliosList: (journalId) => ipcRenderer.invoke('island-folios-list', journalId),
+  foliosCreate: (journalId, folio, opts) => ipcRenderer.invoke('island-folios-create', journalId, folio, opts),
+  foliosDelete: (id) => ipcRenderer.invoke('island-folios-delete', id),
+  foliosUpdate: (id, patch) => ipcRenderer.invoke('island-folios-update', id, patch),
+  journalsAttachImages: () => ipcRenderer.invoke('island-journals-attach-images'),
   execubriiz: {
     snapshot: (id) => ipcRenderer.invoke('execubriiz-snapshot', id),
     command: (id, input) => ipcRenderer.invoke('execubriiz-command', id, input),
@@ -486,47 +486,47 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('execubriiz-changed', listener);
     },
   },
-  notefallsList: () => ipcRenderer.invoke('forest-notefalls-list'),
-  notefallsCreate: (input) => ipcRenderer.invoke('forest-notefalls-create', input),
-  notefallsUpdate: (id, patch) => ipcRenderer.invoke('forest-notefalls-update', id, patch),
-  notefallsDelete: (id) => ipcRenderer.invoke('forest-notefalls-delete', id),
-  notefallsAttachMedia: () => ipcRenderer.invoke('forest-notefalls-attach-media'),
-  forestLoadState: () => ipcRenderer.invoke('forest-library-load'),
-  forestSaveState: (state) => ipcRenderer.invoke('forest-library-save', state),
-  forestImportPaths: (paths) => ipcRenderer.invoke('forest-library-import-paths', paths),
-  forestOpenPath: (targetPath) => ipcRenderer.invoke('forest-shell-open-path', targetPath),
-  forestShowItemInFolder: (targetPath) => ipcRenderer.invoke('forest-shell-show-item-in-folder', targetPath),
-  forestHunterSearch: (keywords, excludePaths, customDirs) => ipcRenderer.invoke('forest-hunter-search', keywords, excludePaths, customDirs),
-  forestHunterDefaultDirs: () => ipcRenderer.invoke('forest-hunter-default-dirs'),
-  forestHunterQuery: (opts) => ipcRenderer.invoke('forest-hunter-query', opts),
-  forestOpenDirectoryDialog: () => ipcRenderer.invoke('forest-dialog-open-directory'),
-  forestFilehawkCheck: (filePaths) => ipcRenderer.invoke('forest-filehawk-check', filePaths),
-  forestFilehawkLocate: (name, excludePaths, dirs) => ipcRenderer.invoke('forest-filehawk-locate', name, excludePaths, dirs),
-  forestAutoTag: (input) => ipcRenderer.invoke('forest-autotag-suggest', input),
-  forestHuntRun: (input) => ipcRenderer.invoke('forest-hunt-run', input),
-  onForestHuntProgress: (callback) => {
+  notefallsList: () => ipcRenderer.invoke('island-notefalls-list'),
+  notefallsCreate: (input) => ipcRenderer.invoke('island-notefalls-create', input),
+  notefallsUpdate: (id, patch) => ipcRenderer.invoke('island-notefalls-update', id, patch),
+  notefallsDelete: (id) => ipcRenderer.invoke('island-notefalls-delete', id),
+  notefallsAttachMedia: () => ipcRenderer.invoke('island-notefalls-attach-media'),
+  islandLoadState: () => ipcRenderer.invoke('island-library-load'),
+  islandSaveState: (state) => ipcRenderer.invoke('island-library-save', state),
+  islandImportPaths: (paths) => ipcRenderer.invoke('island-library-import-paths', paths),
+  islandOpenPath: (targetPath) => ipcRenderer.invoke('island-shell-open-path', targetPath),
+  islandShowItemInFolder: (targetPath) => ipcRenderer.invoke('island-shell-show-item-in-folder', targetPath),
+  islandHunterSearch: (keywords, excludePaths, customDirs) => ipcRenderer.invoke('island-hunter-search', keywords, excludePaths, customDirs),
+  islandHunterDefaultDirs: () => ipcRenderer.invoke('island-hunter-default-dirs'),
+  islandHunterQuery: (opts) => ipcRenderer.invoke('island-hunter-query', opts),
+  islandOpenDirectoryDialog: () => ipcRenderer.invoke('island-dialog-open-directory'),
+  islandFilehawkCheck: (filePaths) => ipcRenderer.invoke('island-filehawk-check', filePaths),
+  islandFilehawkLocate: (name, excludePaths, dirs) => ipcRenderer.invoke('island-filehawk-locate', name, excludePaths, dirs),
+  islandAutoTag: (input) => ipcRenderer.invoke('island-autotag-suggest', input),
+  islandHuntRun: (input) => ipcRenderer.invoke('island-hunt-run', input),
+  onIslandHuntProgress: (callback) => {
     const handler = (_event, update) => callback(update);
-    ipcRenderer.on('forest-hunt-progress', handler);
-    return () => ipcRenderer.removeListener('forest-hunt-progress', handler);
+    ipcRenderer.on('island-hunt-progress', handler);
+    return () => ipcRenderer.removeListener('island-hunt-progress', handler);
   },
-  forestConsolidateProject: (name, filePaths) => ipcRenderer.invoke('forest-consolidate-project', name, filePaths),
-  forestOwnedCreate: (input) => ipcRenderer.invoke('forest-owned-create', input),
-  forestOwnedWrite: (filePath, content) => ipcRenderer.invoke('forest-owned-write', filePath, content),
-  forestFilePreview: (filePath, maxBytes) => ipcRenderer.invoke('forest-file-preview', filePath, maxBytes),
-  forestArchiveIsland: (input) => ipcRenderer.invoke('forest-archive-island', input),
-  forestTerminalRun: (input) => ipcRenderer.invoke('forest-terminal-run', input),
-  forestTerminalStop: (input) => ipcRenderer.invoke('forest-terminal-stop', input),
-  forestTerminalSnapshot: (input) => ipcRenderer.invoke('forest-terminal-snapshot', input),
-  forestTerminalClear: (input) => ipcRenderer.invoke('forest-terminal-clear', input),
-  forestOpenExternal: (url) => ipcRenderer.invoke('forest-open-external', url),
-  onForestTerminalData: (callback) => {
+  islandConsolidateProject: (name, filePaths) => ipcRenderer.invoke('island-consolidate-project', name, filePaths),
+  islandOwnedCreate: (input) => ipcRenderer.invoke('island-owned-create', input),
+  islandOwnedWrite: (filePath, content) => ipcRenderer.invoke('island-owned-write', filePath, content),
+  islandFilePreview: (filePath, maxBytes) => ipcRenderer.invoke('island-file-preview', filePath, maxBytes),
+  islandArchiveIsland: (input) => ipcRenderer.invoke('island-archive-island', input),
+  islandTerminalRun: (input) => ipcRenderer.invoke('island-terminal-run', input),
+  islandTerminalStop: (input) => ipcRenderer.invoke('island-terminal-stop', input),
+  islandTerminalSnapshot: (input) => ipcRenderer.invoke('island-terminal-snapshot', input),
+  islandTerminalClear: (input) => ipcRenderer.invoke('island-terminal-clear', input),
+  islandOpenExternal: (url) => ipcRenderer.invoke('island-open-external', url),
+  onIslandTerminalData: (callback) => {
     const handler = (_event, payload) => callback(payload);
-    ipcRenderer.on('forest-terminal-data', handler);
-    return () => ipcRenderer.removeListener('forest-terminal-data', handler);
+    ipcRenderer.on('island-terminal-data', handler);
+    return () => ipcRenderer.removeListener('island-terminal-data', handler);
   },
-  onForestTerminalState: (callback) => {
+  onIslandTerminalState: (callback) => {
     const handler = (_event, payload) => callback(payload);
-    ipcRenderer.on('forest-terminal-state', handler);
-    return () => ipcRenderer.removeListener('forest-terminal-state', handler);
+    ipcRenderer.on('island-terminal-state', handler);
+    return () => ipcRenderer.removeListener('island-terminal-state', handler);
   },
 });

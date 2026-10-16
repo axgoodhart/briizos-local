@@ -1114,7 +1114,7 @@ function Sidebar({ open, query, setQuery, groups, currentIdx, onJumpGroup, proje
   const visibleProjects = projects.filter((p) => !q || p.name.toLowerCase().includes(q));
 
   const openFile = (file) => {
-    if (file?.path) window.api?.forestOpenPath?.(file.path);
+    if (file?.path) window.api?.islandOpenPath?.(file.path);
   };
 
   return (
@@ -1479,9 +1479,9 @@ function FolioJournalView({
     });
   }, [journal.id]);
 
-  // Forest projects (the infinite-forest board store) for @mention file linking.
+  // Island projects (the infinite-island board store) for @mention file linking.
   useEffect(() => {
-    window.api?.forestLoadState?.()
+    window.api?.islandLoadState?.()
       .then((s) => setCanvasProjects(Array.isArray(s?.projects) ? s.projects : []))
       .catch(() => {});
   }, []);

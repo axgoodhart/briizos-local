@@ -731,7 +731,7 @@
     font-size: 9px;
     font-style: normal;
     font-weight: 700;}
-.add-from-sources i.forest {
+.add-from-sources i.island {
     background: rgba(77, 178, 157, 0.14);
     color: #73d3c0;}
 .add-from-sources span {
@@ -6066,7 +6066,7 @@ body {
     --theme-components-overlays-organizermodal-to-box-shadow-n09w3: rgba(0, 0, 0, 0.2);}
 :root[data-theme='winterbloom'] {
     --fdock-height: 52px;
-    --ui-forest-card-radius: 4px;
+    --ui-island-card-radius: 4px;
     --control-bar-bg: var(--glass-bg-light);
     --control-bar-border-color: rgba(0, 0, 0, .1);
     --ui-corner-shape: scoop;
@@ -6372,7 +6372,7 @@ body {
 :root[data-theme='antarctic-teafog'] {
     --fdock-height: 52px;
     --ui-border-radius: 4px;
-    --ui-forest-card-radius: 4px;
+    --ui-island-card-radius: 4px;
     --ui-font-main: Warbler Variable;
     --chat-input-border-color: palegoldenrod;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(224, 255, 247, 0.08) 30%, transparent 60%, rgba(212, 163, 115, 0.1) 130%);
@@ -6677,7 +6677,7 @@ body {
 :root[data-theme='medieval-taurus'] {
     --fdock-height: 52px;
     --ui-border-radius: 11px;
-    --ui-forest-card-radius: 40px 20px 0px 20px;
+    --ui-island-card-radius: 40px 20px 0px 20px;
     --chat-input-border-color: #ffbfcd;
     --glass-bg-light: linear-gradient(to bottom, #ac6d66, rgba(255, 255, 255, 0.083) 20%, transparent 50%, rgba(255, 255, 255, 0.4) 130%);
     --holo-blue: #ffc5bb3d;
@@ -6992,7 +6992,7 @@ body {
 :root[data-theme='mistic'] {
     --fdock-height: 52px;
     --ui-border-radius: 4px;
-    --ui-forest-card-radius: 4px;
+    --ui-island-card-radius: 4px;
     --ui-font-main: Warbler Variable;
     --chat-input-border-color: #93a1a1;
     --glass-bg-light: linear-gradient(to bottom, rgba(147, 161, 161, 0.15), rgba(147, 161, 161, 0.08) 30%, transparent 60%, rgba(147, 161, 161, 0.1) 130%);
@@ -7414,7 +7414,7 @@ body {
     --fdock-height: 52px;
     --ui-border-radius: 15px;
     --ui-corner-shape: bevel;
-    --ui-forest-card-radius: 40px 30px 30px 40px;
+    --ui-island-card-radius: 40px 30px 30px 40px;
     --ui-font-main: BC Alphapipe;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05) 20%, transparent 50%, rgba(255, 255, 255, 0.08) 130%);
     --holo-blue: rgba(255, 255, 255, 0.1);
@@ -8319,7 +8319,7 @@ body {
     --ui-corner-shape: scoop;
     --ui-border-radius: 4px;
     --chat-input-border-color: #f1e7ce;
-    --ui-forest-card-radius: 10px;
+    --ui-island-card-radius: 10px;
     --ui-font-main: "MADE TOMMY";
     --ui-logofont: "MADE TOMMY Outline";
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01) 50%, rgba(53, 152, 125, 0.1) 100%);
@@ -10617,7 +10617,7 @@ body {
 :root[data-theme='vineyard-gloom'] {
     --fdock-height: 52px;
     --ui-corner-shape: notch;
-    --ui-forest-card-radius: 0px;
+    --ui-island-card-radius: 0px;
     --ui-border-radius: 6px;
     --chat-input-border-color: #ffab86;
     --glass-bg-light: linear-gradient(to bottom, #737281, rgba(234, 219, 220, 0.083) 20%, transparent 50%, rgba(234, 219, 220, 0.4) 130%);
@@ -10923,7 +10923,7 @@ body {
     --ui-corner-shape: scoop;
     --ui-border-radius: 4px;
     --chat-input-border-color: lightgreen;
-    --ui-forest-card-radius: 10px;
+    --ui-island-card-radius: 10px;
     --ui-font-main: "MADE TOMMY";
     --ui-logofont: "MADE TOMMY Outline";
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 233, 173, 0.05), rgba(255, 233, 173, 0.01) 50%, rgba(177, 110, 191, 0.1) 100%);
@@ -11227,7 +11227,7 @@ body {
 :root[data-theme='caspian-sea'] {
     --fdock-height: 52px;
     --ui-border-radius: 4px;
-    --ui-forest-card-radius: 4px;
+    --ui-island-card-radius: 4px;
     --ui-font-main: 'Beautiful Comethrue';
     --chat-input-border-color: #ffffff;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08) 30%, transparent 60%, rgba(255, 255, 255, 0.1) 130%);
@@ -14514,7 +14514,7 @@ body {
     font-family: SF Pro, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;}
 #journal-icon {
     color: #e5a76a;}
-#forest-icon {
+#island-icon {
     color: #7ee7a1;}
 #notefalls-icon {
     color: #bda6ff;}
@@ -14570,7 +14570,7 @@ body {
     --cb-accent: #24d9e6;}
 .cb-toggle[data-dock-item="journal"] {
     --cb-accent: #e5a76a;}
-.cb-toggle[data-dock-item="forest"] {
+.cb-toggle[data-dock-item="island"] {
     --cb-accent: #7ee7a1;}
 .cb-toggle[data-dock-item="notefalls"] {
     --cb-accent: #bda6ff;}
@@ -14709,7 +14709,7 @@ body {
 .control-bar-dock.control-bar-dock--macos #notes-icon,
 .control-bar-dock.control-bar-dock--macos #canvases-icon,
 .control-bar-dock.control-bar-dock--macos #journal-icon,
-.control-bar-dock.control-bar-dock--macos #forest-icon,
+.control-bar-dock.control-bar-dock--macos #island-icon,
 .control-bar-dock.control-bar-dock--macos #notefalls-icon,
 .control-bar-dock.control-bar-dock--macos #sources-icon,
 .control-bar-dock.control-bar-dock--macos #tasks-icon {
@@ -25147,20 +25147,20 @@ html.app-drag-selection-lock webview {
 .note-card .color-dot:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 2px;}
-.forest-panel > .panel-content {
+.island-panel > .panel-content {
     padding: 0;
     overflow: hidden;}
-.forest-panel,
-.forest-panel * {
+.island-panel,
+.island-panel * {
     -webkit-user-select: none;
     user-select: none;}
-.forest-panel input,
-.forest-panel textarea,
-.forest-panel [contenteditable]:not([contenteditable="false"]),
-.forest-panel [contenteditable]:not([contenteditable="false"]) * {
+.island-panel input,
+.island-panel textarea,
+.island-panel [contenteditable]:not([contenteditable="false"]),
+.island-panel [contenteditable]:not([contenteditable="false"]) * {
     -webkit-user-select: text;
     user-select: text;}
-.fw[data-float-app='forest'] {
+.fw[data-float-app='island'] {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;}
 .app:not(.app--vertical-header) .header-dock-slot {
@@ -25386,7 +25386,7 @@ html.app-drag-selection-lock webview {
     --dock-item-color: #24d9e6;}
 [data-dock-item='journal'] {
     --dock-item-color: #e5a76a;}
-[data-dock-item='forest'] {
+[data-dock-item='island'] {
     --dock-item-color: #7ee7a1;}
 [data-dock-item='notefalls'] {
     --dock-item-color: #bda6ff;}
@@ -27089,8 +27089,8 @@ input):focus-visible {
         transition: none;
 }}
 
-/* ── Islands (internally "forest"): desks, islands, cards (docs/forest-desks/DECISIONS.md) ──
-   Carries the original Forest look: teal stage with soft glows, aurora, green glass,
+/* ── Islands (internally "island"): desks, islands, cards (docs/island-desks/DECISIONS.md) ──
+   Carries the original Island look: teal stage with soft glows, aurora, green glass,
    asymmetric neon-edged cards. Structure follows Alex's Islands mockups.
    Inside .fo-world: no filter, backdrop-filter or blend modes, and keep blurred shadows small;
    each costs graphics memory at every zoom (DECISIONS.md → Performance). */
@@ -27117,7 +27117,7 @@ input):focus-visible {
         linear-gradient(160deg, #0a1a20, #16394a 50%, #0d2530);
     --fo-topbar: linear-gradient(115deg, rgba(10, 52, 32, 0.9), rgba(20, 74, 46, 0.72) 45%, rgba(146, 176, 144, 0.38));
     --fo-island-bg: linear-gradient(180deg, rgba(24, 48, 32, 0.86), rgba(10, 22, 28, 0.78));
-    --fo-island-radius: var(--ui-forest-card-radius, 10px 80px 2px 130px);
+    --fo-island-radius: var(--ui-island-card-radius, 10px 80px 2px 130px);
     --fo-pane: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
     --fo-pane-dark: linear-gradient(180deg, rgba(5, 15, 10, 0.86), rgba(4, 10, 8, 0.92));
     --fo-panel: rgba(7, 18, 14, 0.96);
@@ -27366,7 +27366,7 @@ input):focus-visible {
     background: linear-gradient(to bottom left, #2a4456, #9fb8c2, #e0aa78);
     opacity: 0.35;
     animation: drift-c 20s ease-in-out infinite alternate;}
-.fw[data-float-app='forest'] .fo-aurora {
+.fw[data-float-app='island'] .fo-aurora {
     display: none;}
 .fo-world {
     position: absolute;
@@ -27703,7 +27703,7 @@ display: flex;
     display: flex;
     flex-direction: column;}
 
-/* Shared controls, in the old Forest button language */
+/* Shared controls, in the old Island button language */
 .fo-icon-btn {
     display: inline-grid;
     place-items: center;
@@ -28871,7 +28871,7 @@ tr[data-kind='cost'] .fo-money__kind {
     font-size: 12.5px;
     pointer-events: auto;}
 
-/* Drawers: the old Forest slide-outs */
+/* Drawers: the old Island slide-outs */
 .fo-drawer {
     position: absolute;
     top: 0;
@@ -28912,7 +28912,7 @@ tr[data-kind='cost'] .fo-money__kind {
 .fo-drawer__head .fo-icon-btn:last-child {
     margin-left: auto;}
 
-/* Island settings (Alex's mockup layout, Forest glass) */
+/* Island settings (Alex's mockup layout, Island glass) */
 .fo-settings {
     background:
         radial-gradient(circle at 20% 0%, rgba(var(--accent-rgb), 0.16), transparent 45%),

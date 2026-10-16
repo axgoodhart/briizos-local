@@ -126,7 +126,7 @@ export default function IslandSettings({ island }) {
               <span className="fo-row__name">Folder</span>
               <span className="fo-row__value" title={island.rootPath}>{island.rootPath ? island.rootPath.replace(/^\/Users\/[^/]+/, '~') : 'none'}</span>
               <button type="button" className="fo-icon-btn" title="Choose the project folder" onClick={async () => {
-                const dir = await window.api.forestOpenDirectoryDialog?.();
+                const dir = await window.api.islandOpenDirectoryDialog?.();
                 if (dir) updateIsland(island.id, { rootPath: dir });
               }}><span className="fo-glyph">{GLYPH.folder}</span></button>
             </label>

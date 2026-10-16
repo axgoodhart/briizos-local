@@ -59,11 +59,11 @@ const { registerExecubriiz } = require('./execubriiz');
 const { CloudGateway } = require('./cloud-gateway');
 const { AutomationRunner } = require('./automation-runner');
 const operationReceipts = require('./agent-op-receipts');
-// Forest filesystem discovery remains a bounded Main-process capability;
-// all persistent Forest state is owned by LocalDataService.
-const forestFs = require('./forest-fs');
-const forestAi = require('./forest-ai');
-const { registerForestWorkspace, stopAllTerminals: stopForestTerminals } = require('./forest-workspace');
+// Island filesystem discovery remains a bounded Main-process capability;
+// all persistent Island state is owned by LocalDataService.
+const islandFs = require('./island-fs');
+const islandAi = require('./island-ai');
+const { registerIslandWorkspace, stopAllTerminals: stopIslandTerminals } = require('./island-workspace');
 // briizy work memory: supervised native capture helper + indexer + assistants.
 // Screen data is local-only and stays outside the SyncContract entirely.
 const { createBriizy } = require('./briizy');
@@ -962,45 +962,45 @@ ipcMain.handle('langgraph-fetch-suggestions', async (_event, recentMessages, n, 
   return langgraph.fetchSuggestions(recentMessages || [], n || 3, config || {}, threadId || null);
 });
 
-// === Forest (journals, notefalls, infinite-forest project board) ===
+// === Islands (journals, notefalls, desks, islands and cards) ===
 // Legacy renderer channel names stay stable while briizos.db is the sole
 // structured-data authority behind them.
 
-ipcMain.handle('forest-journals-list', async () => localDataService.listJournals());
-ipcMain.handle('forest-journals-create', async (_event, input) => {
+ipcMain.handle('island-journals-list', async () => localDataService.listJournals());
+ipcMain.handle('island-journals-create', async (_event, input) => {
   const result = localDataService.createJournal(input).row;
-  logger.info('forest', 'Journal created', { id: result.id, title: result.title });
+  logger.info('island', 'Journal created', { id: result.id, title: result.title });
   return result;
 });
-ipcMain.handle('forest-journals-delete', async (_event, id) => {
+ipcMain.handle('island-journals-delete', async (_event, id) => {
   const result = localDataService.archiveJournal(id);
   execubriiz?.archive(id);
-  logger.info('forest', 'Journal deleted', { id });
+  logger.info('island', 'Journal deleted', { id });
   return result;
 });
-ipcMain.handle('forest-journals-update', async (_event, id, patch) => {
+ipcMain.handle('island-journals-update', async (_event, id, patch) => {
   const result = localDataService.updateJournal(id, patch).row;
-  logger.debug('forest', 'Journal updated', { id });
+  logger.debug('island', 'Journal updated', { id });
   return result;
 });
 
-ipcMain.handle('forest-folios-list', async (_event, journalId) => localDataService.listFolios(journalId));
-ipcMain.handle('forest-folios-create', async (_event, journalId, folio, opts) => {
+ipcMain.handle('island-folios-list', async (_event, journalId) => localDataService.listFolios(journalId));
+ipcMain.handle('island-folios-create', async (_event, journalId, folio, opts) => {
   const result = localDataService.createFolio(journalId, folio, opts).row;
-  logger.info('forest', 'Folio created', { journalId, folioId: result.id, type: result.type });
+  logger.info('island', 'Folio created', { journalId, folioId: result.id, type: result.type });
   return result;
 });
-ipcMain.handle('forest-folios-delete', async (_event, id) => {
+ipcMain.handle('island-folios-delete', async (_event, id) => {
   const result = localDataService.archiveFolio(id);
-  logger.info('forest', 'Folio deleted', { id });
+  logger.info('island', 'Folio deleted', { id });
   return result;
 });
-ipcMain.handle('forest-folios-update', async (_event, id, patch) => {
+ipcMain.handle('island-folios-update', async (_event, id, patch) => {
   const result = localDataService.updateFolio(id, patch).row;
-  logger.debug('forest', 'Folio updated', { id });
+  logger.debug('island', 'Folio updated', { id });
   return result;
 });
-ipcMain.handle('forest-journals-attach-images', async () => {
+ipcMain.handle('island-journals-attach-images', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
     filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'] }],
@@ -1015,23 +1015,23 @@ ipcMain.handle('forest-journals-attach-images', async () => {
   }));
 });
 
-ipcMain.handle('forest-notefalls-list', async () => localDataService.listNotefallPosts());
-ipcMain.handle('forest-notefalls-create', async (_event, input) => {
+ipcMain.handle('island-notefalls-list', async () => localDataService.listNotefallPosts());
+ipcMain.handle('island-notefalls-create', async (_event, input) => {
   const result = localDataService.createNotefallPost(input).row;
-  logger.info('forest', 'Notefalls post created', { id: result.id });
+  logger.info('island', 'Notefalls post created', { id: result.id });
   return result;
 });
-ipcMain.handle('forest-notefalls-update', async (_event, id, patch) => {
+ipcMain.handle('island-notefalls-update', async (_event, id, patch) => {
   const result = localDataService.updateNotefallPost(id, patch).row;
-  logger.debug('forest', 'Notefalls post updated', { id });
+  logger.debug('island', 'Notefalls post updated', { id });
   return result;
 });
-ipcMain.handle('forest-notefalls-delete', async (_event, id) => {
+ipcMain.handle('island-notefalls-delete', async (_event, id) => {
   const result = localDataService.archiveNotefallPost(id);
-  logger.info('forest', 'Notefalls post deleted', { id });
+  logger.info('island', 'Notefalls post deleted', { id });
   return result;
 });
-ipcMain.handle('forest-notefalls-attach-media', async () => {
+ipcMain.handle('island-notefalls-attach-media', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
     filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'] }],
@@ -1045,18 +1045,18 @@ ipcMain.handle('forest-notefalls-attach-media', async () => {
   }));
 });
 
-ipcMain.handle('forest-library-load', async () => localDataService.getForestState());
-ipcMain.handle('forest-library-save', async (_event, state) => {
-  const result = localDataService.saveForestState(state);
-  logger.debug('forest', 'Board state saved', { projectCount: state?.projects?.length ?? 0 });
+ipcMain.handle('island-library-load', async () => localDataService.getIslandState());
+ipcMain.handle('island-library-save', async (_event, state) => {
+  const result = localDataService.saveIslandState(state);
+  logger.debug('island', 'Board state saved', { projectCount: state?.projects?.length ?? 0 });
   return result;
 });
-ipcMain.handle('forest-library-import-paths', async (_event, inputPaths) => {
-  const result = await forestFs.importDroppedPaths(inputPaths);
+ipcMain.handle('island-library-import-paths', async (_event, inputPaths) => {
+  const result = await islandFs.importDroppedPaths(inputPaths);
   if (result.rejected) {
-    logger.warn('forest', 'Import rejected', { reason: result.rejected.reason, ...result.stats });
+    logger.warn('island', 'Import rejected', { reason: result.rejected.reason, ...result.stats });
   } else {
-    logger.info('forest', 'Files imported into board', {
+    logger.info('island', 'Files imported into board', {
       groups: result.groups.length,
       files: result.stats.files,
       ignored: result.stats.ignored,
@@ -1066,22 +1066,22 @@ ipcMain.handle('forest-library-import-paths', async (_event, inputPaths) => {
   return result;
 });
 
-ipcMain.handle('forest-shell-open-path', async (_event, targetPath) => {
+ipcMain.handle('island-shell-open-path', async (_event, targetPath) => {
   if (!targetPath) return '';
   return shell.openPath(targetPath);
 });
-ipcMain.handle('forest-shell-show-item-in-folder', async (_event, targetPath) => {
+ipcMain.handle('island-shell-show-item-in-folder', async (_event, targetPath) => {
   if (targetPath) shell.showItemInFolder(targetPath);
   return { ok: true };
 });
 
-ipcMain.handle('forest-hunter-search', async (_event, keywords, excludePaths, customDirs) =>
-  forestFs.hunterSearch(keywords, excludePaths, customDirs),
+ipcMain.handle('island-hunter-search', async (_event, keywords, excludePaths, customDirs) =>
+  islandFs.hunterSearch(keywords, excludePaths, customDirs),
 );
-ipcMain.handle('forest-hunter-default-dirs', async () => forestFs.hunterDefaultDirs());
-ipcMain.handle('forest-hunter-query', async (_event, opts) => forestFs.huntFiles(opts || {}));
+ipcMain.handle('island-hunter-default-dirs', async () => islandFs.hunterDefaultDirs());
+ipcMain.handle('island-hunter-query', async (_event, opts) => islandFs.huntFiles(opts || {}));
 
-ipcMain.handle('forest-dialog-open-directory', async () => {
+ipcMain.handle('island-dialog-open-directory', async () => {
   const win = BrowserWindow.getFocusedWindow();
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory'],
@@ -1091,20 +1091,20 @@ ipcMain.handle('forest-dialog-open-directory', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('forest-filehawk-check', async (_event, filePaths) => forestFs.filehawkCheck(filePaths));
-ipcMain.handle('forest-filehawk-locate', async (_event, name, excludePaths, dirs) =>
-  forestFs.filehawkLocate(name, excludePaths, dirs),
+ipcMain.handle('island-filehawk-check', async (_event, filePaths) => islandFs.filehawkCheck(filePaths));
+ipcMain.handle('island-filehawk-locate', async (_event, name, excludePaths, dirs) =>
+  islandFs.filehawkLocate(name, excludePaths, dirs),
 );
 
-ipcMain.handle('forest-consolidate-project', async (_event, projectName, filePaths) =>
-  forestFs.consolidateProject(projectName, filePaths),
+ipcMain.handle('island-consolidate-project', async (_event, projectName, filePaths) =>
+  islandFs.consolidateProject(projectName, filePaths),
 );
 
-registerForestWorkspace({ ipcMain });
+registerIslandWorkspace({ ipcMain });
 
-ipcMain.handle('forest-autotag-suggest', async (_event, input) => forestAi.runAutoTag(input || {}));
-ipcMain.handle('forest-hunt-run', async (event, input) => forestAi.runHunt(input || {}, (update) => {
-  if (!event.sender.isDestroyed()) event.sender.send('forest-hunt-progress', update);
+ipcMain.handle('island-autotag-suggest', async (_event, input) => islandAi.runAutoTag(input || {}));
+ipcMain.handle('island-hunt-run', async (event, input) => islandAi.runHunt(input || {}, (update) => {
+  if (!event.sender.isDestroyed()) event.sender.send('island-hunt-progress', update);
 }));
 
 // === App Lifecycle ===
@@ -1311,7 +1311,7 @@ app.on('before-quit', (event) => {
     return;
   }
   langgraph.stop();
-  stopForestTerminals();
+  stopIslandTerminals();
   briizyShell?.stop();
   briizyShell = null;
   unregisterBriizyIPC?.();

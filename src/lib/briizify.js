@@ -3,7 +3,7 @@
  *
  * Replaces the InteractionPanel "Prioritize" modality with a direct,
  * form-driven request: the user picks a timeframe, a time window,
- * annotation channels, and candidates (Forest projects, Tasks Panel
+ * annotation channels, and candidates (Island projects, Tasks Panel
  * tasks, plus free-text "exogenous" items), and one headless agent
  * turn returns a "priorifact" — a time-blocked, prioritized activity
  * plan rendered as an ambient artifact at the bottom of the panel.
@@ -26,7 +26,7 @@ import {
 const api = typeof window !== 'undefined' && window.api ? window.api : {};
 
 export const MAX_ACTIVITIES = 20;
-export const ACTIVITY_KINDS = ['task', 'forest_project', 'custom', 'break'];
+export const ACTIVITY_KINDS = ['task', 'island_project', 'custom', 'break'];
 export const ANNOTATION_CHANNELS = ['preparation', 'steps', 'support'];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -78,8 +78,8 @@ export function buildBriizifyPrompt(input, context = null) {
   lines.push('This turn is text-only: do not call tools.');
   lines.push('');
   lines.push('Respond with ONLY JSON — no markdown fences, no commentary:');
-  lines.push('{"summary":"one sentence","activities":[{"kind":"task|forest_project|custom|break","refId":"exact candidate id or null","title":"short title","date":"YYYY-MM-DD","startMinute":840,"durationMinutes":40,"prep":["..."],"steps":["..."],"support":["..."]}]}');
-  lines.push('For kind "task" or "forest_project", copy the exact candidate id into refId. Keep titles at or under 40 characters.');
+  lines.push('{"summary":"one sentence","activities":[{"kind":"task|island_project|custom|break","refId":"exact candidate id or null","title":"short title","date":"YYYY-MM-DD","startMinute":840,"durationMinutes":40,"prep":["..."],"steps":["..."],"support":["..."]}]}');
+  lines.push('For kind "task" or "island_project", copy the exact candidate id into refId. Keep titles at or under 40 characters.');
 
   if (context) {
     lines.push('');
@@ -136,7 +136,7 @@ export function parseBriizifyResponse(text, { channels = {}, defaultDate } = {})
       const kind = ACTIVITY_KINDS.includes(activity?.kind) ? activity.kind : null;
       if (!kind) return null;
       const refId = activity?.refId == null ? null : String(activity.refId);
-      if ((kind === 'task' || kind === 'forest_project') && !refId) return null;
+      if ((kind === 'task' || kind === 'island_project') && !refId) return null;
       const title = String(activity?.title || (kind === 'break' ? 'break' : '')).trim().slice(0, 60);
       if (!title) return null;
       const date = DATE_RE.test(String(activity?.date || '')) ? activity.date : defaultDate;

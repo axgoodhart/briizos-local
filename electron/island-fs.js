@@ -1,9 +1,9 @@
 /**
- * Forest filesystem tools — board state (the infinite-forest project board),
+ * Island filesystem tools — board state (the infinite-island project board),
  * dropped-file import, and the Hunter/FileHawk search/repair utilities.
  *
  * Ported from Projungle's main.js. Storage stays local-only for now (a JSON
- * file in userData), same local-only stance as forest-db.js — not routed
+ * file in userData), same local-only stance as island-db.js — not routed
  * through Firestore/SyncContract.
  */
 const path = require('path');
@@ -11,15 +11,15 @@ const fs = require('fs/promises');
 const crypto = require('crypto');
 const os = require('os');
 const { app } = require('electron');
-const { isHidden, isIgnored } = require('./forest-ignore');
+const { isHidden, isIgnored } = require('./island-ignore');
 const {
-  FOREST_MAX_FILES_PER_PROJECT,
-  FOREST_MAX_FILES_PER_DROP,
-  FOREST_MAX_SCAN_ENTRIES,
+  ISLAND_MAX_FILES_PER_PROJECT,
+  ISLAND_MAX_FILES_PER_DROP,
+  ISLAND_MAX_SCAN_ENTRIES,
 } = require('./local-data/limits');
 
 function getStateFilePath() {
-  return path.join(app.getPath('userData'), 'forest.library.json');
+  return path.join(app.getPath('userData'), 'island.library.json');
 }
 
 function defaultState() {
@@ -95,7 +95,7 @@ const TOKEN_STOPWORDS = new Set([
 ]);
 
 // Ignore rules (node_modules, VCS, build output, OS junk, hidden entries)
-// live in forest-ignore.js — a .gitignore-style default list shared by
+// live in island-ignore.js — a .gitignore-style default list shared by
 // board imports and the Hunter/FileHawk scans below.
 
 function typeGroupFromExt(ext) {
@@ -171,7 +171,7 @@ async function walkInputPath(entryPath, projectHint, output, seenPaths, stats, i
   if (stats.aborted || stats.overflow) return;
 
   stats.scanned += 1;
-  if (stats.scanned > FOREST_MAX_SCAN_ENTRIES) {
+  if (stats.scanned > ISLAND_MAX_SCAN_ENTRIES) {
     stats.aborted = true;
     return;
   }
@@ -215,7 +215,7 @@ async function walkInputPath(entryPath, projectHint, output, seenPaths, stats, i
   if (seenPaths.has(resolved)) return;
   seenPaths.add(resolved);
 
-  if (stats.files >= FOREST_MAX_FILES_PER_DROP) {
+  if (stats.files >= ISLAND_MAX_FILES_PER_DROP) {
     stats.overflow = true;
     return;
   }
@@ -243,8 +243,8 @@ async function importDroppedPaths(inputPaths = []) {
   const groups = new Map();
   const stats = { scanned: 0, files: 0, ignored: 0, aborted: false, overflow: false };
   const limits = {
-    maxFilesPerProject: FOREST_MAX_FILES_PER_PROJECT,
-    maxFilesPerDrop: FOREST_MAX_FILES_PER_DROP,
+    maxFilesPerProject: ISLAND_MAX_FILES_PER_PROJECT,
+    maxFilesPerDrop: ISLAND_MAX_FILES_PER_DROP,
   };
   const reject = (reason, message) => ({ groups: [], stats, limits, rejected: { reason, message } });
 
@@ -300,13 +300,13 @@ async function importDroppedPaths(inputPaths = []) {
   if (stats.overflow) {
     return reject(
       'too-many-files',
-      `more than ${FOREST_MAX_FILES_PER_DROP.toLocaleString()} files after ignore filtering — try a smaller folder`,
+      `more than ${ISLAND_MAX_FILES_PER_DROP.toLocaleString()} files after ignore filtering — try a smaller folder`,
     );
   }
   if (stats.aborted) {
     return reject(
       'scan-too-large',
-      `gave up after scanning ${FOREST_MAX_SCAN_ENTRIES.toLocaleString()} entries — try a smaller folder`,
+      `gave up after scanning ${ISLAND_MAX_SCAN_ENTRIES.toLocaleString()} entries — try a smaller folder`,
     );
   }
 
@@ -322,11 +322,11 @@ async function importDroppedPaths(inputPaths = []) {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const oversized = resultGroups.find((group) => group.files.length > FOREST_MAX_FILES_PER_PROJECT);
+  const oversized = resultGroups.find((group) => group.files.length > ISLAND_MAX_FILES_PER_PROJECT);
   if (oversized) {
     return reject(
       'project-too-large',
-      `"${oversized.name}" would hold ${oversized.files.length.toLocaleString()} files (max ${FOREST_MAX_FILES_PER_PROJECT.toLocaleString()} per project) — try a subfolder`,
+      `"${oversized.name}" would hold ${oversized.files.length.toLocaleString()} files (max ${ISLAND_MAX_FILES_PER_PROJECT.toLocaleString()} per project) — try a subfolder`,
     );
   }
 
@@ -597,7 +597,7 @@ async function consolidateProject(projectName, filePaths = []) {
     os.homedir(),
     'Documents',
     'briizos',
-    'forest-projects',
+    'island-projects',
     safeName,
   );
 

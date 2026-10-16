@@ -1,5 +1,5 @@
-// Forest catalog: card types, glyphs, accents, stages, questions and built-in templates.
-// Spec: docs/forest-desks/DECISIONS.md
+// Island catalog: card types, glyphs, accents, stages, questions and built-in templates.
+// Spec: docs/island-desks/DECISIONS.md
 
 export const GLYPH = {
   plus: '􀅼', minus: '􀅽', gear: '􀣋', close: '􀆄', sidebar: '􀏚', stack: '􀐞', map: '􀙊',

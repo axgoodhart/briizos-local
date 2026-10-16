@@ -42,7 +42,7 @@ const tasksRows = [
   },
 ];
 
-const forestProjects = [
+const islandProjects = [
   { id: 'fp-1', name: '3D Zpyral', milestones: [] },
   { id: 'fp-2', name: 'alexgoodhart', milestones: [] },
   { id: 'fp-3', name: 'ComposerSite', milestones: [] },
@@ -134,7 +134,7 @@ function buildMockPlan(payload) {
 window.api = {
   platform: 'darwin',
 
-  forestLoadState: async () => ({ projects: forestProjects }),
+  islandLoadState: async () => ({ projects: islandProjects }),
 
   langgraphCreateThread: async (kind) => ({ thread_id: `mock-${kind}-thread` }),
 

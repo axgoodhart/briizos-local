@@ -1,4 +1,4 @@
-// Small helpers shared by the Forest store and components.
+// Small helpers shared by the Island store and components.
 import { ACCENTS, GRID, MEDIA_TYPES } from './catalog';
 
 export function uid(prefix = 'id') {

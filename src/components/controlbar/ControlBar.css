@@ -189,7 +189,7 @@ opacity:0;
 }
 
 #journal-icon { color: #e5a76a; }
-#forest-icon { color: #7ee7a1; }
+#island-icon { color: #7ee7a1; }
 #notefalls-icon { color: #bda6ff; }
 #sources-icon { color: #74dcea; }
 #tasks-icon { color: #ffd36b; }
@@ -275,7 +275,7 @@ font-size:25px;
   --cb-accent: #e5a76a;
 }
 
-.cb-toggle[data-dock-item="forest"] {
+.cb-toggle[data-dock-item="island"] {
   --cb-accent: #7ee7a1;
 }
 
@@ -480,7 +480,7 @@ font-size:25px;
 .control-bar-dock.control-bar-dock--macos #notes-icon,
 .control-bar-dock.control-bar-dock--macos #canvases-icon,
 .control-bar-dock.control-bar-dock--macos #journal-icon,
-.control-bar-dock.control-bar-dock--macos #forest-icon,
+.control-bar-dock.control-bar-dock--macos #island-icon,
 .control-bar-dock.control-bar-dock--macos #notefalls-icon,
 .control-bar-dock.control-bar-dock--macos #sources-icon,
 .control-bar-dock.control-bar-dock--macos #tasks-icon {

@@ -21,7 +21,7 @@ const CHANNELS = Object.freeze({
   canvasesArchive: 'local-data:canvases:archive',
   briiztormGet: 'local-data:briiztorm:get',
   briiztormSet: 'local-data:briiztorm:set',
-  forestProjectsUpdateScoring: 'local-data:forest-projects:update-scoring',
+  islandProjectsUpdateScoring: 'local-data:island-projects:update-scoring',
   tasksList: 'local-data:tasks:list',
   tasksGet: 'local-data:tasks:get',
   tasksAppendLog: 'local-data:tasks:append-log',
@@ -115,8 +115,8 @@ function registerLocalDataIPC({ ipcMain, BrowserWindow, service, logger }) {
     [CHANNELS.canvasesArchive, (canvasId, expectedRevision) => service.archiveCanvas(canvasId, expectedRevision)],
     [CHANNELS.briiztormGet, () => service.getBriiztormState()],
     [CHANNELS.briiztormSet, (key, value) => service.setBriiztormState(key, value)],
-    [CHANNELS.forestProjectsUpdateScoring, (projectId, expectedRevision, patch) => (
-      service.updateForestProjectScoring(projectId, expectedRevision, patch)
+    [CHANNELS.islandProjectsUpdateScoring, (projectId, expectedRevision, patch) => (
+      service.updateIslandProjectScoring(projectId, expectedRevision, patch)
     )],
     [CHANNELS.tasksList, (filters) => service.listTasksDetailed(filters)],
     [CHANNELS.tasksGet, (taskId) => service.getTask(taskId)],

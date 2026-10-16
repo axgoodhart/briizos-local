@@ -11,9 +11,9 @@ import {
   IMPORT_TARGETS, TEXT_FILE_ACCEPT, MAX_FILES, readTextFiles, buildFolios, previewImport,
 } from './import.js';
 import logger from '../../lib/logger';
-import { IslandsJournalStandalone } from '../forest/IslandsJournal.jsx';
+import { IslandsJournalStandalone } from '../islands/IslandsJournal.jsx';
 
-const ISLANDS_JOURNAL_ID = 'forest-islands';
+const ISLANDS_JOURNAL_ID = 'islands-journal';
 
 /* ── SF Symbols from the supplied symbol catalog ───────────────────────── */
 
@@ -366,12 +366,12 @@ function JournalCard({ journal, selected, onSelect, onPopOut }) {
   );
 }
 
-/* The one journal every Forest island writes into (docs/forest-desks/DECISIONS.md → Journal). */
+/* The shared Islands journal (docs/island-desks/DECISIONS.md → Journal). */
 function IslandsJournalCard({ selected, onSelect }) {
   const [count, setCount] = useState(null);
   useEffect(() => {
     let alive = true;
-    window.api?.forestLoadState?.().then((state) => { if (alive) setCount(state?.projects?.length ?? 0); }).catch(() => {});
+    window.api?.islandLoadState?.().then((state) => { if (alive) setCount(state?.projects?.length ?? 0); }).catch(() => {});
     return () => { alive = false; };
   }, []);
   return (
@@ -604,7 +604,7 @@ export function JournalPanel({
                     e.stopPropagation();
                     if (selectedId === ISLANDS_JOURNAL_ID) {
                       setOpenId(ISLANDS_JOURNAL_ID);
-                      logger.info('forest.journal', 'Opened the islands journal from the Journals app');
+                      logger.info('island.journal', 'Opened the islands journal from the Journals app');
                     } else setSelectedId(ISLANDS_JOURNAL_ID);
                   }}
                 />

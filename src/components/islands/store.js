@@ -1,6 +1,6 @@
-// Forest store: desks > islands > cards. One module-level state shared by every
-// mounted Forest panel; saved through window.api.forestSaveState.
-// Spec: docs/forest-desks/DECISIONS.md
+// Island store: desks > islands > cards. One module-level state shared by every
+// mounted Island panel; saved through window.api.islandSaveState.
+// Spec: docs/island-desks/DECISIONS.md
 import { useSyncExternalStore, useCallback } from 'react';
 import logger from '../../lib/logger';
 import {
@@ -91,12 +91,12 @@ export function getState() {
 }
 
 // Selectors must return values that stay identical until they change (objects are replaced on write).
-export function useForest(selector) {
+export function useIsland(selector) {
   const getSnapshot = useCallback(() => selector(S), [selector]);
   return useSyncExternalStore(subscribe, getSnapshot);
 }
 
-export function useForestVersion() {
+export function useIslandVersion() {
   return useSyncExternalStore(subscribe, () => version);
 }
 
@@ -153,7 +153,7 @@ function commonFolder(paths) {
   return depth >= 4 ? first.slice(0, depth).join('/') : '';
 }
 
-// Old Forest projects become islands: their files go into a Docs/Code card and a Media card.
+// Old Island projects become islands: their files go into a Docs/Code card and a Media card.
 function cardsFromFiles(files, coverFileId) {
   const media = files.filter(isMediaFile);
   const docs = files.filter((file) => !isMediaFile(file));
@@ -308,7 +308,7 @@ export async function load() {
   setUi({ saveState: 'Loading…' });
   try {
     await pendingSaves;
-    const saved = await window.api.forestLoadState();
+    const saved = await window.api.islandLoadState();
     const projects = (saved.projects || []).map(normalizeIsland);
     const desks = [allDesk(), ...(saved.desks || []).filter((d) => d && d.id !== ALL_DESK_ID).map(normalizeDesk)];
     const savedAll = (saved.desks || []).find((d) => d?.id === ALL_DESK_ID);
@@ -329,9 +329,9 @@ export async function load() {
     });
     stale = false;
     setUi({ saveState: 'Ready' });
-    log('info', 'forest', `Islands opened with ${projects.length} island${projects.length === 1 ? '' : 's'} and ${desks.length} desk${desks.length === 1 ? '' : 's'}`, {
+    log('info', 'island', `Islands opened with ${projects.length} island${projects.length === 1 ? '' : 's'} and ${desks.length} desk${desks.length === 1 ? '' : 's'}`, {
       desk: activeDesk().name,
-      ...(migratedCount ? { carriedOver: `${migratedCount} older Forest project${migratedCount === 1 ? ' was' : 's were'} turned into islands. Their files were placed into cards; nothing on disk moved.` } : {}),
+      ...(migratedCount ? { carriedOver: `${migratedCount} older Island project${migratedCount === 1 ? ' was' : 's were'} turned into islands. Their files were placed into cards; nothing on disk moved.` } : {}),
     });
     if (migratedCount) scheduleSave(true);
     refreshTasks();
@@ -340,7 +340,7 @@ export async function load() {
   } catch (error) {
     S.loadError = error?.message || 'Unknown problem';
     setUi({ saveState: 'Could not load' });
-    log('error', 'forest', 'Islands could not load. Nothing was changed or saved.', {
+    log('error', 'island', 'Islands could not load. Nothing was changed or saved.', {
       problem: S.loadError,
       nextStep: 'Press Retry in Islands. If it keeps failing, restart briizOS.',
     });
@@ -354,9 +354,9 @@ export function attach() {
   attached += 1;
   if (attached > 1) return;
   if (!S.loaded || stale) load();
-  unsubscribers.push(window.api.onForestTerminalData?.(onTerminalData) || (() => {}));
-  unsubscribers.push(window.api.onForestTerminalState?.(onTerminalState) || (() => {}));
-  unsubscribers.push(window.api.onForestHuntProgress?.(onHuntProgress) || (() => {}));
+  unsubscribers.push(window.api.onIslandTerminalData?.(onTerminalData) || (() => {}));
+  unsubscribers.push(window.api.onIslandTerminalState?.(onTerminalState) || (() => {}));
+  unsubscribers.push(window.api.onIslandHuntProgress?.(onHuntProgress) || (() => {}));
   unsubscribers.push(window.api.localData?.onChanged?.(onDataChanged) || (() => {}));
   fileTimer = setInterval(checkFiles, FILE_CHECK_EVERY_MS);
 }
@@ -384,7 +384,7 @@ export async function saveNow() {
   const snapshot = serialize();
   const saving = pendingSaves.then(() => {
     lastOwnSaveAt = Date.now();
-    return window.api.forestSaveState(snapshot);
+    return window.api.islandSaveState(snapshot);
   });
   pendingSaves = saving.catch(() => {});
   try {
@@ -398,7 +398,7 @@ export async function saveNow() {
     setUi({ saveState: rejected ? 'Not saved — too large' : 'Not saved' });
     if (message !== lastSaveError) {
       lastSaveError = message;
-      log('error', 'forest', rejected
+      log('error', 'island', rejected
         ? 'Islands could not save: the database refused the changes as too large or malformed. Your last saved version is intact.'
         : 'Islands could not save its latest changes. Your last saved version is intact.', { problem: message, nextStep: 'Keep working; Islands retries on the next change. Restart briizOS if this repeats.' });
     }
@@ -408,9 +408,9 @@ export async function saveNow() {
 // Another part of briizOS (e.g. the AI saving priority signals) changed a project: take those fields.
 async function onDataChanged(change) {
   if (change?.domains?.includes('tasks')) refreshTasks();
-  if (!change?.domains?.includes('forest') || Date.now() - lastOwnSaveAt < OWN_SAVE_ECHO_MS || !S.loaded) return;
+  if (!change?.domains?.includes('island') || Date.now() - lastOwnSaveAt < OWN_SAVE_ECHO_MS || !S.loaded) return;
   try {
-    const saved = await window.api.forestLoadState();
+    const saved = await window.api.islandLoadState();
     let touched = 0;
     S.projects = S.projects.map((island) => {
       const fresh = saved.projects?.find((p) => p.id === island.id);
@@ -425,7 +425,7 @@ async function onDataChanged(change) {
       return { ...island, ...patch };
     });
     if (touched) {
-      log('info', 'forest.island', `Islands picked up priority changes made elsewhere in briizOS for ${touched} island${touched === 1 ? '' : 's'}`);
+      log('info', 'island.island', `Islands picked up priority changes made elsewhere in briizOS for ${touched} island${touched === 1 ? '' : 's'}`);
       emit();
     }
   } catch {
@@ -492,7 +492,7 @@ export function openStepCount(island) {
 
 export function islandTaskCount(island) {
   const goals = island.cards.filter((c) => c.kind === 'goals').reduce((sum, c) => sum + (c.data.items || []).filter((i) => !i.done).length, 0);
-  const linked = Object.values(S.tasks).filter((t) => t.forest_project_id === island.id && !t.source_key?.startsWith('forest-agent:') && !['completed', 'cancelled'].includes(t.status)).length;
+  const linked = Object.values(S.tasks).filter((t) => t.island_project_id === island.id && !t.source_key?.startsWith('island-agent:') && !['completed', 'cancelled'].includes(t.status)).length;
   return goals + linked;
 }
 
@@ -683,7 +683,7 @@ export function createIsland({ name, rect, templateId = 'tpl-blank' }) {
   }
   emit();
   scheduleSave(true);
-  log('info', 'forest.island', `Made the island “${island.name}”${template.id !== 'tpl-blank' ? ` from the “${template.name}” template` : ''}`, {
+  log('info', 'island.island', `Made the island “${island.name}”${template.id !== 'tpl-blank' ? ` from the “${template.name}” template` : ''}`, {
     desk: desk.name,
     cards: cards.map((c) => `${cardType(c.kind).label}: ${c.title}`),
   });
@@ -696,7 +696,7 @@ export function updateIsland(id, patch, note = null) {
   if (!before || !after) return;
   if (note) addEntry(id, note.kind || 'log', note.text);
   if (patch.name && patch.name !== before.name) {
-    log('info', 'forest.island', `Renamed the island “${before.name}” to “${patch.name}”`);
+    log('info', 'island.island', `Renamed the island “${before.name}” to “${patch.name}”`);
   }
 }
 
@@ -706,7 +706,7 @@ export function setStage(id, stageIndex) {
   const index = clamp(stageIndex, 0, island.stages.length - 1);
   if (index === island.stage) return;
   updateIsland(id, { stage: index }, { kind: 'stage', text: `Moved to ${island.stages[index]}.` });
-  log('info', 'forest.island', `“${island.name}” moved to the stage “${island.stages[index]}”`, { from: island.stages[island.stage] });
+  log('info', 'island.island', `“${island.name}” moved to the stage “${island.stages[index]}”`, { from: island.stages[island.stage] });
 }
 
 export function moveIsland(id, pos) {
@@ -740,7 +740,7 @@ export function deleteIsland(id) {
   if (S.ui.selection?.islandId === id) setUi({ selection: null }, false);
   emit();
   scheduleSave(true);
-  log('info', 'forest.island', `Deleted the island “${island.name}”. Files you brought in were not touched; they stay where they are on your Mac.`, {
+  log('info', 'island.island', `Deleted the island “${island.name}”. Files you brought in were not touched; they stay where they are on your Mac.`, {
     cards: island.cards.length,
     referencedFiles: island.files.filter((f) => !f.owned).length,
   });
@@ -754,7 +754,7 @@ export function deleteIsland(id) {
       });
       emit();
       scheduleSave(true);
-      log('info', 'forest.island', `Brought back the island “${island.name}”`);
+      log('info', 'island.island', `Brought back the island “${island.name}”`);
     },
   });
 }
@@ -829,7 +829,7 @@ export function addCard(islandId, { kind, title, rect, data = {}, template = nul
     return { ...current, cards, w: size.w, h: size.h, mainCardId: current.mainCardId || card.id };
   });
   addEntry(islandId, 'card', `Added the ${type.label} card “${card.title}”.`, { ref: card.id });
-  log('info', 'forest.card', `Added a ${type.label} card to “${island.name}”`, { card: card.title, template: template?.name || 'none' });
+  log('info', 'island.card', `Added a ${type.label} card to “${island.name}”`, { card: card.title, template: template?.name || 'none' });
   if (shouldSelect) select({ islandId, cardId: card.id });
   return card;
 }
@@ -864,10 +864,10 @@ export function removeCard(islandId, cardId) {
     const cards = current.cards.filter((c) => c.id !== cardId);
     return { ...current, cards, mainCardId: wasMain ? (cards[0]?.id || null) : current.mainCardId };
   });
-  if (card.kind === 'terminal') window.api.forestTerminalStop?.({ cardId, label: card.title });
+  if (card.kind === 'terminal') window.api.islandTerminalStop?.({ cardId, label: card.title });
   if (S.ui.selection?.cardId === cardId) select({ islandId });
   addEntry(islandId, 'card', `Removed the ${cardType(card.kind).label} card “${card.title}”.`);
-  log('info', 'forest.card', `Removed the card “${card.title}” from “${island.name}”. No files were deleted.`);
+  log('info', 'island.card', `Removed the card “${card.title}” from “${island.name}”. No files were deleted.`);
   toast(`Removed “${card.title}”`, {
     label: 'Undo',
     run: () => {
@@ -876,7 +876,7 @@ export function removeCard(islandId, cardId) {
         cards.splice(Math.min(index, cards.length), 0, card);
         return { ...current, cards, mainCardId: wasMain ? card.id : current.mainCardId };
       });
-      log('info', 'forest.card', `Brought back the card “${card.title}”`);
+      log('info', 'island.card', `Brought back the card “${card.title}”`);
     },
   });
 }
@@ -885,7 +885,7 @@ export function setMainCard(islandId, cardId) {
   const card = getCard(islandId, cardId);
   if (!card) return;
   updateIsland(islandId, { mainCardId: cardId });
-  log('info', 'forest.card', `“${card.title}” is now the main view of “${getIsland(islandId)?.name}”`);
+  log('info', 'island.card', `“${card.title}” is now the main view of “${getIsland(islandId)?.name}”`);
 }
 
 /* ── Desks ─────────────────────────────────────────────────────────── */
@@ -912,7 +912,7 @@ export function switchDesk(id) {
   S.activeDeskId = id;
   setUi({ selection: null, menu: null, naming: null, focusIslandId: null });
   scheduleSave();
-  log('info', 'forest.desk', `Switched to the desk “${desk.name}”`, { islands: deskIslands(desk).length });
+  log('info', 'island.desk', `Switched to the desk “${desk.name}”`, { islands: deskIslands(desk).length });
 }
 
 export function createDesk({ name, rule = { type: 'manual', value: '' }, islandIds = [], view = 'full', showAgents = true }) {
@@ -921,7 +921,7 @@ export function createDesk({ name, rule = { type: 'manual', value: '' }, islandI
   S.activeDeskId = desk.id;
   setUi({ selection: null });
   scheduleSave(true);
-  log('info', 'forest.desk', `Made the desk “${desk.name}”`, { rule: rule.type, value: rule.value || 'none', islands: deskIslands(desk).length });
+  log('info', 'island.desk', `Made the desk “${desk.name}”`, { rule: rule.type, value: rule.value || 'none', islands: deskIslands(desk).length });
   return desk;
 }
 
@@ -950,7 +950,7 @@ export function deleteDesk(id) {
   if (S.activeDeskId === id) S.activeDeskId = ALL_DESK_ID;
   emit();
   scheduleSave(true);
-  log('info', 'forest.desk', `Deleted the desk “${desk.name}”. Its islands are untouched; desks only show islands.`);
+  log('info', 'island.desk', `Deleted the desk “${desk.name}”. Its islands are untouched; desks only show islands.`);
   toast(`Deleted the desk “${desk.name}”`, {
     label: 'Undo',
     run: () => { S.desks = [...S.desks, desk]; emit(); scheduleSave(true); },
@@ -964,7 +964,7 @@ export function setIslandOnDesk(deskId, islandId, on) {
 export function setIslandView(islandId, viewId) {
   const desk = activeDesk();
   writeDesk(desk.id, (d) => ({ ...d, islandViews: { ...d.islandViews, [islandId]: viewId } }));
-  log('info', 'forest.desk', `On “${desk.name}”, “${getIsland(islandId)?.name}” now shows ${ISLAND_VIEWS.find((v) => v.id === viewId)?.label || viewId}`);
+  log('info', 'island.desk', `On “${desk.name}”, “${getIsland(islandId)?.name}” now shows ${ISLAND_VIEWS.find((v) => v.id === viewId)?.label || viewId}`);
 }
 
 /* ── Templates ─────────────────────────────────────────────────────── */
@@ -990,7 +990,7 @@ export function saveIslandTemplate(islandId, name) {
   emit();
   scheduleSave(true);
   toast(`Saved “${template.name}” as an island template`);
-  log('info', 'forest.island', `Saved “${island.name}” as the island template “${template.name}”. Files are not part of templates; only the cards and stages are.`, { cards: template.cards.length });
+  log('info', 'island.island', `Saved “${island.name}” as the island template “${template.name}”. Files are not part of templates; only the cards and stages are.`, { cards: template.cards.length });
 }
 
 export function saveCardTemplate(islandId, cardId, name) {
@@ -1001,7 +1001,7 @@ export function saveCardTemplate(islandId, cardId, name) {
   emit();
   scheduleSave(true);
   toast(`Saved “${template.name}” as a card template`);
-  log('info', 'forest.card', `Saved the card “${card.title}” as the template “${template.name}”`);
+  log('info', 'island.card', `Saved the card “${card.title}” as the template “${template.name}”`);
 }
 
 export function deleteTemplate(kind, id) {
@@ -1010,7 +1010,7 @@ export function deleteTemplate(kind, id) {
   S.templates = { ...S.templates, [list]: S.templates[list].filter((t) => t.id !== id) };
   emit();
   scheduleSave(true);
-  if (template) log('info', 'forest', `Deleted the ${kind} template “${template.name}”`);
+  if (template) log('info', 'island', `Deleted the ${kind} template “${template.name}”`);
 }
 
 export const allIslandTemplates = () => [...ISLAND_TEMPLATES, ...S.templates.islands];
@@ -1044,7 +1044,7 @@ export function addFilesToIsland(islandId, rawFiles, { cardId = null, source = '
     return { ...current, files: [...current.files, ...added], cards, w: size.w, h: size.h, mainCardId: current.mainCardId || cards[0]?.id || null };
   });
   addEntry(islandId, 'file', `Brought in ${added.length} file${added.length === 1 ? '' : 's'}: ${added.slice(0, 4).map((f) => f.name).join(', ')}${added.length > 4 ? '…' : ''}`);
-  log('info', 'forest.files', `Added ${added.length} file${added.length === 1 ? '' : 's'} to “${island.name}”. They stay where they are on your Mac; the island only points to them.`, {
+  log('info', 'island.files', `Added ${added.length} file${added.length === 1 ? '' : 's'} to “${island.name}”. They stay where they are on your Mac; the island only points to them.`, {
     source,
     files: added.slice(0, 20).map((f) => f.path),
   });
@@ -1061,17 +1061,17 @@ export function removeFileFromCard(islandId, cardId, fileId) {
     const stillUsed = cards.some((c) => (c.data.fileIds || []).includes(fileId));
     return { ...current, cards, files: stillUsed ? current.files : current.files.filter((f) => f.id !== fileId) };
   });
-  log('info', 'forest.files', `Took “${file.name}” off its card in “${island.name}”. The file itself was not touched.`, { path: file.path });
+  log('info', 'island.files', `Took “${file.name}” off its card in “${island.name}”. The file itself was not touched.`, { path: file.path });
 }
 
 export async function importPaths(paths, { islandId = null, cardId = null, rect = null } = {}) {
   if (!paths.length) return;
   setUi({ saveState: 'Bringing files in…' });
   try {
-    const imported = await window.api.forestImportPaths(paths);
+    const imported = await window.api.islandImportPaths(paths);
     if (imported?.rejected) {
       toast(`Not brought in: ${imported.rejected.message}`);
-      log('warn', 'forest.files', `These files were not brought in: ${imported.rejected.message}`, imported.stats);
+      log('warn', 'island.files', `These files were not brought in: ${imported.rejected.message}`, imported.stats);
       return;
     }
     const groups = imported?.groups || [];
@@ -1099,7 +1099,7 @@ export async function importPaths(paths, { islandId = null, cardId = null, rect 
     });
   } catch (error) {
     toast('Could not bring those files in');
-    log('error', 'forest.files', 'The dropped files could not be brought in. Nothing was changed.', { problem: error?.message });
+    log('error', 'island.files', 'The dropped files could not be brought in. Nothing was changed.', { problem: error?.message });
   } finally {
     setUi({ saveState: 'Ready' });
   }
@@ -1109,22 +1109,22 @@ export async function createOwnedDoc(islandId, cardId, fileName = 'Untitled.md',
   const island = getIsland(islandId);
   if (!island) return null;
   try {
-    const record = await window.api.forestOwnedCreate({ islandId, islandName: island.name, fileName, content });
+    const record = await window.api.islandOwnedCreate({ islandId, islandName: island.name, fileName, content });
     addFilesToIsland(islandId, [record], { cardId, source: 'made in briizOS' });
     if (cardId) updateCardData(islandId, cardId, (data) => ({ fileIds: dedupe([...(data.fileIds || []), record.id]), openFileId: record.id, newDoc: undefined, newDocBody: undefined }));
     return record;
   } catch (error) {
     toast('Could not make the document');
-    log('error', 'forest.files', `Could not make a new document in “${island.name}”`, { problem: error?.message });
+    log('error', 'island.files', `Could not make a new document in “${island.name}”`, { problem: error?.message });
     return null;
   }
 }
 
 export async function checkFiles() {
   const paths = dedupe(S.projects.flatMap((p) => p.files.map((f) => f.path)));
-  if (!paths.length || !window.api.forestFilehawkCheck) return;
+  if (!paths.length || !window.api.islandFilehawkCheck) return;
   try {
-    const results = await window.api.forestFilehawkCheck(paths);
+    const results = await window.api.islandFilehawkCheck(paths);
     const status = {};
     const watchedChanges = [];
     const byPath = new Map(results.map((r) => [r.path, r]));
@@ -1144,11 +1144,11 @@ export async function checkFiles() {
     const missing = Object.values(status).filter((s) => s === 'missing').length;
     emit();
     watchedChanges.forEach(({ island, file }) => addEntry(island.id, 'file', `“${file.name}” changed on disk.`));
-    log(missing ? 'warn' : 'debug', 'forest.files', missing
+    log(missing ? 'warn' : 'debug', 'island.files', missing
       ? `${missing} file${missing === 1 ? '' : 's'} on your islands could not be found where Islands expected ${missing === 1 ? 'it' : 'them'}. They show a warning on their cards with a “Find it” button.`
       : 'Every file on your islands is where Islands expects it.', { checked: paths.length });
   } catch (error) {
-    log('warn', 'forest.files', 'Islands could not check whether your files are still in place', { problem: error?.message });
+    log('warn', 'island.files', 'Islands could not check whether your files are still in place', { problem: error?.message });
   }
 }
 
@@ -1158,11 +1158,11 @@ export async function relocateFile(islandId, fileId) {
   if (!file) return;
   toast(`Looking for “${file.name}”…`);
   try {
-    const hits = await window.api.forestFilehawkLocate(file.name, [], S.hunterDirs);
+    const hits = await window.api.islandFilehawkLocate(file.name, [], S.hunterDirs);
     const found = (hits?.results || hits || []).find?.((h) => h.path && h.path !== file.path);
     if (!found) {
       toast(`Could not find “${file.name}” anywhere searched`);
-      log('warn', 'forest.files', `FileHawk could not find “${file.name}” on this Mac`, { lastKnownPath: file.path });
+      log('warn', 'island.files', `FileHawk could not find “${file.name}” on this Mac`, { lastKnownPath: file.path });
       return;
     }
     writeIsland(islandId, (current) => ({
@@ -1171,10 +1171,10 @@ export async function relocateFile(islandId, fileId) {
     }));
     S.fileStatus = { ...S.fileStatus, [found.path]: 'ok' };
     addEntry(islandId, 'file', `Found “${file.name}” in its new place.`);
-    log('info', 'forest.files', `FileHawk found “${file.name}” in a new place and updated the island to point there. The file was not moved.`, { from: file.path, to: found.path });
+    log('info', 'island.files', `FileHawk found “${file.name}” in a new place and updated the island to point there. The file was not moved.`, { from: file.path, to: found.path });
     toast(`Found “${file.name}”`);
   } catch (error) {
-    log('error', 'forest.files', `FileHawk could not search for “${file.name}”`, { problem: error?.message });
+    log('error', 'island.files', `FileHawk could not search for “${file.name}”`, { problem: error?.message });
   }
 }
 
@@ -1188,12 +1188,12 @@ export async function archiveIsland(islandId) {
   }
   toast(`Making a dated archive of “${island.name}”…`);
   try {
-    const result = await window.api.forestArchiveIsland({ islandName: island.name, filePaths });
+    const result = await window.api.islandArchiveIsland({ islandName: island.name, filePaths });
     addEntry(islandId, 'archive', `Made a dated archive (${result.copied} file${result.copied === 1 ? '' : 's'}).`, { path: result.zipPath });
-    toast('Archive made', { label: 'Show', run: () => window.api.forestShowItemInFolder(result.zipPath) });
+    toast('Archive made', { label: 'Show', run: () => window.api.islandShowItemInFolder(result.zipPath) });
   } catch (error) {
     toast('Could not make the archive');
-    log('error', 'forest.archive', `Could not archive “${island.name}”. Your files were not changed.`, { problem: error?.message });
+    log('error', 'island.archive', `Could not archive “${island.name}”. Your files were not changed.`, { problem: error?.message });
   }
 }
 
@@ -1226,17 +1226,17 @@ export async function runTerminal(islandId, cardId, command) {
     history: dedupe([command.trim(), ...(data.history || [])]).slice(0, 50),
   }));
   try {
-    const result = await window.api.forestTerminalRun({ cardId, command: command.trim(), cwd, label: `${island.name} · ${card.title}` });
+    const result = await window.api.islandTerminalRun({ cardId, command: command.trim(), cwd, label: `${island.name} · ${card.title}` });
     if (result?.cwd && !card.data.cwd) updateCardData(islandId, cardId, { cwd: result.cwd });
   } catch (error) {
     toast('The terminal could not run that');
-    log('error', 'forest.terminal', 'A terminal card could not start its command', { problem: error?.message, command });
+    log('error', 'island.terminal', 'A terminal card could not start its command', { problem: error?.message, command });
   }
 }
 
 export function stopTerminal(islandId, cardId) {
   const card = getCard(islandId, cardId);
-  window.api.forestTerminalStop?.({ cardId, label: card?.title });
+  window.api.islandTerminalStop?.({ cardId, label: card?.title });
 }
 
 export async function restartTerminal(islandId, cardId) {
@@ -1251,7 +1251,7 @@ export async function restartTerminal(islandId, cardId) {
     });
   }
   await runTerminal(islandId, cardId, card.data.command);
-  log('info', 'forest.terminal', `Restarted “${card.title}” from its webview card`, { command: card.data.command });
+  log('info', 'island.terminal', `Restarted “${card.title}” from its webview card`, { command: card.data.command });
   return true;
 }
 
@@ -1263,7 +1263,7 @@ export async function refreshTasks() {
     if (!Array.isArray(rows)) return;
     const islandIds = new Set(S.projects.map((p) => p.id));
     const next = {};
-    rows.filter((t) => t.forest_project_id && islandIds.has(t.forest_project_id)).forEach((t) => { next[t.id] = t; });
+    rows.filter((t) => t.island_project_id && islandIds.has(t.island_project_id)).forEach((t) => { next[t.id] = t; });
     S.tasks = next;
     emit();
   } catch {
@@ -1298,8 +1298,8 @@ export async function startAgent(islandId, cardId, goal) {
       status: 'pending',
       priority: 'normal',
       automated: false,
-      forestProjectId: islandId,
-      sourceKey: `forest-agent:${cardId}:${Date.now()}`,
+      islandProjectId: islandId,
+      sourceKey: `island-agent:${cardId}:${Date.now()}`,
     });
     const taskId = created?.row?.id;
     if (!taskId) throw new Error('The task was not created');
@@ -1307,15 +1307,15 @@ export async function startAgent(islandId, cardId, goal) {
     await automateTask(taskId);
     updateCardData(islandId, cardId, (data) => ({ goal: goal.trim(), taskId, history: dedupe([taskId, ...(data.history || [])]).slice(0, 20) }));
     addEntry(islandId, 'agent', `Gave an agent the goal: ${goal.trim()}`, { ref: cardId });
-    log('info', 'forest.agent', `Started an agent on “${island.name}”. It runs as a briizOS task, so its steps and permission requests also appear in the Tasks panel.`, {
+    log('info', 'island.agent', `Started an agent on “${island.name}”. It runs as a briizOS task, so its steps and permission requests also appear in the Tasks panel.`, {
       goal: goal.trim(),
       taskId,
-      note: 'Today agents advance only while the briizOS window is open (docs/forest-desks/DECISIONS.md → Background agents).',
+      note: 'Today agents advance only while the briizOS window is open (docs/island-desks/DECISIONS.md → Background agents).',
     });
     refreshTasks();
   } catch (error) {
     toast('The agent could not start');
-    log('error', 'forest.agent', `Could not start an agent on “${island.name}”`, { problem: error?.message, goal });
+    log('error', 'island.agent', `Could not start an agent on “${island.name}”`, { problem: error?.message, goal });
   }
 }
 
@@ -1327,10 +1327,10 @@ export async function pauseAgent(islandId, cardId) {
     const fresh = await window.api.localData.tasks.get(task.id);
     await window.api.localData.tasks.update(task.id, fresh.revision, { automated: false, status: 'pending' });
     addEntry(islandId, 'agent', `Paused the agent working on: ${task.title}`);
-    log('info', 'forest.agent', 'Paused an island\'s agent. Its steps so far are kept; starting it again resumes from the next unchecked step.', { goal: task.title });
+    log('info', 'island.agent', 'Paused an island\'s agent. Its steps so far are kept; starting it again resumes from the next unchecked step.', { goal: task.title });
     refreshTasks();
   } catch (error) {
-    log('error', 'forest.agent', 'Could not pause the agent', { problem: error?.message });
+    log('error', 'island.agent', 'Could not pause the agent', { problem: error?.message });
   }
 }
 
@@ -1341,10 +1341,10 @@ export async function resumeAgent(islandId, cardId) {
     const { automateTask } = await import('../../lib/taskAutomation');
     await automateTask(card.data.taskId);
     addEntry(islandId, 'agent', `Resumed the agent on: ${card.data.goal}`);
-    log('info', 'forest.agent', 'Resumed an island\'s agent', { goal: card.data.goal });
+    log('info', 'island.agent', 'Resumed an island\'s agent', { goal: card.data.goal });
     refreshTasks();
   } catch (error) {
-    log('error', 'forest.agent', 'Forest could not resume the agent', { problem: error?.message });
+    log('error', 'island.agent', 'Islands could not resume the agent', { problem: error?.message });
   }
 }
 
@@ -1355,14 +1355,14 @@ export async function answerAgent(islandId, cardId, text) {
     const { handleUserResponse } = await import('../../lib/taskAutomation');
     await handleUserResponse(card.data.taskId, text.trim());
     addEntry(islandId, 'agent', `Answered the agent: ${text.trim()}`);
-    log('info', 'forest.agent', 'Answered a question from an island\'s agent', { goal: card.data.goal });
+    log('info', 'island.agent', 'Answered a question from an island\'s agent', { goal: card.data.goal });
     refreshTasks();
   } catch (error) {
-    log('error', 'forest.agent', 'Could not send your answer to the agent', { problem: error?.message });
+    log('error', 'island.agent', 'Could not send your answer to the agent', { problem: error?.message });
   }
 }
 
-/* ── Auto tags (same behavior as the previous Forest) ───────── */
+/* ── Auto tags (same behavior as the previous project board) ── */
 
 function fileSignature(island) {
   return String(hashString(island.files.map((f) => f.path).sort().join('\n')));
@@ -1388,7 +1388,7 @@ async function runAutoTagQueue() {
     const configured = await window.api.isAIConfigured?.();
     if (!configured) {
       autoTagBlocked = true;
-      log('warn', 'forest.autotag', `Island auto tags are waiting: ${pending.length} island${pending.length === 1 ? ' has' : 's have'} fewer than ${AUTO_TAG_TARGET} tags, but no AI model is connected, so no files were read and nothing was changed.`, {
+      log('warn', 'island.autotag', `Island auto tags are waiting: ${pending.length} island${pending.length === 1 ? ' has' : 's have'} fewer than ${AUTO_TAG_TARGET} tags, but no AI model is connected, so no files were read and nothing was changed.`, {
         islands: pending.map((p) => p.name),
         nextStep: 'Connect OpenAI, Claude or Gemini in Settings → Model, then reopen Islands.',
       });
@@ -1407,7 +1407,7 @@ async function runAutoTagQueue() {
 
 async function autoTagIsland(island) {
   const signature = fileSignature(island);
-  const result = await window.api.forestAutoTag({
+  const result = await window.api.islandAutoTag({
     projectId: island.id,
     name: island.name,
     tags: [...island.tags],
@@ -1483,7 +1483,7 @@ export function undoTagChange(changeId) {
   }));
   S.changes = S.changes.map((c) => (c.id === changeId ? { ...c, undoneAt: new Date().toISOString() } : c));
   emit();
-  log('info', 'forest.autotag', `Undid auto tags on “${island.name}”. Islands will not suggest these tags for this island again.`, { removed: change.tags.map((t) => `#${t}`) });
+  log('info', 'island.autotag', `Undid auto tags on “${island.name}”. Islands will not suggest these tags for this island again.`, { removed: change.tags.map((t) => `#${t}`) });
 }
 
 export function addHuntResults(changeId, indexes) {
@@ -1549,7 +1549,7 @@ export async function startHunt() {
   setHunt({ running: true, runId, stage: 'Starting…', error: '', changeId: null });
   let result;
   try {
-    result = await window.api.forestHuntRun({
+    result = await window.api.islandHuntRun({
       runId,
       project: { name: island.name, tags: [...island.tags], fileNames: island.files.slice(0, 25).map((f) => f.name) },
       description: hunt.description.trim(),
@@ -1561,7 +1561,7 @@ export async function startHunt() {
     });
   } catch (error) {
     result = { ok: false, error: error?.message || 'Unknown problem' };
-    log('error', 'forest.hunter', `File Hunter could not start a search for “${island.name}”. Nothing was added.`, { problem: result.error });
+    log('error', 'island.hunter', `File Hunter could not start a search for “${island.name}”. Nothing was added.`, { problem: result.error });
   }
   if (S.hunt?.runId !== runId) return;
   if (!result?.ok) { setHunt({ running: false, stage: '', error: result?.error || 'The search failed.' }); return; }
@@ -1585,12 +1585,12 @@ export async function startHunt() {
 }
 
 export async function addHunterDir() {
-  const dir = await window.api.forestOpenDirectoryDialog?.();
+  const dir = await window.api.islandOpenDirectoryDialog?.();
   if (!dir) return;
   S.hunterDirs = dedupe([...S.hunterDirs, dir]);
   emit();
   scheduleSave(true);
-  log('info', 'forest.hunter', 'Added a folder to File Hunter searches', { folder: dir });
+  log('info', 'island.hunter', 'Added a folder to File Hunter searches', { folder: dir });
 }
 
 export function removeHunterDir(dir) {

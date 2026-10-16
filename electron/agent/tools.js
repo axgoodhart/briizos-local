@@ -359,7 +359,7 @@ const briizos_update_event = makeBridgeTool({
 const briizos_update_project_scoring = makeBridgeTool({
   name: 'briizos_update_project_scoring',
   description: 'Save optional deadline, importance (1-10), size in hours, or goal relevance on a project (an island in Islands). This is a persistent write and requires user confirmation. Never save inferred values without the user explicitly confirming them.',
-  registryName: 'updateForestProjectScoring',
+  registryName: 'updateIslandProjectScoring',
   schema: z.object({
     project_id: z.string(),
     deadline: z.string().nullable().optional(),
@@ -463,7 +463,7 @@ function compactTask(task, { includeLog = false } = {}) {
     priority: task.priority,
     due_at: isoOrNull(task.due_at),
     project_id: task.project_id || null,
-    forest_project_id: task.forest_project_id || null,
+    island_project_id: task.island_project_id || null,
     source_key: task.source_key || null,
     automated: !!task.automated,
     created_at: isoOrNull(task.created_at),
@@ -481,7 +481,7 @@ function compactTask(task, { includeLog = false } = {}) {
   return compact;
 }
 
-function compactForestProject(project, { detailed = false } = {}) {
+function compactIslandProject(project, { detailed = false } = {}) {
   const compact = {
     id: project.id,
     name: project.name,
@@ -493,7 +493,7 @@ function compactForestProject(project, { detailed = false } = {}) {
     fileCount: (project.files || []).length,
     revision: project.revision,
   };
-  // Forest islands (docs/forest-desks/DECISIONS.md): where the project stands and what is on it.
+  // Islands projects (docs/island-desks/DECISIONS.md): where the project stands and what is on it.
   if (Array.isArray(project.stages) && project.stages.length) {
     compact.stage = project.stages[project.stage] || project.stages[0];
     compact.stages = project.stages;
@@ -565,14 +565,14 @@ const briizos_list_tasks = makeDataReadTool({
     ]).optional(),
     priority: z.enum(['low', 'normal', 'medium', 'high', 'urgent']).optional(),
     project_id: z.string().optional(),
-    forest_project_id: z.string().optional(),
+    island_project_id: z.string().optional(),
     limit: z.number().int().min(1).max(200).optional().default(50),
   }),
   run: (input) => {
     const filters = { limit: input.limit || 50 };
     if (input.status) filters.status = input.status;
     if (input.project_id) filters.projectId = input.project_id;
-    if (input.forest_project_id) filters.forestProjectId = input.forest_project_id;
+    if (input.island_project_id) filters.islandProjectId = input.island_project_id;
     let tasks = localDataService.listTasksDetailed(filters);
     if (input.priority) tasks = tasks.filter((task) => task.priority === input.priority);
     const payload = tasks.map((task) => compactTask(task));
@@ -598,8 +598,8 @@ const briizos_list_projects = makeDataReadTool({
     limit: z.number().int().min(1).max(200).optional().default(100),
   }),
   run: (input) => {
-    const projects = (localDataService.getForestState().projects || []).slice(0, input.limit || 100);
-    const payload = projects.map((project) => compactForestProject(project));
+    const projects = (localDataService.getIslandState().projects || []).slice(0, input.limit || 100);
+    const payload = projects.map((project) => compactIslandProject(project));
     return { rows: payload.length, payload };
   },
 });
@@ -609,10 +609,10 @@ const briizos_get_project = makeDataReadTool({
   description: 'Get one project (island) by id, including stage, status, cards, milestones, attached files, its answers to the project questions, its chapter and recent journal entries.',
   schema: z.object({ project_id: z.string() }),
   run: (input) => {
-    const project = (localDataService.getForestState().projects || [])
+    const project = (localDataService.getIslandState().projects || [])
       .find((candidate) => candidate.id === input.project_id);
     if (!project) return { rows: 0, payload: { error: `No project (island) with id ${input.project_id}` } };
-    return { rows: 1, payload: compactForestProject(project, { detailed: true }) };
+    return { rows: 1, payload: compactIslandProject(project, { detailed: true }) };
   },
 });
 

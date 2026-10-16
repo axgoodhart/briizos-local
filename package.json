@@ -38,6 +38,7 @@
     "@tiptap/extension-underline": "^2.14.0",
     "@tiptap/starter-kit": "^2.14.0",
     "better-sqlite3": "^12.11.1",
+    "codegraph": "^1.0.0",
     "electron": "^40.1.0",
     "face-api.js": "^0.22.2",
     "firebase": "^12.8.0",

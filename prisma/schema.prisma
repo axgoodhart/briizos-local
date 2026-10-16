@@ -156,7 +156,7 @@ model external_files {
   updated_at        BigInt
   revision          Int                 @default(1)
   deleted_at        BigInt?
-  forest_files      forest_files[]
+  island_files      island_files[]
   media_queue_items media_queue_items[] @ignore
   post_attachments  post_attachments[]  @ignore
   selected_files    selected_files[]
@@ -180,7 +180,7 @@ model folios {
   @@index([journal_id, position, deleted_at], map: "idx_folios_journal")
 }
 
-model forest_files {
+model island_files {
   id              String          @id
   project_id      String
   file_id         String
@@ -193,14 +193,14 @@ model forest_files {
   data_json       String          @default("{}")
   board_file_id   String          @default("")
   external_files  external_files  @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  forest_projects forest_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
+  island_projects island_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction) @ignore
 
-  @@unique([project_id, board_file_id], map: "idx_forest_files_board_id")
-  @@unique([project_id, file_id], map: "sqlite_autoindex_forest_files_2")
+  @@unique([project_id, board_file_id], map: "idx_island_files_board_id")
+  @@unique([project_id, file_id], map: "sqlite_autoindex_island_files_2")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model forest_projects {
+model island_projects {
   id           String         @id
   title        String
   position_x   Float          @default(0)
@@ -210,11 +210,11 @@ model forest_projects {
   revision     Int            @default(1)
   deleted_at   BigInt?
   data_json    String         @default("{}")
-  forest_files forest_files[]
+  island_files island_files[]
 
 }
 
-model forest_view_state {
+model island_view_state {
   singleton_id Int    @id @default(autoincrement())
   value_json   String @default("{}")
   updated_at   BigInt

@@ -42,7 +42,7 @@ export default function MediaCard({ island, card, fileStatus }) {
           <span className="fo-whisper">{index + 1}/{files.length}</span>
           <button type="button" className="fo-icon-btn" onClick={() => setOpenId(files[(index - 1 + files.length) % files.length].id)} title="Previous"><span className="fo-glyph">{GLYPH.chevronLeft}</span></button>
           <button type="button" className="fo-icon-btn" onClick={() => setOpenId(files[(index + 1) % files.length].id)} title="Next"><span className="fo-glyph">{GLYPH.chevron}</span></button>
-          <button type="button" className="fo-icon-btn" onClick={() => window.api.forestOpenPath(open.path)} title="Open in its app"><span className="fo-glyph">{GLYPH.open}</span></button>
+          <button type="button" className="fo-icon-btn" onClick={() => window.api.islandOpenPath(open.path)} title="Open in its app"><span className="fo-glyph">{GLYPH.open}</span></button>
         </div>
         <div className="fo-media__stage"><Preview file={open} large /></div>
       </div>
@@ -61,7 +61,7 @@ export default function MediaCard({ island, card, fileStatus }) {
               data-missing={missing ? 'true' : undefined}
               title={file.name}
               onClick={() => !missing && setOpenId(file.id)}
-              onDoubleClick={() => !missing && window.api.forestOpenPath(file.path)}
+              onDoubleClick={() => !missing && window.api.islandOpenPath(file.path)}
             >
               {missing ? (
                 <div className="fo-missing">

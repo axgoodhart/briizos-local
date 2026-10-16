@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
-  activeDesk, attach, deskIslands, deskPositions, detach, getIsland, getState, load, removeCard, setUi, useForestVersion,
+  activeDesk, attach, deskIslands, deskPositions, detach, getIsland, getState, load, removeCard, setUi, useIslandVersion,
   closePanel,
 } from './store';
 import { frameRects } from './camera';
@@ -15,10 +15,10 @@ import { NamingPrompt, NewCardMenu, QuestionsPopover, RootContext, Toasts } from
 
 const typing = () => /input|textarea|select/i.test(document.activeElement?.tagName || '') || document.activeElement?.isContentEditable;
 
-export default function ForestApp() {
+export default function IslandsApp() {
   const rootRef = useRef(null);
   useEffect(() => { attach(); return () => detach(); }, []);
-  useForestVersion();
+  useIslandVersion();
   const S = getState();
   const { ui } = S;
   const desk = activeDesk();

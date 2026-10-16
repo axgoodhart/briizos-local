@@ -10,7 +10,7 @@ import { ProjectQuestions } from './cards/ThoughtsCard';
 
 export const RootContext = createContext({ current: null });
 
-// Places a popover at a screen point, kept inside the Forest panel.
+// Places a popover at a screen point, kept inside the Island panel.
 function usePlacement(screen) {
   const rootRef = useContext(RootContext);
   const ref = useRef(null);
@@ -53,7 +53,7 @@ export function NewCardMenu({ menu }) {
   };
   const linkFolder = async () => {
     close();
-    const dir = await window.api.forestOpenDirectoryDialog?.();
+    const dir = await window.api.islandOpenDirectoryDialog?.();
     if (!dir) return;
     const name = dir.split('/').filter(Boolean).pop() || dir;
     const record = { id: uid('file'), name, path: dir, typeGroup: 'folder', ext: '', size: 0, modifiedAt: new Date().toISOString() };

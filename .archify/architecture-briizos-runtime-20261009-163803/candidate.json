@@ -26,7 +26,7 @@
           "sources-ui",
           "journals-ui",
           "notefalls-ui",
-          "forest-ui",
+          "island-ui",
           "organizer-ui",
           "canvas-ui",
           "media-ui",
@@ -71,7 +71,7 @@
         "id": "direct",
         "label": "Islands workspace & direct AI",
         "focus": [
-          "forest-ui",
+          "island-ui",
           "journals-ui",
           "i-desk",
           "i-island",
@@ -472,7 +472,7 @@
       ]
     },
     {
-      "id": "forest-ui",
+      "id": "island-ui",
       "type": "frontend",
       "label": "Islands & File Hunter",
       "sublabel": "Desks → islands → cards; shared journal",
@@ -486,17 +486,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/Forest.jsx",
+          "path": "src/components/islands/IslandsPanel.jsx",
           "line": 1,
           "end_line": 16
         },
         {
-          "path": "src/components/forest/ForestApp.jsx",
+          "path": "src/components/islands/IslandsApp.jsx",
           "line": 18,
           "end_line": 91
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 304,
           "end_line": 341
         }
@@ -1362,7 +1362,7 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1367,
           "end_line": 1406
         }
@@ -1372,7 +1372,7 @@
     {
       "id": "d-ipc",
       "type": "messagebus",
-      "label": "D2 • forestAutoTag IPC",
+      "label": "D2 • islandAutoTag IPC",
       "sublabel": "Project paths, names & excerpts request",
       "pos": [
         328,
@@ -1384,7 +1384,7 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1408,
           "end_line": 1420
         },
@@ -1411,12 +1411,12 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 145,
           "end_line": 189
         },
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 192,
           "end_line": 222
         }
@@ -1438,12 +1438,12 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 145,
           "end_line": 161
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1408,
           "end_line": 1420
         }
@@ -1464,7 +1464,7 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 91,
           "end_line": 103
         },
@@ -1491,7 +1491,7 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 212,
           "end_line": 222
         },
@@ -1518,7 +1518,7 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 222,
           "end_line": 241
         }
@@ -1539,17 +1539,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1421,
           "end_line": 1437
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1455,
           "end_line": 1487
         },
         {
-          "path": "src/components/forest/IslandsJournal.jsx",
+          "path": "src/components/islands/IslandsJournal.jsx",
           "line": 67,
           "end_line": 85
         }
@@ -1560,7 +1560,7 @@
       "id": "d-save",
       "type": "messagebus",
       "label": "D8 • Islands autosave IPC",
-      "sublabel": "Queued snapshots → forestSaveState",
+      "sublabel": "Queued snapshots → islandSaveState",
       "pos": [
         328,
         3000
@@ -1571,7 +1571,7 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 374,
           "end_line": 406
         },
@@ -3053,7 +3053,7 @@
           "end_line": 1237
         },
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 8,
           "end_line": 13
         }
@@ -3128,17 +3128,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 499,
           "end_line": 575
         },
         {
-          "path": "src/components/forest/ForestApp.jsx",
+          "path": "src/components/islands/IslandsApp.jsx",
           "line": 64,
           "end_line": 91
         },
         {
-          "path": "src/components/forest/DeskView.jsx",
+          "path": "src/components/islands/DeskView.jsx",
           "line": 26,
           "end_line": 67
         }
@@ -3159,12 +3159,12 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 181,
           "end_line": 245
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 525,
           "end_line": 553
         }
@@ -3185,17 +3185,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/catalog.js",
+          "path": "src/components/islands/catalog.js",
           "line": 1,
           "end_line": 19
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 808,
           "end_line": 835
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 972,
           "end_line": 1017
         }
@@ -3216,27 +3216,27 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 181,
           "end_line": 245
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 289,
           "end_line": 341
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 353,
           "end_line": 406
         }
       ],
-      "tag": "Internal forest names retained"
+      "tag": "Islands names used throughout the app"
     },
     {
       "id": "i-save",
       "type": "messagebus",
-      "label": "I5 • forestSaveState IPC",
+      "label": "I5 • islandSaveState IPC",
       "sublabel": "Serialize projects, desks & templates",
       "pos": [
         900,
@@ -3248,12 +3248,12 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 289,
           "end_line": 301
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 381,
           "end_line": 406
         },
@@ -3294,7 +3294,7 @@
       "id": "i-db",
       "type": "database",
       "label": "I7 • Same briizos.db",
-      "sublabel": "forest_projects / files / view_state",
+      "sublabel": "island_projects / files / view_state",
       "pos": [
         328,
         7320
@@ -3326,17 +3326,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/IslandsJournal.jsx",
+          "path": "src/components/islands/IslandsJournal.jsx",
           "line": 26,
           "end_line": 36
         },
         {
-          "path": "src/components/forest/IslandsJournal.jsx",
+          "path": "src/components/islands/IslandsJournal.jsx",
           "line": 88,
           "end_line": 156
         },
         {
-          "path": "src/components/forest/IslandsJournal.jsx",
+          "path": "src/components/islands/IslandsJournal.jsx",
           "line": 189,
           "end_line": 226
         }
@@ -3358,7 +3358,7 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1274,
           "end_line": 1320
         },
@@ -3443,17 +3443,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 409,
           "end_line": 413
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1260,
           "end_line": 1271
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1322,
           "end_line": 1363
         }
@@ -3474,12 +3474,12 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/cards/DocsCard.jsx",
+          "path": "src/components/islands/cards/DocsCard.jsx",
           "line": 44,
           "end_line": 80
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1108,
           "end_line": 1121
         }
@@ -3500,17 +3500,17 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 69,
           "end_line": 137
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 141,
           "end_line": 174
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 324,
           "end_line": 334
         }
@@ -3532,12 +3532,12 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 25,
           "end_line": 27
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 65,
           "end_line": 97
         }
@@ -3558,22 +3558,22 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/cards/WebviewCard.jsx",
+          "path": "src/components/islands/cards/WebviewCard.jsx",
           "line": 18,
           "end_line": 39
         },
         {
-          "path": "src/components/forest/cards/WebviewCard.jsx",
+          "path": "src/components/islands/cards/WebviewCard.jsx",
           "line": 81,
           "end_line": 104
         },
         {
-          "path": "src/components/forest/cards/WebviewCard.jsx",
+          "path": "src/components/islands/cards/WebviewCard.jsx",
           "line": 100,
           "end_line": 126
         }
       ],
-      "tag": "persist:forest browser partition"
+      "tag": "persist:island browser partition"
     },
     {
       "id": "i-originals",
@@ -3590,17 +3590,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1067,
           "end_line": 1105
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1123,
           "end_line": 1178
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 100,
           "end_line": 137
         }
@@ -3621,12 +3621,12 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 29,
           "end_line": 31
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 141,
           "end_line": 174
         }
@@ -3648,12 +3648,12 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/cards/TerminalCard.jsx",
+          "path": "src/components/islands/cards/TerminalCard.jsx",
           "line": 22,
           "end_line": 59
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1219,
           "end_line": 1256
         }
@@ -3674,17 +3674,17 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 210,
           "end_line": 232
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 273,
           "end_line": 313
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 324,
           "end_line": 334
         }
@@ -3706,7 +3706,7 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 196,
           "end_line": 224
         }
@@ -3727,17 +3727,17 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 234,
           "end_line": 268
         },
         {
-          "path": "electron/forest-workspace.js",
+          "path": "electron/island-workspace.js",
           "line": 291,
           "end_line": 305
         },
         {
-          "path": "src/components/forest/cards/TerminalCard.jsx",
+          "path": "src/components/islands/cards/TerminalCard.jsx",
           "line": 22,
           "end_line": 48
         }
@@ -3759,7 +3759,7 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1542,
           "end_line": 1564
         }
@@ -3780,7 +3780,7 @@
       ],
       "sources": [
         {
-          "path": "electron/forest-ai.js",
+          "path": "electron/island-ai.js",
           "line": 510,
           "end_line": 595
         }
@@ -3802,17 +3802,17 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1566,
           "end_line": 1584
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1489,
           "end_line": 1500
         },
         {
-          "path": "src/components/forest/IslandsJournal.jsx",
+          "path": "src/components/islands/IslandsJournal.jsx",
           "line": 67,
           "end_line": 85
         }
@@ -3834,12 +3834,12 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1021,
           "end_line": 1053
         },
         {
-          "path": "src/components/forest/store.js",
+          "path": "src/components/islands/store.js",
           "line": 1489,
           "end_line": 1500
         }
@@ -3859,7 +3859,7 @@
         "sources-ui",
         "journals-ui",
         "notefalls-ui",
-        "forest-ui",
+        "island-ui",
         "organizer-ui",
         "canvas-ui",
         "media-ui",
@@ -4851,10 +4851,10 @@
     },
     {
       "dot": "cyan",
-      "title": "Islands: compatibility and migration",
+      "title": "Islands identity and data migration",
       "items": [
-        "The visible app is Islands; the hierarchy is Desk → Island → Card. The Forest.jsx entry now mounts ForestApp and a shared React store. The legacy app.js and canvas markup are gone. Existing legacy panel IDs, IPC names, database tables and theme keys remain for compatibility.",
-        "Older projects become islands on load, with files grouped into Docs/Code and Media cards and a migration journal entry. No files move. The store serializes version 2; saveForestState writes the new desks/templates view payload. getForestState still reports version 1 while returning the new fields."
+        "The Islands workspace now uses Islands names throughout the renderer, Electron IPC, database and theme selectors. Migration 017 renames saved project tables and task links in place, keeping existing project data available.",
+        "Older projects become islands on load, with files grouped into Docs/Code and Media cards and a migration journal entry. No files move. The store serializes version 2; saveIslandState writes the desks/templates view payload through the Islands API."
       ]
     },
     {
@@ -4877,7 +4877,7 @@
       "dot": "amber",
       "title": "Island agents use the task system",
       "items": [
-        "An Agent card saves the island, creates a task linked by forestProjectId, then enables automation. The app-window listener obtains the task permission choice and dispatches an accepted run to the main AutomationRunner. Task updates feed the card; pause, resume and answers use the same task.",
+        "An Agent card saves the island, creates a task linked by islandProjectId, then enables automation. The app-window listener obtains the task permission choice and dispatches an accepted run to the main AutomationRunner. Task updates feed the card; pause, resume and answers use the same task.",
         "Closing a desk or hiding Agent cards is not a pause command. The local task entry flow and renderer tools still depend on the main app window. Main-runner existence alone does not prove window-independent completion."
       ]
     },
@@ -4886,15 +4886,15 @@
       "title": "References, owned documents and archives",
       "items": [
         "Imported files stay where they are and appear as references. FileHawk checks missing paths and can locate moved files. Docs/Code previews originals; its save endpoint restricts writes by a lexical path check beneath userData/Islands. That check is not a symlink-canonicalization claim.",
-        "App-created documents live under userData/Islands. Archive creates a dated ZIP under Documents/briizOS Island Archives, copying source files and reporting missing paths. The old consolidate IPC still exists, but Islands uses forestArchiveIsland."
+        "App-created documents live under userData/Islands. Archive creates a dated ZIP under Documents/briizOS Island Archives, copying source files and reporting missing paths. The old consolidate IPC still exists, but Islands uses islandArchiveIsland."
       ]
     },
     {
       "dot": "amber",
       "title": "Terminal and Webview are working cards",
       "items": [
-        "Terminal cards call forestTerminalRun directly. Main launches a login shell through /usr/bin/script, streams output, retains a bounded replay buffer, and stops children on app quit. This path does not call ToolContext or the agent terminal approval gate.",
-        "Webview cards use persist:forest, unload when off-screen, and can restart their linked terminal command when a page fails. Terminal output supports colors and progress, but is not a full terminal emulator for screen-redrawing applications."
+        "Terminal cards call islandTerminalRun directly. Main launches a login shell through /usr/bin/script, streams output, retains a bounded replay buffer, and stops children on app quit. This path does not call ToolContext or the agent terminal approval gate.",
+        "Webview cards use persist:island, unload when off-screen, and can restart their linked terminal command when a page fails. Terminal output supports colors and progress, but is not a full terminal emulator for screen-redrawing applications."
       ]
     },
     {

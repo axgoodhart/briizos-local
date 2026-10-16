@@ -2,7 +2,7 @@
 
 Source revision: `29fb0324d56af7a326abc11efde7890bec62f236`. Refreshed 15 October 2026. Static comparison with `881061e74f60db796a1ba473fa73414c45d8bcd6`.
 
-The model retains the original runtime map and adds the Islands implementation. `forest-ui` remains the diagram node ID for saved links; the label is Islands. CodeGraph tools were unavailable in this session. Source locations come from the repository and the inspected revision diff.
+The model retains the original runtime map and adds the Islands implementation. `island-ui` remains the diagram node ID for saved links; the label is Islands. CodeGraph tools were unavailable in this session. Source locations come from the repository and the inspected revision diff.
 
 ## Read the architecture
 
@@ -10,11 +10,11 @@ A follows an API-key agent turn and task creation. I follows the Islands workspa
 
 Repeated factory, provider and database boxes are the same runtime roles at different call sites. Region boxes mark process or ownership slices; they do not imply extra sandboxes. Click any component for revision-pinned source evidence.
 
-## Forests → Islands: compatibility and migration
+## Islands identity and data migration
 
-The visible app is Islands; the hierarchy is Desk → Island → Card. The Forest.jsx entry now mounts ForestApp and a shared React store. The legacy app.js and canvas markup are gone. Existing forest panel IDs, IPC names, database tables and theme keys remain for compatibility.
+The app uses Islands names throughout the renderer, Electron IPC, database and theme selectors. The IslandsPanel.jsx entry mounts IslandsApp and a shared React store. Migration 017 renames saved project tables and task links in place, keeping existing project data available.
 
-Older projects become islands on load, with files grouped into Docs/Code and Media cards and a migration journal entry. No files move. The store serializes version 2; saveForestState writes the new desks/templates view payload. getForestState still reports version 1 while returning the new fields.
+Older projects become islands on load, with files grouped into Docs/Code and Media cards and a migration journal entry. No files move. The store serializes version 2; saveIslandState writes the desks/templates view payload through the Islands API.
 
 ## Desks, cards and rendering
 
@@ -30,7 +30,7 @@ This journal reads island entries, shared auto-tag / Hunter changes, milestones,
 
 ## Island agents use the task system
 
-An Agent card saves the island, creates a task linked by forestProjectId, then enables automation. The app-window listener obtains the task permission choice and dispatches an accepted run to the main AutomationRunner. Task updates feed the card; pause, resume and answers use the same task.
+An Agent card saves the island, creates a task linked by islandProjectId, then enables automation. The app-window listener obtains the task permission choice and dispatches an accepted run to the main AutomationRunner. Task updates feed the card; pause, resume and answers use the same task.
 
 Closing a desk or hiding Agent cards is not a pause command. The local task entry flow and renderer tools still depend on the main app window. Main-runner existence alone does not prove window-independent completion.
 
@@ -38,13 +38,13 @@ Closing a desk or hiding Agent cards is not a pause command. The local task entr
 
 Imported files stay where they are and appear as references. FileHawk checks missing paths and can locate moved files. Docs/Code previews originals; its save endpoint restricts writes by a lexical path check beneath userData/Islands. That check is not a symlink-canonicalization claim.
 
-App-created documents live under userData/Islands. Archive creates a dated ZIP under Documents/briizOS Island Archives, copying source files and reporting missing paths. The old consolidate IPC still exists, but Islands uses forestArchiveIsland.
+App-created documents live under userData/Islands. Archive creates a dated ZIP under Documents/briizOS Island Archives, copying source files and reporting missing paths. The old consolidate IPC still exists, but Islands uses islandArchiveIsland.
 
 ## Terminal and Webview are working cards
 
-Terminal cards call forestTerminalRun directly. Main launches a login shell through /usr/bin/script, streams output, retains a bounded replay buffer, and stops children on app quit. This path does not call ToolContext or the agent terminal approval gate.
+Terminal cards call islandTerminalRun directly. Main launches a login shell through /usr/bin/script, streams output, retains a bounded replay buffer, and stops children on app quit. This path does not call ToolContext or the agent terminal approval gate.
 
-Webview cards use persist:forest, unload when off-screen, and can restart their linked terminal command when a page fails. Terminal output supports colors and progress, but is not a full terminal emulator for screen-redrawing applications.
+Webview cards use persist:island, unload when off-screen, and can restart their linked terminal command when a page fails. Terminal output supports colors and progress, but is not a full terminal emulator for screen-redrawing applications.
 
 ## Updated model request adapters
 
@@ -219,9 +219,9 @@ Timeline, proposals, goals and learning
 
 Desks → islands → cards; shared journal
 
-- [src/components/forest/Forest.jsx:1–16](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/Forest.jsx#L1-L16)
-- [src/components/forest/ForestApp.jsx:18–91](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/ForestApp.jsx#L18-L91)
-- [src/components/forest/store.js:304–341](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L304-L341)
+- [src/components/islands/IslandsPanel.jsx:1–16](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsPanel.jsx#L1-L16)
+- [src/components/islands/IslandsApp.jsx:18–91](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsApp.jsx#L18-L91)
+- [src/components/islands/store.js:304–341](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L304-L341)
 
 ### Organizer, Calendar & Notes
 
@@ -446,62 +446,62 @@ useTasks reloads after domain change
 
 Attached store; changed file-path list — Automatic when AI configured
 
-- [src/components/forest/store.js:1367–1406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1367-L1406)
+- [src/components/islands/store.js:1367–1406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1367-L1406)
 
-### D2 • forestAutoTag IPC
+### D2 • islandAutoTag IPC
 
 Project paths, names & excerpts request — No chat/task consent check
 
-- [src/components/forest/store.js:1408–1420](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1408-L1420)
+- [src/components/islands/store.js:1408–1420](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1408-L1420)
 - [electron/main.js:1102–1108](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/main.js#L1102-L1108)
 
 ### D3 • Island excerpt reader
 
 Read file beginnings within size budgets — No agent blacklist applied
 
-- [electron/forest-ai.js:145–189](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L145-L189)
-- [electron/forest-ai.js:192–222](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L192-L222)
+- [electron/island-ai.js:145–189](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L145-L189)
+- [electron/island-ai.js:192–222](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L192-L222)
 
 ### Project files on this Mac
 
 Plain text/code; actual paths supplied
 
-- [electron/forest-ai.js:145–161](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L145-L161)
-- [src/components/forest/store.js:1408–1420](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1408-L1420)
+- [electron/island-ai.js:145–161](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L145-L161)
+- [src/components/islands/store.js:1408–1420](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1408-L1420)
 
 ### D4 • createChatModel
 
 Background route → profile → key — invoke without LangGraph turn
 
-- [electron/forest-ai.js:91–103](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L91-L103)
+- [electron/island-ai.js:91–103](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L91-L103)
 - [electron/agent/models.js:343–390](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/agent/models.js#L343-L390)
 
 ### D5 • chosen API provider
 
 File excerpts + project metadata leave Mac — Credentials ≠ content consent
 
-- [electron/forest-ai.js:212–222](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L212-L222)
+- [electron/island-ai.js:212–222](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L212-L222)
 - [electron/agent/models.js:377–390](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/agent/models.js#L377-L390)
 
 ### D6 • parse & clean tags
 
 JSON, dedupe, rejection & tag limits
 
-- [electron/forest-ai.js:222–241](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L222-L241)
+- [electron/island-ai.js:222–241](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L222-L241)
 
 ### D7 • Tags & journal change
 
 Merge tags for rules; journal offers undo — No per-tag approval
 
-- [src/components/forest/store.js:1421–1437](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1421-L1437)
-- [src/components/forest/store.js:1455–1487](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1455-L1487)
-- [src/components/forest/IslandsJournal.jsx:67–85](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/IslandsJournal.jsx#L67-L85)
+- [src/components/islands/store.js:1421–1437](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1421-L1437)
+- [src/components/islands/store.js:1455–1487](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1455-L1487)
+- [src/components/islands/IslandsJournal.jsx:67–85](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsJournal.jsx#L67-L85)
 
 ### D8 • Islands autosave IPC
 
-Queued snapshots → forestSaveState
+Queued snapshots → islandSaveState
 
-- [src/components/forest/store.js:374–406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L374-L406)
+- [src/components/islands/store.js:374–406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L374-L406)
 - [electron/main.js:1048–1052](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/main.js#L1048-L1052)
 
 ### D9 • same briizos.db
@@ -889,7 +889,7 @@ OS APIs and mounted paths; no iCloud API
 
 - [electron/main.js:330–353](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/main.js#L330-L353)
 - [electron/main.js:1230–1237](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/main.js#L1230-L1237)
-- [electron/forest-ai.js:8–13](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L8-L13)
+- [electron/island-ai.js:8–13](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L8-L13)
 
 ### Geolocation & Open-Meteo
 
@@ -909,39 +909,39 @@ Canvas webview or shell.openExternal — Third-party content boundary
 
 Manual or rule-based; canvas / stack
 
-- [src/components/forest/store.js:499–575](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L499-L575)
-- [src/components/forest/ForestApp.jsx:64–91](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/ForestApp.jsx#L64-L91)
-- [src/components/forest/DeskView.jsx:26–67](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/DeskView.jsx#L26-L67)
+- [src/components/islands/store.js:499–575](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L499-L575)
+- [src/components/islands/IslandsApp.jsx:64–91](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsApp.jsx#L64-L91)
+- [src/components/islands/DeskView.jsx:26–67](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/DeskView.jsx#L26-L67)
 
 ### I2 • Island = project
 
 One project may appear on many desks
 
-- [src/components/forest/store.js:181–245](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L181-L245)
-- [src/components/forest/store.js:525–553](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L525-L553)
+- [src/components/islands/store.js:181–245](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L181-L245)
+- [src/components/islands/store.js:525–553](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L525-L553)
 
 ### I3 • Cards inside an island
 
 Main view, content, tools & templates
 
-- [src/components/forest/catalog.js:1–19](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/catalog.js#L1-L19)
-- [src/components/forest/store.js:808–835](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L808-L835)
-- [src/components/forest/store.js:972–1017](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L972-L1017)
+- [src/components/islands/catalog.js:1–19](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/catalog.js#L1-L19)
+- [src/components/islands/store.js:808–835](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L808-L835)
+- [src/components/islands/store.js:972–1017](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L972-L1017)
 
 ### I4 • Shared React store
 
-State survives layout moves; migrate old — Internal forest names retained
+State survives layout moves; migrate old — Islands names used throughout the app
 
-- [src/components/forest/store.js:181–245](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L181-L245)
-- [src/components/forest/store.js:289–341](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L289-L341)
-- [src/components/forest/store.js:353–406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L353-L406)
+- [src/components/islands/store.js:181–245](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L181-L245)
+- [src/components/islands/store.js:289–341](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L289-L341)
+- [src/components/islands/store.js:353–406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L353-L406)
 
-### I5 • forestSaveState IPC
+### I5 • islandSaveState IPC
 
 Serialize projects, desks & templates
 
-- [src/components/forest/store.js:289–301](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L289-L301)
-- [src/components/forest/store.js:381–406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L381-L406)
+- [src/components/islands/store.js:289–301](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L289-L301)
+- [src/components/islands/store.js:381–406](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L381-L406)
 - [electron/main.js:1048–1052](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/main.js#L1048-L1052)
 
 ### I6 • LocalDataService
@@ -953,7 +953,7 @@ Validate payload; commit transaction
 
 ### I7 • Same briizos.db
 
-forest_projects / files / view_state
+island_projects / files / view_state
 
 - [electron/local-data-service.js:2406–2457](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/local-data-service.js#L2406-L2457)
 
@@ -961,15 +961,15 @@ forest_projects / files / view_state
 
 Log / calendar / chapters; scoped view — Separate from Execubriiz
 
-- [src/components/forest/IslandsJournal.jsx:26–36](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/IslandsJournal.jsx#L26-L36)
-- [src/components/forest/IslandsJournal.jsx:88–156](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/IslandsJournal.jsx#L88-L156)
-- [src/components/forest/IslandsJournal.jsx:189–226](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/IslandsJournal.jsx#L189-L226)
+- [src/components/islands/IslandsJournal.jsx:26–36](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsJournal.jsx#L26-L36)
+- [src/components/islands/IslandsJournal.jsx:88–156](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsJournal.jsx#L88-L156)
+- [src/components/islands/IslandsJournal.jsx:189–226](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsJournal.jsx#L189-L226)
 
 ### I9 • Agent card starts task
 
 Save island; create task; mark automated
 
-- [src/components/forest/store.js:1274–1320](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1274-L1320)
+- [src/components/islands/store.js:1274–1320](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1274-L1320)
 - [src/lib/taskAutomation.js:17–28](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/lib/taskAutomation.js#L17-L28)
 
 ### I10 • Task permission flow
@@ -991,110 +991,110 @@ Main run → graph → renderer tools — Same authority as path B17 / A
 
 Task updates, pause, resume & answers
 
-- [src/components/forest/store.js:409–413](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L409-L413)
-- [src/components/forest/store.js:1260–1271](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1260-L1271)
-- [src/components/forest/store.js:1322–1363](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1322-L1363)
+- [src/components/islands/store.js:409–413](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L409-L413)
+- [src/components/islands/store.js:1260–1271](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1260-L1271)
+- [src/components/islands/store.js:1322–1363](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1322-L1363)
 
 ### I13 • Docs / Code card
 
 Preview references; edit owned docs
 
-- [src/components/forest/cards/DocsCard.jsx:44–80](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/cards/DocsCard.jsx#L44-L80)
-- [src/components/forest/store.js:1108–1121](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1108-L1121)
+- [src/components/islands/cards/DocsCard.jsx:44–80](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/cards/DocsCard.jsx#L44-L80)
+- [src/components/islands/store.js:1108–1121](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1108-L1121)
 
 ### I14 • Workspace file service
 
 Preview / owned write / dated archive — Owned writes use root-path check
 
-- [electron/forest-workspace.js:69–137](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L69-L137)
-- [electron/forest-workspace.js:141–174](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L141-L174)
-- [electron/forest-workspace.js:324–334](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L324-L334)
+- [electron/island-workspace.js:69–137](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L69-L137)
+- [electron/island-workspace.js:141–174](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L141-L174)
+- [electron/island-workspace.js:324–334](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L324-L334)
 
 ### I15 • App-created documents
 
 userData / Islands / project documents
 
-- [electron/forest-workspace.js:25–27](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L25-L27)
-- [electron/forest-workspace.js:65–97](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L65-L97)
+- [electron/island-workspace.js:25–27](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L25-L27)
+- [electron/island-workspace.js:65–97](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L65-L97)
 
 ### Webview card
 
-Visible page; optional server restart — persist:forest browser partition
+Visible page; optional server restart — persist:island browser partition
 
-- [src/components/forest/cards/WebviewCard.jsx:18–39](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/cards/WebviewCard.jsx#L18-L39)
-- [src/components/forest/cards/WebviewCard.jsx:81–104](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/cards/WebviewCard.jsx#L81-L104)
-- [src/components/forest/cards/WebviewCard.jsx:100–126](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/cards/WebviewCard.jsx#L100-L126)
+- [src/components/islands/cards/WebviewCard.jsx:18–39](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/cards/WebviewCard.jsx#L18-L39)
+- [src/components/islands/cards/WebviewCard.jsx:81–104](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/cards/WebviewCard.jsx#L81-L104)
+- [src/components/islands/cards/WebviewCard.jsx:100–126](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/cards/WebviewCard.jsx#L100-L126)
 
 ### Referenced original files
 
 Paths stay in place; FileHawk locates
 
-- [src/components/forest/store.js:1067–1105](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1067-L1105)
-- [src/components/forest/store.js:1123–1178](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1123-L1178)
-- [electron/forest-workspace.js:100–137](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L100-L137)
+- [src/components/islands/store.js:1067–1105](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1067-L1105)
+- [src/components/islands/store.js:1123–1178](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1123-L1178)
+- [electron/island-workspace.js:100–137](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L100-L137)
 
 ### Dated ZIP archives
 
 Documents / briizOS Island Archives — Copies; original files stay put
 
-- [electron/forest-workspace.js:29–31](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L29-L31)
-- [electron/forest-workspace.js:141–174](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L141-L174)
+- [electron/island-workspace.js:29–31](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L29-L31)
+- [electron/island-workspace.js:141–174](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L141-L174)
 
 ### I16 • Terminal card
 
 Run / stop / replay; server restart
 
-- [src/components/forest/cards/TerminalCard.jsx:22–59](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/cards/TerminalCard.jsx#L22-L59)
-- [src/components/forest/store.js:1219–1256](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1219-L1256)
+- [src/components/islands/cards/TerminalCard.jsx:22–59](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/cards/TerminalCard.jsx#L22-L59)
+- [src/components/islands/store.js:1219–1256](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1219-L1256)
 
 ### I17 • Main shell service
 
 script → login shell; tracks child PID — Direct IPC; outside ToolContext
 
-- [electron/forest-workspace.js:210–232](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L210-L232)
-- [electron/forest-workspace.js:273–313](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L273-L313)
-- [electron/forest-workspace.js:324–334](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L324-L334)
+- [electron/island-workspace.js:210–232](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L210-L232)
+- [electron/island-workspace.js:273–313](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L273-L313)
+- [electron/island-workspace.js:324–334](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L324-L334)
 
 ### I18 • OS command / server
 
 Command runs in chosen working folder
 
-- [electron/forest-workspace.js:196–224](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L196-L224)
+- [electron/island-workspace.js:196–224](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L196-L224)
 
 ### I19 • Terminal output
 
 Stream + bounded replay into card — No full-screen terminal emulator
 
-- [electron/forest-workspace.js:234–268](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L234-L268)
-- [electron/forest-workspace.js:291–305](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-workspace.js#L291-L305)
-- [src/components/forest/cards/TerminalCard.jsx:22–48](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/cards/TerminalCard.jsx#L22-L48)
+- [electron/island-workspace.js:234–268](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L234-L268)
+- [electron/island-workspace.js:291–305](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-workspace.js#L291-L305)
+- [src/components/islands/cards/TerminalCard.jsx:22–48](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/cards/TerminalCard.jsx#L22-L48)
 
 ### I20 • File Hunter
 
 Choose description, kinds & date range
 
-- [src/components/forest/store.js:1542–1564](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1542-L1564)
+- [src/components/islands/store.js:1542–1564](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1542-L1564)
 
 ### I21 • Main file search
 
 AI plan/rank; Spotlight or folder walk — Plain matching fallback
 
-- [electron/forest-ai.js:510–595](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/forest-ai.js#L510-L595)
+- [electron/island-ai.js:510–595](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/island-ai.js#L510-L595)
 
 ### I22 • Review found files
 
 Hunter panel + journal; select results — Only chosen results are added
 
-- [src/components/forest/store.js:1566–1584](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1566-L1584)
-- [src/components/forest/store.js:1489–1500](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1489-L1500)
-- [src/components/forest/IslandsJournal.jsx:67–85](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/IslandsJournal.jsx#L67-L85)
+- [src/components/islands/store.js:1566–1584](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1566-L1584)
+- [src/components/islands/store.js:1489–1500](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1489-L1500)
+- [src/components/islands/IslandsJournal.jsx:67–85](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/IslandsJournal.jsx#L67-L85)
 
 ### I23 • Island file cards
 
 Add references; save through same store
 
-- [src/components/forest/store.js:1021–1053](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1021-L1053)
-- [src/components/forest/store.js:1489–1500](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/store.js#L1489-L1500)
+- [src/components/islands/store.js:1021–1053](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1021-L1053)
+- [src/components/islands/store.js:1489–1500](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/store.js#L1489-L1500)
 
 ## Additional revision evidence
 
@@ -1102,6 +1102,6 @@ Add references; save through same store
 - [electron/agent/models.js:69–99](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/agent/models.js#L69-L99)
 - [electron/agent/models.js:237–314](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/agent/models.js#L237-L314)
 - [electron/logger.js:46–61](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/electron/logger.js#L46-L61)
-- [src/components/forest/catalog.js:1–19](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/catalog.js#L1-L19)
-- [src/components/forest/DeskView.jsx:26–67](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/forest/DeskView.jsx#L26-L67)
+- [src/components/islands/catalog.js:1–19](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/catalog.js#L1-L19)
+- [src/components/islands/DeskView.jsx:26–67](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/islands/DeskView.jsx#L26-L67)
 - [src/components/journals/JournalPanel.jsx:598–614](https://github.com/axgoodhart/briizos-local/blob/29fb0324d56af7a326abc11efde7890bec62f236/src/components/journals/JournalPanel.jsx#L598-L614)

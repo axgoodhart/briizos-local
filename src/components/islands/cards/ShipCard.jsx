@@ -16,7 +16,7 @@ export default function ShipCard({ island, card }) {
     updateCardData(island.id, card.id, { shipped: true, shippedAt: at });
     updateIsland(island.id, { stage: island.stages.length - 1 });
     addEntry(island.id, 'ship', `Shipped${card.data.url ? `: ${card.data.url}` : '.'}`);
-    logger.info('forest.card', `“${island.name}” was marked shipped`, { card: card.title, link: card.data.url || 'none' });
+    logger.info('island.card', `“${island.name}” was marked shipped`, { card: card.title, link: card.data.url || 'none' });
   };
 
   if (card.data.shipped) {
@@ -25,7 +25,7 @@ export default function ShipCard({ island, card }) {
         <span className="fo-ship__mark fo-glyph">{GLYPH.check}</span>
         <p className="fo-ship__when">Shipped {whenShort(card.data.shippedAt)}</p>
         {card.data.url && (
-          <button type="button" className="fo-link" onClick={() => window.api.forestOpenExternal?.(card.data.url)}>{card.data.url}</button>
+          <button type="button" className="fo-link" onClick={() => window.api.islandOpenExternal?.(card.data.url)}>{card.data.url}</button>
         )}
         <button type="button" className="fo-btn" onClick={() => updateCardData(island.id, card.id, { shipped: false, shippedAt: null })}>Reopen</button>
       </div>

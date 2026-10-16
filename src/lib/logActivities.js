@@ -46,7 +46,7 @@ export function facetForLog(log) {
   if (matches([
     'agent', 'agent-jobs', 'automation', 'task-automation', 'langgraph',
   ])) return 'auto';
-  if (matches(['task', 'tasks', 'forest', 'organizer', 'planner', 'plans'])) return 'plans';
+  if (matches(['task', 'tasks', 'island', 'organizer', 'planner', 'plans'])) return 'plans';
   return 'ui';
 }
 

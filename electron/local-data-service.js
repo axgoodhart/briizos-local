@@ -5,7 +5,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const Database = require('better-sqlite3');
 const v = require('./local-data/validation');
-const { FOREST_MAX_PROJECTS, FOREST_MAX_FILES_PER_PROJECT, FOREST_MAX_CHANGES, FOREST_MAX_DESKS, FOREST_MAX_TEMPLATES } = require('./local-data/limits');
+const { ISLAND_MAX_PROJECTS, ISLAND_MAX_FILES_PER_PROJECT, ISLAND_MAX_CHANGES, ISLAND_MAX_DESKS, ISLAND_MAX_TEMPLATES } = require('./local-data/limits');
 const { BUILT_IN_MODELS, RETIRED_BUILT_IN_MODEL_NAMES } = require('./built-in-models');
 const { validateThemeLibrary } = require('./theme-library-validation');
 const themeContract = require('../src/theme/themeContract.json');
@@ -799,9 +799,9 @@ class LocalDataService extends EventEmitter {
                SELECT 1 FROM media_queue_items q WHERE q.file_id = f.id AND q.deleted_at IS NULL
              ) AS in_media_queue,
              (
-               SELECT COUNT(*) FROM forest_files ff
+               SELECT COUNT(*) FROM island_files ff
                WHERE ff.file_id = f.id AND ff.deleted_at IS NULL
-             ) AS forest_project_count
+             ) AS island_project_count
       FROM external_files f
       WHERE ${clauses.join(' AND ')}
       ORDER BY f.updated_at DESC LIMIT ?
@@ -1154,7 +1154,7 @@ class LocalDataService extends EventEmitter {
 
   listTasks(input = {}) {
     this._assertReady();
-    v.object(input, 'task filters', ['projectId', 'forestProjectId', 'sourceKey', 'status', 'includeDeleted', 'limit']);
+    v.object(input, 'task filters', ['projectId', 'islandProjectId', 'sourceKey', 'status', 'includeDeleted', 'limit']);
     const includeDeleted = input.includeDeleted === undefined
       ? false
       : v.boolean(input.includeDeleted, 'includeDeleted');
@@ -1165,9 +1165,9 @@ class LocalDataService extends EventEmitter {
       clauses.push('project_id = ?');
       params.push(v.identifier(input.projectId, 'projectId'));
     }
-    if (input.forestProjectId !== undefined) {
-      clauses.push('forest_project_id = ?');
-      params.push(v.identifier(input.forestProjectId, 'forestProjectId'));
+    if (input.islandProjectId !== undefined) {
+      clauses.push('island_project_id = ?');
+      params.push(v.identifier(input.islandProjectId, 'islandProjectId'));
     }
     if (input.sourceKey !== undefined) {
       clauses.push('source_key = ?');
@@ -1180,7 +1180,7 @@ class LocalDataService extends EventEmitter {
     const limit = input.limit === undefined ? 500 : v.integer(input.limit, 'limit', { min: 1, max: 2000 });
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     return this.db.prepare(`
-      SELECT id, project_id, forest_project_id, source_key, title, description, status, priority, due_at, automated,
+      SELECT id, project_id, island_project_id, source_key, title, description, status, priority, due_at, automated,
              created_at, updated_at, revision, deleted_at
       FROM tasks ${where}
       ORDER BY created_at DESC LIMIT ?
@@ -1195,7 +1195,7 @@ class LocalDataService extends EventEmitter {
     this._assertReady();
     taskId = v.identifier(taskId, 'taskId');
     const task = this.db.prepare(`
-      SELECT id, project_id, forest_project_id, source_key, title, description, status, priority, due_at, automated,
+      SELECT id, project_id, island_project_id, source_key, title, description, status, priority, due_at, automated,
              created_at, updated_at, revision, deleted_at
       FROM tasks WHERE id = ? AND deleted_at IS NULL
     `).get(taskId);
@@ -1240,12 +1240,12 @@ class LocalDataService extends EventEmitter {
 
   createTask(input) {
     v.object(input, 'task', [
-      'projectId', 'forestProjectId', 'sourceKey', 'title', 'description', 'status', 'priority', 'dueAt', 'automated',
+      'projectId', 'islandProjectId', 'sourceKey', 'title', 'description', 'status', 'priority', 'dueAt', 'automated',
     ]);
     const row = {
       id: id(),
       projectId: v.optional(input.projectId, (value) => this._normalizeProjectId(value)) ?? null,
-      forestProjectId: v.optional(input.forestProjectId, (value) => this._normalizeForestProjectId(value)) ?? null,
+      islandProjectId: v.optional(input.islandProjectId, (value) => this._normalizeIslandProjectId(value)) ?? null,
       sourceKey: v.optional(
         input.sourceKey,
         (value) => v.string(value, 'sourceKey', { nullable: true, max: 500 }),
@@ -1260,10 +1260,10 @@ class LocalDataService extends EventEmitter {
     return this._write('tasks', (timestamp) => {
       this.db.prepare(`
         INSERT INTO tasks (
-          id, project_id, forest_project_id, source_key, title, description, status, priority, due_at, automated,
+          id, project_id, island_project_id, source_key, title, description, status, priority, due_at, automated,
           created_at, updated_at, revision
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `).run(row.id, row.projectId, row.forestProjectId, row.sourceKey, row.title, row.description, row.status, row.priority,
+      `).run(row.id, row.projectId, row.islandProjectId, row.sourceKey, row.title, row.description, row.status, row.priority,
         row.dueAt, row.automated ? 1 : 0, timestamp, timestamp);
       return { row: toBooleanRow(this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(row.id), ['automated']) };
     });
@@ -1273,11 +1273,11 @@ class LocalDataService extends EventEmitter {
     taskId = v.identifier(taskId, 'taskId');
     expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
     v.object(patch, 'task patch', [
-      'projectId', 'forestProjectId', 'title', 'description', 'status', 'priority', 'dueAt', 'automated',
+      'projectId', 'islandProjectId', 'title', 'description', 'status', 'priority', 'dueAt', 'automated',
     ]);
     const columnMap = {
       projectId: ['project_id', (value) => this._normalizeProjectId(value)],
-      forestProjectId: ['forest_project_id', (value) => this._normalizeForestProjectId(value)],
+      islandProjectId: ['island_project_id', (value) => this._normalizeIslandProjectId(value)],
       title: ['title', (value) => v.string(value, 'title', { required: true, max: 500 })],
       description: ['description', (value) => v.string(value, 'description', { max: 50000 })],
       status: ['status', (value) => v.oneOf(value, 'status', TASK_STATUSES)],
@@ -1338,7 +1338,7 @@ class LocalDataService extends EventEmitter {
     const rows = this.db.prepare(`
       SELECT p.*, t.title AS task_title, t.description AS task_description,
              t.status AS task_status, t.priority AS task_priority, t.due_at AS task_due_at,
-             t.project_id AS task_project_id, t.forest_project_id AS task_forest_project_id,
+             t.project_id AS task_project_id, t.island_project_id AS task_island_project_id,
              t.revision AS task_revision, t.deleted_at AS task_deleted_at
       FROM placements p
       JOIN tasks t ON t.id = p.ref_id
@@ -1951,7 +1951,7 @@ class LocalDataService extends EventEmitter {
       };
     });
 
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const position = this.db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS position FROM journals WHERE deleted_at IS NULL').get().position;
       this.db.prepare(`
         INSERT INTO journals (id, title, cover_key, tags_json, page_key, position, created_at, updated_at, revision, mode)
@@ -1981,7 +1981,7 @@ class LocalDataService extends EventEmitter {
     const cover = patch.cover === undefined ? undefined : v.string(patch.cover, 'cover', { max: 500 });
     const page = patch.page === undefined ? undefined : v.string(patch.page, 'page', { max: 500 });
     const settingsJson = patch.settings === undefined ? undefined : this._jsonValue(patch.settings, 'settings', 100000);
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const current = this.db.prepare('SELECT * FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
       if (!current) v.fail('NOT_FOUND', 'Journal not found');
       this.db.prepare(`
@@ -2006,7 +2006,7 @@ class LocalDataService extends EventEmitter {
 
   archiveJournal(journalId) {
     journalId = v.identifier(journalId, 'journalId');
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const journal = this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
       if (!journal) v.fail('NOT_FOUND', 'Journal not found');
       this.db.prepare('UPDATE folios SET deleted_at = ?, updated_at = ?, archive_batch = ?, revision = revision + 1 WHERE journal_id = ? AND deleted_at IS NULL')
@@ -2034,7 +2034,7 @@ class LocalDataService extends EventEmitter {
     const type = v.optional(folio.type, (value) => v.string(value, 'type', { required: true, max: 100 })) ?? 'notes';
     const title = v.optional(folio.title, (value) => v.string(value, 'title', { max: 1000 })) ?? '';
     const contentJson = this._jsonValue(folio.content ?? {}, 'content', 5000000);
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const journal = this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId);
       if (!journal) v.fail('NOT_FOUND', 'Journal not found');
       const after = afterId
@@ -2062,7 +2062,7 @@ class LocalDataService extends EventEmitter {
     if (!Object.keys(patch).length) v.fail('INVALID_INPUT', 'At least one folio change is required');
     const title = patch.title === undefined ? undefined : v.string(patch.title, 'title', { max: 1000 });
     const contentJson = patch.content === undefined ? undefined : this._jsonValue(patch.content, 'content', 5000000);
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const current = this.db.prepare('SELECT * FROM folios WHERE id = ? AND deleted_at IS NULL').get(folioId);
       if (!current) v.fail('NOT_FOUND', 'Folio not found');
       this.db.prepare(`
@@ -2074,7 +2074,7 @@ class LocalDataService extends EventEmitter {
 
   archiveFolio(folioId) {
     folioId = v.identifier(folioId, 'folioId');
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const current = this.db.prepare('SELECT journal_id FROM folios WHERE id = ? AND deleted_at IS NULL').get(folioId);
       if (!current) v.fail('NOT_FOUND', 'Folio not found');
       this.db.prepare('UPDATE folios SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ?')
@@ -2164,7 +2164,7 @@ class LocalDataService extends EventEmitter {
     const journalId = input.journalId == null ? null : v.identifier(input.journalId, 'journalId');
     const statusDot = input.statusDot == null ? null : v.string(input.statusDot, 'statusDot', { max: 100 });
     const media = input.media ?? [];
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       if (journalId && !this.db.prepare('SELECT id FROM journals WHERE id = ? AND deleted_at IS NULL').get(journalId)) {
         v.fail('INVALID_RELATION', 'journalId must refer to an active journal');
       }
@@ -2186,7 +2186,7 @@ class LocalDataService extends EventEmitter {
     const body = patch.body === undefined ? undefined : v.string(patch.body, 'body', { max: 200000 });
     const tagsJson = patch.tags === undefined ? undefined : JSON.stringify(v.stringArray(patch.tags, 'tags', { maxItems: 100, maxLength: 200 }));
     const notes = patch.notes === undefined ? undefined : v.string(patch.notes, 'notes', { nullable: true, max: 500000 });
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const current = this.db.prepare('SELECT * FROM notefall_posts WHERE id = ? AND deleted_at IS NULL').get(postId);
       if (!current) v.fail('NOT_FOUND', 'Notefalls post not found');
       this.db.prepare(`
@@ -2200,7 +2200,7 @@ class LocalDataService extends EventEmitter {
 
   archiveNotefallPost(postId) {
     postId = v.identifier(postId, 'postId');
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       if (!this.db.prepare('SELECT id FROM notefall_posts WHERE id = ? AND deleted_at IS NULL').get(postId)) {
         v.fail('NOT_FOUND', 'Notefalls post not found');
       }
@@ -2212,16 +2212,16 @@ class LocalDataService extends EventEmitter {
     });
   }
 
-  getForestState() {
+  getIslandState() {
     this._assertReady();
-    const saved = this.db.prepare('SELECT value_json FROM forest_view_state WHERE singleton_id = 1').get();
+    const saved = this.db.prepare('SELECT value_json FROM island_view_state WHERE singleton_id = 1').get();
     const view = saved ? JSON.parse(saved.value_json) : {};
-    const projects = this.db.prepare('SELECT * FROM forest_projects WHERE deleted_at IS NULL ORDER BY created_at')
+    const projects = this.db.prepare('SELECT * FROM island_projects WHERE deleted_at IS NULL ORDER BY created_at')
       .all().map((project) => {
         const data = JSON.parse(project.data_json);
         const files = this.db.prepare(`
           SELECT ff.*, ef.path, ef.display_name, ef.kind, ef.size, ef.modified_at
-          FROM forest_files ff JOIN external_files ef ON ef.id = ff.file_id
+          FROM island_files ff JOIN external_files ef ON ef.id = ff.file_id
           WHERE ff.project_id = ? AND ff.deleted_at IS NULL AND ef.deleted_at IS NULL
           ORDER BY ff.position, ff.created_at
         `).all(project.id).map((file) => ({
@@ -2256,10 +2256,10 @@ class LocalDataService extends EventEmitter {
     };
   }
 
-  updateForestProjectScoring(projectId, expectedRevision, patch = {}) {
+  updateIslandProjectScoring(projectId, expectedRevision, patch = {}) {
     projectId = v.identifier(projectId, 'projectId');
     expectedRevision = v.integer(expectedRevision, 'expectedRevision', { min: 1 });
-    v.object(patch, 'Forest project scoring changes', ['deadline', 'importance', 'size', 'relevance']);
+    v.object(patch, 'Island project scoring changes', ['deadline', 'importance', 'size', 'relevance']);
     const keys = Object.keys(patch);
     if (!keys.length) v.fail('INVALID_INPUT', 'At least one scoring change is required');
 
@@ -2294,20 +2294,20 @@ class LocalDataService extends EventEmitter {
       normalized.relevance = relevance == null || relevance.trim() === '' ? null : relevance.trim();
     }
 
-    return this._write('forest', (timestamp) => {
-      this._requireCurrent('forest_projects', projectId, expectedRevision);
-      const current = this.db.prepare('SELECT * FROM forest_projects WHERE id = ?').get(projectId);
+    return this._write('island', (timestamp) => {
+      this._requireCurrent('island_projects', projectId, expectedRevision);
+      const current = this.db.prepare('SELECT * FROM island_projects WHERE id = ?').get(projectId);
       const data = JSON.parse(current.data_json);
       Object.entries(normalized).forEach(([key, value]) => {
         if (value == null) delete data[key];
         else data[key] = value;
       });
       this.db.prepare(`
-        UPDATE forest_projects
+        UPDATE island_projects
         SET data_json = ?, updated_at = ?, revision = revision + 1
         WHERE id = ?
-      `).run(this._jsonValue(data, 'Forest project data', 5000000), timestamp, projectId);
-      const updated = this.db.prepare('SELECT * FROM forest_projects WHERE id = ?').get(projectId);
+      `).run(this._jsonValue(data, 'Island project data', 5000000), timestamp, projectId);
+      const updated = this.db.prepare('SELECT * FROM island_projects WHERE id = ?').get(projectId);
       const updatedData = JSON.parse(updated.data_json);
       return {
         row: {
@@ -2323,8 +2323,8 @@ class LocalDataService extends EventEmitter {
     });
   }
 
-  saveForestState(state = {}) {
-    v.object(state, 'Forest state', ['version', 'viewport', 'hunterDirs', 'changes', 'projects', 'desks', 'activeDeskId', 'templates']);
+  saveIslandState(state = {}) {
+    v.object(state, 'Island state', ['version', 'viewport', 'hunterDirs', 'changes', 'projects', 'desks', 'activeDeskId', 'templates']);
     v.object(state.viewport || {}, 'viewport', ['x', 'y', 'scale']);
     const viewport = {
       x: v.number(state.viewport?.x ?? 260, 'viewport.x', { min: -10000000, max: 10000000 }),
@@ -2333,34 +2333,34 @@ class LocalDataService extends EventEmitter {
     };
     const hunterDirs = state.hunterDirs === undefined ? [] : v.stringArray(state.hunterDirs, 'hunterDirs', { maxItems: 100, maxLength: 4096 });
     const changes = state.changes ?? [];
-    if (!Array.isArray(changes) || changes.length > FOREST_MAX_CHANGES) {
-      v.fail('INVALID_INPUT', `changes must be a list with at most ${FOREST_MAX_CHANGES} items`);
+    if (!Array.isArray(changes) || changes.length > ISLAND_MAX_CHANGES) {
+      v.fail('INVALID_INPUT', `changes must be a list with at most ${ISLAND_MAX_CHANGES} items`);
     }
-    this._jsonValue(changes, 'Forest changes history', 8000000);
+    this._jsonValue(changes, 'Island changes history', 8000000);
     const desks = state.desks ?? [];
-    if (!Array.isArray(desks) || desks.length > FOREST_MAX_DESKS) {
-      v.fail('INVALID_INPUT', `desks must be a list with at most ${FOREST_MAX_DESKS} items`);
+    if (!Array.isArray(desks) || desks.length > ISLAND_MAX_DESKS) {
+      v.fail('INVALID_INPUT', `desks must be a list with at most ${ISLAND_MAX_DESKS} items`);
     }
-    this._jsonValue(desks, 'Forest desks', 4000000);
+    this._jsonValue(desks, 'Island desks', 4000000);
     const activeDeskId = state.activeDeskId == null ? null : v.identifier(state.activeDeskId, 'activeDeskId');
     const templates = state.templates ?? { islands: [], cards: [] };
-    v.object(templates, 'Forest templates', ['islands', 'cards']);
+    v.object(templates, 'Island templates', ['islands', 'cards']);
     const templateCount = (templates.islands?.length || 0) + (templates.cards?.length || 0);
-    if (!Array.isArray(templates.islands || []) || !Array.isArray(templates.cards || []) || templateCount > FOREST_MAX_TEMPLATES) {
-      v.fail('INVALID_INPUT', `templates must hold island and card lists with at most ${FOREST_MAX_TEMPLATES} items in total`);
+    if (!Array.isArray(templates.islands || []) || !Array.isArray(templates.cards || []) || templateCount > ISLAND_MAX_TEMPLATES) {
+      v.fail('INVALID_INPUT', `templates must hold island and card lists with at most ${ISLAND_MAX_TEMPLATES} items in total`);
     }
-    this._jsonValue(templates, 'Forest templates', 8000000);
+    this._jsonValue(templates, 'Island templates', 8000000);
     const projects = state.projects ?? [];
-    if (!Array.isArray(projects) || projects.length > FOREST_MAX_PROJECTS) {
-      v.fail('INVALID_INPUT', `projects must be a list with at most ${FOREST_MAX_PROJECTS} items`);
+    if (!Array.isArray(projects) || projects.length > ISLAND_MAX_PROJECTS) {
+      v.fail('INVALID_INPUT', `projects must be a list with at most ${ISLAND_MAX_PROJECTS} items`);
     }
     const normalized = projects.map((project, projectIndex) => {
       if (!project || typeof project !== 'object' || Array.isArray(project)) v.fail('INVALID_INPUT', `projects[${projectIndex}] must be an object`);
       const projectId = v.identifier(project.id, `projects[${projectIndex}].id`);
       const projectFiles = project.files ?? [];
       if (!Array.isArray(projectFiles)) v.fail('INVALID_INPUT', `projects[${projectIndex}].files must be a list`);
-      if (projectFiles.length > FOREST_MAX_FILES_PER_PROJECT) {
-        v.fail('INVALID_INPUT', `projects[${projectIndex}] ("${project.name}") has ${projectFiles.length} files — max ${FOREST_MAX_FILES_PER_PROJECT} per project`);
+      if (projectFiles.length > ISLAND_MAX_FILES_PER_PROJECT) {
+        v.fail('INVALID_INPUT', `projects[${projectIndex}] ("${project.name}") has ${projectFiles.length} files — max ${ISLAND_MAX_FILES_PER_PROJECT} per project`);
       }
       const projectData = { ...project };
       delete projectData.id;
@@ -2403,55 +2403,55 @@ class LocalDataService extends EventEmitter {
       };
     });
 
-    return this._write('forest', (timestamp) => {
+    return this._write('island', (timestamp) => {
       const activeProjectIds = [];
       normalized.forEach((project) => {
         activeProjectIds.push(project.id);
         this.db.prepare(`
-          INSERT INTO forest_projects (id, title, position_x, position_y, data_json, created_at, updated_at, revision, deleted_at)
+          INSERT INTO island_projects (id, title, position_x, position_y, data_json, created_at, updated_at, revision, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, 1, NULL)
           ON CONFLICT(id) DO UPDATE SET title = excluded.title, position_x = excluded.position_x,
             position_y = excluded.position_y, data_json = excluded.data_json, updated_at = excluded.updated_at,
-            revision = forest_projects.revision + 1, deleted_at = NULL
+            revision = island_projects.revision + 1, deleted_at = NULL
         `).run(project.id, project.title, project.x, project.y, project.dataJson, timestamp, timestamp);
         const activeBoardIds = [];
         project.files.forEach((file, position) => {
           activeBoardIds.push(file.boardId);
           const externalId = this._upsertExternalFile(file.external, timestamp);
-          const existing = this.db.prepare('SELECT id FROM forest_files WHERE project_id = ? AND board_file_id = ?').get(project.id, file.boardId);
+          const existing = this.db.prepare('SELECT id FROM island_files WHERE project_id = ? AND board_file_id = ?').get(project.id, file.boardId);
           const relationId = existing?.id || id();
           this.db.prepare(`
-            INSERT INTO forest_files (id, project_id, file_id, board_file_id, position, tags_json, data_json, created_at, updated_at, revision, deleted_at)
+            INSERT INTO island_files (id, project_id, file_id, board_file_id, position, tags_json, data_json, created_at, updated_at, revision, deleted_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)
             ON CONFLICT(project_id, board_file_id) DO UPDATE SET file_id = excluded.file_id, position = excluded.position,
               tags_json = excluded.tags_json, data_json = excluded.data_json, updated_at = excluded.updated_at,
-              revision = forest_files.revision + 1, deleted_at = NULL
+              revision = island_files.revision + 1, deleted_at = NULL
           `).run(relationId, project.id, externalId, file.boardId, position, file.tagsJson, file.dataJson, timestamp, timestamp);
         });
         if (activeBoardIds.length) {
           const placeholders = activeBoardIds.map(() => '?').join(', ');
-          this.db.prepare(`UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL AND board_file_id NOT IN (${placeholders})`)
+          this.db.prepare(`UPDATE island_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL AND board_file_id NOT IN (${placeholders})`)
             .run(timestamp, timestamp, project.id, ...activeBoardIds);
         } else {
-          this.db.prepare('UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL')
+          this.db.prepare('UPDATE island_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE project_id = ? AND deleted_at IS NULL')
             .run(timestamp, timestamp, project.id);
         }
       });
       if (activeProjectIds.length) {
         const placeholders = activeProjectIds.map(() => '?').join(', ');
-        this.db.prepare(`UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL AND project_id NOT IN (${placeholders})`)
+        this.db.prepare(`UPDATE island_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL AND project_id NOT IN (${placeholders})`)
           .run(timestamp, timestamp, ...activeProjectIds);
-        this.db.prepare(`UPDATE forest_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL AND id NOT IN (${placeholders})`)
+        this.db.prepare(`UPDATE island_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL AND id NOT IN (${placeholders})`)
           .run(timestamp, timestamp, ...activeProjectIds);
       } else {
-        this.db.prepare('UPDATE forest_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
-        this.db.prepare('UPDATE forest_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
+        this.db.prepare('UPDATE island_files SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
+        this.db.prepare('UPDATE island_projects SET deleted_at = ?, updated_at = ?, revision = revision + 1 WHERE deleted_at IS NULL').run(timestamp, timestamp);
       }
       const viewJson = JSON.stringify({ version: 2, viewport, hunterDirs, changes, desks, activeDeskId, templates });
       this.db.prepare(`
-        INSERT INTO forest_view_state (singleton_id, value_json, updated_at, revision) VALUES (1, ?, ?, 1)
+        INSERT INTO island_view_state (singleton_id, value_json, updated_at, revision) VALUES (1, ?, ?, 1)
         ON CONFLICT(singleton_id) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at,
-          revision = forest_view_state.revision + 1
+          revision = island_view_state.revision + 1
       `).run(viewJson, timestamp);
       return { ok: true };
     });
@@ -4158,13 +4158,13 @@ class LocalDataService extends EventEmitter {
     return projectId;
   }
 
-  _normalizeForestProjectId(value) {
-    const projectId = v.identifier(value, 'forestProjectId', { nullable: true });
+  _normalizeIslandProjectId(value) {
+    const projectId = v.identifier(value, 'islandProjectId', { nullable: true });
     if (projectId == null) return null;
     const project = this.db.prepare(`
-      SELECT id FROM forest_projects WHERE id = ? AND deleted_at IS NULL
+      SELECT id FROM island_projects WHERE id = ? AND deleted_at IS NULL
     `).get(projectId);
-    if (!project) v.fail('INVALID_RELATION', 'forestProjectId must refer to an active Forest project');
+    if (!project) v.fail('INVALID_RELATION', 'islandProjectId must refer to an active Island project');
     return projectId;
   }
 
@@ -4269,7 +4269,7 @@ class LocalDataService extends EventEmitter {
         priority: row.task_priority,
         due_at: row.task_due_at,
         project_id: row.task_project_id || null,
-        forest_project_id: row.task_forest_project_id || null,
+        island_project_id: row.task_island_project_id || null,
         revision: row.task_revision,
       },
       created_at: row.created_at,
@@ -5138,7 +5138,7 @@ class LocalDataService extends EventEmitter {
       ? []
       : v.stringArray(input.tags, 'tags', { maxItems: 100, maxLength: 200 });
 
-    return this._writeDomains(['rewind', 'forest'], (timestamp) => {
+    return this._writeDomains(['rewind', 'island'], (timestamp) => {
       const session = this._getRewindSessionRow(sessionId);
       if (!session) v.fail('NOT_FOUND', 'Session not found');
 

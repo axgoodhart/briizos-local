@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   addEntry, attach, canUndoTags, detach, getIsland, getState, markChangesSeen, openHunt, removeEntry, setChapter, setHunt,
-  undoTagChange, updateIsland, useForestVersion,
+  undoTagChange, updateIsland, useIslandVersion,
 } from './store';
 import { GLYPH, cardType } from './catalog';
 import { isoDay, uid, whenShort } from './util';
@@ -187,7 +187,7 @@ function ChapterView({ islands, single }) {
 }
 
 export default function IslandsJournal({ islandId = null, onClose = null, embedded = false }) {
-  useForestVersion();
+  useIslandVersion();
   const { projects, loaded, ui } = getState();
   const [tab, setTab] = useState(ui.journalTab || 'log');
   const single = islandId ? getIsland(islandId) : null;
@@ -219,7 +219,7 @@ export default function IslandsJournal({ islandId = null, onClose = null, embedd
   );
 }
 
-// The islands journal opened from the Journals app: loads Forest's data while open.
+// The islands journal opened from the Journals app: loads Island's data while open.
 export function IslandsJournalStandalone({ onClose }) {
   useEffect(() => { attach(); return () => detach(); }, []);
   return <IslandsJournal embedded onClose={onClose} />;

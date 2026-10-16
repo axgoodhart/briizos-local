@@ -709,7 +709,7 @@ const tools = {
     },
   },
 
-  updateForestProjectScoring: {
+  updateIslandProjectScoring: {
     requiresConfirmation: true,
     description: 'Save optional prioritization signals on a project (an island in Islands)',
     parameters: {
@@ -720,7 +720,7 @@ const tools = {
       relevance: { type: 'string', description: 'How the project relates to current goals, or null to clear', optional: true },
     },
     handler: async (params) => {
-      const state = await window.api.forestLoadState();
+      const state = await window.api.islandLoadState();
       const project = (state?.projects || []).find((candidate) => candidate.id === params.project_id);
       if (!project) throw new Error(`Island "${params.project_id}" not found`);
       if (!project.revision) throw new Error('Island revision is unavailable');
@@ -729,7 +729,7 @@ const tools = {
         if (params[field] !== undefined) patch[field] = params[field];
       });
       if (!Object.keys(patch).length) throw new Error('No scoring fields were supplied');
-      const result = await localData().forestProjects.updateScoring(project.id, project.revision, patch);
+      const result = await localData().islandProjects.updateScoring(project.id, project.revision, patch);
       logger.info('agent.prioritize', 'Island priority signals saved', {
         projectId: project.id,
         project: project.name,

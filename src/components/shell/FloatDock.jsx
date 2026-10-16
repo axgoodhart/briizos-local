@@ -7,7 +7,7 @@ import ShellModeSwitch from './ShellModeSwitch';
 export const DOCK_FLOAT_APP_BY_ITEM = Object.freeze({
   chat: 'interaction',
   journal: 'journal',
-  forest: 'forest',
+  island: 'island',
   notefalls: 'notefalls',
   sources: 'sources',
   tasks: 'tasks',

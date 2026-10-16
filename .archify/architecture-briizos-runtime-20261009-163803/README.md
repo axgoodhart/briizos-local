@@ -4,7 +4,7 @@ Open [briizos-runtime.html](briizos-runtime.html). Refreshed 15 October 2026 for
 
 Choose **PATH → Islands workspace & direct AI** for Desk → Island → Card, the shared Islands journal, task agents, referenced and owned files, dated archives, terminal/webview cards, File Hunter and automatic tags. The other paths retain the chat agent, screen-memory assistants, Execubriiz, Codex, cloud gateway and persistence map. **SRC** links point to the source revision in the snapshot. **LENS**, themes and exports remain available.
 
-Islands is the visible name. Internal `forest` paths, IDs, IPC methods, database tables and theme keys intentionally remain for saved-data compatibility. The map distinguishes the shared task permission flow from direct Terminal-card execution, and the Islands journal from Execubriiz.
+Islands names now carry through the app, renderer, IPC, database and theme selectors. Migration 017 updates saved project tables and task links in place. The map distinguishes the shared task permission flow from direct Terminal-card execution, and the Islands journal from Execubriiz.
 
 ## Current source and artifact
 
@@ -13,7 +13,7 @@ Islands is the visible name. Internal `forest` paths, IDs, IPC methods, database
 - [Source snapshot and starting pending changes](source-snapshot.json)
 - [Refresh record](refresh-record.json)
 
-The HTML is generated from the current model. Per project instructions, no verification suite or browser review accompanies this refresh. The refresh record records file identities and this limitation; it is not a passing validation receipt.
+The authoring model and HTML were updated together for the Islands rename. The source snapshot identifies the code revision behind the citations. Per project instructions, no finalize, browser check, or visual review accompanies this refresh; the refresh record is not a validation receipt.
 
 ## Previous map and evidence
 

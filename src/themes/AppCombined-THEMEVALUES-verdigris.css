@@ -636,7 +636,7 @@
   font-weight: 700;
 }
 
-.add-from-sources i.forest {
+.add-from-sources i.island {
   background: rgba(173, 207, 175, 0.14);
   color: #d9f9d1;
 }
@@ -7309,7 +7309,7 @@ body {
   color: #b9eaa3;
 }
 
-#forest-icon {
+#island-icon {
   color: #ceffd6;
 }
 
@@ -7384,7 +7384,7 @@ body {
   --cb-accent: #b9eaa3;
 }
 
-.cb-toggle[data-dock-item="forest"] {
+.cb-toggle[data-dock-item="island"] {
   --cb-accent: #ceffd6;
 }
 
@@ -7476,7 +7476,7 @@ body {
 .control-bar-dock.control-bar-dock--macos #notes-icon,
 .control-bar-dock.control-bar-dock--macos #canvases-icon,
 .control-bar-dock.control-bar-dock--macos #journal-icon,
-.control-bar-dock.control-bar-dock--macos #forest-icon,
+.control-bar-dock.control-bar-dock--macos #island-icon,
 .control-bar-dock.control-bar-dock--macos #notefalls-icon,
 .control-bar-dock.control-bar-dock--macos #sources-icon,
 .control-bar-dock.control-bar-dock--macos #tasks-icon {
@@ -14470,7 +14470,7 @@ button.jr-card {
   color: rgba(255, 255, 255, 0.35);
 }
 
-.forest-shell {
+.island-shell {
   --glass: rgba(255, 255, 255, 0.08);
   --glass-3: rgba(255, 255, 255, 0.3);
   --border: rgba(255, 255, 255, 0.12);
@@ -14481,23 +14481,23 @@ button.jr-card {
   color: var(--text);
 }
 
-.forest-shell::before {
+.island-shell::before {
   opacity: 0.25;
   background-image: radial-gradient(rgba(255, 255, 255, 0.15) 0.6px, transparent 0.7px);
   background-size: 18px 18px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 1));
 }
 
-.forest-shell button,
-.forest-shell input {
+.island-shell button,
+.island-shell input {
   font: inherit;
 }
 
-.forest-shell button {
+.island-shell button {
   border: 0;
 }
 
-.forest-shell input {
+.island-shell input {
   color: var(--text);
 }
 
@@ -14674,14 +14674,14 @@ button.jr-card {
 }
 
 .project-card {
-  border-radius: var(--ui-forest-card-radius, 10px 80px 2px 130px);
+  border-radius: var(--ui-island-card-radius, 10px 80px 2px 130px);
   corner-shape: var(--ui-corner-shape);
   border: 1.2px solid rgba(128, 255, 190, 1);
   background: linear-gradient(180deg, rgba(44, 55, 49, 0.86), rgba(23, 27, 26, 0.78));
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
 }
 
-.viewer-timeline-action-btn.tl-add-toggle.forest-active {
+.viewer-timeline-action-btn.tl-add-toggle.island-active {
   background: var(--accent, #8cdfb0);
   color: #fff;
   border-color: transparent;
@@ -14734,23 +14734,23 @@ button.jr-card {
   color: rgba(255, 255, 255, 0.4);
 }
 
-.cv-slideout .forest-action-btn {
+.cv-slideout .island-action-btn {
   background: rgba(255, 255, 255, 0.07);
   color: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
   font-size: 13px;
 }
 
-.cv-slideout .forest-action-btn:hover {
+.cv-slideout .island-action-btn:hover {
   background: rgba(255, 255, 255, 0.13);
 }
 
-.cv-slideout .forest-action-btn.forest-primary {
+.cv-slideout .island-action-btn.island-primary {
   background: var(--accent, #8cdfb0);
   color: #fff;
 }
 
-.cv-slideout .forest-action-btn[disabled] {
+.cv-slideout .island-action-btn[disabled] {
   opacity: 0.5;
 }
 
@@ -14767,7 +14767,7 @@ button.jr-card {
   color: #fff;
 }
 
-.cv-slideout .forest-file-name {
+.cv-slideout .island-file-name {
   font-size: 13px;
   font-weight: 550;
 }
@@ -14799,7 +14799,7 @@ button.jr-card {
   color: rgba(255, 255, 255, 0.6);
 }
 
-.hunter-type-chip.forest-active {
+.hunter-type-chip.island-active {
   background: var(--accent, #8cdfb0);
   border-color: transparent;
   color: #fff;
@@ -14854,7 +14854,7 @@ button.jr-card {
   background: rgba(255, 255, 255, 0.07);
 }
 
-.hunter-result.forest-selected {
+.hunter-result.island-selected {
   border-color: var(--accent, #8cdfb0);
   background: rgba(140, 223, 176, 0.08);
 }
@@ -14975,13 +14975,13 @@ button.jr-card {
   line-height: 1.6;
 }
 
-.forest-drop-overlay {
+.island-drop-overlay {
   background: rgba(10, 13, 14, 0.52);
   backdrop-filter: blur(10px);
   opacity: 1;
 }
 
-.forest-drop-overlay.forest-hidden {
+.island-drop-overlay.island-hidden {
   opacity: 0;
 }
 
@@ -15081,7 +15081,7 @@ button.jr-card {
   fill: #e3ffc7;
 }
 
-.project-card.forest-dragging {
+.project-card.island-dragging {
   opacity: .15;
 }
 
@@ -15122,7 +15122,7 @@ button.jr-card {
   color: rgba(var(--accent-rgb), 0.9);
 }
 
-.cover-btn.forest-active {
+.cover-btn.island-active {
   opacity: 1;
   color: rgba(var(--accent-rgb), 1);
 }
@@ -15246,7 +15246,7 @@ button.jr-card {
   background: rgba(12, 14, 13, 0.92);
 }
 
-.preview-thumb .thumb-btn.cover-btn.forest-active {
+.preview-thumb .thumb-btn.cover-btn.island-active {
   background: var(--accent, #8cdfb0);
   color: #fff;
 }
@@ -15268,13 +15268,13 @@ button.jr-card {
 
 .project-body {
   border: 1px solid rgba(var(--accent-rgb, 22, 199, 132), 0.45);
-  border-radius: var(--ui-forest-card-radius, 10px 80px 2px 130px);
+  border-radius: var(--ui-island-card-radius, 10px 80px 2px 130px);
   backdrop-filter: blur(0px);
 }
 
 .project-card.expanded .project-body {
   border-top: 2px solid var(--accent);
-  border-radius: var(--ui-forest-card-radius, 10px 80px 2px 130px);
+  border-radius: var(--ui-island-card-radius, 10px 80px 2px 130px);
   backdrop-filter: blur(20px)brightness(1);
 }
 
@@ -15316,7 +15316,7 @@ button.jr-card {
   border: 1px solid rgba(var(--accent-rgb), 0.25);
 }
 
-.forest-file-name {
+.island-file-name {
   font-size: 0.92rem;
   font-weight: 600;
 }
@@ -15363,7 +15363,7 @@ button.jr-card {
   background: rgba(72, 148, 49, 1);
 }
 
-.forest-action-btn {
+.island-action-btn {
   border-radius: 14px;
   font-size: 0.78rem;
   font-weight: 600;
@@ -15373,7 +15373,7 @@ button.jr-card {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.forest-action-btn:hover {
+.island-action-btn:hover {
   background: rgba(var(--accent-rgb), 0.18);
   border-color: rgba(var(--accent-rgb), 0.34);
 }
@@ -15439,7 +15439,7 @@ button.jr-card {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-.sort-btn.forest-active {
+.sort-btn.island-active {
   background: rgba(86, 180, 79, 0.18);
   border-color: rgba(86, 180, 79, 0.35);
   color: #cdf9b0;
@@ -15451,7 +15451,7 @@ button.jr-card {
   background: linear-gradient(to bottom, rgb(0, 0, 0, .4) 0%, rgba(0, 0, 0, 1) 150%);
 }
 
-.viewer-overlay.forest-hidden {
+.viewer-overlay.island-hidden {
   opacity: 0;
 }
 
@@ -15545,7 +15545,7 @@ button.jr-card {
   color: white;
 }
 
-.viewer-tag-btn.forest-active {
+.viewer-tag-btn.island-active {
   background: rgba(var(--accent-rgb), 0.22);
   border-color: rgba(var(--accent-rgb), 0.5);
   color: white;
@@ -15697,11 +15697,11 @@ button.jr-card {
   box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.2);
 }
 
-.tl-node.forest-dragging .tl-dot {
+.tl-node.island-dragging .tl-dot {
   box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.5);
 }
 
-.tl-track.drag-active .tl-node:not(.forest-dragging) {
+.tl-track.drag-active .tl-node:not(.island-dragging) {
   opacity: 0.5;
 }
 
@@ -15726,14 +15726,14 @@ button.jr-card {
   color: rgba(255, 255, 255, 0.45);
 }
 
-.tl-node.forest-completed .tl-dot {
+.tl-node.island-completed .tl-dot {
   background: rgba(var(--accent-rgb), 0.5);
   border-color: rgba(var(--accent-rgb), 0.8);
   box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.35);
   color: white;
 }
 
-.tl-node.forest-active .tl-dot {
+.tl-node.island-active .tl-dot {
   border-color: rgba(var(--accent-rgb), 0.9);
   box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.15), 0 0 20px rgba(var(--accent-rgb), 0.3);
 }
@@ -15904,7 +15904,7 @@ button.jr-card {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.tl-modal-toggle.forest-completed {
+.tl-modal-toggle.island-completed {
   color: rgba(var(--accent-rgb), 1);
   background: rgba(var(--accent-rgb), 0.12);
   border-color: rgba(var(--accent-rgb), 0.3);
@@ -16012,7 +16012,7 @@ button.jr-card {
   accent-color: var(--accent);
 }
 
-.tl-subtask.forest-done .tl-subtask-text {
+.tl-subtask.island-done .tl-subtask-text {
   text-decoration: line-through;
   color: rgba(255, 255, 255, 0.35);
 }
@@ -16180,7 +16180,7 @@ button.jr-card {
   opacity: 1;
 }
 
-.hunter-panel.forest-hidden {
+.hunter-panel.island-hidden {
   opacity: 0;
 }
 
@@ -16228,7 +16228,7 @@ button.jr-card {
   border-color: rgba(222, 255, 226, 0.25);
 }
 
-.forest-shell[data-theme="dim"] {
+.island-shell[data-theme="dim"] {
   --muted: rgba(255, 255, 228, 0.55);
   --text: #fffff6;
 }
@@ -17201,7 +17201,7 @@ select {
   }
 }
 
-.forest-shell .dim-toggle-symbol {
+.island-shell .dim-toggle-symbol {
   font-family: 'SF Pro Display', 'SF Pro', 'SF Pro Symbols', 'Apple Symbols', sans-serif;
   font-size: 22px;
   line-height: 1;
@@ -17902,12 +17902,12 @@ select {
 }
 
 .interface-choices [aria-pressed='false'],
-.forest-project-tabs [aria-pressed='false'] {
+.island-project-tabs [aria-pressed='false'] {
   opacity: .65;
 }
 
 .interface-choices [aria-pressed='true'],
-.forest-project-tabs [aria-pressed='true'] {
+.island-project-tabs [aria-pressed='true'] {
   opacity: 1;
   font-weight: 700;
   box-shadow: inset 0 -2px currentColor;
@@ -17949,13 +17949,13 @@ select {
   outline-offset: 2px;
 }
 
-.fw[data-float-app='forest'],
-.fw[data-float-app='forest'] .forest-shell .project-card {
+.fw[data-float-app='island'],
+.fw[data-float-app='island'] .island-shell .project-card {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-.fw[data-float-app='forest'] .forest-shell .aurora {
+.fw[data-float-app='island'] .island-shell .aurora {
   opacity: .25;
   filter: none;
 }
@@ -18038,7 +18038,7 @@ select {
   --dock-item-color: #b9eaa3;
 }
 
-[data-dock-item='forest'] {
+[data-dock-item='island'] {
   --dock-item-color: #ceffd6;
 }
 

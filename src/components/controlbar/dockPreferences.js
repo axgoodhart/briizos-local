@@ -1,3 +1,5 @@
+import logger from '../../lib/logger.js';
+
 export const HEADER_DOCK_STYLES = Object.freeze({
   CURRENT: 'current',
   MACOS: 'macos',
@@ -22,7 +24,7 @@ export const HEADER_DOCK_ITEM_IDS = Object.freeze([
   'notes',
   'canvases',
   'journal',
-  'forest',
+  'island',
   'notefalls',
   'sources',
   'tasks',
@@ -139,7 +141,16 @@ export function getStoredHeaderDockItems() {
 
   try {
     const raw = window.localStorage.getItem(HEADER_DOCK_ITEMS_STORAGE_KEY);
-    return normalizeHeaderDockItems(raw ? JSON.parse(raw) : DEFAULT_HEADER_DOCK_ITEMS);
+    const requested = raw ? JSON.parse(raw) : DEFAULT_HEADER_DOCK_ITEMS;
+    const renamed = Array.isArray(requested) && requested.includes('forest')
+      ? requested.map((id) => id === 'forest' ? 'island' : id)
+      : requested;
+    const normalized = normalizeHeaderDockItems(renamed);
+    if (renamed !== requested) {
+      window.localStorage.setItem(HEADER_DOCK_ITEMS_STORAGE_KEY, JSON.stringify(normalized));
+      logger.info('ui.preferences', 'Updated the saved Control Bar shortcut to the Islands name');
+    }
+    return normalized;
   } catch {
     return [...DEFAULT_HEADER_DOCK_ITEMS];
   }

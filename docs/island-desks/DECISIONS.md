@@ -1,4 +1,4 @@
-# Islands (formerly Forest): desks, islands, cards — decisions
+# Islands: desks, islands, cards — decisions
 
 Decided by Alex in conversation on 2026-10-13. Quotes are Alex's words. Mockups are in `mockups/` and are the spec where they exist.
 
@@ -6,7 +6,7 @@ Decided by Alex in conversation on 2026-10-13. Quotes are Alex's words. Mockups 
 
 - **Desk > Island > Card.** Don't use "floor" or "ground". Both meant desk.
 - No metaphors or made-up names for things. Describe them literally.
-- The app is called **Islands** (Alex, 2026-10-13: "Forests (which needs to be renamed Islands, obviously)"). Everything a person or the AI reads says Islands. Internal names (code folder, database tables, `window.api.forest*`, theme keys) still say forest so saved data and saved themes keep working.
+- The app is called **Islands**. Everything a person or the AI reads says Islands. The code, IPC, database tables, and theme selectors now use Islands names; migration 017 carries existing project data and saved themes forward.
 
 ## Desk
 
@@ -43,13 +43,13 @@ Decided by Alex in conversation on 2026-10-13. Quotes are Alex's words. Mockups 
 ## Journal
 
 - One journal for all islands.
-- Opened from an island in Forest, it shows only that island. Its calendar is the exception: it also shows the other islands' items, faded.
+- Opened from an island in the Islands workspace, it shows only that island. Its calendar is the exception: it also shows the other islands' items, faded.
 - Opened in the Journals app, it shows every project: a shared calendar, a separate chapter ("bible") for each project, and timelines and logs of ongoing work.
 
 ## Files
 
-- Forest never owns or moves files you bring in. Islands point to files where they already are. No symlinks.
-- Consolidating only makes a dated archive. Each copied file, or the zip, is dated so it can never be mistaken for the original. (The old Consolidate made undated copies in ~/Documents/briizos/forest-projects/<name>; it is replaced by the dated archive.)
+- Islands never owns or moves files you bring in. Islands point to files where they already are. No symlinks.
+- Consolidating only makes a dated archive. Each copied file, or the zip, is dated so it can never be mistaken for the original. (The old Consolidate made undated copies in the previous project folder; it is replaced by the dated archive.)
 - "If it's created in the app it is briiz." Files made inside briizOS belong to briizOS and are stored there.
 
 ## Agents
@@ -59,7 +59,7 @@ Decided by Alex in conversation on 2026-10-13. Quotes are Alex's words. Mockups 
 
 ## Look and feel
 
-- Islands carries the original Forest styling, brought back on purpose (Alex: "bringing back the styling in an intelligent way"): teal stage with soft glows and a grid that pans and zooms with you, the drifting aurora, the floating green-glass top bar with the ZnikomitNo24 wordmark, asymmetric neon-edged glass islands (`--ui-forest-card-radius`, `--ui-corner-shape`, so themes still shape them), glassy file rows and badges, the hot-pink File Hunter, and dim mode. Structure (tab, node rail, settings layout, loud Assign agent, stacked view) follows the mockups.
+- Islands carries forward the established styling: teal stage with soft glows and a grid that pans and zooms with you, the drifting aurora, the floating green-glass top bar with the ZnikomitNo24 wordmark, asymmetric neon-edged glass islands (`--ui-island-card-radius`, `--ui-corner-shape`, so themes still shape them), glassy file rows and badges, the hot-pink File Hunter, and dim mode. Structure (tab, node rail, settings layout, loud Assign agent, stacked view) follows the mockups.
 - Never delete existing styling as unused when replacing a feature; carry it forward.
 
 From Alex's critique of the Astra mock:
@@ -84,7 +84,7 @@ From Alex's critique of the Astra mock:
 
 Alex said "time to just dive in" (2026-10-13), so the recommendations below were built as written. Rough option sketches were skipped at Alex's request: feedback comes from using the result.
 
-### Where each old Forest feature went
+### Where each earlier project-board feature went
 
 | Today | Recommendation |
 |---|---|
@@ -100,7 +100,7 @@ Alex said "time to just dive in" (2026-10-13), so the recommendations below were
 | FileHawk | Stays, and matters more now that files stay in place. A moved or missing file shows on its own card instead of in a separate panel |
 | Changes log (auto-tags, File Hunter results) | Merges into the journal's log, with undo kept |
 | Consolidate | Becomes the dated archive |
-| Dim toggle (dims Forest only) | Becomes a desk setting, since desks decide how islands appear |
+| Dim toggle (dims Islands only) | Becomes a desk setting, since desks decide how islands appear |
 
 ## Built (2026-10-13)
 
@@ -108,19 +108,19 @@ What exists now, and where:
 
 | Piece | Where |
 |---|---|
-| Data, saving, migration of old projects, desks, templates, agents, auto-tags, File Hunter | `src/components/forest/store.js` |
-| Card types, glyphs, built-in island and card templates | `src/components/forest/catalog.js` |
+| Data, saving, migration of old projects, desks, templates, agents, auto-tags, File Hunter | `src/components/islands/store.js` |
+| Card types, glyphs, built-in island and card templates | `src/components/islands/catalog.js` |
 | Desk canvas (pan, zoom, drawing new islands, dropping files) | `DeskView.jsx`, `camera.js`, `gestures.js`, `Minimap.jsx` |
 | Island (tab, name, cards, node rail, zoomed-out summary) | `Island.jsx`, `CardFrame.jsx` |
-| The ten card types | `src/components/forest/cards/` |
+| The ten card types | `src/components/islands/cards/` |
 | Top bar, tool palette, desk controls, popovers | `Chrome.jsx`, `Overlays.jsx` |
 | Island settings, desks panel, File Hunter, stacked view | `IslandSettings.jsx`, `DeskPanel.jsx`, `HuntPanel.jsx`, `StackView.jsx` |
-| Islands journal (in Forest and in the Journals app) | `IslandsJournal.jsx`; shelf card in `src/components/journals/JournalPanel.jsx` |
-| Files made in briizOS, file previews, dated archives, terminal sessions | `electron/forest-workspace.js` |
-| Saving desks and templates | `electron/local-data-service.js` (`saveForestState`, `getForestState`) |
-| Styles | `src/AppCombined.css`, section "Forest: desks, islands, cards" |
+| Islands journal (in the workspace and the Journals app) | `IslandsJournal.jsx`; shelf card in `src/components/journals/JournalPanel.jsx` |
+| Files made in briizOS, file previews, dated archives, terminal sessions | `electron/island-workspace.js` |
+| Saving desks and templates | `electron/local-data-service.js` (`saveIslandState`, `getIslandState`) |
+| Styles | `src/AppCombined.css`, Islands section |
 
-Old projects are converted the first time Forest opens: each becomes an island, its files go into a Docs/Code card and a Media card, and a journal entry records it. Nothing on disk moves. The old Forest code (`app.js`, `canvas-markup.html`, `styles.css`) were removed. Its 2,800 lines of styles were removed too, then restored into the Islands styles at Alex's request (the look, not the old selectors).
+Older projects are converted the first time Islands opens: each becomes an island, its files go into a Docs/Code card and a Media card, and a journal entry records it. Nothing on disk moves. The earlier project-board implementation (`app.js`, `canvas-markup.html`, `styles.css`) was removed; its visual language was carried into the Islands styles.
 
 ## Not built yet, and known limits
 

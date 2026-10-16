@@ -13,15 +13,15 @@ async function sendToTasks(island, card, item) {
       description: `From the island “${island.name}”, card “${card.title}”.`,
       status: 'pending',
       priority: 'normal',
-      forestProjectId: island.id,
-      sourceKey: `forest-goal:${card.id}:${item.id}`,
+      islandProjectId: island.id,
+      sourceKey: `island-goal:${card.id}:${item.id}`,
     });
     const taskId = created?.row?.id;
     updateCardData(island.id, card.id, (data) => ({ items: (data.items || []).map((i) => (i.id === item.id ? { ...i, taskId } : i)) }));
-    logger.info('forest.card', `Sent “${item.text}” to the Tasks panel. Checking it off in either place checks it off in both.`, { island: island.name, taskId });
+    logger.info('island.card', `Sent “${item.text}” to the Tasks panel. Checking it off in either place checks it off in both.`, { island: island.name, taskId });
     refreshTasks();
   } catch (error) {
-    logger.error('forest.card', `Could not send “${item.text}” to the Tasks panel`, { problem: error?.message });
+    logger.error('island.card', `Could not send “${item.text}” to the Tasks panel`, { problem: error?.message });
   }
 }
 
@@ -31,16 +31,16 @@ async function setTaskDone(task, done) {
     await window.api.localData.tasks.update(task.id, fresh.revision, { status: done ? 'completed' : 'pending' });
     refreshTasks();
   } catch (error) {
-    logger.error('forest.card', 'Could not update that task', { problem: error?.message, task: task.title });
+    logger.error('island.card', 'Could not update that task', { problem: error?.message, task: task.title });
   }
 }
 
 export default function GoalsCard({ island, card, tasks }) {
   const items = card.data.items || [];
   const taskMap = tasks || {};
-  const linked = useMemo(() => Object.values(taskMap).filter((t) => t.forest_project_id === island.id
-    && !String(t.source_key || '').startsWith('forest-agent:')
-    && !String(t.source_key || '').startsWith('forest-goal:')
+  const linked = useMemo(() => Object.values(taskMap).filter((t) => t.island_project_id === island.id
+    && !String(t.source_key || '').startsWith('island-agent:')
+    && !String(t.source_key || '').startsWith('island-goal:')
     && !['cancelled'].includes(t.status)), [taskMap, island.id]);
 
   const toggle = (item) => {

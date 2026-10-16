@@ -34,7 +34,7 @@ export default function TerminalCard({ island, card, terminal }) {
       schedule();
     };
     const off = onTerminal(card.id, (data, total) => (ready ? take(data, total) : queue.push([data, total])));
-    (window.api.forestTerminalSnapshot?.({ cardId: card.id }) || Promise.resolve(null)).then((snap) => {
+    (window.api.islandTerminalSnapshot?.({ cardId: card.id }) || Promise.resolve(null)).then((snap) => {
       ansi.current = feedAnsi(createAnsi(), snap?.buffer || '');
       seen.current = snap?.total || 0;
       ready = true;
@@ -76,7 +76,7 @@ export default function TerminalCard({ island, card, terminal }) {
   };
 
   const clear = () => {
-    window.api.forestTerminalClear?.({ cardId: card.id });
+    window.api.islandTerminalClear?.({ cardId: card.id });
     ansi.current = createAnsi();
     redraw();
   };

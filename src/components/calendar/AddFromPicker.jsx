@@ -10,8 +10,8 @@ function milestoneTitle(milestone) {
 
 function sourceKey(projectId, milestoneId = null) {
   return milestoneId
-    ? `forest-milestone:${projectId}:${milestoneId}`
-    : `forest-project:${projectId}`;
+    ? `island-milestone:${projectId}:${milestoneId}`
+    : `island-project:${projectId}`;
 }
 
 function recurrenceFor(type, dateStr) {
@@ -21,7 +21,7 @@ function recurrenceFor(type, dateStr) {
   return recurrence;
 }
 
-export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onPromoteForestSource }) {
+export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onPromoteIslandSource }) {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [query, setQuery] = useState('');
@@ -36,11 +36,11 @@ export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onProm
     let active = true;
     Promise.all([
       window.api.localData.tasks.list({ limit: 1000 }),
-      window.api.forestLoadState(),
-    ]).then(([taskRows, forestState]) => {
+      window.api.islandLoadState(),
+    ]).then(([taskRows, islandState]) => {
       if (!active) return;
       setTasks((taskRows || []).filter((task) => !CLOSED_TASK_STATUSES.has(task.status)));
-      setProjects(forestState?.projects || []);
+      setProjects(islandState?.projects || []);
     }).catch((loadError) => {
       if (!active) return;
       setError(loadError?.message || 'Could not load task sources');
@@ -58,10 +58,10 @@ export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onProm
       context: task.priority && task.priority !== 'normal' ? `${task.priority} priority` : 'Tasks Panel',
       task,
     }));
-    const forestSources = projects.flatMap((project) => {
+    const islandSources = projects.flatMap((project) => {
       const projectSource = {
         key: `project:${project.id}`,
-        kind: 'forest',
+        kind: 'island',
         title: `Work on ${project.name}`,
         context: `${project.name} · project session`,
         project,
@@ -72,7 +72,7 @@ export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onProm
         .filter((milestone) => !milestone.completed)
         .map((milestone) => ({
           key: `milestone:${project.id}:${milestone.id}`,
-          kind: 'forest',
+          kind: 'island',
           title: milestoneTitle(milestone),
           context: `${project.name} · milestone${milestone.date ? ` · ${milestone.date}` : ''}`,
           project,
@@ -81,7 +81,7 @@ export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onProm
         }));
       return [projectSource, ...milestones];
     });
-    return [...taskSources, ...forestSources].filter((source) => (
+    return [...taskSources, ...islandSources].filter((source) => (
       !needle || `${source.title} ${source.context}`.toLowerCase().includes(needle)
     ));
   }, [tasks, projects, query]);
@@ -99,7 +99,7 @@ export default function AddFromPicker({ dateStr, onClose, onScheduleTask, onProm
         recurrence: recurrenceFor(repeat, dateStr),
       };
       if (selected.kind === 'task') await onScheduleTask(selected.task, placement);
-      else await onPromoteForestSource(selected, placement);
+      else await onPromoteIslandSource(selected, placement);
       onClose();
     } catch (scheduleError) {
       setError(scheduleError?.message || 'Could not schedule this item');

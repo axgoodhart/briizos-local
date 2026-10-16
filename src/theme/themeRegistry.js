@@ -1,7 +1,7 @@
 export const COMPONENT_IDS = Object.freeze([
   'Application', 'ActionDeck', 'Tasks', 'Sources', 'Notes', 'Calendar',
   'Organizer', 'Dashboard', 'Media', 'Login', 'Canvas', 'Briiztorm', 'Chat',
-  'Journals', 'Notefalls', 'Forest',
+  'Journals', 'Notefalls', 'Islands',
 ]);
 
 const COLOR_PROPERTIES = ['color', 'background', 'borderColor', 'boxShadow', 'opacity'];
@@ -154,7 +154,7 @@ export const COMPONENT_SELECTOR_MAP = Object.freeze([
   ['.calendar-modal', 'Calendar'], ['.organizer-modal', 'Organizer'],
   ['.dashboard-modal-container', 'Dashboard'], ['.media-panel', 'Media'],
   ['.login-container', 'Login'], ['.canvas-modal', 'Canvas'], ['.briiztorm-overlay', 'Briiztorm'],
-  ['.journal-panel', 'Journals'], ['.notefalls-panel', 'Notefalls'], ['.forest-panel', 'Forest'],
+  ['.journal-panel', 'Journals'], ['.notefalls-panel', 'Notefalls'], ['.island-panel', 'Islands'],
 ]);
 
 export const ROLE_SELECTOR_MAP = Object.freeze([

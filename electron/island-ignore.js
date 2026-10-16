@@ -1,5 +1,5 @@
 /**
- * Forest ignore rules — a .gitignore-style default list that keeps
+ * Island ignore rules — a .gitignore-style default list that keeps
  * dependency trees, build output, VCS internals, caches, and OS junk out
  * of board imports and Hunter/FileHawk scans.
  *

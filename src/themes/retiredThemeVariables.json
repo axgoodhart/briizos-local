@@ -6,10 +6,10 @@
         "property": "--bg-0",
         "value": "#08170f",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --bg-0: #08170f;\n}",
+        "cssText": ".island-shell {\n  --bg-0: #08170f;\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29431
@@ -21,10 +21,10 @@
         "property": "--bg-1",
         "value": "#04100a",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --bg-1: #04100a;\n}",
+        "cssText": ".island-shell {\n  --bg-1: #04100a;\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29432
@@ -36,10 +36,10 @@
         "property": "--bg-2",
         "value": "#103324",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --bg-2: #103324;\n}",
+        "cssText": ".island-shell {\n  --bg-2: #103324;\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29433
@@ -51,10 +51,10 @@
         "property": "--darktext",
         "value": "#e0a352",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --darktext: #e0a352;\n}",
+        "cssText": ".island-shell {\n  --darktext: #e0a352;\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29439
@@ -83,10 +83,10 @@
         "property": "--glass-2",
         "value": "rgba(255, 255, 255, 0.05)",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --glass-2: rgba(255, 255, 255, 0.05);\n}",
+        "cssText": ".island-shell {\n  --glass-2: rgba(255, 255, 255, 0.05);\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29435
@@ -98,10 +98,10 @@
         "property": "--radius",
         "value": "24px",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --radius: 24px;\n}",
+        "cssText": ".island-shell {\n  --radius: 24px;\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29443
@@ -113,10 +113,10 @@
         "property": "--shadowtop",
         "value": "0 24px 80px rgba(23, 217, 138, 0.22)",
         "important": false,
-        "selector": ".forest-shell",
+        "selector": ".island-shell",
         "conditions": [],
         "themeContexts": [],
-        "cssText": ".forest-shell {\n  --shadowtop: 0 24px 80px rgba(23, 217, 138, 0.22);\n}",
+        "cssText": ".island-shell {\n  --shadowtop: 0 24px 80px rgba(23, 217, 138, 0.22);\n}",
         "source": {
           "file": "docs/theme-archive/AppCombined.before-theme-split.css",
           "line": 29441

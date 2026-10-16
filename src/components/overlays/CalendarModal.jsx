@@ -228,7 +228,7 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
     createPlacement({ ...placement, refType: 'task', refId: task.id })
   ), [createPlacement]);
 
-  const handlePromoteForestSource = useCallback(async (source, placement) => {
+  const handlePromoteIslandSource = useCallback(async (source, placement) => {
     const existing = await window.api.localData.tasks.list({ sourceKey: source.sourceKey, limit: 1 });
     let task = existing?.[0] || null;
     if (!task) {
@@ -241,13 +241,13 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
         status: 'pending',
         priority: 'normal',
         dueAt,
-        forestProjectId: source.project.id,
+        islandProjectId: source.project.id,
         sourceKey: source.sourceKey,
       });
       task = created.row;
       logger.info('calendar.placement', 'Island work promoted to a task', {
         taskId: task.id,
-        forestProjectId: source.project.id,
+        islandProjectId: source.project.id,
         milestoneId: milestone?.id || null,
       });
     }
@@ -255,8 +255,8 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
   }, [createPlacement]);
 
   const handleAcceptProposal = useCallback((proposal) => (
-    acceptProposal(proposal, { promoteForestSource: handlePromoteForestSource })
-  ), [acceptProposal, handlePromoteForestSource]);
+    acceptProposal(proposal, { promoteIslandSource: handlePromoteIslandSource })
+  ), [acceptProposal, handlePromoteIslandSource]);
 
   const handleCompleteTask = useCallback(async (task) => {
     const current = await window.api.localData.tasks.get(task.id);
@@ -422,7 +422,7 @@ function CalendarModal({ isOpen, onClose, planningFocus = null, onPlanningFocusH
             dateStr={selectedDate}
             onClose={() => setAddFromOpen(false)}
             onScheduleTask={handleScheduleTask}
-            onPromoteForestSource={handlePromoteForestSource}
+            onPromoteIslandSource={handlePromoteIslandSource}
           />
         )}
       </div>

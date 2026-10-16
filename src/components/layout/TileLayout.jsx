@@ -139,13 +139,13 @@ const PANEL_TITLES = {
   notefalls: 'Notefalls',
   sources: 'Sources',
   tasks: 'Tasks',
-  forest: 'Islands',
+  island: 'Islands',
   canvas: 'Canvas',
 };
 
 const PANEL_THEME_COMPONENTS = {
   interaction: 'Chat', journal: 'Journals', media: 'Media',
-  notefalls: 'Notefalls', sources: 'Sources', tasks: 'Tasks', forest: 'Islands', canvas: 'Canvas',
+  notefalls: 'Notefalls', sources: 'Sources', tasks: 'Tasks', island: 'Islands', canvas: 'Canvas',
 };
 
 function panelTitle(panel) {

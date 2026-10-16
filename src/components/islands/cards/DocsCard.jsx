@@ -53,7 +53,7 @@ function OpenFile({ island, card, file, onBack }) {
   useEffect(() => {
     let alive = true;
     setPreview(null);
-    window.api.forestFilePreview?.(file.path).then((result) => {
+    window.api.islandFilePreview?.(file.path).then((result) => {
       if (!alive) return;
       setPreview(result);
       setDraft(result?.text ?? '');
@@ -65,9 +65,9 @@ function OpenFile({ island, card, file, onBack }) {
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       try {
-        await window.api.forestOwnedWrite(file.path, text);
+        await window.api.islandOwnedWrite(file.path, text);
       } catch (error) {
-        logger.error('forest.files', `Could not save “${file.name}”. Your typing is still in the card; try again.`, { problem: error?.message });
+        logger.error('island.files', `Could not save “${file.name}”. Your typing is still in the card; try again.`, { problem: error?.message });
       }
     }, AUTOSAVE_MS);
   };
@@ -90,7 +90,7 @@ function OpenFile({ island, card, file, onBack }) {
       <ul className="fo-docs__entries">
         {preview.entries.map((entry) => (
           <li key={entry.name}>
-            <button type="button" className="fo-docs__entry" onDoubleClick={() => window.api.forestOpenPath(`${file.path}/${entry.name}`)}>
+            <button type="button" className="fo-docs__entry" onDoubleClick={() => window.api.islandOpenPath(`${file.path}/${entry.name}`)}>
               <span className="fo-glyph">{entry.folder ? GLYPH.folder : GLYPH.file}</span>{entry.name}
             </button>
           </li>
@@ -99,7 +99,7 @@ function OpenFile({ island, card, file, onBack }) {
     );
   } else if (preview.kind === 'binary') {
     body = (
-      <button type="button" className="fo-docs__binary" onClick={() => window.api.forestOpenPath(file.path)}>
+      <button type="button" className="fo-docs__binary" onClick={() => window.api.islandOpenPath(file.path)}>
         <span className="fo-docs__badge">{fileBadge(file)}</span>
         <span>Open in its app</span>
       </button>
@@ -131,8 +131,8 @@ function OpenFile({ island, card, file, onBack }) {
         {owned && preview?.kind === 'text' && (
           <button type="button" className="fo-icon-btn" aria-pressed={editing} onClick={() => setEditing((e) => !e)} title="Edit"><span className="fo-glyph">{GLYPH.pencil}</span></button>
         )}
-        <button type="button" className="fo-icon-btn" onClick={() => window.api.forestOpenPath(file.path)} title="Open in its app"><span className="fo-glyph">{GLYPH.open}</span></button>
-        <button type="button" className="fo-icon-btn" onClick={() => window.api.forestShowItemInFolder(file.path)} title="Show in Finder"><span className="fo-glyph">{GLYPH.folder}</span></button>
+        <button type="button" className="fo-icon-btn" onClick={() => window.api.islandOpenPath(file.path)} title="Open in its app"><span className="fo-glyph">{GLYPH.open}</span></button>
+        <button type="button" className="fo-icon-btn" onClick={() => window.api.islandShowItemInFolder(file.path)} title="Show in Finder"><span className="fo-glyph">{GLYPH.folder}</span></button>
       </div>
       <div className="fo-docs__content">{body}</div>
     </div>
@@ -175,7 +175,7 @@ export default function DocsCard({ island, card, fileStatus }) {
                 type="button"
                 className="fo-docs__file"
                 onClick={() => updateCardData(island.id, card.id, { openFileId: file.id })}
-                onDoubleClick={() => window.api.forestOpenPath(file.path)}
+                onDoubleClick={() => window.api.islandOpenPath(file.path)}
                 title={file.path}
               >
                 <span className="fo-docs__badge">{fileBadge(file)}</span>

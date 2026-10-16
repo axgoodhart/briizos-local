@@ -43,7 +43,7 @@ export default function WebviewCard({ island, card }) {
     const fail = (event) => {
       if (!event.isMainFrame || event.errorCode === -3) return;
       setFailed(true);
-      logger.debug('forest.card', `Webview card “${card.title}” could not reach its page`, { url: event.validatedURL, error: event.errorDescription });
+      logger.debug('island.card', `Webview card “${card.title}” could not reach its page`, { url: event.validatedURL, error: event.errorDescription });
     };
     const loaded = () => {
       setFailed(false);
@@ -51,7 +51,7 @@ export default function WebviewCard({ island, card }) {
         clearInterval(retryRef.current.timer);
         retryRef.current = null;
         setRestarting(false);
-        logger.info('forest.card', `“${card.title}” is reachable again after restarting its server`, { url });
+        logger.info('island.card', `“${card.title}” is reachable again after restarting its server`, { url });
       }
     };
     const navigated = (event) => setCurrent(event.url);
@@ -89,7 +89,7 @@ export default function WebviewCard({ island, card }) {
           clearInterval(retryRef.current.timer);
           retryRef.current = null;
           setRestarting(false);
-          logger.warn('forest.card', `“${card.title}” still cannot reach its page 30 seconds after restarting “${server.title}”`, { url, nextStep: `Check the output in the “${server.title}” terminal card.` });
+          logger.warn('island.card', `“${card.title}” still cannot reach its page 30 seconds after restarting “${server.title}”`, { url, nextStep: `Check the output in the “${server.title}” terminal card.` });
           return;
         }
         viewRef.current?.reload?.();
@@ -104,13 +104,13 @@ export default function WebviewCard({ island, card }) {
         <button type="button" className="fo-icon-btn" onClick={() => go(draft || url)} title="Reload">
           <span className="fo-glyph">{GLYPH.refresh}</span>
         </button>
-        <button type="button" className="fo-icon-btn" onClick={() => window.api.forestOpenExternal?.(current || url)} title="Open in browser" disabled={!url}>
+        <button type="button" className="fo-icon-btn" onClick={() => window.api.islandOpenExternal?.(current || url)} title="Open in browser" disabled={!url}>
           <span className="fo-glyph">{GLYPH.open}</span>
         </button>
       </form>
       <div ref={holderRef} className="fo-web__view">
         {visible && url ? (
-          <webview ref={viewRef} src={url} partition="persist:forest" allowpopups="true" className="fo-web__frame" />
+          <webview ref={viewRef} src={url} partition="persist:island" allowpopups="true" className="fo-web__frame" />
         ) : (
           <div className="fo-web__idle">{url ? '' : <span className="fo-glyph">{GLYPH.open}</span>}</div>
         )}

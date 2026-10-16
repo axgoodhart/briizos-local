@@ -76,7 +76,7 @@ export default function HuntPanel({ island }) {
                   <span className="fo-hunt__name" title={result.path}>{result.name}</span>
                   <span className="fo-whisper">{relativeTime(result.modifiedAt)}</span>
                 </label>
-                <button type="button" className="fo-icon-btn" onClick={() => window.api.forestShowItemInFolder(result.path)} title="Show in Finder"><span className="fo-glyph">{GLYPH.folder}</span></button>
+                <button type="button" className="fo-icon-btn" onClick={() => window.api.islandShowItemInFolder(result.path)} title="Show in Finder"><span className="fo-glyph">{GLYPH.folder}</span></button>
               </li>
             ))}
           </ul>

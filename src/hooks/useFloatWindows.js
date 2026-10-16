@@ -13,7 +13,7 @@ export const FLOAT_APPS = Object.freeze({
   tasks: { title: 'Tasks', width: 470, height: 640 },
   journal: { title: 'Journals', width: 660, height: 580 },
   notefalls: { title: 'Notefalls', width: 540, height: 620 },
-  forest: { title: 'Islands', width: 760, height: 580 },
+  island: { title: 'Islands', width: 760, height: 580 },
 });
 
 const SETTINGS_KEY = 'ambient_workspace';
@@ -72,7 +72,7 @@ function normalizeStored(raw, topInset = 8) {
   const windows = [];
   rows.forEach((row) => {
     if (!row || typeof row !== 'object') return;
-    const app = row.app;
+    const app = row.app === 'forest' ? 'island' : row.app;
     if (!FLOAT_APPS[app] || seen.has(app)) return;
     seen.add(app);
     windows.push(clampBounds({

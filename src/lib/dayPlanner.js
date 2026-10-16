@@ -48,9 +48,9 @@ export function buildDayPlannerPrompt({ date, events, placements, tasks, project
       description: task.description || '',
       priority: task.priority,
       dueAt: task.due_at || null,
-      forestProjectId: task.forest_project_id || task.forestProjectId || null,
+      islandProjectId: task.island_project_id || task.islandProjectId || null,
     })),
-    forest_projects: projects.map((project) => ({
+    island_projects: projects.map((project) => ({
       id: project.id,
       name: project.name,
       deadline: project.deadline || null,
@@ -68,13 +68,13 @@ export function buildDayPlannerPrompt({ date, events, placements, tasks, project
     'Respect existing blocks. Prefer open tasks that are important, timely, relevant, and realistically sized.',
     'Leave breathing room. Do not fill every minute. Never move or duplicate an existing block.',
     'When preferred_candidate is present, treat it as the user\'s first choice and fit it into a conflict-free part of the day when honest.',
-    'For a preferred task, use kind "task" and copy its exact id. For a preferred Forest project, use an open task with the matching forestProjectId; if none exists, use kind "forest_project" and copy the exact project id so the app can promote it only if the user accepts.',
+    'For a preferred task, use kind "task" and copy its exact id. For a preferred Island project, use an open task with the matching islandProjectId; if none exists, use kind "island_project" and copy the exact project id so the app can promote it only if the user accepts.',
     'For other existing work, use kind "task" and copy the exact task id. Use kind "event" only for a genuinely new standalone block such as lunch, travel, or a break.',
     'Return 1-8 proposals. If the day is already full, return fewer or none and explain that briefly.',
     'This turn is text-only: do not call tools.',
     '',
     'Respond with ONLY JSON:',
-    '{"summary":"one sentence","proposals":[{"kind":"task|forest_project|event","taskId":"required for task","projectId":"required for forest_project","title":"short title","startMinute":540,"durationMinutes":60,"reason":"brief reason"}]}',
+    '{"summary":"one sentence","proposals":[{"kind":"task|island_project|event","taskId":"required for task","projectId":"required for island_project","title":"short title","startMinute":540,"durationMinutes":60,"reason":"brief reason"}]}',
     '',
     JSON.stringify(payload),
   ].join('\n');
@@ -99,8 +99,8 @@ export function parseDayPlannerResponse(text) {
   const proposals = (Array.isArray(parsed.proposals) ? parsed.proposals : []).slice(0, 8).map((proposal, index) => {
     const kind = proposal?.kind === 'task'
       ? 'task'
-      : proposal?.kind === 'forest_project'
-        ? 'forest_project'
+      : proposal?.kind === 'island_project'
+        ? 'island_project'
         : proposal?.kind === 'event'
           ? 'event'
           : null;
@@ -112,7 +112,7 @@ export function parseDayPlannerResponse(text) {
     if (!kind || !title || !Number.isInteger(startMinute) || startMinute < 0 || startMinute > 1439) return null;
     if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 1440) return null;
     if (kind === 'task' && !taskId) return null;
-    if (kind === 'forest_project' && !projectId) return null;
+    if (kind === 'island_project' && !projectId) return null;
     return {
       id: `day-proposal-${Date.now()}-${index}`,
       kind,

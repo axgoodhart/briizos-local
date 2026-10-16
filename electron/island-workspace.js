@@ -1,10 +1,10 @@
 /**
- * Islands (internally "forest") workspace services: files made inside briizOS, read-only previews
+ * Islands workspace services: files made inside briizOS, read-only previews
  * of referenced files, dated archives, and terminal cards.
  *
  * Files brought in from elsewhere are never moved, edited, or deleted here.
  * Files made inside briizOS live under userData/Islands/ and belong
- * to briizOS (docs/forest-desks/DECISIONS.md → Files).
+ * to briizOS (docs/island-desks/DECISIONS.md → Files).
  */
 const path = require('path');
 const fs = require('fs/promises');
@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn, execFile } = require('child_process');
 const { app, shell } = require('electron');
 const { logger } = require('./logger');
-const { buildFileRecord } = require('./forest-fs');
+const { buildFileRecord } = require('./island-fs');
 
 // ==== LIMITS ====
 const PREVIEW_MAX_BYTES = 400000;          // text preview cap for a card
@@ -20,7 +20,7 @@ const OWNED_WRITE_MAX_BYTES = 5000000;     // in-app documents
 const TERMINAL_BUFFER_MAX = 200000;        // characters kept per terminal card for replay
 const TERMINAL_COLS = 120;
 const TERMINAL_ROWS = 40;
-const CWD_MARK = '\u001fFOREST_CWD:';
+const CWD_MARK = '\u001fISLAND_CWD:';
 
 function ownedRoot() {
   return path.join(app.getPath('userData'), 'Islands');
@@ -75,7 +75,7 @@ async function createOwnedFile({ islandId, islandName, fileName, content = '' })
   await fs.writeFile(target, text, 'utf8');
   const stat = await fs.stat(target);
   const record = { ...buildFileRecord(target, stat, islandName), owned: true };
-  logger.info('forest.files', `Created “${path.basename(target)}” inside briizOS for the island “${islandName}”. It is stored by briizOS, not in your own folders.`, {
+  logger.info('island.files', `Created “${path.basename(target)}” inside briizOS for the island “${islandName}”. It is stored by briizOS, not in your own folders.`, {
     path: target,
     island: islandName,
     bytes: stat.size,
@@ -86,14 +86,14 @@ async function createOwnedFile({ islandId, islandName, fileName, content = '' })
 async function writeOwnedFile(filePath, content) {
   const resolved = path.resolve(String(filePath || ''));
   if (!isInside(resolved, ownedRoot())) {
-    logger.warn('forest.files', 'Islands refused to write a file it does not own. Files you brought in are only opened in their own apps, never edited here.', { path: resolved });
+    logger.warn('island.files', 'Islands refused to write a file it does not own. Files you brought in are only opened in their own apps, never edited here.', { path: resolved });
     throw new Error('Islands only edits documents that were made inside briizOS.');
   }
   const text = String(content ?? '');
   if (Buffer.byteLength(text) > OWNED_WRITE_MAX_BYTES) throw new Error('This document is larger than Islands can save (5 MB).');
   await fs.writeFile(resolved, text, 'utf8');
   const stat = await fs.stat(resolved);
-  logger.debug('forest.files', `Saved “${path.basename(resolved)}”`, { path: resolved, bytes: stat.size });
+  logger.debug('island.files', `Saved “${path.basename(resolved)}”`, { path: resolved, bytes: stat.size });
   return { ok: true, size: stat.size, modifiedAt: stat.mtime.toISOString() };
 }
 
@@ -142,7 +142,7 @@ async function archiveIsland({ islandName, filePaths = [] }) {
   const when = stamp();
   const name = safeSegment(islandName);
   const destDir = path.join(archiveRoot(), name);
-  const staging = path.join(os.tmpdir(), `briizos-forest-archive-${Date.now()}`, `${name} — archive ${when}`);
+  const staging = path.join(os.tmpdir(), `briizos-island-archive-${Date.now()}`, `${name} — archive ${when}`);
   await fs.mkdir(staging, { recursive: true });
   await fs.mkdir(destDir, { recursive: true });
 
@@ -166,7 +166,7 @@ async function archiveIsland({ islandName, filePaths = [] }) {
   await fs.rm(path.dirname(staging), { recursive: true, force: true });
   result.zipPath = zipPath;
 
-  logger.info('forest.archive', `Made a dated archive of “${islandName}”. Your original files were copied, not moved, and are unchanged.`, {
+  logger.info('island.archive', `Made a dated archive of “${islandName}”. Your original files were copied, not moved, and are unchanged.`, {
     archive: zipPath,
     filesCopied: result.copied,
     couldNotFind: result.missing.length ? result.missing : 'none',
@@ -227,9 +227,9 @@ async function terminalRun(sender, { cardId, command, cwd, label }) {
   sessions.set(cardId, session);
   const header = `\u001b[2m${workDir.replace(os.homedir(), '~')}\u001b[0m $ ${command}\r\n`;
   appendBuffer(session, header);
-  emit(sender, 'forest-terminal-data', { cardId, data: header, total: session.total });
-  emit(sender, 'forest-terminal-state', { cardId, running: true, command, cwd: workDir });
-  logger.info('forest.terminal', `Terminal card “${label || 'Terminal'}” started a command`, { command, folder: workDir });
+  emit(sender, 'island-terminal-data', { cardId, data: header, total: session.total });
+  emit(sender, 'island-terminal-state', { cardId, running: true, command, cwd: workDir });
+  logger.info('island.terminal', `Terminal card “${label || 'Terminal'}” started a command`, { command, folder: workDir });
 
   const onData = (chunk) => {
     let text = chunk.toString('utf8');
@@ -242,7 +242,7 @@ async function terminalRun(sender, { cardId, command, cwd, label }) {
     }
     if (!text) return;
     appendBuffer(session, text);
-    emit(sender, 'forest-terminal-data', { cardId, data: text, total: session.total });
+    emit(sender, 'island-terminal-data', { cardId, data: text, total: session.total });
   };
   child.stdout.on('data', onData);
   child.stderr.on('data', onData);
@@ -251,10 +251,10 @@ async function terminalRun(sender, { cardId, command, cwd, label }) {
     session.child = null;
     const note = signal ? `\r\n\u001b[2m[stopped]\u001b[0m\r\n` : `\r\n\u001b[2m[exit ${code}]\u001b[0m\r\n`;
     appendBuffer(session, note);
-    emit(sender, 'forest-terminal-data', { cardId, data: note, total: session.total });
-    emit(sender, 'forest-terminal-state', { cardId, running: false, exitCode: code, cwd: session.cwd });
+    emit(sender, 'island-terminal-data', { cardId, data: note, total: session.total });
+    emit(sender, 'island-terminal-state', { cardId, running: false, exitCode: code, cwd: session.cwd });
     const level = code === 0 || signal ? 'info' : 'warn';
-    logger[level]('forest.terminal', signal
+    logger[level]('island.terminal', signal
       ? `Terminal card “${label || 'Terminal'}” command was stopped`
       : `Terminal card “${label || 'Terminal'}” command finished with exit code ${code}`, {
       command,
@@ -264,8 +264,8 @@ async function terminalRun(sender, { cardId, command, cwd, label }) {
     });
   });
   child.on('error', (error) => {
-    logger.error('forest.terminal', `Terminal card “${label || 'Terminal'}” could not start its command`, { command, problem: error.message });
-    emit(sender, 'forest-terminal-state', { cardId, running: false, error: error.message, cwd: session.cwd });
+    logger.error('island.terminal', `Terminal card “${label || 'Terminal'}” could not start its command`, { command, problem: error.message });
+    emit(sender, 'island-terminal-state', { cardId, running: false, error: error.message, cwd: session.cwd });
   });
   return { ok: true, cwd: workDir };
 }
@@ -284,7 +284,7 @@ function terminalStop({ cardId, label }) {
       try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
     }
   }, 3000);
-  logger.info('forest.terminal', `Stopping the command in terminal card “${label || 'Terminal'}”`, { command: session.command });
+  logger.info('island.terminal', `Stopping the command in terminal card “${label || 'Terminal'}”`, { command: session.command });
   return { ok: true };
 }
 
@@ -317,21 +317,21 @@ async function openExternal(url) {
   try { parsed = new URL(String(url || '')); } catch { return { ok: false, error: 'Not a web address' }; }
   if (!['http:', 'https:'].includes(parsed.protocol)) return { ok: false, error: 'Only web addresses open in the browser' };
   await shell.openExternal(parsed.href);
-  logger.info('forest', 'Opened a webview card\'s page in your web browser', { url: parsed.href });
+  logger.info('island', 'Opened a webview card\'s page in your web browser', { url: parsed.href });
   return { ok: true };
 }
 
-function registerForestWorkspace({ ipcMain }) {
-  ipcMain.handle('forest-open-external', async (_event, url) => openExternal(url));
-  ipcMain.handle('forest-owned-create', async (_event, input) => createOwnedFile(input || {}));
-  ipcMain.handle('forest-owned-write', async (_event, filePath, content) => writeOwnedFile(filePath, content));
-  ipcMain.handle('forest-file-preview', async (_event, filePath, maxBytes) => readTextPreview(filePath, maxBytes));
-  ipcMain.handle('forest-archive-island', async (_event, input) => archiveIsland(input || {}));
-  ipcMain.handle('forest-terminal-run', async (event, input) => terminalRun(event.sender, input || {}));
-  ipcMain.handle('forest-terminal-stop', async (_event, input) => terminalStop(input || {}));
-  ipcMain.handle('forest-terminal-snapshot', async (_event, input) => terminalSnapshot(input || {}));
-  ipcMain.handle('forest-terminal-clear', async (_event, input) => terminalClear(input || {}));
+function registerIslandWorkspace({ ipcMain }) {
+  ipcMain.handle('island-open-external', async (_event, url) => openExternal(url));
+  ipcMain.handle('island-owned-create', async (_event, input) => createOwnedFile(input || {}));
+  ipcMain.handle('island-owned-write', async (_event, filePath, content) => writeOwnedFile(filePath, content));
+  ipcMain.handle('island-file-preview', async (_event, filePath, maxBytes) => readTextPreview(filePath, maxBytes));
+  ipcMain.handle('island-archive-island', async (_event, input) => archiveIsland(input || {}));
+  ipcMain.handle('island-terminal-run', async (event, input) => terminalRun(event.sender, input || {}));
+  ipcMain.handle('island-terminal-stop', async (_event, input) => terminalStop(input || {}));
+  ipcMain.handle('island-terminal-snapshot', async (_event, input) => terminalSnapshot(input || {}));
+  ipcMain.handle('island-terminal-clear', async (_event, input) => terminalClear(input || {}));
   return stopAllTerminals;
 }
 
-module.exports = { registerForestWorkspace, stopAllTerminals };
+module.exports = { registerIslandWorkspace, stopAllTerminals };

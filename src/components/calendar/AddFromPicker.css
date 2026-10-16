@@ -91,7 +91,7 @@
   font-weight: 700;
 }
 
-.add-from-sources i.forest { background: rgba(77, 178, 157, 0.14); color: #73d3c0; }
+.add-from-sources i.island { background: rgba(77, 178, 157, 0.14); color: #73d3c0; }
 .add-from-sources span { min-width: 0; }
 .add-from-sources strong,
 .add-from-sources small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

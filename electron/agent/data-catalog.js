@@ -10,7 +10,7 @@
  *
  * Data philosophy (user directive, 2026-07-16): information is stored ONCE as
  * a value; panels and contexts are appearances (views) of those values.
- * "Projects" always means Forest projects — organizer `type='project'` rows
+ * "Projects" always means Island projects — organizer `type='project'` rows
  * are a legacy concept and are deliberately absent from this catalog.
  *
  * This module is dependency-free on purpose: it can be unit-tested with plain
@@ -30,16 +30,16 @@ const DATA_OBJECTS = [
       'status: pending | created | running | in_progress | active | waiting | deferred | completed | cancelled | blocked',
       'priority: low | normal | medium | high | urgent',
       'due_at (ISO timestamp or null)',
-      'forest_project_id (backlink to a Forest project, or null)',
+      'island_project_id (backlink to a project in Islands, or null)',
       'subtasks: [{ id, title, status, position }]',
       'taskLog, created_at, updated_at, revision',
     ],
-    relationships: ['forest_project_id → forest_projects.id', 'placements.ref_id → tasks.id'],
-    filters: ['status', 'priority', 'project_id', 'forest_project_id', 'limit'],
+    relationships: ['island_project_id → island_projects.id', 'placements.ref_id → tasks.id'],
+    filters: ['status', 'priority', 'project_id', 'island_project_id', 'limit'],
     tools: ['briizos_list_tasks', 'briizos_get_task'],
   },
   {
-    key: 'forest_projects',
+    key: 'island_projects',
     title: 'Projects (islands)',
     category: 'work',
     description: 'The user\'s real projects, shown as islands on desks in the Islands app. These are the ONLY "projects" in briizOS.',
@@ -53,7 +53,7 @@ const DATA_OBJECTS = [
       'optional scoring fields when set: deadline (YYYY-MM-DD), importance (1-10), size (hours), relevance',
       'revision',
     ],
-    relationships: ['tasks.forest_project_id → forest_projects.id', 'files belong to exactly one Forest project appearance'],
+    relationships: ['tasks.island_project_id → island_projects.id', 'files belong to exactly one Island project appearance'],
     filters: ['limit; use project_id with briizos_get_project for detail'],
     tools: ['briizos_list_projects', 'briizos_get_project'],
   },
@@ -142,9 +142,9 @@ const DATA_OBJECTS = [
     key: 'files',
     title: 'Known files',
     category: 'knowledge',
-    description: 'Files indexed by briizOS through Forest, Media, Notefall attachments, or chat selection. This is metadata; use read_file for contents.',
-    fields: ['id, path, display_name, kind, size, modified_at, availability', 'selected, in_media_queue, forest_project_count', 'created_at, updated_at, revision'],
-    relationships: ['Referenced by Forest files, Notefall attachments, Media queue items, and selected chat files'],
+    description: 'Files indexed by briizOS through the Islands workspace, Media, Notefall attachments, or chat selection. This is metadata; use read_file for contents.',
+    fields: ['id, path, display_name, kind, size, modified_at, availability', 'selected, in_media_queue, island_project_count', 'created_at, updated_at, revision'],
+    relationships: ['Referenced by Islands files, Notefall attachments, Media queue items, and selected chat files'],
     filters: ['domain=files, id, query, kind, status (availability), limit'],
     tools: [BROWSE_TOOL, 'read_file'],
   },
@@ -204,7 +204,7 @@ const DATA_OBJECTS = [
     category: 'creation',
     description: 'The 3D project-space state: projects, visual theme, flight settings, and saved flight presets.',
     fields: ['projects', 'theme', 'flightSettings', 'flightPresets'],
-    relationships: ['This is a separate visual project representation, not the canonical Forest project domain'],
+    relationships: ['This is a separate visual project representation, not the canonical Islands project domain'],
     filters: ['domain=briiztorm, query, include_content, limit'],
     tools: [BROWSE_TOOL],
   },
@@ -270,14 +270,14 @@ const QUERY_DATA_DOMAINS = DATA_OBJECTS
 const MODALITY_SLICES = {
   chat: DATA_OBJECTS.map((objectDef) => objectDef.key),
   plan: [
-    'tasks', 'forest_projects', 'organizer_events', 'placements', 'organizer_notes', 'timers',
+    'tasks', 'island_projects', 'organizer_events', 'placements', 'organizer_notes', 'timers',
     'journals', 'notefall_posts', 'conversations', 'automation_runs', 'recorder_sessions',
   ],
-  planner: ['organizer_events', 'placements', 'tasks', 'forest_projects'],
-  prioritize: ['forest_projects', 'tasks'],
-  research: ['organizer_notes', 'journals', 'notefall_posts', 'canvases', 'forest_projects', 'files', 'conversations'],
-  code: ['forest_projects', 'files', 'canvases', 'conversations', 'automation_runs', 'logs', 'system_status'],
-  report: ['tasks', 'forest_projects', 'organizer_events', 'placements', 'journals', 'notefall_posts', 'conversations', 'automation_runs', 'recorder_sessions', 'logs'],
+  planner: ['organizer_events', 'placements', 'tasks', 'island_projects'],
+  prioritize: ['island_projects', 'tasks'],
+  research: ['organizer_notes', 'journals', 'notefall_posts', 'canvases', 'island_projects', 'files', 'conversations'],
+  code: ['island_projects', 'files', 'canvases', 'conversations', 'automation_runs', 'logs', 'system_status'],
+  report: ['tasks', 'island_projects', 'organizer_events', 'placements', 'journals', 'notefall_posts', 'conversations', 'automation_runs', 'recorder_sessions', 'logs'],
 };
 
 // Chat gets a compact view of every readable domain. Whole objects are
@@ -309,7 +309,7 @@ function getDataCatalogSection(modality) {
   if (!objects.length) return '';
 
   const header = `<briizos_data>
-briizOS keeps all app information in one local database, and you can query it directly. The objects below are readable right now with the listed tools — reads never need confirmation, and every query is logged for the user. Values are stored once; panels are views of them. "Projects" always means Forest projects.
+briizOS keeps all app information in one local database, and you can query it directly. The objects below are readable right now with the listed tools — reads never need confirmation, and every query is logged for the user. Values are stored once; panels are views of them. "Projects" always means projects in Islands.
 `;
   const guidance = `Guidance:
 - Query the database instead of guessing or asking the user for information it already holds.
