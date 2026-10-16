@@ -8,7 +8,7 @@ import { snap } from './util';
 
 // ==== TOOLS ====
 const TOOLS = [
-  { id: 'pointer', glyph: GLYPH.pointer, title: 'Select and draw new things' },
+  { id: 'pointer', glyph: GLYPH.smartpoint, title: 'Select and draw new things' },
   { id: 'terminal', glyph: '􀩼', title: 'Terminal — drag on an island' },
   { id: 'doc', glyph: GLYPH.file, title: 'Document — drag on an island' },
   { id: 'attach', glyph: GLYPH.attach, title: 'Bring in files — drag on an island' },
@@ -63,6 +63,11 @@ export function TopBar({ desk, focusIsland }) {
             <button type="button" onClick={() => setUi({ zoomTo: focusIsland.id })}>{focusIsland.name}</button>
           </nav>
         )}
+
+        <button type="button" className="fo-controls__new" onClick={() => setUi({ panel: 'desks', deskEditId: 'new' })}>
+          <span className="fo-glyph">{GLYPH.plus}</span>
+        </button>
+
       </div>
       <div className="fo-top__brand">islands</div>
       <div className="fo-top__right">
@@ -129,30 +134,7 @@ export function DeskControls({ desk, rects, stack, minimap }) {
 
   return (
     <div className="fo-controls">
-     <div className="fo-controls__desk-wrap">
-        <button type="button" className="fo-controls__new" onClick={() => setUi({ panel: 'desks', deskEditId: 'new' })}>
-          <span className="fo-glyph">{GLYPH.plus}</span>
-        </button>
 
-       
-        {switcher && (
-          <div className="fo-menu fo-controls__switcher" onPointerDown={(e) => e.stopPropagation()}>
-            {desks.map((d) => (
-              <button key={d.id} type="button" className="fo-menu__item" aria-pressed={d.id === desk.id} onClick={() => { switchDesk(d.id); setSwitcher(false); }}>
-                {d.name}<span className="fo-whisper">{deskIslands(d).length}</span>
-              </button>
-            ))}   
-          </div>
-        )}
-        <button
-          type="button"
-          className="fo-controls__desk"
-          onClick={() => (stack ? setUi({ stack: false }) : setSwitcher((s) => !s))}
-          title={stack ? 'Back to the desk' : 'Switch desk'}
-        >
-          <span className="fo-glyph">{GLYPH.stack}</span>{desk.id === ALL_DESK_ID ? 'All islands' : desk.name}
-        </button>
-      </div>
       <div className="fo-controls__row">
         <button type="button" className="fo-controls__btn" aria-pressed={stack} onClick={() => setUi({ stack: !stack })} title="Flip through islands">
           <span className="fo-glyph">{GLYPH.stack}</span>

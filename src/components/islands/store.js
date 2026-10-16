@@ -374,7 +374,7 @@ export function detach() {
 export function scheduleSave(immediate = false) {
   if (!S.loaded) return;
   clearTimeout(saveTimer);
-  setUi({ saveState: 'Saving…' }, false);
+  setUi({ saveState: '◔' }, false);
   saveTimer = setTimeout(saveNow, immediate ? 60 : SAVE_DELAY_MS);
 }
 
@@ -391,7 +391,7 @@ export async function saveNow() {
     await saving;
     lastOwnSaveAt = Date.now();
     lastSaveError = null;
-    setUi({ saveState: `Saved ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` });
+    setUi({ saveState: `✓ ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` });
   } catch (error) {
     const message = error?.message || 'Unknown problem';
     const rejected = /INVALID_INPUT|too large|too long|max \d|must be/i.test(message);

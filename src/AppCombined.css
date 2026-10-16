@@ -27238,7 +27238,8 @@ input):focus-visible {
     height: 30px;
     padding: 0 12px;
     border: 1px solid rgba(255, 255, 255, 0.28);
-    border-radius: 14px;
+    border-radius: 14px 0 0 14px;
+    border-right:none;
     background: rgba(0, 5, 0, 0.5);
     font-size: 11px;
     font-weight: 700;
@@ -27248,13 +27249,20 @@ input):focus-visible {
 .fo-top__crumbs {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0px;
+        height: 30px;
+            padding: 0 12px;
+                border-top: 1px solid rgba(255, 255, 255, 0.28);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(0, 5, 0, 0.5);
     min-width: 0;
     color: var(--fo-neon);
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    text-shadow: 0 0 12px rgba(var(--fo-neon-rgb), 0.45);}
+    text-shadow: 0 0 12px rgba(var(--fo-neon-rgb), 0.45);
+    margin-left:-6px
+}
 .fo-top__crumbs button {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -28710,16 +28718,24 @@ tr[data-kind='cost'] .fo-money__kind {
 /* Tool palette and desk controls */
 .fo-tools {
     position: absolute;
-    top: 60px;
-    left: 14px;
+    bottom: 50%;
+    left: 0;
     z-index: 20;
     display: flex;
-    gap: 2px;
-    padding: 4px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 22px;
-    background: rgba(0, 8, 4, 0.82);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);}
+    flex-direction:column;
+    transform:translateY(50%);
+    gap: 20px;
+    padding: 6px 2px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0 22px 22px 0;
+    backdrop-filter:blur(2px);
+    box-shadow:inset -2px 0 3px  color-mix(in oklab, var(--palette-accent-primary) 40%, transparent);
+}
+
+
+
+
+
 .fo-tools__btn {
     display: grid;
     place-items: center;
@@ -28737,30 +28753,70 @@ tr[data-kind='cost'] .fo-money__kind {
     text-shadow: 0 0 12px rgba(var(--fo-neon-rgb), 0.6);}
 .fo-controls {
     position: absolute;
-    border-radius:14px;
+    border-radius:14px 14px 0px 0px;
     left: 14px;
-    bottom: 14px;
+    bottom: -2px;
     z-index: 20;
     border:.75px solid var(--palette-accent-primary);
     display: flex;
+    overflow:hidden;
     flex-direction: column;
     align-items: stretch;
     gap: 0px;
-    width: 185px;}
+    height:36px;
+    width: 225px;
+    padding-left:20px;
+}
+
+/* moved to header */
 .fo-controls__new {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 36px;
+    height: 30px;
     padding: 0 13px;
-    border: 1px dashed var(--ui-border);
-    border-radius: 14px 0 0 0px;
+    border: 1px solid rgba(255, 255, 255, 0.28);    
+    border-radius:  0 14px 14px 0px;
     background: rgba(0, 5, 0, 0.5);
     color: var(--fo-text);
     font-size: 12.5px;
     font-weight: 600;
-    transition: transform 0.16s, background 0.16s;}
+    transition: transform 0.16s, background 0.16s;
+    margin-left:-6px;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .fo-controls__new:hover {
     transform: translateY(-1px);
     background: rgba(255, 255, 255, 0.09);}
@@ -28808,7 +28864,8 @@ tr[data-kind='cost'] .fo-money__kind {
     width: 38px;
     font-size: 15px;}
 .fo-controls__row > :first-child {
-    border-radius: 0 0 0 14px;}
+    margin-left:-20px;
+    border-radius: 0px}
 .fo-controls__btn:hover,.fo-controls__desk:hover,.fo-controls__new:hover,
 .fo-controls__btn[aria-pressed='true'] {
     box-shadow: inset 0 -10px 20px var(--palette-accent-primary);
@@ -28819,7 +28876,7 @@ tr[data-kind='cost'] .fo-money__kind {
     align-items: center;
     justify-content: space-evenly;
     padding: 0 4px;
-    border-radius: 0 0 14px 0;}
+    border-radius: 0;}
 .fo-controls__zoom button {
     display: grid;
     place-items: center;
@@ -28834,12 +28891,12 @@ tr[data-kind='cost'] .fo-money__kind {
     font-size: 11.5px;}
 .fo-minimap {
     position: absolute;
-    left: 210px;
-    bottom: 14px;
+    left: 32px;
+    bottom: 22px;
     z-index: 20;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
-    background: rgba(8, 22, 16, 0.85);
+    box-shadow:inset 0 0 10px var(--palette-accent-primary);
+    border-radius: 14px 14px 0 0;
+    background: rgba(8, 22, 16, 0.5);
     cursor: pointer;}
 
 /* Popovers */
