@@ -28664,23 +28664,25 @@ tr[data-kind='cost'] .fo-money__kind {
     text-shadow: 0 0 12px rgba(var(--fo-neon-rgb), 0.6);}
 .fo-controls {
     position: absolute;
-    right: 14px;
+    border-radius:14px;
+    left: 14px;
     bottom: 14px;
     z-index: 20;
+    border:.75px solid var(--palette-accent-primary);
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
-    width: 275px;}
+    gap: 0px;
+    width: 185px;}
 .fo-controls__new {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 30px;
+    height: 36px;
     padding: 0 13px;
-    border: 1px dashed rgba(255, 255, 255, 0.45);
-    border-radius: 14px 14px 0 0;
+    border: 1px dashed var(--ui-border);
+    border-radius: 14px 0 0 0px;
     background: rgba(0, 5, 0, 0.5);
     color: var(--fo-text);
     font-size: 12.5px;
@@ -28691,26 +28693,30 @@ tr[data-kind='cost'] .fo-money__kind {
     background: rgba(255, 255, 255, 0.09);}
 .fo-controls__desk-wrap {
     position: relative;
-    margin: -10px 0;}
+    display:flex;
+    margin: 0px 0;}
 .fo-controls__desk {
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity:.8;
     gap: 7px;
     height: 36px;
     padding: 0 16px;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 0;
+    border:none;
+    border-radius: 0 14px 0 0;
     background: linear-gradient(135deg, #17d98a, #0f9e63);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 18px 40px rgba(23, 217, 138, 0.25);
     color: #03140b;
-    width:stretch;
+    width:100%;
     font-size: 13px;
     font-weight: 700;}
+.fo-controls__desk:hover {
+    opacity:1;}
+
 .fo-controls__switcher {
     position: absolute;
-    right: 0;
-    bottom: 42px;}
+    left: 0;
+    bottom: 32px;}
 .fo-controls__row {
     display: flex;
     align-items: center;
@@ -28730,9 +28736,9 @@ tr[data-kind='cost'] .fo-money__kind {
     font-size: 15px;}
 .fo-controls__row > :first-child {
     border-radius: 0 0 0 14px;}
-.fo-controls__btn:hover,
+.fo-controls__btn:hover,.fo-controls__desk:hover,.fo-controls__new:hover,
 .fo-controls__btn[aria-pressed='true'] {
-    box-shadow: inset 0 -10px 20px rgba(23, 217, 138, 0.7);
+    box-shadow: inset 0 -10px 20px var(--palette-accent-primary);
     color: rgba(255, 255, 255, 0.9);}
 .fo-controls__zoom {
     display: flex;
@@ -28748,12 +28754,14 @@ tr[data-kind='cost'] .fo-money__kind {
     height: 26px;
     font-size: 12px;}
 .fo-controls__zoom button:hover {
-    color: #fff;}
+    color: #fff;
+    box-shadow: inset 0 -10px 20px var(--palette-accent-primary);
+}
 .fo-controls__zoom .fo-controls__pct {
     font-size: 11.5px;}
 .fo-minimap {
     position: absolute;
-    left: 14px;
+    left: 210px;
     bottom: 14px;
     z-index: 20;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -29551,10 +29559,15 @@ button.fo-stack__fact:hover b {
 /* Dim desk: the old dim mode */
 .fo-root[data-dim='true'] .fo-desk {
     background: linear-gradient(to top left, #00171b, #001314, black);}
+
+.fo-root[data-dim='true'] .fo-controls__desk {
+    background:black;color:var(--ui-text-primary);
+}
+
 .fo-root[data-dim='true'] .fo-desk__grid {
     opacity: 1;}
 .fo-root[data-dim='true'] .fo-top {
-    background: black;
+    background: linear-gradient(to bottom, black 80%, rgba(0,60,60) 100%);
     border-color: rgba(255, 255, 255, 0.06);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -29565,15 +29578,14 @@ button.fo-stack__fact:hover b {
     text-shadow: none;}
 /* One filter on the whole canvas layer, not one per island. */
 .fo-root[data-dim='true'] .fo-world {
-    filter: hue-rotate(90deg);}
+    filter: hue-rotate(0deg);}
 .fo-root[data-dim='true'] .fo-island {
-    background: black;
-    border-color: rgba(255, 255, 255, 0.415);}
+box-shadow:inset 0 0 100px black, 0 0 6px var(--accent);
+background:transparent;
+}
 .fo-root[data-dim='true'] .fo-island::before {
-    background: none;
-    box-shadow: none;}
+    background: transparent;;}
 .fo-root[data-dim='true'] .fo-island::after {
-    background: black;
     box-shadow: none;}
 .fo-root[data-dim='true'] .fo-island:hover {
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 15px rgba(0, 255, 255, 0.71), 0 0 0 1px rgba(var(--accent-rgb), 0.5);}

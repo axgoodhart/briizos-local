@@ -129,17 +129,19 @@ export function DeskControls({ desk, rects, stack, minimap }) {
 
   return (
     <div className="fo-controls">
-      <button type="button" className="fo-controls__new" onClick={() => setUi({ panel: 'desks', deskEditId: 'new' })}>
-        <span className="fo-glyph">{GLYPH.plus}</span>New desk
-      </button>
-      <div className="fo-controls__desk-wrap">
+     <div className="fo-controls__desk-wrap">
+        <button type="button" className="fo-controls__new" onClick={() => setUi({ panel: 'desks', deskEditId: 'new' })}>
+          <span className="fo-glyph">{GLYPH.plus}</span>
+        </button>
+
+       
         {switcher && (
           <div className="fo-menu fo-controls__switcher" onPointerDown={(e) => e.stopPropagation()}>
             {desks.map((d) => (
               <button key={d.id} type="button" className="fo-menu__item" aria-pressed={d.id === desk.id} onClick={() => { switchDesk(d.id); setSwitcher(false); }}>
                 {d.name}<span className="fo-whisper">{deskIslands(d).length}</span>
               </button>
-            ))}
+            ))}   
           </div>
         )}
         <button
