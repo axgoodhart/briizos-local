@@ -1081,11 +1081,13 @@ ipcMain.handle('island-hunter-search', async (_event, keywords, excludePaths, cu
 ipcMain.handle('island-hunter-default-dirs', async () => islandFs.hunterDefaultDirs());
 ipcMain.handle('island-hunter-query', async (_event, opts) => islandFs.huntFiles(opts || {}));
 
-ipcMain.handle('island-dialog-open-directory', async () => {
+ipcMain.handle('island-dialog-open-directory', async (_event, input = {}) => {
+  const options = input && typeof input === 'object' ? input : {};
   const win = BrowserWindow.getFocusedWindow();
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory'],
-    title: 'Add a folder for File Hunter searches',
+    title: typeof options.title === 'string' ? options.title.slice(0, 120) : 'Choose a folder',
+    buttonLabel: typeof options.buttonLabel === 'string' ? options.buttonLabel.slice(0, 40) : undefined,
   });
   if (result.canceled || !result.filePaths.length) return null;
   return result.filePaths[0];

@@ -41,3 +41,37 @@ test('the preview runtime refuses to install missing project dependencies', asyn
   }));
   await assert.rejects(_test.planPreview(root), { code: 'DEPENDENCIES_MISSING' });
 });
+
+test('an unrelated build folder is not treated as project identity', async (t) => {
+  const root = await project(t);
+  await fs.mkdir(path.join(root, 'build'));
+  await fs.writeFile(path.join(root, 'build', 'index.html'), '<h1>Old export</h1>');
+  await assert.rejects(_test.planPreview(root), { code: 'PROJECT_UNSUPPORTED' });
+});
+
+test('a Flask app with its own server file gets a dynamic local launch', async (t) => {
+  const root = await project(t);
+  await fs.writeFile(path.join(root, 'server.py'), 'from flask import Flask\napp = Flask(__name__)\n');
+  assert.deepEqual(await _test.planPreview(root), {
+    mode: 'managed', framework: 'flask', command: 'python3',
+    args: ['-m', 'flask', '--app', 'server.py', 'run', '--host', '127.0.0.1', '--port', '{PORT}'],
+    cwd: root,
+    env: { FLASK_DEBUG: '0', PYTHONDONTWRITEBYTECODE: '1' },
+    urlTemplate: 'http://127.0.0.1:{PORT}/',
+  });
+});
+
+test('a remembered launch choice is parsed without evaluating a shell', async (t) => {
+  const root = await project(t);
+  const launch = {
+    commandLine: 'python3 "little server.py" --port {PORT}',
+    cwd: root,
+    urlTemplate: 'http://127.0.0.1:{PORT}/hello',
+  };
+  assert.deepEqual(_test.splitCommandLine(launch.commandLine), ['python3', 'little server.py', '--port', '{PORT}']);
+  assert.deepEqual(await _test.planPreview(root, launch), {
+    mode: 'managed', framework: 'custom', command: 'python3',
+    args: ['little server.py', '--port', '{PORT}'], cwd: root,
+    env: {}, urlTemplate: 'http://127.0.0.1:{PORT}/hello', manual: true,
+  });
+});

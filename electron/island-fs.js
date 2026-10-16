@@ -261,9 +261,11 @@ async function importDroppedPaths(inputPaths = []) {
     }
 
     let projectHint;
+    let projectRoot = '';
 
     if (stat.isDirectory()) {
       projectHint = path.basename(fullPath) || 'Untitled Project';
+      projectRoot = fullPath;
     } else {
       const parentName = path.basename(path.dirname(fullPath)) || '';
       const ext = path.extname(fullPath).slice(1).toLowerCase();
@@ -285,11 +287,13 @@ async function importDroppedPaths(inputPaths = []) {
           name: titleCase(file.projectHint),
           files: [],
           tagCounts: new Map(),
+          rootPaths: new Set(),
         });
       }
 
       const group = groups.get(key);
       group.files.push(file);
+      if (projectRoot) group.rootPaths.add(projectRoot);
 
       for (const tag of file.tags) {
         group.tagCounts.set(tag, (group.tagCounts.get(tag) || 0) + 1);
@@ -318,6 +322,7 @@ async function importDroppedPaths(inputPaths = []) {
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([tag]) => tag)
         .slice(0, 10),
+      rootPath: group.rootPaths.size === 1 ? [...group.rootPaths][0] : '',
       files: group.files.sort((a, b) => a.name.localeCompare(b.name)),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));

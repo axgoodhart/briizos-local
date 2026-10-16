@@ -18258,7 +18258,7 @@ body {
 .stylofact-section-intro {
     align-items: flex-start;
     display: grid;
-    gap: 13px;
+    gap: 9px;
     grid-template-columns: 31px minmax(0, 700px);
     margin-bottom: 19px;}
 .stylofact-step-number {
@@ -28164,6 +28164,130 @@ display: flex;
     letter-spacing: 0;}
 .fo-web__retry:hover {
     color: color-mix(in srgb, var(--fo-neon, #5ff2a6) 88%, white);}
+.fo-web__bar .fo-icon-btn[aria-pressed='true'] {
+    color: var(--fo-neon, #5ff2a6);
+    background: rgba(var(--fo-neon-rgb), 0.14);}
+.fo-web__setup {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    align-content: start;
+    gap: 13px;
+    overflow: auto;
+    padding: clamp(12px, 3cqw, 20px);
+    background:
+        linear-gradient(145deg, rgba(var(--accent-rgb), 0.12), transparent 48%),
+        #07100c;
+    color: #eff8f1;
+    scrollbar-color: rgba(var(--fo-neon-rgb), 0.45) transparent;
+    scrollbar-width: thin;}
+.fo-web__setup > * {
+    width: min(100%, 620px);
+    margin-inline: auto;}
+.fo-web__setup-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 5px;}
+.fo-web__setup-head h3 {
+    margin: 0;
+    color: #f5fff7;
+    font-family: var(--fo-display);
+    font-size: clamp(20px, 6cqw, 28px);
+    font-weight: 520;
+    letter-spacing: -0.025em;
+    line-height: 1.05;}
+.fo-web__setup-head p {
+    margin: 6px 0 0;
+    color: color-mix(in srgb, var(--fo-neon, #5ff2a6) 54%, white);
+    font-size: 11.5px;}
+.fo-web__setup-field {
+    display: grid;
+    gap: 5px;
+    color: color-mix(in srgb, var(--fo-neon, #5ff2a6) 45%, white);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;}
+.fo-web__setup-field input,
+.fo-web__folder-choice {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    padding: 0 11px;
+    border: 1px solid rgba(235, 255, 241, 0.17);
+    border-radius: 10px;
+    outline: 0;
+    background: rgba(0, 0, 0, 0.34);
+    color: #f3faf5;
+    font-family: var(--ui-font-main);
+    font-size: 12px;
+    font-weight: 520;
+    letter-spacing: 0;
+    text-align: left;
+    text-transform: none;}
+.fo-web__setup-field input::placeholder {
+    color: rgba(229, 245, 234, 0.52);}
+.fo-web__setup-field input:focus-visible,
+.fo-web__folder-choice:focus-visible {
+    border-color: rgba(var(--fo-neon-rgb), 0.86);
+    box-shadow: 0 0 0 2px rgba(var(--fo-neon-rgb), 0.18);}
+.fo-web__folder-choice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;}
+.fo-web__folder-choice > :first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;}
+.fo-web__folder-choice .fo-glyph {
+    flex: none;
+    color: var(--fo-neon, #5ff2a6);}
+.fo-web__setup-issue {
+    margin-block: 0;
+    color: #ffc3ca;
+    font-size: 11.5px;
+    line-height: 1.35;}
+.fo-web__setup-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;}
+.fo-web__automatic,
+.fo-web__remember {
+    min-height: 32px;
+    padding: 0 14px;
+    border: 1px solid rgba(235, 255, 241, 0.2);
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;}
+.fo-web__automatic {
+    background: transparent;
+    color: #dcebe0;}
+.fo-web__remember {
+    border-color: transparent;
+    background: var(--fo-neon, #5ff2a6);
+    color: #031009;}
+.fo-web__automatic:hover {
+    background: rgba(255, 255, 255, 0.07);}
+.fo-web__remember:hover {
+    background: color-mix(in srgb, var(--fo-neon, #5ff2a6) 84%, white);}
+.fo-web__automatic:focus-visible,
+.fo-web__remember:focus-visible {
+    outline: 2px solid #f4fff6;
+    outline-offset: 2px;}
+@container (max-width: 390px) {
+    .fo-web__setup { gap: 10px; padding: 13px; }
+    .fo-web__setup-actions { align-items: stretch; flex-direction: column-reverse; }
+    .fo-web__automatic,
+    .fo-web__remember { width: 100%; }
+}
 @keyframes fo-web-wake {
     from { background-position: 130% 0; }
     to { background-position: -130% 0; }

@@ -140,17 +140,15 @@ function normalizeCard(card = {}) {
   };
 }
 
-function commonFolder(paths) {
-  const parts = paths.filter(Boolean).map((p) => p.split('/').slice(0, -1));
-  if (!parts.length) return '';
-  const first = parts[0];
-  let depth = first.length;
-  parts.forEach((segments) => {
-    let i = 0;
-    while (i < depth && segments[i] === first[i]) i += 1;
-    depth = i;
-  });
-  return depth >= 4 ? first.slice(0, depth).join('/') : '';
+function normalizeWebLaunch(value) {
+  if (!value || typeof value !== 'object' || typeof value.commandLine !== 'string' || !value.commandLine.trim()) return null;
+  return {
+    commandLine: value.commandLine.trim(),
+    cwd: typeof value.cwd === 'string' ? value.cwd.trim() : '',
+    urlTemplate: typeof value.urlTemplate === 'string' && value.urlTemplate.trim()
+      ? value.urlTemplate.trim() : 'http://127.0.0.1:{PORT}/',
+    updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : null,
+  };
 }
 
 // Old Island projects become islands: their files go into a Docs/Code card and a Media card.
@@ -217,7 +215,8 @@ function normalizeIsland(project = {}) {
     stage: clamp(Number.isInteger(project.stage) ? project.stage : 0, 0, stages.length - 1),
     status: typeof project.status === 'string' ? project.status : '',
     field: typeof project.field === 'string' ? project.field : '',
-    rootPath: typeof project.rootPath === 'string' ? project.rootPath : commonFolder(files.map((f) => f.path)),
+    rootPath: typeof project.rootPath === 'string' ? project.rootPath : '',
+    webLaunch: normalizeWebLaunch(project.webLaunch),
     answers: project.answers && typeof project.answers === 'object' ? project.answers : {},
     journal: {
       entries: Array.isArray(project.journal?.entries) ? project.journal.entries : [],
@@ -1084,18 +1083,13 @@ export async function importPaths(paths, { islandId = null, cardId = null, rect 
       const files = groups.flatMap((g) => g.files || []);
       const count = addFilesToIsland(islandId, files, { cardId, source: 'drop' });
       toast(count ? `Brought in ${count} file${count === 1 ? '' : 's'}` : 'Those files are already on this island');
-      if (paths.length === 1 && !getIsland(islandId)?.rootPath) {
-        const only = files.length && commonFolder(files.map((f) => f.path));
-        if (only) updateIsland(islandId, { rootPath: only });
-      }
       return;
     }
     let x = rect?.x ?? 0;
     groups.forEach((group) => {
       const island = createIsland({ name: group.name || 'Untitled island', rect: { x, y: rect?.y ?? 0, w: 0, h: 0 } });
       addFilesToIsland(island.id, group.files || [], { source: 'drop' });
-      const folder = commonFolder((group.files || []).map((f) => f.path));
-      if (folder) updateIsland(island.id, { rootPath: folder });
+      if (group.rootPath) updateIsland(island.id, { rootPath: group.rootPath });
       x += (getIsland(island.id)?.w || 800) + 160;
     });
   } catch (error) {
@@ -1278,6 +1272,7 @@ function agentBrief(island, card, goal) {
   return [
     `Island: ${island.name}`,
     island.rootPath ? `Project folder: ${island.rootPath}` : '',
+    island.webLaunch ? `Remembered web launch: ${island.webLaunch.commandLine}\nRun from: ${island.webLaunch.cwd || island.rootPath}\nOpen at: ${island.webLaunch.urlTemplate}` : '',
     `Stage: ${island.stages[island.stage]} (${island.stage + 1} of ${island.stages.length})`,
     island.status ? `Status: ${island.status}` : '',
     `Other cards on the island: ${others}`,

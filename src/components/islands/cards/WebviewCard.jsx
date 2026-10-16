@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import logger from '../../../lib/logger';
-import { updateCardData } from '../store';
+import { updateCardData, updateIsland } from '../store';
 import { GLYPH } from '../catalog';
 import { toFileUrl } from '../util';
 
@@ -19,10 +19,24 @@ function normalizeUrl(value) {
 function isLoopback(value) {
   try {
     const host = new URL(normalizeUrl(value)).hostname;
-    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1';
+    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || host === '[::1]';
   } catch {
     return false;
   }
+}
+
+function launchDraft(island) {
+  const remembered = island.webLaunch || {};
+  return {
+    rootPath: island.rootPath || '',
+    commandLine: remembered.commandLine || '',
+    cwd: remembered.cwd || island.rootPath || '',
+    urlTemplate: remembered.urlTemplate || 'http://127.0.0.1:{PORT}/',
+  };
+}
+
+function shortPath(value) {
+  return String(value || '').replace(/^\/Users\/[^/]+/, '~');
 }
 
 export default function WebviewCard({ island, card }) {
@@ -40,10 +54,14 @@ export default function WebviewCard({ island, card }) {
   const mountedRef = useRef(true);
   const currentRef = useRef(card.data.url || '');
   const returnToPreviewRef = useRef(null);
+  const openedModeRef = useRef(projectMode ? 'project' : 'url');
   const [phase, setPhaseState] = useState(PHASE.REST);
   const [draft, setDraft] = useState(projectMode ? '' : url);
   const [current, setCurrent] = useState(url);
   const [runtimeUrl, setRuntimeUrl] = useState('');
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupIssue, setSetupIssue] = useState('');
+  const [recipe, setRecipe] = useState(() => launchDraft(island));
   const canWake = projectMode || Boolean(url);
   const previewSrc = card.data.previewPath ? toFileUrl(card.data.previewPath) : '';
 
@@ -109,7 +127,10 @@ export default function WebviewCard({ island, card }) {
   const wake = async (choice = {}) => {
     const mode = choice.mode || (projectMode ? 'project' : 'url');
     const address = normalizeUrl(choice.url ?? url);
-    if (mode === 'url' && !address) return;
+    const rootPath = choice.rootPath ?? island.rootPath;
+    const launch = Object.prototype.hasOwnProperty.call(choice, 'launch') ? choice.launch : (island.webLaunch || null);
+    if (mode === 'url' && !address) return { ok: false };
+    if (mode === 'project' && !rootPath) return { ok: false };
     const token = ++wakeTokenRef.current;
     clearCaptureTimer();
     await releaseProject('the card opened a different page');
@@ -122,7 +143,7 @@ export default function WebviewCard({ island, card }) {
         if (!window.api.islandPreviewAcquire) throw new Error('The local preview runtime is unavailable.');
         projectRequestedRef.current = true;
         if (card.data.previewMode !== 'project') updateCardData(island.id, card.id, { previewMode: 'project' });
-        const result = await window.api.islandPreviewAcquire({ cardId: card.id, rootPath: island.rootPath });
+        const result = await window.api.islandPreviewAcquire({ cardId: card.id, rootPath, launch });
         nextUrl = result?.url || '';
         if (!nextUrl) throw new Error('The local preview did not provide a page.');
       }
@@ -133,19 +154,22 @@ export default function WebviewCard({ island, card }) {
       currentRef.current = nextUrl;
       setCurrent(nextUrl);
       setRuntimeUrl(nextUrl);
+      openedModeRef.current = mode;
       setPhase(PHASE.LIVE);
+      return { ok: true, url: nextUrl };
     } catch (error) {
-      if (!mountedRef.current || token !== wakeTokenRef.current) return;
+      if (!mountedRef.current || token !== wakeTokenRef.current) return { ok: false, error };
       await releaseProject('opening failed');
       setRuntimeUrl('');
       setPhase(PHASE.RETRY);
       logger.warn('island.card', `“${card.title}” could not open`, {
-        project: mode === 'project' ? island.rootPath : null,
+        project: mode === 'project' ? rootPath : null,
         url: mode === 'url' ? address : null,
         problem: error?.message || String(error),
         errorCode: error?.code || null,
-        nextStep: 'Press Retry after reviewing Island webviews in Logs.',
+        nextStep: 'Press Retry, or use “Choose what this opens” on the card to teach the Island another launch.',
       });
+      return { ok: false, error };
     }
   };
 
@@ -165,6 +189,97 @@ export default function WebviewCard({ island, card }) {
   const reload = () => {
     if (phaseRef.current === PHASE.LIVE) viewRef.current?.reload?.();
     else if (phaseRef.current !== PHASE.OPENING) void wake();
+  };
+
+  const withSuggestion = async (rootPath, base) => {
+    if (!rootPath || !window.api.islandPreviewSuggest) return base;
+    try {
+      const suggestion = await window.api.islandPreviewSuggest({ rootPath });
+      return {
+        ...base,
+        rootPath,
+        commandLine: suggestion?.commandLine || '',
+        cwd: suggestion?.cwd || rootPath,
+        urlTemplate: suggestion?.urlTemplate || 'http://127.0.0.1:{PORT}/',
+      };
+    } catch {
+      return { ...base, rootPath, cwd: base.cwd || rootPath };
+    }
+  };
+
+  const openSetup = async () => {
+    await returnToPreview('the launch choices were opened');
+    if (!mountedRef.current) return;
+    let next = launchDraft(island);
+    if (!island.webLaunch) next = await withSuggestion(next.rootPath, next);
+    if (!mountedRef.current) return;
+    setRecipe(next);
+    setSetupIssue('');
+    setSetupOpen(true);
+  };
+
+  const chooseRecipeFolder = async () => {
+    const rootPath = await window.api.islandOpenDirectoryDialog?.({
+      title: 'Choose what this Island opens',
+      buttonLabel: 'Choose project',
+    });
+    if (!rootPath) return;
+    const next = await withSuggestion(rootPath, {
+      ...recipe, rootPath, cwd: rootPath, commandLine: '', urlTemplate: 'http://127.0.0.1:{PORT}/',
+    });
+    if (mountedRef.current) {
+      setRecipe(next);
+      setSetupIssue('');
+    }
+  };
+
+  const tryAndRemember = async (event) => {
+    event.preventDefault();
+    const launch = {
+      commandLine: recipe.commandLine.trim(),
+      cwd: recipe.cwd.trim(),
+      urlTemplate: recipe.urlTemplate.trim(),
+    };
+    const rootPath = recipe.rootPath.trim();
+    if (!rootPath || !launch.commandLine || !launch.cwd || !launch.urlTemplate) {
+      setSetupIssue('Choose a project and fill in its command, working folder, and address.');
+      return;
+    }
+    setSetupIssue('');
+    setSetupOpen(false);
+    const result = await wake({ mode: 'project', rootPath, launch });
+    if (!result?.ok) {
+      if (mountedRef.current) {
+        setSetupIssue('That choice did not open, so it was not remembered.');
+        setSetupOpen(true);
+      }
+      return;
+    }
+    const remembered = { ...launch, updatedAt: new Date().toISOString() };
+    updateIsland(island.id, { rootPath, webLaunch: remembered });
+    logger.info('island.card', `Remembered how “${island.name}” opens`, {
+      project: rootPath, command: launch.commandLine, cwd: launch.cwd, address: launch.urlTemplate,
+    });
+  };
+
+  const useAutomatic = async () => {
+    const rootPath = recipe.rootPath.trim();
+    if (!rootPath) {
+      setSetupIssue('Choose a project folder first.');
+      return;
+    }
+    setSetupIssue('');
+    setSetupOpen(false);
+    const result = await wake({ mode: 'project', rootPath, launch: null });
+    if (!result?.ok) {
+      if (mountedRef.current) {
+        setSetupIssue('Automatic opening did not work. Your remembered choice was kept.');
+        setSetupOpen(true);
+      }
+      return;
+    }
+    updateIsland(island.id, { rootPath, webLaunch: null });
+    logger.info('island.card', `“${island.name}” returned to automatic Webview opening`, { project: rootPath });
   };
 
   useEffect(() => { setDraft(projectMode ? '' : url); }, [url, projectMode]);
@@ -202,7 +317,7 @@ export default function WebviewCard({ island, card }) {
       clearCaptureTimer();
       captureTimerRef.current = setTimeout(() => void captureFrame(), CAPTURE_AFTER_LOAD_MS);
       logger.info('island.card', `Opened “${card.title}” in its Webview card`, {
-        mode: projectMode ? 'project' : 'url', url: currentRef.current || runtimeUrl,
+        mode: openedModeRef.current, url: currentRef.current || runtimeUrl,
       });
     };
     const navigated = (event) => {
@@ -235,6 +350,16 @@ export default function WebviewCard({ island, card }) {
     <div className="fo-web">
       <form className="fo-web__bar" data-project={projectMode ? 'true' : undefined} onSubmit={(e) => { e.preventDefault(); go(draft); }}>
         <input value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} placeholder="Address" aria-label="Web address" />
+        <button
+          type="button"
+          className="fo-icon-btn"
+          onClick={() => (setupOpen ? setSetupOpen(false) : void openSetup())}
+          title="Choose what this opens"
+          aria-label="Choose what this opens"
+          aria-pressed={setupOpen}
+        >
+          <span className="fo-glyph">{GLYPH.gear}</span>
+        </button>
         <button type="button" className="fo-icon-btn" onClick={reload} title="Reload" aria-label="Reload" disabled={!canWake || phase === PHASE.OPENING}>
           <span className="fo-glyph">{GLYPH.refresh}</span>
         </button>
@@ -248,7 +373,67 @@ export default function WebviewCard({ island, card }) {
         )}
       </form>
       <div ref={holderRef} className="fo-web__view">
-        {phase === PHASE.LIVE && runtimeUrl ? (
+        {setupOpen ? (
+          <form className="fo-web__setup" aria-labelledby={`web-launch-${card.id}`} onSubmit={tryAndRemember}>
+            <div className="fo-web__setup-head">
+              <div>
+                <h3 id={`web-launch-${card.id}`}>Choose what this opens</h3>
+                <p>Remembered by this Island.</p>
+              </div>
+              <button type="button" className="fo-icon-btn" onClick={() => setSetupOpen(false)} title="Close" aria-label="Close launch choices">
+                <span className="fo-glyph">{GLYPH.close}</span>
+              </button>
+            </div>
+
+            <label className="fo-web__setup-field">
+              <span>Project folder</span>
+              <button type="button" className="fo-web__folder-choice" onClick={() => void chooseRecipeFolder()}>
+                <span title={recipe.rootPath}>{recipe.rootPath ? shortPath(recipe.rootPath) : 'Choose a folder'}</span>
+                <span className="fo-glyph" aria-hidden="true">{GLYPH.folder}</span>
+              </button>
+            </label>
+
+            <label className="fo-web__setup-field">
+              <span>Start it with</span>
+              <input
+                value={recipe.commandLine}
+                onChange={(event) => setRecipe((currentRecipe) => ({ ...currentRecipe, commandLine: event.target.value }))}
+                placeholder="python3 -m flask --app server.py run --port {PORT}"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+
+            <label className="fo-web__setup-field">
+              <span>Run from</span>
+              <input
+                value={recipe.cwd}
+                onChange={(event) => setRecipe((currentRecipe) => ({ ...currentRecipe, cwd: event.target.value }))}
+                placeholder="Project folder"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+
+            <label className="fo-web__setup-field">
+              <span>Open at</span>
+              <input
+                value={recipe.urlTemplate}
+                onChange={(event) => setRecipe((currentRecipe) => ({ ...currentRecipe, urlTemplate: event.target.value }))}
+                placeholder="http://127.0.0.1:{PORT}/"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+
+            {setupIssue && <p className="fo-web__setup-issue" role="alert">{setupIssue}</p>}
+
+            <div className="fo-web__setup-actions">
+              <button type="button" className="fo-web__automatic" onClick={() => void useAutomatic()}>Use automatic</button>
+              <button type="submit" className="fo-web__remember">Try &amp; remember</button>
+            </div>
+          </form>
+        ) : phase === PHASE.LIVE && runtimeUrl ? (
           <webview ref={viewRef} src={runtimeUrl} partition="persist:island" allowpopups="true" className="fo-web__frame" />
         ) : phase === PHASE.RETRY ? (
           <button type="button" className="fo-web__retry" onClick={() => void wake()}>

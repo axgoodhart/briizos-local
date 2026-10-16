@@ -499,7 +499,7 @@ contextBridge.exposeInMainWorld('api', {
   islandHunterSearch: (keywords, excludePaths, customDirs) => ipcRenderer.invoke('island-hunter-search', keywords, excludePaths, customDirs),
   islandHunterDefaultDirs: () => ipcRenderer.invoke('island-hunter-default-dirs'),
   islandHunterQuery: (opts) => ipcRenderer.invoke('island-hunter-query', opts),
-  islandOpenDirectoryDialog: () => ipcRenderer.invoke('island-dialog-open-directory'),
+  islandOpenDirectoryDialog: (input) => ipcRenderer.invoke('island-dialog-open-directory', input),
   islandFilehawkCheck: (filePaths) => ipcRenderer.invoke('island-filehawk-check', filePaths),
   islandFilehawkLocate: (name, excludePaths, dirs) => ipcRenderer.invoke('island-filehawk-locate', name, excludePaths, dirs),
   islandAutoTag: (input) => ipcRenderer.invoke('island-autotag-suggest', input),
@@ -521,6 +521,7 @@ contextBridge.exposeInMainWorld('api', {
   islandPreviewAcquire: (input) => ipcRenderer.invoke('island-preview-acquire', input),
   islandPreviewRelease: (input) => ipcRenderer.invoke('island-preview-release', input),
   islandPreviewSaveCapture: (input) => ipcRenderer.invoke('island-preview-save-capture', input),
+  islandPreviewSuggest: (input) => ipcRenderer.invoke('island-preview-suggest', input),
   islandOpenExternal: (url) => ipcRenderer.invoke('island-open-external', url),
   onIslandTerminalData: (callback) => {
     const handler = (_event, payload) => callback(payload);

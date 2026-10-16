@@ -22,9 +22,10 @@ const PORT_START = 4400;
 const PORT_END = 4999;
 const CAPTURE_MAX_BYTES = 12 * 1024 * 1024;
 const OUTPUT_LINES = 40;
+const LAUNCH_VALUE_MAX = 2000;
 
-const sessions = new Map(); // canonical project path -> session
-const openings = new Map(); // canonical project path -> shared pending open
+const sessions = new Map(); // project path + launch choice -> session
+const openings = new Map(); // project path + launch choice -> shared pending open
 const capacityQueue = [];
 const boundSenders = new Set();
 const reservedPorts = new Set();
@@ -71,6 +72,130 @@ async function readJson(filePath) {
   try { return JSON.parse(await fsp.readFile(filePath, 'utf8')); } catch { return null; }
 }
 
+async function readTextHead(filePath, maxBytes = 128 * 1024) {
+  try {
+    const handle = await fsp.open(filePath, 'r');
+    try {
+      const buffer = Buffer.alloc(maxBytes);
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+      return buffer.subarray(0, bytesRead).toString('utf8');
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    return '';
+  }
+}
+
+/** Split a remembered command into words without evaluating shell syntax. */
+function splitCommandLine(line) {
+  const words = [];
+  let current = '';
+  let quote = null;
+  let hasValue = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      else if (character === '\\' && quote === '"' && index + 1 < line.length) current += line[++index];
+      else current += character;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+      hasValue = true;
+    } else if (/\s/.test(character)) {
+      if (hasValue || current) words.push(current);
+      current = '';
+      hasValue = false;
+    } else if (character === '\\' && index + 1 < line.length) {
+      current += line[++index];
+      hasValue = true;
+    } else {
+      current += character;
+      hasValue = true;
+    }
+  }
+  if (hasValue || current) words.push(current);
+  return words;
+}
+
+function replacePort(value, port) {
+  return String(value || '').replace(/\{PORT\}/g, String(port));
+}
+
+function launchSignature(launch) {
+  if (!launch?.commandLine) return 'automatic';
+  return JSON.stringify({
+    commandLine: String(launch.commandLine),
+    cwd: String(launch.cwd || ''),
+    urlTemplate: String(launch.urlTemplate || ''),
+  });
+}
+
+function sessionKey(rootPath, launch) {
+  return `${rootPath}\u0000${launchSignature(launch)}`;
+}
+
+function localUrlTemplate(value) {
+  const template = String(value || 'http://127.0.0.1:{PORT}/').trim();
+  if (!template || template.length > LAUNCH_VALUE_MAX) {
+    throw previewError('LAUNCH_ADDRESS_INVALID', 'The remembered web address is empty or too long.');
+  }
+  let parsed;
+  try { parsed = new URL(replacePort(template, PORT_START)); } catch {
+    throw previewError('LAUNCH_ADDRESS_INVALID', 'The remembered web address is not valid.');
+  }
+  const localHosts = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]', '::1']);
+  if (parsed.protocol !== 'http:' || !localHosts.has(parsed.hostname) || parsed.username || parsed.password) {
+    throw previewError('LAUNCH_ADDRESS_INVALID', 'The remembered web address must be a local HTTP address.');
+  }
+  return template;
+}
+
+async function manualPlan(projectPath, launch) {
+  if (!launch?.commandLine) return null;
+  const commandLine = String(launch.commandLine).trim();
+  if (!commandLine || commandLine.length > LAUNCH_VALUE_MAX) {
+    throw previewError('LAUNCH_COMMAND_INVALID', 'The remembered start command is empty or too long.');
+  }
+  const words = splitCommandLine(commandLine);
+  if (!words.length) throw previewError('LAUNCH_COMMAND_INVALID', 'The remembered start command is empty.');
+  if (words.some((word) => ['&&', '||', '|', ';', '>', '>>', '<'].includes(word))) {
+    throw previewError('LAUNCH_COMMAND_INVALID', 'The remembered start command must be one direct command.');
+  }
+  const projectStat = await fsp.stat(projectPath);
+  const base = projectStat.isDirectory() ? projectPath : path.dirname(projectPath);
+  const requestedCwd = String(launch.cwd || base).replace(/^~(?=$|\/)/, os.homedir());
+  let cwd;
+  try { cwd = await fsp.realpath(path.resolve(base, requestedCwd)); } catch {
+    throw previewError('LAUNCH_FOLDER_MISSING', 'The remembered working folder is no longer available.');
+  }
+  if (!(await fsp.stat(cwd)).isDirectory()) {
+    throw previewError('LAUNCH_FOLDER_INVALID', 'The remembered working folder is not a folder.');
+  }
+  return {
+    mode: 'managed', framework: 'custom', command: words[0], args: words.slice(1), cwd,
+    env: {}, urlTemplate: localUrlTemplate(launch.urlTemplate), manual: true,
+  };
+}
+
+async function flaskPlan(projectPath) {
+  for (const fileName of ['server.py', 'app.py', 'main.py']) {
+    const source = await readTextHead(path.join(projectPath, fileName));
+    if (!source || !/(?:from\s+flask\s+import|import\s+flask\b)/i.test(source) || !/\bFlask\s*\(/.test(source)) continue;
+    const python = ['.venv', 'venv', 'env']
+      .map((folder) => path.join(projectPath, folder, 'bin', 'python'))
+      .find(exists) || 'python3';
+    return {
+      mode: 'managed', framework: 'flask', command: python,
+      args: ['-m', 'flask', '--app', fileName, 'run', '--host', '127.0.0.1', '--port', '{PORT}'],
+      cwd: projectPath,
+      env: { FLASK_DEBUG: '0', PYTHONDONTWRITEBYTECODE: '1' },
+      urlTemplate: 'http://127.0.0.1:{PORT}/',
+    };
+  }
+  return null;
+}
+
 async function htmlNeedsBundler(filePath) {
   try {
     const handle = await fsp.open(filePath, 'r');
@@ -108,7 +233,9 @@ async function usableStaticEntry(root, relPath) {
   return { mode: 'static', servingRoot: root, entryRelPath: relPath };
 }
 
-async function planPreview(projectPath) {
+async function planPreview(projectPath, launch = null) {
+  const remembered = await manualPlan(projectPath, launch);
+  if (remembered) return remembered;
   const stat = await fsp.stat(projectPath);
   if (stat.isFile()) {
     if (!/\.html?$/i.test(projectPath)) throw previewError('PROJECT_UNSUPPORTED', 'This file is not a web page.');
@@ -135,9 +262,14 @@ async function planPreview(projectPath) {
   }
   if (managed) return { ...managed, cwd: projectPath };
 
-  for (const dir of ['dist', 'build', 'out']) {
-    const root = path.join(projectPath, dir);
-    if (exists(path.join(root, 'index.html'))) return { mode: 'static', servingRoot: root, entryRelPath: 'index.html' };
+  const flask = await flaskPlan(projectPath);
+  if (flask) return flask;
+
+  if (pkg) {
+    for (const dir of ['dist', 'build', 'out']) {
+      const root = path.join(projectPath, dir);
+      if (exists(path.join(root, 'index.html'))) return { mode: 'static', servingRoot: root, entryRelPath: 'index.html' };
+    }
   }
 
   const rootIndex = await usableStaticEntry(projectPath, 'index.html');
@@ -160,7 +292,7 @@ async function planPreview(projectPath) {
   }
   throw previewError('PROJECT_UNSUPPORTED', 'briizOS could not identify a safe web preview command for this project.', {
     projectPath,
-    nextStep: 'Use the Webview card with an ordinary address, or add a plain Vite, Next.js, or Create React App development script.',
+    nextStep: 'Use “Choose what this opens” on the Webview card to teach this Island its command and address.',
   });
 }
 
@@ -231,7 +363,19 @@ function launchArgs(plan, port) {
     if (plan.packageManager === 'npm') args.push('--');
     args.push('-p', String(port), '-H', '127.0.0.1');
   }
-  return args;
+  return args.map((argument) => replacePort(argument, port));
+}
+
+function managedUrl(plan, port) {
+  const parsed = new URL(replacePort(plan.urlTemplate || 'http://127.0.0.1:{PORT}/', port));
+  if (parsed.hostname === '0.0.0.0') parsed.hostname = '127.0.0.1';
+  return parsed.toString();
+}
+
+function fixedUrlPort(urlTemplate) {
+  const parsed = new URL(urlTemplate);
+  if (parsed.port) return Number(parsed.port);
+  return parsed.protocol === 'https:' ? 443 : 80;
 }
 
 function appendOutput(session, chunk) {
@@ -250,20 +394,34 @@ function terminateChild(child) {
 }
 
 async function startManaged(session, plan) {
-  const port = await findFreePort();
+  const usesPortTemplate = [plan.command, ...(plan.args || []), plan.urlTemplate]
+    .some((value) => String(value || '').includes('{PORT}'));
+  const usesDynamicPort = plan.framework !== 'custom' || usesPortTemplate;
+  let port;
+  if (usesDynamicPort) {
+    port = await findFreePort();
+  } else {
+    port = fixedUrlPort(plan.urlTemplate);
+    if (!await tryBind(port, '127.0.0.1') || !await tryBind(port, '0.0.0.0')) {
+      throw previewError('PREVIEW_PORT_BUSY', `The remembered local address is already in use on port ${port}.`);
+    }
+    reservedPorts.add(port);
+  }
   if (session.stopped) {
     reservedPorts.delete(port);
     throw previewError('PREVIEW_CANCELED', 'The card was put away before its project opened.');
   }
   const args = launchArgs(plan, port);
-  const commandLine = [plan.packageManager, ...args].map(shellQuote).join(' ');
+  const command = replacePort(plan.command || plan.packageManager, port);
+  const commandLine = [command, ...args].map(shellQuote).join(' ');
   const shell = process.env.SHELL && process.env.SHELL.startsWith('/') ? process.env.SHELL : '/bin/zsh';
-  Object.assign(session, { port, url: `http://127.0.0.1:${port}/`, command: commandLine });
+  const launchEnv = Object.fromEntries(Object.entries(plan.env || {}).map(([key, value]) => [key, replacePort(value, port)]));
+  Object.assign(session, { port, url: managedUrl(plan, port), command: commandLine });
   reservedPorts.delete(port);
   const child = spawn(shell, ['-ilc', `exec ${commandLine}`], {
     cwd: plan.cwd,
     detached: true,
-    env: { ...process.env, ...plan.env, PORT: String(port), BROWSER: plan.env?.BROWSER || 'none', FORCE_COLOR: '0' },
+    env: { ...process.env, ...launchEnv, PORT: String(port), BROWSER: launchEnv.BROWSER || 'none', FORCE_COLOR: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   Object.assign(session, { child, state: 'starting' });
@@ -274,7 +432,7 @@ async function startManaged(session, plan) {
     if (session.stopped) return;
     const early = session.state !== 'ready';
     session.stopped = true;
-    sessions.delete(session.rootPath);
+    sessions.delete(session.key);
     clearTimeout(session.probeTimer);
     const error = previewError('PREVIEW_EXITED', early
       ? 'The project stopped before its page became available.'
@@ -282,7 +440,7 @@ async function startManaged(session, plan) {
     session.rejectReady?.(error);
     logger[early ? 'error' : 'warn']('island.preview', error.message, {
       project: session.rootPath, command: session.command, exitCode: code, signal, output: session.output.slice(-12),
-      nextStep: 'Press the ladybug Retry control after reviewing this output.',
+      nextStep: 'Press Retry, or use “Choose what this opens” on the card to correct the launch.',
     });
     void drainCapacity();
   });
@@ -391,7 +549,7 @@ async function stopSession(session, reason) {
   session.state = 'stopped';
   clearTimeout(session.idleTimer);
   clearTimeout(session.probeTimer);
-  sessions.delete(session.rootPath);
+  sessions.delete(session.key);
   session.rejectReady?.(previewError('PREVIEW_STOPPED', 'The project preview was closed before it finished opening.'));
   if (session.child) terminateChild(session.child);
   if (session.server) {
@@ -455,12 +613,20 @@ async function beginOpening(opening) {
   let reserved = false;
   let session = null;
   try {
-    const plan = await planPreview(opening.rootPath);
+    const plan = await planPreview(opening.rootPath, opening.launch);
     if (opening.canceled) throw previewError('PREVIEW_CANCELED', 'The card was put away before its project opened.');
+    const replaced = [...sessions.values()].filter((candidate) => (
+      candidate.rootPath === opening.rootPath
+      && candidate.key !== opening.key
+      && candidate.consumers.size === 0
+      && !candidate.stopped
+    ));
+    for (const candidate of replaced) await stopSession(candidate, 'this Island learned a different way to open');
     await reserveCapacity(opening);
     reserved = true;
     if (opening.canceled) throw previewError('PREVIEW_CANCELED', 'The card was put away before its project opened.');
     session = {
+      key: opening.key,
       rootPath: opening.rootPath,
       mode: plan.mode,
       consumers: opening.consumers,
@@ -469,7 +635,7 @@ async function beginOpening(opening) {
       stopped: false,
       lastUsedAt: Date.now(),
     };
-    sessions.set(opening.rootPath, session);
+    sessions.set(opening.key, session);
     releaseReservation();
     reserved = false;
     if (plan.mode === 'static') await startStatic(session, plan);
@@ -483,13 +649,13 @@ async function beginOpening(opening) {
         problem: error?.message || String(error),
         errorCode: error?.code || 'PREVIEW_ERROR',
         output: error?.output || session?.output?.slice(-12) || [],
-        nextStep: error?.nextStep || 'Press the ladybug Retry control after reviewing the project folder and command.',
+        nextStep: error?.nextStep || 'Press Retry, or use “Choose what this opens” on the card to correct the launch.',
       });
     }
     throw error;
   } finally {
     if (reserved) releaseReservation();
-    openings.delete(opening.rootPath);
+    openings.delete(opening.key);
   }
 }
 
@@ -509,10 +675,11 @@ function bindSender(sender) {
 async function acquirePreview(sender, input = {}) {
   if (!input.cardId) throw previewError('CARD_REQUIRED', 'This Webview card has no identity.');
   const rootPath = await canonicalProjectPath(input.rootPath);
+  const key = sessionKey(rootPath, input.launch);
   const consumer = consumerId(sender, input.cardId);
   bindSender(sender);
 
-  const live = sessions.get(rootPath);
+  const live = sessions.get(key);
   if (live && live.state === 'ready' && !live.stopped) {
     clearTimeout(live.idleTimer);
     live.consumers.add(consumer);
@@ -523,10 +690,13 @@ async function acquirePreview(sender, input = {}) {
     return { url: live.url, mode: live.mode, reused: true };
   }
 
-  let opening = openings.get(rootPath);
+  let opening = openings.get(key);
   if (!opening) {
-    opening = { rootPath, consumers: new Set(), canceled: false, capacityWaiter: null, promise: null };
-    openings.set(rootPath, opening);
+    opening = {
+      key, rootPath, launch: input.launch || null,
+      consumers: new Set(), canceled: false, capacityWaiter: null, promise: null,
+    };
+    openings.set(key, opening);
     opening.promise = beginOpening(opening);
   }
   opening.consumers.add(consumer);
@@ -548,7 +718,7 @@ function releaseConsumerPrefix(prefix, reason, exact = false) {
         opening.capacityWaiter.reject(previewError('PREVIEW_CANCELED', 'The card was put away before its project opened.'));
         opening.capacityWaiter = null;
       }
-      const starting = sessions.get(opening.rootPath);
+      const starting = sessions.get(opening.key);
       if (starting?.state === 'starting') void stopSession(starting, reason);
     }
   });
@@ -600,6 +770,31 @@ async function saveCapture(input = {}) {
   return { path: target, capturedAt };
 }
 
+function editableWord(value) {
+  const word = String(value || '');
+  return /^[a-zA-Z0-9_./:@%+=,-]+$/.test(word) ? word : JSON.stringify(word);
+}
+
+async function suggestPreview(input = {}) {
+  const rootPath = await canonicalProjectPath(input.rootPath);
+  const plan = await planPreview(rootPath);
+  if (plan.mode === 'static') {
+    return {
+      rootPath, kind: 'static', commandLine: '',
+      cwd: (await fsp.stat(rootPath)).isDirectory() ? rootPath : path.dirname(rootPath),
+      urlTemplate: '',
+    };
+  }
+  const command = plan.command || plan.packageManager;
+  return {
+    rootPath,
+    kind: plan.framework,
+    commandLine: [command, ...launchArgs(plan, '{PORT}')].map(editableWord).join(' '),
+    cwd: plan.cwd,
+    urlTemplate: plan.urlTemplate || 'http://127.0.0.1:{PORT}/',
+  };
+}
+
 function stopAllPreviews() {
   const count = sessions.size;
   for (const waiting of capacityQueue.splice(0)) {
@@ -626,10 +821,11 @@ function registerIslandPreviewRuntime({ ipcMain }) {
   ipcMain.handle('island-preview-acquire', (event, input) => acquirePreview(event.sender, input || {}));
   ipcMain.handle('island-preview-release', (event, input) => releasePreview(event.sender, input || {}));
   ipcMain.handle('island-preview-save-capture', (_event, input) => saveCapture(input || {}));
+  ipcMain.handle('island-preview-suggest', (_event, input) => suggestPreview(input || {}));
 }
 
 module.exports = {
   registerIslandPreviewRuntime,
   stopAllPreviews,
-  _test: { planPreview, htmlNeedsBundler },
+  _test: { planPreview, htmlNeedsBundler, splitCommandLine, suggestPreview },
 };

@@ -501,6 +501,14 @@ function compactIslandProject(project, { detailed = false } = {}) {
   if (project.status) compact.status = project.status;
   if (project.field) compact.field = project.field;
   if (project.rootPath) compact.folder = project.rootPath;
+  if (project.webLaunch?.commandLine) {
+    compact.webLaunch = {
+      commandLine: project.webLaunch.commandLine,
+      cwd: project.webLaunch.cwd || project.rootPath || '',
+      urlTemplate: project.webLaunch.urlTemplate || 'http://127.0.0.1:{PORT}/',
+      updatedAt: project.webLaunch.updatedAt || null,
+    };
+  }
   if (Array.isArray(project.cards)) {
     compact.cards = project.cards.map((card) => ({ kind: card.kind, title: card.title }));
   }
@@ -593,7 +601,7 @@ const briizos_get_task = makeDataReadTool({
 
 const briizos_list_projects = makeDataReadTool({
   name: 'briizos_list_projects',
-  description: "List the user's projects, shown as islands in the Islands app (the only kind of project in briizOS), with stage, status, cards, milestones, tags, and prioritization scoring fields when set.",
+  description: "List the user's projects, shown as islands in the Islands app (the only kind of project in briizOS), with stage, status, cards, folder, remembered web launch, milestones, tags, and prioritization scoring fields when set.",
   schema: z.object({
     limit: z.number().int().min(1).max(200).optional().default(100),
   }),
@@ -606,7 +614,7 @@ const briizos_list_projects = makeDataReadTool({
 
 const briizos_get_project = makeDataReadTool({
   name: 'briizos_get_project',
-  description: 'Get one project (island) by id, including stage, status, cards, milestones, attached files, its answers to the project questions, its chapter and recent journal entries.',
+  description: 'Get one project (island) by id, including stage, status, cards, folder, remembered web launch, milestones, attached files, its answers to the project questions, its chapter and recent journal entries.',
   schema: z.object({ project_id: z.string() }),
   run: (input) => {
     const project = (localDataService.getIslandState().projects || [])
