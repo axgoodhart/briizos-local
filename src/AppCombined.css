@@ -7414,7 +7414,7 @@ body {
     --fdock-height: 52px;
     --ui-border-radius: 15px;
     --ui-corner-shape: bevel;
-    --ui-forest-card-radius: 0px;
+    --ui-forest-card-radius: 40px 30px 30px 40px;
     --ui-font-main: BC Alphapipe;
     --glass-bg-light: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05) 20%, transparent 50%, rgba(255, 255, 255, 0.08) 130%);
     --holo-blue: rgba(255, 255, 255, 0.1);
@@ -27629,8 +27629,9 @@ display: flex;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-top-color: var(--fo-glass-3);
     border-right-color: var(--fo-glass);
-    border-radius: 18px;
-    background: var(--fo-pane), rgba(6, 16, 12, 0.72);
+    border-radius: var(--fo-island-radius);
+        corner-shape: var(--ui-corner-shape);
+            background: var(--fo-pane), rgba(6, 16, 12, 0.72);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
     transition: border-color 0.16s ease;}
 .fo-card[data-kind='terminal'] {
@@ -28668,16 +28669,18 @@ tr[data-kind='cost'] .fo-money__kind {
     z-index: 20;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;}
+    align-items: stretch;
+    gap: 8px;
+    width: 275px;}
 .fo-controls__new {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     height: 30px;
     padding: 0 13px;
     border: 1px dashed rgba(255, 255, 255, 0.45);
-    border-radius: 14px;
+    border-radius: 14px 14px 0 0;
     background: rgba(0, 5, 0, 0.5);
     color: var(--fo-text);
     font-size: 12.5px;
@@ -28687,18 +28690,21 @@ tr[data-kind='cost'] .fo-money__kind {
     transform: translateY(-1px);
     background: rgba(255, 255, 255, 0.09);}
 .fo-controls__desk-wrap {
-    position: relative;}
+    position: relative;
+    margin: -10px 0;}
 .fo-controls__desk {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 7px;
     height: 36px;
     padding: 0 16px;
     border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 16px;
+    border-radius: 0;
     background: linear-gradient(135deg, #17d98a, #0f9e63);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 18px 40px rgba(23, 217, 138, 0.25);
     color: #03140b;
+    width:stretch;
     font-size: 13px;
     font-weight: 700;}
 .fo-controls__switcher {
@@ -28708,14 +28714,13 @@ tr[data-kind='cost'] .fo-money__kind {
 .fo-controls__row {
     display: flex;
     align-items: center;
-    gap: 6px;}
+    gap: 0;}
 .fo-controls__btn,
 .fo-controls__zoom {
     height: 34px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
+    border: 0;
+    border-radius: 0;
     background: black;
-    box-shadow: inset 0 -3px 8px rgba(23, 217, 138, 0.55);
     color: rgba(255, 255, 255, 0.55);
     transition: color 0.2s, box-shadow 0.2s;}
 .fo-controls__btn {
@@ -28723,14 +28728,19 @@ tr[data-kind='cost'] .fo-money__kind {
     place-items: center;
     width: 38px;
     font-size: 15px;}
+.fo-controls__row > :first-child {
+    border-radius: 0 0 0 14px;}
 .fo-controls__btn:hover,
 .fo-controls__btn[aria-pressed='true'] {
     box-shadow: inset 0 -10px 20px rgba(23, 217, 138, 0.7);
     color: rgba(255, 255, 255, 0.9);}
 .fo-controls__zoom {
     display: flex;
+    flex: 1;
     align-items: center;
-    padding: 0 4px;}
+    justify-content: space-evenly;
+    padding: 0 4px;
+    border-radius: 0 0 14px 0;}
 .fo-controls__zoom button {
     display: grid;
     place-items: center;

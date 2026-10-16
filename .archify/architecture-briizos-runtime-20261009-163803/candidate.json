@@ -2,13 +2,13 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "briizOS \u2022 runtime, models & authorization",
+    "title": "briizOS • runtime, models & authorization",
     "output": ".archify/architecture-briizos-runtime-20261009-163803/briizos-runtime.html",
     "locale": "en",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/axgoodhart/briizos-local.git",
-      "revision": "881061e74f60db796a1ba473fa73414c45d8bcd6",
+      "revision": "29fb0324d56af7a326abc11efde7890bec62f236",
       "provider": "github",
       "link_mode": "web"
     },
@@ -65,12 +65,40 @@
           "a-confirm",
           "a-ui-refresh"
         ],
-        "note": "Follow A1\u2013A20: input, provider, approval, task write, tool return and visible response."
+        "note": "Follow A1–A20: input, provider, approval, task write, tool return and visible response."
       },
       {
         "id": "direct",
-        "label": "Direct createChatModel path",
+        "label": "Islands workspace & direct AI",
         "focus": [
+          "forest-ui",
+          "journals-ui",
+          "i-desk",
+          "i-island",
+          "i-cards",
+          "i-state",
+          "i-save",
+          "i-service",
+          "i-db",
+          "i-journal",
+          "i-agent",
+          "i-task-gate",
+          "i-runner",
+          "i-task-state",
+          "i-docs",
+          "i-files",
+          "i-owned",
+          "i-web",
+          "i-originals",
+          "i-archives",
+          "i-terminal",
+          "i-shell",
+          "i-command",
+          "i-output",
+          "i-hunt",
+          "i-search",
+          "i-review",
+          "i-add-files",
           "d-trigger",
           "d-ipc",
           "d-read",
@@ -82,7 +110,7 @@
           "d-save",
           "d-store"
         ],
-        "note": "Forest queue \u2192 excerpts \u2192 model.invoke \u2192 clean tags \u2192 visible board \u2192 local save."
+        "note": "Desk → island → cards; journal, tasks, files, terminals, File Hunter, direct auto-tags and persistence."
       },
       {
         "id": "background",
@@ -291,7 +319,7 @@
           "end_line": 32
         }
       ],
-      "tag": "Visibility \u2260 capture"
+      "tag": "Visibility ≠ capture"
     },
     {
       "id": "chat-ui",
@@ -385,7 +413,7 @@
       "id": "journals-ui",
       "type": "frontend",
       "label": "Journals & Execubriiz",
-      "sublabel": "Shelf, floating editor, board and Trash",
+      "sublabel": "Shelf, floating editor & Islands journal",
       "pos": [
         42,
         480
@@ -396,14 +424,14 @@
       ],
       "sources": [
         {
-          "path": "src/App.jsx",
-          "line": 1325,
-          "end_line": 1335
+          "path": "src/components/journals/JournalPanel.jsx",
+          "line": 499,
+          "end_line": 516
         },
         {
-          "path": "src/App.jsx",
-          "line": 1641,
-          "end_line": 1659
+          "path": "src/components/journals/JournalPanel.jsx",
+          "line": 598,
+          "end_line": 614
         },
         {
           "path": "src/components/journals/ExecubriizView.jsx",
@@ -446,8 +474,8 @@
     {
       "id": "forest-ui",
       "type": "frontend",
-      "label": "Forest & File Hunter",
-      "sublabel": "Project files, FileHawk, tags & changes",
+      "label": "Islands & File Hunter",
+      "sublabel": "Desks → islands → cards; shared journal",
       "pos": [
         614,
         480
@@ -460,17 +488,17 @@
         {
           "path": "src/components/forest/Forest.jsx",
           "line": 1,
-          "end_line": 35
+          "end_line": 16
         },
         {
-          "path": "src/components/forest/app.js",
-          "line": 1587,
-          "end_line": 1609
+          "path": "src/components/forest/ForestApp.jsx",
+          "line": 18,
+          "end_line": 91
         },
         {
-          "path": "src/App.jsx",
-          "line": 1338,
-          "end_line": 1339
+          "path": "src/components/forest/store.js",
+          "line": 304,
+          "end_line": 341
         }
       ]
     },
@@ -562,8 +590,8 @@
         },
         {
           "path": "electron/main.js",
-          "line": 728,
-          "end_line": 776
+          "line": 729,
+          "end_line": 777
         }
       ]
     },
@@ -650,16 +678,16 @@
         },
         {
           "path": "electron/main.js",
-          "line": 220,
+          "line": 221,
           "end_line": 226
         }
       ],
-      "tag": "Weak isolation \u2022 inferred risk"
+      "tag": "Weak isolation • inferred risk"
     },
     {
       "id": "a-chat",
       "type": "frontend",
-      "label": "A1 \u2022 useChat sends",
+      "label": "A1 • useChat sends",
       "sublabel": "Save input; register chat surface policy",
       "pos": [
         42,
@@ -686,7 +714,7 @@
     {
       "id": "a-preload",
       "type": "messagebus",
-      "label": "A2 \u2022 preload window.api",
+      "label": "A2 • preload window.api",
       "sublabel": "Typed functions invoke Electron IPC",
       "pos": [
         328,
@@ -703,12 +731,12 @@
           "end_line": 452
         }
       ],
-      "tag": "Isolation \u2260 authorization"
+      "tag": "Isolation ≠ authorization"
     },
     {
       "id": "a-ipc",
       "type": "backend",
-      "label": "A3 \u2022 main chat handlers",
+      "label": "A3 • main chat handlers",
       "sublabel": "stream / resume; caller config forwarded",
       "pos": [
         614,
@@ -721,8 +749,8 @@
       "sources": [
         {
           "path": "electron/main.js",
-          "line": 914,
-          "end_line": 957
+          "line": 915,
+          "end_line": 958
         }
       ],
       "tag": "No sender/policy clamp here"
@@ -730,8 +758,8 @@
     {
       "id": "a-dispatch",
       "type": "backend",
-      "label": "A4 \u2022 provider dispatcher",
-      "sublabel": "API-key \u2192 graph; Codex \u2192 app-server",
+      "label": "A4 • provider dispatcher",
+      "sublabel": "API-key → graph; Codex → app-server",
       "pos": [
         900,
         1180
@@ -751,7 +779,7 @@
     {
       "id": "a-audit",
       "type": "security",
-      "label": "A5 \u2022 audit-before-send",
+      "label": "A5 • audit-before-send",
       "sublabel": "Initial audit row required or turn stops",
       "pos": [
         900,
@@ -773,7 +801,7 @@
     {
       "id": "a-graph",
       "type": "backend",
-      "label": "A6 \u2022 lead LangGraph",
+      "label": "A6 • lead LangGraph",
       "sublabel": "Prompt + tools + hooks; streamEvents v2",
       "pos": [
         614,
@@ -800,12 +828,12 @@
           "end_line": 350
         }
       ],
-      "tag": "In main process \u2022 no AI server"
+      "tag": "In main process • no AI server"
     },
     {
       "id": "a-factory",
       "type": "backend",
-      "label": "A7 \u2022 createChatModel",
+      "label": "A7 • createChatModel",
       "sublabel": "Profile / adapter / key must resolve",
       "pos": [
         328,
@@ -818,13 +846,18 @@
       "sources": [
         {
           "path": "electron/agent/models.js",
-          "line": 109,
-          "end_line": 157
+          "line": 69,
+          "end_line": 99
         },
         {
           "path": "electron/agent/models.js",
-          "line": 294,
-          "end_line": 341
+          "line": 237,
+          "end_line": 314
+        },
+        {
+          "path": "electron/agent/models.js",
+          "line": 343,
+          "end_line": 390
         }
       ],
       "tag": "No universal consent gate"
@@ -832,7 +865,7 @@
     {
       "id": "a-provider",
       "type": "cloud",
-      "label": "A8 \u2022 model provider",
+      "label": "A8 • model provider",
       "sublabel": "OpenAI / Anthropic / Google; SDK network",
       "pos": [
         42,
@@ -845,8 +878,8 @@
       "sources": [
         {
           "path": "electron/agent/models.js",
-          "line": 328,
-          "end_line": 341
+          "line": 377,
+          "end_line": 390
         },
         {
           "path": "electron/agent/lead-agent.js",
@@ -860,7 +893,7 @@
       "id": "a-read",
       "type": "backend",
       "label": "Agent direct data reads",
-      "sublabel": "Local catalog queries; no renderer gate",
+      "sublabel": "Catalog includes island cards & journals",
       "pos": [
         42,
         1600
@@ -872,13 +905,18 @@
       "sources": [
         {
           "path": "electron/agent/tools.js",
-          "line": 517,
-          "end_line": 538
+          "line": 482,
+          "end_line": 530
         },
         {
           "path": "electron/agent/tools.js",
-          "line": 969,
-          "end_line": 984
+          "line": 533,
+          "end_line": 554
+        },
+        {
+          "path": "electron/agent/tools.js",
+          "line": 594,
+          "end_line": 615
         }
       ],
       "tag": "Read results can join prompt"
@@ -918,8 +956,8 @@
     {
       "id": "a-tool",
       "type": "backend",
-      "label": "A9 \u2022 registered graph tool",
-      "sublabel": "Example: briizos_create_task \u2192 registry",
+      "label": "A9 • registered graph tool",
+      "sublabel": "Example: briizos_create_task → registry",
       "pos": [
         614,
         1600
@@ -944,7 +982,7 @@
     {
       "id": "a-gate",
       "type": "security",
-      "label": "A10 \u2022 graph tool decision",
+      "label": "A10 • graph tool decision",
       "sublabel": "Deny / pass / interrupt for listed tools",
       "pos": [
         900,
@@ -971,7 +1009,7 @@
     {
       "id": "a-bridge",
       "type": "messagebus",
-      "label": "A11 \u2022 renderer tool IPC",
+      "label": "A11 • renderer tool IPC",
       "sublabel": "Request ID + params + thread; 60s wait",
       "pos": [
         900,
@@ -1003,7 +1041,7 @@
     {
       "id": "a-hook",
       "type": "frontend",
-      "label": "A12 \u2022 useToolBridge",
+      "label": "A12 • useToolBridge",
       "sublabel": "Stamp agent flag and originating thread",
       "pos": [
         614,
@@ -1025,7 +1063,7 @@
     {
       "id": "a-render-gate",
       "type": "security",
-      "label": "A13 \u2022 ToolContext gate",
+      "label": "A13 • ToolContext gate",
       "sublabel": "Blacklist; mode + requiresConfirmation",
       "pos": [
         328,
@@ -1057,8 +1095,8 @@
     {
       "id": "a-handler",
       "type": "frontend",
-      "label": "A14 \u2022 tools.js handler",
-      "sublabel": "createThoughtStream \u2192 localData.tasks",
+      "label": "A14 • tools.js handler",
+      "sublabel": "createThoughtStream → localData.tasks",
       "pos": [
         42,
         1950
@@ -1084,7 +1122,7 @@
     {
       "id": "a-local-ipc",
       "type": "messagebus",
-      "label": "A15 \u2022 structured-data IPC",
+      "label": "A15 • structured-data IPC",
       "sublabel": "tasks:create forwards validated input",
       "pos": [
         42,
@@ -1111,7 +1149,7 @@
     {
       "id": "a-service",
       "type": "backend",
-      "label": "A16 \u2022 LocalDataService",
+      "label": "A16 • LocalDataService",
       "sublabel": "Transaction + revision + changed event",
       "pos": [
         328,
@@ -1143,7 +1181,7 @@
     {
       "id": "a-db",
       "type": "database",
-      "label": "briizos.db \u2022 shared authority",
+      "label": "briizos.db • shared authority",
       "sublabel": "Tasks, messages, settings, audit & state",
       "pos": [
         614,
@@ -1156,8 +1194,8 @@
       "sources": [
         {
           "path": "electron/main.js",
-          "line": 1139,
-          "end_line": 1167
+          "line": 1142,
+          "end_line": 1170
         },
         {
           "path": "electron/local-data-service.js",
@@ -1165,12 +1203,12 @@
           "end_line": 219
         }
       ],
-      "tag": "better-sqlite3 \u2022 WAL"
+      "tag": "better-sqlite3 • WAL"
     },
     {
       "id": "a-change",
       "type": "messagebus",
-      "label": "A17 \u2022 data:changed",
+      "label": "A17 • data:changed",
       "sublabel": "Domain notification to all app windows",
       "pos": [
         900,
@@ -1191,8 +1229,8 @@
     {
       "id": "a-result",
       "type": "messagebus",
-      "label": "A18 \u2022 result returns",
-      "sublabel": "handler \u2192 hook \u2192 bridge \u2192 graph",
+      "label": "A18 • result returns",
+      "sublabel": "handler → hook → bridge → graph",
       "pos": [
         42,
         2370
@@ -1223,7 +1261,7 @@
     {
       "id": "a-final",
       "type": "frontend",
-      "label": "A19 \u2022 visible response",
+      "label": "A19 • visible response",
       "sublabel": "Stream text/tools; save assistant output",
       "pos": [
         328,
@@ -1246,8 +1284,8 @@
         },
         {
           "path": "electron/main.js",
-          "line": 914,
-          "end_line": 941
+          "line": 915,
+          "end_line": 942
         }
       ]
     },
@@ -1286,7 +1324,7 @@
     {
       "id": "a-ui-refresh",
       "type": "frontend",
-      "label": "A20 \u2022 task appears",
+      "label": "A20 • task appears",
       "sublabel": "useTasks reloads after domain change",
       "pos": [
         900,
@@ -1312,8 +1350,8 @@
     {
       "id": "d-trigger",
       "type": "frontend",
-      "label": "D1 \u2022 Forest tag queue",
-      "sublabel": "Mounted board; changed file signature",
+      "label": "D1 • Island auto-tag queue",
+      "sublabel": "Attached store; changed file-path list",
       "pos": [
         42,
         2580
@@ -1324,9 +1362,9 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/app.js",
-          "line": 1593,
-          "end_line": 1638
+          "path": "src/components/forest/store.js",
+          "line": 1367,
+          "end_line": 1406
         }
       ],
       "tag": "Automatic when AI configured"
@@ -1334,7 +1372,7 @@
     {
       "id": "d-ipc",
       "type": "messagebus",
-      "label": "D2 \u2022 forestAutoTag IPC",
+      "label": "D2 • forestAutoTag IPC",
       "sublabel": "Project paths, names & excerpts request",
       "pos": [
         328,
@@ -1346,14 +1384,14 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/app.js",
-          "line": 1641,
-          "end_line": 1652
+          "path": "src/components/forest/store.js",
+          "line": 1408,
+          "end_line": 1420
         },
         {
           "path": "electron/main.js",
           "line": 1102,
-          "end_line": 1104
+          "end_line": 1108
         }
       ],
       "tag": "No chat/task consent check"
@@ -1361,7 +1399,7 @@
     {
       "id": "d-read",
       "type": "backend",
-      "label": "D3 \u2022 Forest excerpt reader",
+      "label": "D3 • Island excerpt reader",
       "sublabel": "Read file beginnings within size budgets",
       "pos": [
         614,
@@ -1405,17 +1443,17 @@
           "end_line": 161
         },
         {
-          "path": "src/components/forest/app.js",
-          "line": 1643,
-          "end_line": 1651
+          "path": "src/components/forest/store.js",
+          "line": 1408,
+          "end_line": 1420
         }
       ]
     },
     {
       "id": "d-factory",
       "type": "backend",
-      "label": "D4 \u2022 createChatModel",
-      "sublabel": "Background route \u2192 profile \u2192 key",
+      "label": "D4 • createChatModel",
+      "sublabel": "Background route → profile → key",
       "pos": [
         614,
         2790
@@ -1432,8 +1470,8 @@
         },
         {
           "path": "electron/agent/models.js",
-          "line": 294,
-          "end_line": 341
+          "line": 343,
+          "end_line": 390
         }
       ],
       "tag": "invoke without LangGraph turn"
@@ -1441,7 +1479,7 @@
     {
       "id": "d-provider",
       "type": "cloud",
-      "label": "D5 \u2022 chosen API provider",
+      "label": "D5 • chosen API provider",
       "sublabel": "File excerpts + project metadata leave Mac",
       "pos": [
         328,
@@ -1459,16 +1497,16 @@
         },
         {
           "path": "electron/agent/models.js",
-          "line": 328,
-          "end_line": 341
+          "line": 377,
+          "end_line": 390
         }
       ],
-      "tag": "Credentials \u2260 content consent"
+      "tag": "Credentials ≠ content consent"
     },
     {
       "id": "d-parse",
       "type": "backend",
-      "label": "D6 \u2022 parse & clean tags",
+      "label": "D6 • parse & clean tags",
       "sublabel": "JSON, dedupe, rejection & tag limits",
       "pos": [
         42,
@@ -1489,8 +1527,8 @@
     {
       "id": "d-apply",
       "type": "frontend",
-      "label": "D7 \u2022 visible tags added",
-      "sublabel": "Merge live tags; add change; repaint",
+      "label": "D7 • Tags & journal change",
+      "sublabel": "Merge tags for rules; journal offers undo",
       "pos": [
         42,
         3000
@@ -1501,9 +1539,19 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/app.js",
-          "line": 1655,
-          "end_line": 1682
+          "path": "src/components/forest/store.js",
+          "line": 1421,
+          "end_line": 1437
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1455,
+          "end_line": 1487
+        },
+        {
+          "path": "src/components/forest/IslandsJournal.jsx",
+          "line": 67,
+          "end_line": 85
         }
       ],
       "tag": "No per-tag approval"
@@ -1511,8 +1559,8 @@
     {
       "id": "d-save",
       "type": "messagebus",
-      "label": "D8 \u2022 Forest autosave IPC",
-      "sublabel": "Board state \u2192 main setForestState",
+      "label": "D8 • Islands autosave IPC",
+      "sublabel": "Queued snapshots → forestSaveState",
       "pos": [
         328,
         3000
@@ -1523,22 +1571,22 @@
       ],
       "sources": [
         {
-          "path": "src/components/forest/app.js",
-          "line": 543,
-          "end_line": 552
+          "path": "src/components/forest/store.js",
+          "line": 374,
+          "end_line": 406
         },
         {
           "path": "electron/main.js",
-          "line": 1047,
-          "end_line": 1051
+          "line": 1048,
+          "end_line": 1052
         }
       ]
     },
     {
       "id": "d-store",
       "type": "database",
-      "label": "D9 \u2022 same briizos.db",
-      "sublabel": "Forest projects and board state stored",
+      "label": "D9 • same briizos.db",
+      "sublabel": "Islands, desks, cards, templates & journal",
       "pos": [
         614,
         3000
@@ -1549,21 +1597,21 @@
       ],
       "sources": [
         {
-          "path": "electron/main.js",
-          "line": 1047,
-          "end_line": 1051
+          "path": "electron/local-data-service.js",
+          "line": 2406,
+          "end_line": 2457
         },
         {
           "path": "electron/local-data-service.js",
-          "line": 212,
-          "end_line": 219
+          "line": 2234,
+          "end_line": 2258
         }
       ]
     },
     {
       "id": "b-control",
       "type": "frontend",
-      "label": "B1 \u2022 capture settings",
+      "label": "B1 • capture settings",
       "sublabel": "Capture & cloud-text switches are separate",
       "pos": [
         42,
@@ -1590,7 +1638,7 @@
     {
       "id": "b-capture-gate",
       "type": "security",
-      "label": "B2 \u2022 capture privacy gate",
+      "label": "B2 • capture privacy gate",
       "sublabel": "Enabled; pause; lock; app/title exclusion",
       "pos": [
         328,
@@ -1622,7 +1670,7 @@
     {
       "id": "b-native",
       "type": "backend",
-      "label": "B3 \u2022 Swift helper child",
+      "label": "B3 • Swift helper child",
       "sublabel": "ScreenCaptureKit + Vision OCR; stdio",
       "pos": [
         614,
@@ -1676,7 +1724,7 @@
     {
       "id": "b-frames",
       "type": "database",
-      "label": "B4 \u2022 local image archive",
+      "label": "B4 • local image archive",
       "sublabel": "Helper writes JPEG; compactor retains media",
       "pos": [
         614,
@@ -1708,7 +1756,7 @@
     {
       "id": "b-indexer",
       "type": "backend",
-      "label": "B5 \u2022 indexer / retention",
+      "label": "B5 • indexer / retention",
       "sublabel": "Dedup; OCR row; frame event; retention",
       "pos": [
         328,
@@ -1735,7 +1783,7 @@
     {
       "id": "b-coordinator",
       "type": "backend",
-      "label": "B6 \u2022 assistant coordinator",
+      "label": "B6 • assistant coordinator",
       "sublabel": "Stable segment; enabled/quiet/busy/throttle",
       "pos": [
         42,
@@ -1762,7 +1810,7 @@
     {
       "id": "b-ocr-db",
       "type": "database",
-      "label": "B7 \u2022 same briizos.db",
+      "label": "B7 • same briizos.db",
       "sublabel": "OCR, frame metadata, sessions & search",
       "pos": [
         900,
@@ -1788,7 +1836,7 @@
     {
       "id": "b-egress",
       "type": "security",
-      "label": "B8 \u2022 cloud-text consent",
+      "label": "B8 • cloud-text consent",
       "sublabel": "Must allow analysis; reject pixel/path forms",
       "pos": [
         42,
@@ -1815,7 +1863,7 @@
     {
       "id": "b-extract",
       "type": "backend",
-      "label": "B9 \u2022 task-extraction assistant",
+      "label": "B9 • task-extraction assistant",
       "sublabel": "OCR-only prompt; parse JSON & confidence",
       "pos": [
         328,
@@ -1836,7 +1884,7 @@
     {
       "id": "b-factory",
       "type": "backend",
-      "label": "B10 \u2022 createChatModel",
+      "label": "B10 • createChatModel",
       "sublabel": "Per-assistant model or app default",
       "pos": [
         614,
@@ -1854,8 +1902,8 @@
         },
         {
           "path": "electron/agent/models.js",
-          "line": 113,
-          "end_line": 121
+          "line": 147,
+          "end_line": 155
         }
       ],
       "tag": "Does not use Background route"
@@ -1863,7 +1911,7 @@
     {
       "id": "b-provider",
       "type": "cloud",
-      "label": "B11 \u2022 API model provider",
+      "label": "B11 • API model provider",
       "sublabel": "Screen OCR + app/title/time; no pixels",
       "pos": [
         900,
@@ -1889,7 +1937,7 @@
     {
       "id": "b-staging",
       "type": "database",
-      "label": "B12 \u2022 proposals & staged tasks",
+      "label": "B12 • proposals & staged tasks",
       "sublabel": "Assistant writes extraction + proposal rows",
       "pos": [
         328,
@@ -1911,7 +1959,7 @@
     {
       "id": "b-inbox",
       "type": "frontend",
-      "label": "B13 \u2022 Notefalls / avatar inbox",
+      "label": "B13 • Notefalls / avatar inbox",
       "sublabel": "Present proposal with provenance",
       "pos": [
         614,
@@ -1937,7 +1985,7 @@
     {
       "id": "b-accept",
       "type": "security",
-      "label": "B14 \u2022 accept / dismiss / snooze",
+      "label": "B14 • accept / dismiss / snooze",
       "sublabel": "Decision IPC marks actor as user",
       "pos": [
         900,
@@ -1959,7 +2007,7 @@
     {
       "id": "b-task",
       "type": "database",
-      "label": "B15 \u2022 accepted task",
+      "label": "B15 • accepted task",
       "sublabel": "Real task committed after acceptance",
       "pos": [
         900,
@@ -1977,15 +2025,15 @@
         },
         {
           "path": "electron/local-data-service.js",
-          "line": 5499,
-          "end_line": 5544
+          "line": 5515,
+          "end_line": 5560
         }
       ]
     },
     {
       "id": "b-taskagent",
       "type": "backend",
-      "label": "B16 \u2022 TaskAgent planning",
+      "label": "B16 • TaskAgent planning",
       "sublabel": "Plan steps; execution separately opt-in",
       "pos": [
         614,
@@ -2006,7 +2054,7 @@
     {
       "id": "b-runner",
       "type": "security",
-      "label": "B17 \u2022 AutomationRunner",
+      "label": "B17 • AutomationRunner",
       "sublabel": "Task mode clamped to configured ceiling",
       "pos": [
         328,
@@ -2033,8 +2081,8 @@
     {
       "id": "b-agent",
       "type": "backend",
-      "label": "B18 \u2022 same agent sendMessage",
-      "sublabel": "Run \u2192 graph; interrupt \u2192 waiting for user",
+      "label": "B18 • same agent sendMessage",
+      "sublabel": "Run → graph; interrupt → waiting for user",
       "pos": [
         42,
         4190
@@ -2060,7 +2108,7 @@
     {
       "id": "b-leak",
       "type": "security",
-      "label": "Consent gap \u2022 agent OCR reads",
+      "label": "Consent gap • agent OCR reads",
       "sublabel": "Search/history tools ignore cloud-text flag",
       "pos": [
         42,
@@ -2073,13 +2121,13 @@
       "sources": [
         {
           "path": "electron/agent/tools.js",
-          "line": 1445,
-          "end_line": 1488
+          "line": 1461,
+          "end_line": 1504
         },
         {
           "path": "electron/agent/tools.js",
-          "line": 1492,
-          "end_line": 1530
+          "line": 1508,
+          "end_line": 1546
         }
       ],
       "tag": "Main read tools skip ToolContext"
@@ -2100,8 +2148,8 @@
       "sources": [
         {
           "path": "electron/agent/tools.js",
-          "line": 517,
-          "end_line": 538
+          "line": 533,
+          "end_line": 554
         },
         {
           "path": "electron/agent/lead-agent.js",
@@ -2126,8 +2174,8 @@
       "sources": [
         {
           "path": "electron/agent/tools.js",
-          "line": 1472,
-          "end_line": 1483
+          "line": 1488,
+          "end_line": 1499
         },
         {
           "path": "electron/agent/lead-agent.js",
@@ -2153,8 +2201,8 @@
       "sources": [
         {
           "path": "electron/agent/tools.js",
-          "line": 1461,
-          "end_line": 1488
+          "line": 1477,
+          "end_line": 1504
         }
       ]
     },
@@ -2221,7 +2269,7 @@
       "id": "j-model",
       "type": "backend",
       "label": "Direct journal model stream",
-      "sublabel": "Scoped model \u2192 live/deep route \u2192 default",
+      "sublabel": "Scoped model → live/deep route → default",
       "pos": [
         614,
         4750
@@ -2269,7 +2317,7 @@
       "id": "j-view",
       "type": "frontend",
       "label": "Journal board updates",
-      "sublabel": "Changed IPC \u2192 editor, reactions & status",
+      "sublabel": "Changed IPC → editor, reactions & status",
       "pos": [
         42,
         4960
@@ -2294,7 +2342,7 @@
     {
       "id": "j-store",
       "type": "database",
-      "label": "ExecStore \u2022 same briizos.db",
+      "label": "ExecStore • same briizos.db",
       "sublabel": "Transaction checks generations/revisions",
       "pos": [
         328,
@@ -2432,8 +2480,8 @@
       "sources": [
         {
           "path": "electron/main.js",
-          "line": 518,
-          "end_line": 549
+          "line": 519,
+          "end_line": 550
         },
         {
           "path": "electron/local-data-ipc.js",
@@ -2468,7 +2516,7 @@
           "end_line": 25
         }
       ],
-      "tag": "Operation receipt \u2260 approval"
+      "tag": "Operation receipt ≠ approval"
     },
     {
       "id": "p-os",
@@ -2581,7 +2629,7 @@
       "id": "c-visible",
       "type": "frontend",
       "label": "Same chat stream display",
-      "sublabel": "Agent-message deltas \u2192 useChat events",
+      "sublabel": "Agent-message deltas → useChat events",
       "pos": [
         900,
         5720
@@ -2628,7 +2676,7 @@
           "end_line": 40
         }
       ],
-      "tag": "Cloud identity \u2260 local tool approval"
+      "tag": "Cloud identity ≠ local tool approval"
     },
     {
       "id": "cloud-session",
@@ -2651,8 +2699,8 @@
         },
         {
           "path": "electron/main.js",
-          "line": 554,
-          "end_line": 568
+          "line": 555,
+          "end_line": 569
         }
       ],
       "tag": "Main trusts supplied token/UID"
@@ -2679,7 +2727,7 @@
         {
           "path": "electron/cloud-gateway.js",
           "line": 199,
-          "end_line": 227
+          "end_line": 226
         }
       ],
       "tag": "Remote command auto-dispatch"
@@ -2706,7 +2754,7 @@
         {
           "path": "electron/cloud-gateway.js",
           "line": 199,
-          "end_line": 227
+          "end_line": 226
         },
         {
           "path": "src/context/AuthContext.jsx",
@@ -2732,8 +2780,8 @@
       "sources": [
         {
           "path": "electron/main.js",
-          "line": 1168,
-          "end_line": 1178
+          "line": 1171,
+          "end_line": 1181
         },
         {
           "path": "electron/automation-runner.js",
@@ -2774,8 +2822,8 @@
         },
         {
           "path": "electron/main.js",
-          "line": 1139,
-          "end_line": 1144
+          "line": 1142,
+          "end_line": 1147
         }
       ]
     },
@@ -2795,13 +2843,13 @@
       "sources": [
         {
           "path": "electron/local-data-service.js",
-          "line": 4302,
-          "end_line": 4330
+          "line": 4318,
+          "end_line": 4346
         },
         {
           "path": "electron/agent/models.js",
-          "line": 148,
-          "end_line": 155
+          "line": 182,
+          "end_line": 189
         }
       ],
       "tag": "Environment keys take precedence"
@@ -2827,13 +2875,13 @@
         },
         {
           "path": "electron/logger.js",
-          "line": 218,
-          "end_line": 227
+          "line": 227,
+          "end_line": 236
         },
         {
           "path": "electron/main.js",
-          "line": 1145,
-          "end_line": 1148
+          "line": 1148,
+          "end_line": 1151
         }
       ],
       "tag": "Logs do not grant authority"
@@ -2859,13 +2907,13 @@
         },
         {
           "path": "electron/main.js",
-          "line": 329,
-          "end_line": 345
+          "line": 330,
+          "end_line": 346
         },
         {
           "path": "electron/main.js",
-          "line": 366,
-          "end_line": 427
+          "line": 367,
+          "end_line": 428
         }
       ]
     },
@@ -2965,13 +3013,13 @@
       "sources": [
         {
           "path": "electron/main.js",
-          "line": 329,
-          "end_line": 360
+          "line": 330,
+          "end_line": 361
         },
         {
           "path": "electron/main.js",
-          "line": 1077,
-          "end_line": 1100
+          "line": 1078,
+          "end_line": 1101
         },
         {
           "path": "electron/studio.js",
@@ -2996,13 +3044,13 @@
       "sources": [
         {
           "path": "electron/main.js",
-          "line": 329,
-          "end_line": 352
+          "line": 330,
+          "end_line": 353
         },
         {
           "path": "electron/main.js",
-          "line": 1227,
-          "end_line": 1234
+          "line": 1230,
+          "end_line": 1237
         },
         {
           "path": "electron/forest-ai.js",
@@ -3015,7 +3063,7 @@
       "id": "x-weather",
       "type": "cloud",
       "label": "Geolocation & Open-Meteo",
-      "sublabel": "Header coords \u2192 main weather fetch",
+      "sublabel": "Header coords → main weather fetch",
       "pos": [
         614,
         6810
@@ -3032,8 +3080,8 @@
         },
         {
           "path": "electron/main.js",
-          "line": 689,
-          "end_line": 726
+          "line": 690,
+          "end_line": 727
         }
       ],
       "tag": "Credential / OS permission + fallback"
@@ -3064,12 +3112,744 @@
         }
       ],
       "tag": "Third-party content boundary"
+    },
+    {
+      "id": "i-desk",
+      "type": "frontend",
+      "label": "I1 • Desk view",
+      "sublabel": "Manual or rule-based; canvas / stack",
+      "pos": [
+        42,
+        7110
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 499,
+          "end_line": 575
+        },
+        {
+          "path": "src/components/forest/ForestApp.jsx",
+          "line": 64,
+          "end_line": 91
+        },
+        {
+          "path": "src/components/forest/DeskView.jsx",
+          "line": 26,
+          "end_line": 67
+        }
+      ]
+    },
+    {
+      "id": "i-island",
+      "type": "frontend",
+      "label": "I2 • Island = project",
+      "sublabel": "One project may appear on many desks",
+      "pos": [
+        328,
+        7110
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 181,
+          "end_line": 245
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 525,
+          "end_line": 553
+        }
+      ]
+    },
+    {
+      "id": "i-cards",
+      "type": "frontend",
+      "label": "I3 • Cards inside an island",
+      "sublabel": "Main view, content, tools & templates",
+      "pos": [
+        614,
+        7110
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/catalog.js",
+          "line": 1,
+          "end_line": 19
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 808,
+          "end_line": 835
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 972,
+          "end_line": 1017
+        }
+      ]
+    },
+    {
+      "id": "i-state",
+      "type": "frontend",
+      "label": "I4 • Shared React store",
+      "sublabel": "State survives layout moves; migrate old",
+      "pos": [
+        900,
+        7110
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 181,
+          "end_line": 245
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 289,
+          "end_line": 341
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 353,
+          "end_line": 406
+        }
+      ],
+      "tag": "Internal forest names retained"
+    },
+    {
+      "id": "i-save",
+      "type": "messagebus",
+      "label": "I5 • forestSaveState IPC",
+      "sublabel": "Serialize projects, desks & templates",
+      "pos": [
+        900,
+        7320
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 289,
+          "end_line": 301
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 381,
+          "end_line": 406
+        },
+        {
+          "path": "electron/main.js",
+          "line": 1048,
+          "end_line": 1052
+        }
+      ]
+    },
+    {
+      "id": "i-service",
+      "type": "backend",
+      "label": "I6 • LocalDataService",
+      "sublabel": "Validate payload; commit transaction",
+      "pos": [
+        614,
+        7320
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/local-data-service.js",
+          "line": 2326,
+          "end_line": 2360
+        },
+        {
+          "path": "electron/local-data-service.js",
+          "line": 2406,
+          "end_line": 2457
+        }
+      ]
+    },
+    {
+      "id": "i-db",
+      "type": "database",
+      "label": "I7 • Same briizos.db",
+      "sublabel": "forest_projects / files / view_state",
+      "pos": [
+        328,
+        7320
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/local-data-service.js",
+          "line": 2406,
+          "end_line": 2457
+        }
+      ]
+    },
+    {
+      "id": "i-journal",
+      "type": "frontend",
+      "label": "I8 • Shared Islands journal",
+      "sublabel": "Log / calendar / chapters; scoped view",
+      "pos": [
+        42,
+        7320
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/IslandsJournal.jsx",
+          "line": 26,
+          "end_line": 36
+        },
+        {
+          "path": "src/components/forest/IslandsJournal.jsx",
+          "line": 88,
+          "end_line": 156
+        },
+        {
+          "path": "src/components/forest/IslandsJournal.jsx",
+          "line": 189,
+          "end_line": 226
+        }
+      ],
+      "tag": "Separate from Execubriiz"
+    },
+    {
+      "id": "i-agent",
+      "type": "frontend",
+      "label": "I9 • Agent card starts task",
+      "sublabel": "Save island; create task; mark automated",
+      "pos": [
+        42,
+        7530
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1274,
+          "end_line": 1320
+        },
+        {
+          "path": "src/lib/taskAutomation.js",
+          "line": 17,
+          "end_line": 28
+        }
+      ]
+    },
+    {
+      "id": "i-task-gate",
+      "type": "security",
+      "label": "I10 • Task permission flow",
+      "sublabel": "Renderer listener asks; clamps policy",
+      "pos": [
+        328,
+        7530
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useTaskAutomation.js",
+          "line": 146,
+          "end_line": 229
+        },
+        {
+          "path": "src/hooks/useTaskAutomation.js",
+          "line": 552,
+          "end_line": 627
+        }
+      ],
+      "tag": "Requires main app window"
+    },
+    {
+      "id": "i-runner",
+      "type": "backend",
+      "label": "I11 • Shared AutomationRunner",
+      "sublabel": "Main run → graph → renderer tools",
+      "pos": [
+        614,
+        7530
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/hooks/useTaskAutomation.js",
+          "line": 598,
+          "end_line": 619
+        },
+        {
+          "path": "electron/main.js",
+          "line": 586,
+          "end_line": 591
+        },
+        {
+          "path": "electron/agent/bridge.js",
+          "line": 53,
+          "end_line": 65
+        }
+      ],
+      "tag": "Same authority as path B17 / A"
+    },
+    {
+      "id": "i-task-state",
+      "type": "frontend",
+      "label": "I12 • Agent card progress",
+      "sublabel": "Task updates, pause, resume & answers",
+      "pos": [
+        900,
+        7530
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 409,
+          "end_line": 413
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1260,
+          "end_line": 1271
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1322,
+          "end_line": 1363
+        }
+      ]
+    },
+    {
+      "id": "i-docs",
+      "type": "frontend",
+      "label": "I13 • Docs / Code card",
+      "sublabel": "Preview references; edit owned docs",
+      "pos": [
+        42,
+        7740
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/cards/DocsCard.jsx",
+          "line": 44,
+          "end_line": 80
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1108,
+          "end_line": 1121
+        }
+      ]
+    },
+    {
+      "id": "i-files",
+      "type": "backend",
+      "label": "I14 • Workspace file service",
+      "sublabel": "Preview / owned write / dated archive",
+      "pos": [
+        328,
+        7740
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 69,
+          "end_line": 137
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 141,
+          "end_line": 174
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 324,
+          "end_line": 334
+        }
+      ],
+      "tag": "Owned writes use root-path check"
+    },
+    {
+      "id": "i-owned",
+      "type": "database",
+      "label": "I15 • App-created documents",
+      "sublabel": "userData / Islands / project documents",
+      "pos": [
+        614,
+        7740
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 25,
+          "end_line": 27
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 65,
+          "end_line": 97
+        }
+      ]
+    },
+    {
+      "id": "i-web",
+      "type": "frontend",
+      "label": "Webview card",
+      "sublabel": "Visible page; optional server restart",
+      "pos": [
+        900,
+        7740
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/cards/WebviewCard.jsx",
+          "line": 18,
+          "end_line": 39
+        },
+        {
+          "path": "src/components/forest/cards/WebviewCard.jsx",
+          "line": 81,
+          "end_line": 104
+        },
+        {
+          "path": "src/components/forest/cards/WebviewCard.jsx",
+          "line": 100,
+          "end_line": 126
+        }
+      ],
+      "tag": "persist:forest browser partition"
+    },
+    {
+      "id": "i-originals",
+      "type": "external",
+      "label": "Referenced original files",
+      "sublabel": "Paths stay in place; FileHawk locates",
+      "pos": [
+        328,
+        7950
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1067,
+          "end_line": 1105
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1123,
+          "end_line": 1178
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 100,
+          "end_line": 137
+        }
+      ]
+    },
+    {
+      "id": "i-archives",
+      "type": "database",
+      "label": "Dated ZIP archives",
+      "sublabel": "Documents / briizOS Island Archives",
+      "pos": [
+        614,
+        7950
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 29,
+          "end_line": 31
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 141,
+          "end_line": 174
+        }
+      ],
+      "tag": "Copies; original files stay put"
+    },
+    {
+      "id": "i-terminal",
+      "type": "frontend",
+      "label": "I16 • Terminal card",
+      "sublabel": "Run / stop / replay; server restart",
+      "pos": [
+        42,
+        8160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/cards/TerminalCard.jsx",
+          "line": 22,
+          "end_line": 59
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1219,
+          "end_line": 1256
+        }
+      ]
+    },
+    {
+      "id": "i-shell",
+      "type": "backend",
+      "label": "I17 • Main shell service",
+      "sublabel": "script → login shell; tracks child PID",
+      "pos": [
+        328,
+        8160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 210,
+          "end_line": 232
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 273,
+          "end_line": 313
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 324,
+          "end_line": 334
+        }
+      ],
+      "tag": "Direct IPC; outside ToolContext"
+    },
+    {
+      "id": "i-command",
+      "type": "external",
+      "label": "I18 • OS command / server",
+      "sublabel": "Command runs in chosen working folder",
+      "pos": [
+        614,
+        8160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 196,
+          "end_line": 224
+        }
+      ]
+    },
+    {
+      "id": "i-output",
+      "type": "frontend",
+      "label": "I19 • Terminal output",
+      "sublabel": "Stream + bounded replay into card",
+      "pos": [
+        900,
+        8160
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 234,
+          "end_line": 268
+        },
+        {
+          "path": "electron/forest-workspace.js",
+          "line": 291,
+          "end_line": 305
+        },
+        {
+          "path": "src/components/forest/cards/TerminalCard.jsx",
+          "line": 22,
+          "end_line": 48
+        }
+      ],
+      "tag": "No full-screen terminal emulator"
+    },
+    {
+      "id": "i-hunt",
+      "type": "frontend",
+      "label": "I20 • File Hunter",
+      "sublabel": "Choose description, kinds & date range",
+      "pos": [
+        42,
+        8370
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1542,
+          "end_line": 1564
+        }
+      ]
+    },
+    {
+      "id": "i-search",
+      "type": "backend",
+      "label": "I21 • Main file search",
+      "sublabel": "AI plan/rank; Spotlight or folder walk",
+      "pos": [
+        328,
+        8370
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "electron/forest-ai.js",
+          "line": 510,
+          "end_line": 595
+        }
+      ],
+      "tag": "Plain matching fallback"
+    },
+    {
+      "id": "i-review",
+      "type": "security",
+      "label": "I22 • Review found files",
+      "sublabel": "Hunter panel + journal; select results",
+      "pos": [
+        614,
+        8370
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1566,
+          "end_line": 1584
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1489,
+          "end_line": 1500
+        },
+        {
+          "path": "src/components/forest/IslandsJournal.jsx",
+          "line": 67,
+          "end_line": 85
+        }
+      ],
+      "tag": "Only chosen results are added"
+    },
+    {
+      "id": "i-add-files",
+      "type": "frontend",
+      "label": "I23 • Island file cards",
+      "sublabel": "Add references; save through same store",
+      "pos": [
+        900,
+        8370
+      ],
+      "size": [
+        238,
+        88
+      ],
+      "sources": [
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1021,
+          "end_line": 1053
+        },
+        {
+          "path": "src/components/forest/store.js",
+          "line": 1489,
+          "end_line": 1500
+        }
+      ]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
-      "label": "VISIBLE WORKSPACE \u2022 main React renderer \u2022 containment means mounted UI",
+      "label": "VISIBLE WORKSPACE • main React renderer • containment means mounted UI",
       "wraps": [
         "workspace",
         "settings-ui",
@@ -3091,7 +3871,7 @@
     },
     {
       "kind": "region",
-      "label": "SECOND RENDERER \u2022 transparent native overlay",
+      "label": "SECOND RENDERER • transparent native overlay",
       "wraps": [
         "avatar-ui"
       ],
@@ -3099,7 +3879,7 @@
     },
     {
       "kind": "region",
-      "label": "A \u2022 renderer submits a conversation",
+      "label": "A • renderer submits a conversation",
       "wraps": [
         "a-chat",
         "a-preload"
@@ -3108,7 +3888,7 @@
     },
     {
       "kind": "region",
-      "label": "A \u2022 main-process entry",
+      "label": "A • main-process entry",
       "wraps": [
         "a-ipc",
         "a-dispatch"
@@ -3117,7 +3897,7 @@
     },
     {
       "kind": "region",
-      "label": "A \u2022 main graph and model adapters",
+      "label": "A • main graph and model adapters",
       "wraps": [
         "a-factory",
         "a-graph",
@@ -3130,7 +3910,7 @@
     },
     {
       "kind": "region",
-      "label": "A \u2022 renderer executes after its policy decision",
+      "label": "A • renderer executes after its policy decision",
       "wraps": [
         "a-hook",
         "a-render-gate",
@@ -3140,7 +3920,7 @@
     },
     {
       "kind": "region",
-      "label": "A \u2022 main persistence authority",
+      "label": "A • main persistence authority",
       "wraps": [
         "a-local-ipc",
         "a-service",
@@ -3151,7 +3931,7 @@
     },
     {
       "kind": "region",
-      "label": "D \u2022 renderer-initiated direct call",
+      "label": "D • renderer-initiated direct call",
       "wraps": [
         "d-trigger",
         "d-ipc"
@@ -3160,7 +3940,7 @@
     },
     {
       "kind": "region",
-      "label": "D \u2022 main reads files and constructs request",
+      "label": "D • main reads files and constructs request",
       "wraps": [
         "d-read",
         "d-factory"
@@ -3169,7 +3949,7 @@
     },
     {
       "kind": "region",
-      "label": "B \u2022 main capture policy",
+      "label": "B • main capture policy",
       "wraps": [
         "b-capture-gate"
       ],
@@ -3177,7 +3957,7 @@
     },
     {
       "kind": "region",
-      "label": "B \u2022 main screen-memory scheduler",
+      "label": "B • main screen-memory scheduler",
       "wraps": [
         "b-indexer",
         "b-coordinator"
@@ -3186,7 +3966,7 @@
     },
     {
       "kind": "region",
-      "label": "B \u2022 local native helper process",
+      "label": "B • local native helper process",
       "wraps": [
         "b-native",
         "b-frames"
@@ -3195,7 +3975,7 @@
     },
     {
       "kind": "region",
-      "label": "B \u2022 main assistant pipeline \u2022 consent enforced here",
+      "label": "B • main assistant pipeline • consent enforced here",
       "wraps": [
         "b-egress",
         "b-extract",
@@ -3205,7 +3985,7 @@
     },
     {
       "kind": "region",
-      "label": "B \u2022 main accepted-task execution \u2022 separate from text analysis",
+      "label": "B • main accepted-task execution • separate from text analysis",
       "wraps": [
         "b-agent",
         "b-runner",
@@ -3216,7 +3996,7 @@
     },
     {
       "kind": "region",
-      "label": "J \u2022 main journal jobs \u2022 separate from general ToolContext",
+      "label": "J • main journal jobs • separate from general ToolContext",
       "wraps": [
         "j-queue",
         "j-privacy",
@@ -3226,7 +4006,7 @@
     },
     {
       "kind": "region",
-      "label": "J \u2022 main commit authority",
+      "label": "J • main commit authority",
       "wraps": [
         "j-store",
         "j-commit"
@@ -3235,7 +4015,7 @@
     },
     {
       "kind": "region",
-      "label": "PRIVILEGED MAIN \u2022 raw IPC outside renderer approvals",
+      "label": "PRIVILEGED MAIN • raw IPC outside renderer approvals",
       "wraps": [
         "p-ipc",
         "p-executor"
@@ -3244,7 +4024,7 @@
     },
     {
       "kind": "region",
-      "label": "CODEX CHILD \u2022 installed CLI owns sandbox enforcement",
+      "label": "CODEX CHILD • installed CLI owns sandbox enforcement",
       "wraps": [
         "c-child"
       ],
@@ -3252,7 +4032,7 @@
     },
     {
       "kind": "region",
-      "label": "CLOUD GATEWAY \u2022 main owns continuity and command execution",
+      "label": "CLOUD GATEWAY • main owns continuity and command execution",
       "wraps": [
         "cloud-session",
         "cloud-gateway",
@@ -3263,9 +4043,74 @@
     },
     {
       "kind": "region",
-      "label": "EXTERNAL ADAPTER \u2022 main owns GitHub requests",
+      "label": "EXTERNAL ADAPTER • main owns GitHub requests",
       "wraps": [
         "x-github"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "ISLANDS • desks are views; islands are shared projects; cards belong to islands",
+      "wraps": [
+        "i-desk",
+        "i-island",
+        "i-cards",
+        "i-state"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "ISLANDS • main owns structured persistence",
+      "wraps": [
+        "i-service",
+        "i-db"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "ISLANDS • Agent cards reuse task permissions and the main automation runner",
+      "wraps": [
+        "i-agent",
+        "i-task-gate",
+        "i-runner",
+        "i-task-state"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "ISLANDS • files stay referenced; created documents and archives have separate homes",
+      "wraps": [
+        "i-docs",
+        "i-files",
+        "i-owned",
+        "i-originals",
+        "i-archives"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "ISLANDS • Terminal commands have their own main-process service",
+      "wraps": [
+        "i-terminal",
+        "i-shell",
+        "i-command",
+        "i-output"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "ISLANDS • File Hunter returns candidates; the user chooses what joins the island",
+      "wraps": [
+        "i-hunt",
+        "i-search",
+        "i-review",
+        "i-add-files"
       ],
       "pad": 22
     }
@@ -3860,6 +4705,139 @@
       "to": "x-sites",
       "label": "launch",
       "variant": "default"
+    },
+    {
+      "id": "i-desk-to-i-island",
+      "from": "i-desk",
+      "to": "i-island",
+      "label": "",
+      "variant": "default"
+    },
+    {
+      "id": "i-island-to-i-cards",
+      "from": "i-island",
+      "to": "i-cards",
+      "label": "",
+      "variant": "default"
+    },
+    {
+      "id": "i-cards-to-i-state",
+      "from": "i-cards",
+      "to": "i-state",
+      "label": "",
+      "variant": "default"
+    },
+    {
+      "id": "i-save-to-i-service",
+      "from": "i-save",
+      "to": "i-service",
+      "label": "IPC",
+      "variant": "default"
+    },
+    {
+      "id": "i-service-to-i-db",
+      "from": "i-service",
+      "to": "i-db",
+      "label": "SQL",
+      "variant": "default"
+    },
+    {
+      "id": "i-state-to-i-save",
+      "from": "i-state",
+      "to": "i-save",
+      "label": "save",
+      "variant": "default"
+    },
+    {
+      "id": "i-agent-to-i-task-gate",
+      "from": "i-agent",
+      "to": "i-task-gate",
+      "label": "task",
+      "variant": "security"
+    },
+    {
+      "id": "i-task-gate-to-i-runner",
+      "from": "i-task-gate",
+      "to": "i-runner",
+      "label": "allow",
+      "variant": "security"
+    },
+    {
+      "id": "i-runner-to-i-task-state",
+      "from": "i-runner",
+      "to": "i-task-state",
+      "label": "",
+      "variant": "default"
+    },
+    {
+      "id": "i-docs-to-i-files",
+      "from": "i-docs",
+      "to": "i-files",
+      "label": "IPC",
+      "variant": "default"
+    },
+    {
+      "id": "i-files-to-i-owned",
+      "from": "i-files",
+      "to": "i-owned",
+      "label": "write",
+      "variant": "default"
+    },
+    {
+      "id": "i-files-to-i-originals",
+      "from": "i-files",
+      "to": "i-originals",
+      "label": "read",
+      "variant": "default"
+    },
+    {
+      "id": "i-files-to-i-archives",
+      "from": "i-files",
+      "to": "i-archives",
+      "label": "archive",
+      "variant": "default"
+    },
+    {
+      "id": "i-terminal-to-i-shell",
+      "from": "i-terminal",
+      "to": "i-shell",
+      "label": "IPC",
+      "variant": "default"
+    },
+    {
+      "id": "i-shell-to-i-command",
+      "from": "i-shell",
+      "to": "i-command",
+      "label": "spawn",
+      "variant": "default"
+    },
+    {
+      "id": "i-command-to-i-output",
+      "from": "i-command",
+      "to": "i-output",
+      "label": "stdio",
+      "variant": "default"
+    },
+    {
+      "id": "i-hunt-to-i-search",
+      "from": "i-hunt",
+      "to": "i-search",
+      "label": "IPC",
+      "variant": "default"
+    },
+    {
+      "id": "i-search-to-i-review",
+      "from": "i-search",
+      "to": "i-review",
+      "label": "",
+      "variant": "default"
+    },
+    {
+      "id": "i-review-to-i-add-files",
+      "from": "i-review",
+      "to": "i-add-files",
+      "label": "add",
+      "variant": "security"
     }
   ],
   "cards": [
@@ -3867,8 +4845,64 @@
       "dot": "cyan",
       "title": "Read the architecture",
       "items": [
-        "A is one complete API-key agent turn and renderer task creation. D is the direct Forest createChatModel path. B follows background capture, extraction, review and optional execution. J shows the independent journal worker.",
+        "A follows an API-key agent turn and task creation. I follows the Islands workspace and its services. D follows direct island auto-tags. B follows screen memory and proposed tasks. J is the separate Execubriiz worker.",
         "Repeated factory, provider and database boxes are the same runtime roles at different call sites. Region boxes mark process or ownership slices; they do not imply extra sandboxes. Click any component for revision-pinned source evidence."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Forests → Islands: compatibility and migration",
+      "items": [
+        "The visible app is Islands; the hierarchy is Desk → Island → Card. The Forest.jsx entry now mounts ForestApp and a shared React store. The legacy app.js and canvas markup are gone. Existing forest panel IDs, IPC names, database tables and theme keys remain for compatibility.",
+        "Older projects become islands on load, with files grouped into Docs/Code and Media cards and a migration journal entry. No files move. The store serializes version 2; saveForestState writes the new desks/templates view payload. getForestState still reports version 1 while returning the new fields."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Desks, cards and rendering",
+      "items": [
+        "A desk holds a manual selection or rule-based view of shared islands, with its own camera, positions, dim setting and card visibility. The same island can appear on several desks. Hiding Agent cards only hides their presentation.",
+        "Cards cover Monetize, Terminal, Webview, Thoughts/Discussions, Media, Agent, Docs/Code, Goals/Todo, Visual Planning and Ship/Finish. Islands and cards have reusable templates and a chosen main card. Off-screen islands are culled; webviews mount only near the visible area."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "One Islands journal, two entrances",
+      "items": [
+        "Opening the journal from an island scopes its log and chapter to that project; the calendar retains other islands with faded entries. Opening Islands from the Journals shelf shows all projects through the same store.",
+        "This journal reads island entries, shared auto-tag / Hunter changes, milestones, deadlines and ship dates. It does not use the ordinary journal entry tables or Execubriiz worker. Auto-tags retain undo; File Hunter results still require selection."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Island agents use the task system",
+      "items": [
+        "An Agent card saves the island, creates a task linked by forestProjectId, then enables automation. The app-window listener obtains the task permission choice and dispatches an accepted run to the main AutomationRunner. Task updates feed the card; pause, resume and answers use the same task.",
+        "Closing a desk or hiding Agent cards is not a pause command. The local task entry flow and renderer tools still depend on the main app window. Main-runner existence alone does not prove window-independent completion."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "References, owned documents and archives",
+      "items": [
+        "Imported files stay where they are and appear as references. FileHawk checks missing paths and can locate moved files. Docs/Code previews originals; its save endpoint restricts writes by a lexical path check beneath userData/Islands. That check is not a symlink-canonicalization claim.",
+        "App-created documents live under userData/Islands. Archive creates a dated ZIP under Documents/briizOS Island Archives, copying source files and reporting missing paths. The old consolidate IPC still exists, but Islands uses forestArchiveIsland."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Terminal and Webview are working cards",
+      "items": [
+        "Terminal cards call forestTerminalRun directly. Main launches a login shell through /usr/bin/script, streams output, retains a bounded replay buffer, and stops children on app quit. This path does not call ToolContext or the agent terminal approval gate.",
+        "Webview cards use persist:forest, unload when off-screen, and can restart their linked terminal command when a page fails. Terminal output supports colors and progress, but is not a full terminal emulator for screen-redrawing applications."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Updated model request adapters",
+      "items": [
+        "The checked-in profile catalog now includes GPT-6.1 Sol, GPT-6 Luna, Claude 5.5 and Gemini 3.8 Flash; retired IDs include Gemini 3.7 Flash and gemini-omni-flash. These are repository configuration facts, not a claim of current provider availability.",
+        "The model factory routes GPT-5.6/GPT-6 through Responses and forwards GPT-6 reasoning through the installed adapter. It rejects none for GPT-6.1 Sol, uses adaptive thinking for Claude 5.5, and omits custom sampling for Gemini. Provider selection and content-consent boundaries remain distinct."
       ]
     },
     {
@@ -3923,7 +4957,7 @@
       "dot": "amber",
       "title": "Direct calls do not inherit chat policy",
       "items": [
-        "Forest auto-tags reads up to its excerpt budgets and sends project text using the Background helpers route. It has configuration/read budgets and error logs, but no ToolContext approval, agent blacklist or separate file-content egress consent.",
+        "Island auto-tags use the shared store queue and Background helpers model route. File-path changes trigger excerpt reads. Tags feed search and desk rules; the journal records changes and offers undo. These direct calls do not enter ToolContext.",
         "A configured model/key is a readiness condition. It does not authorize every external transmission. createChatModel checks profiles/adapters/credentials and rejects Codex subscription calls; it does not centralize content consent."
       ]
     },
@@ -3987,8 +5021,8 @@
       "dot": "slate",
       "title": "Scope and evidence limits",
       "items": [
-        "Snapshot: electron/ and src/ runtime at revision 881061e74f60db796a1ba473fa73414c45d8bcd6, analyzed 9 October 2026. Existing dirty paths are recorded separately; cited source paths were unchanged in the starting worktree.",
-        "This is static source analysis. It identifies actual checks, trusted parameters and missing gates without starting the application or executing exploit probes. Diagram artifact validation is separate from application behavior verification."
+        "Snapshot: electron/ and src/ runtime at revision 29fb0324d56af7a326abc11efde7890bec62f236, refreshed 15 October 2026. Runtime changes since 9 October were traced; unchanged source spans retain their established interpretation. Starting pending paths are recorded separately.",
+        "Static source analysis. The current HTML is regenerated without the optional verification commands, per project instructions. Prior checks and captures belong only to the archived October 9 artifact."
       ]
     }
   ]

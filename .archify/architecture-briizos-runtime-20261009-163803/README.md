@@ -1,27 +1,20 @@
 # briizOS runtime architecture
 
-Open [briizos-runtime.html](briizos-runtime.html) in a browser. This standalone diagram covers the visible React workspace and Briizy overlay, the main-process agent, renderer tool execution, direct Forest calls, screen-memory assistants, Execubriiz, Codex, persistence, external adapters and cloud command intake.
+Open [briizos-runtime.html](briizos-runtime.html). Refreshed 15 October 2026 for the current Islands implementation and model adapters.
 
-Use **PATH** to select a guided trace, **LENS** for focused exploration, and each component’s **SRC** badge for the exact source revision. Light/dark controls and the Export menu are built into the viewer. Scroll vertically to follow the full map.
+Choose **PATH → Islands workspace & direct AI** for Desk → Island → Card, the shared Islands journal, task agents, referenced and owned files, dated archives, terminal/webview cards, File Hunter and automatic tags. The other paths retain the chat agent, screen-memory assistants, Execubriiz, Codex, cloud gateway and persistence map. **SRC** links point to the source revision in the snapshot. **LENS**, themes and exports remain available.
 
-The agent trace follows task creation through approval, renderer dispatch, the authoritative SQLite write, data-change notification, tool-result return and the visible chat response. The direct trace follows Forest file excerpts through createChatModel, provider invocation, tag parsing, visible changes and autosave. The background trace follows capture, OCR, text consent, extraction, proposals, acceptance and optional task execution. Automatic journal work and the Codex child process have separate paths.
+Islands is the visible name. Internal `forest` paths, IDs, IPC methods, database tables and theme keys intentionally remain for saved-data compatibility. The map distinguishes the shared task permission flow from direct Terminal-card execution, and the Islands journal from Execubriiz.
 
-Approval limitations appear at their actual seams and in the explanatory cards. The map distinguishes enforced checks, configuration assumptions, missing checks and inferred reach. Regions denote ownership/process slices. Repeated factory, database and provider boxes represent shared roles at different call sites.
+## Current source and artifact
 
-## Source evidence
-
-- [Source notes and authorization references](source-notes.md)
 - [Authoring model](candidate.json)
+- [Source notes and revision-pinned component references](source-notes.md)
 - [Source snapshot and starting pending changes](source-snapshot.json)
+- [Refresh record](refresh-record.json)
 
-Runtime evidence comes from electron/ and src/ at the revision recorded in the snapshot. Component links pin that revision. Application findings are static source analysis.
+The HTML is generated from the current model. Per project instructions, no verification suite or browser review accompanies this refresh. The refresh record records file identities and this limitation; it is not a passing validation receipt.
 
-## Artifact verification
+## Previous map and evidence
 
-- [Final delivery receipt](review-3/briizos-runtime.finalize.json): source validation, generation, strict provenance and automated browser gates passed.
-- [Browser receipt](review-3/briizos-runtime.browser-check.json): artifact-bound containment, readability, viewer and theme checks passed.
-- [Capture receipt](visual-check/briizos-runtime.visual-check.json) and [contact sheet](visual-check/briizos-runtime.visual-check.html): light/dark captures passed. The light desktop and large dark captures were visually inspected for node fit, text, theme contrast and overall containment. This limited review is separate from automated browser evidence.
-
-The graph has bridge-marked crossings among its own output/read/hook branches. The required placement-only alternative introduced invalid geometry, so the final artifact retains the passing layout. Its earlier attempt and receipts remain beside the final evidence. Only one placement-review round was performed.
-
-The in-app browser blocks local file URLs; the HTML remains ready to open as a local standalone file.
+The [October 9 snapshot](history/20261009/README.md) preserves the prior HTML, candidate, source notes, delivery receipts, layout attempts and captures together. Those passing checks describe only that archived HTML. They do not validate the updated map. Historical receipts retain their original paths and hashes as historical records.

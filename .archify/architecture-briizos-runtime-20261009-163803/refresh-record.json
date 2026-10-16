@@ -1,0 +1,35 @@
+{
+  "kind": "documentation-refresh",
+  "diagramType": "architecture",
+  "sourceRevision": "29fb0324d56af7a326abc11efde7890bec62f236",
+  "date": "2026-10-15",
+  "generation": {
+    "command": "archify render architecture",
+    "status": "completed",
+    "repositoryEvidence": "Renderer accepted revision-pinned source references."
+  },
+  "verification": {
+    "finalize": "not-run-per-project-instructions",
+    "browserEvidence": "not-run-per-project-instructions",
+    "visualReview": "not-requested"
+  },
+  "historicalEvidence": "history/20261009/README.md",
+  "files": {
+    "candidate.json": {
+      "sha256": "fc0ee5a784ddbfb57a34ed6140391886d40d3ca6fe2767cc75508980ae81a1d6",
+      "bytes": 116887
+    },
+    "briizos-runtime.html": {
+      "sha256": "47d95eeb718775002a625e6d0defb10dcc2fb70bf3df90c1dc580ca84a0c8635",
+      "bytes": 1147412
+    },
+    "source-notes.md": {
+      "sha256": "e02500592c909b5a635cf1313fb0b8cb7bbb92305e911516b04b0838eda07c93",
+      "bytes": 75289
+    },
+    "source-snapshot.json": {
+      "sha256": "3da603f9f06fc264baa722456d3fa16d1c8e91f4462b421ce0e141e764bcf208",
+      "bytes": 925
+    }
+  }
+}
