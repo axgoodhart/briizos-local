@@ -16,12 +16,12 @@
   "historicalEvidence": "history/20261009/README.md",
   "files": {
     "candidate.json": {
-      "sha256": "fc0ee5a784ddbfb57a34ed6140391886d40d3ca6fe2767cc75508980ae81a1d6",
-      "bytes": 116887
+      "sha256": "829258cc20398bafc108a7b5f62b7d0c0211c4b5135cbb48a8637fe096ffc494",
+      "bytes": 116875
     },
     "briizos-runtime.html": {
-      "sha256": "47d95eeb718775002a625e6d0defb10dcc2fb70bf3df90c1dc580ca84a0c8635",
-      "bytes": 1147412
+      "sha256": "ba26d22ab9ec21ec5ad3042240263b5334b8ef2bf24a3b5c6bbb7cb166086aed",
+      "bytes": 1147400
     },
     "source-notes.md": {
       "sha256": "e02500592c909b5a635cf1313fb0b8cb7bbb92305e911516b04b0838eda07c93",

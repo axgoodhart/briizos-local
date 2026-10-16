@@ -4851,9 +4851,9 @@
     },
     {
       "dot": "cyan",
-      "title": "Forests → Islands: compatibility and migration",
+      "title": "Islands: compatibility and migration",
       "items": [
-        "The visible app is Islands; the hierarchy is Desk → Island → Card. The Forest.jsx entry now mounts ForestApp and a shared React store. The legacy app.js and canvas markup are gone. Existing forest panel IDs, IPC names, database tables and theme keys remain for compatibility.",
+        "The visible app is Islands; the hierarchy is Desk → Island → Card. The Forest.jsx entry now mounts ForestApp and a shared React store. The legacy app.js and canvas markup are gone. Existing legacy panel IDs, IPC names, database tables and theme keys remain for compatibility.",
         "Older projects become islands on load, with files grouped into Docs/Code and Media cards and a migration journal entry. No files move. The store serializes version 2; saveForestState writes the new desks/templates view payload. getForestState still reports version 1 while returning the new fields."
       ]
     },
