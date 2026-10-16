@@ -1,12 +1,12 @@
 {
   "kind": "documentation-refresh",
   "diagramType": "architecture",
-  "sourceRevision": "29fb0324d56af7a326abc11efde7890bec62f236",
+  "sourceRevision": "5eccc633d948c6487e32e187be9edc0ebcd80200",
   "date": "2026-10-15",
   "generation": {
-    "command": "archify render architecture",
+    "method": "manual artifact and source-evidence update",
     "status": "completed",
-    "repositoryEvidence": "Renderer accepted revision-pinned source references."
+    "repositoryEvidence": "Source paths were confirmed against the committed tree; Archify renderer was unavailable."
   },
   "verification": {
     "finalize": "not-run-per-project-instructions",
@@ -16,20 +16,20 @@
   "historicalEvidence": "history/20261009/README.md",
   "files": {
     "candidate.json": {
-      "sha256": "829258cc20398bafc108a7b5f62b7d0c0211c4b5135cbb48a8637fe096ffc494",
-      "bytes": 116875
+      "sha256": "498e741c5f1aac7d9ff95f18f339a617cb0520acbc2d7ca430c7fec6d2aa2a95",
+      "bytes": 116827
     },
     "briizos-runtime.html": {
-      "sha256": "ba26d22ab9ec21ec5ad3042240263b5334b8ef2bf24a3b5c6bbb7cb166086aed",
-      "bytes": 1147400
+      "sha256": "b2981ac22f5ccc3ac6c77ca2723f285988568e9e98040c39b663a67aca6b5a45",
+      "bytes": 1147435
     },
     "source-notes.md": {
-      "sha256": "e02500592c909b5a635cf1313fb0b8cb7bbb92305e911516b04b0838eda07c93",
-      "bytes": 75289
+      "sha256": "6f463af8bbcfa34e68096b1d5a9075c2135818e922c67244082e3678a825ac67",
+      "bytes": 75340
     },
     "source-snapshot.json": {
-      "sha256": "3da603f9f06fc264baa722456d3fa16d1c8e91f4462b421ce0e141e764bcf208",
-      "bytes": 925
+      "sha256": "09c90c93c7f55b387f009056f309c49b5832ae246cf8a58576cce1dabba1000c",
+      "bytes": 812
     }
   }
 }
