@@ -15,12 +15,37 @@ ON CONFLICT(domain) DO UPDATE SET
   updated_at = MAX(domain_revisions.updated_at, excluded.updated_at);
 DELETE FROM domain_revisions WHERE domain = 'forest';
 
-UPDATE sync_outbox SET domain = 'island' WHERE domain = 'forest';
-UPDATE sync_state SET domain = 'island' WHERE domain = 'forest';
+INSERT INTO sync_outbox (domain, dirty_revision, status, attempts, next_attempt_at, last_error_code, created_at, updated_at)
+SELECT 'island', dirty_revision, 'pending', 0, NULL, NULL, created_at, updated_at
+FROM sync_outbox WHERE domain = 'forest'
+ON CONFLICT(domain) DO UPDATE SET
+  dirty_revision = MAX(sync_outbox.dirty_revision, excluded.dirty_revision),
+  status = 'pending', attempts = 0, next_attempt_at = NULL, last_error_code = NULL,
+  created_at = MIN(sync_outbox.created_at, excluded.created_at),
+  updated_at = MAX(sync_outbox.updated_at, excluded.updated_at);
+DELETE FROM sync_outbox WHERE domain = 'forest';
+
+INSERT INTO sync_state (domain, last_uploaded_revision, remote_revision, cursor, updated_at)
+SELECT 'island', last_uploaded_revision, remote_revision, cursor, updated_at
+FROM sync_state WHERE domain = 'forest'
+ON CONFLICT(domain) DO UPDATE SET
+  last_uploaded_revision = MAX(sync_state.last_uploaded_revision, excluded.last_uploaded_revision),
+  updated_at = MAX(sync_state.updated_at, excluded.updated_at);
+DELETE FROM sync_state WHERE domain = 'forest';
 UPDATE logs SET category = replace(category, 'forest', 'island') WHERE category LIKE 'forest%';
+
+-- Keep duplicate tasks and their links; the current task retains the shared de-duplication key.
+UPDATE tasks SET source_key = NULL
+WHERE source_key LIKE 'forest-%' AND deleted_at IS NULL
+  AND EXISTS (
+    SELECT 1 FROM tasks AS current
+    WHERE current.source_key = replace(tasks.source_key, 'forest-', 'island-')
+      AND current.deleted_at IS NULL
+  );
 UPDATE tasks SET source_key = replace(source_key, 'forest-', 'island-') WHERE source_key LIKE 'forest-%';
+
+-- Panel IDs identify saved layout instances, independently of the feature name.
 UPDATE workspace_panels SET feature_key = 'island' WHERE feature_key = 'forest';
-UPDATE workspace_panels SET id = 'island' WHERE id = 'forest';
 
 UPDATE settings
 SET value_json = replace(replace(replace(value_json, 'Forest', 'Island'), 'FOREST', 'ISLAND'), 'forest', 'island')

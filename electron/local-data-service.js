@@ -275,19 +275,28 @@ class LocalDataService extends EventEmitter {
       const checksum = crypto.createHash('sha256').update(sql).digest('hex');
       const applied = this.db.prepare('SELECT checksum FROM schema_migrations WHERE version = ?').get(version);
       if (applied) {
-        if (applied.checksum !== checksum) {
+        // A successful original Islands migration must not rerun its table renames.
+        const acceptedIslandsCorrection = name === '017_islands_identity.sql'
+          && checksum === '426a6a087914f85974bbbdec5f53adb0bfe9896a3bd2ab31384de2b60d41f255'
+          && applied.checksum === 'cc614e7053aacabd89fbdcd6ec61086c5da205d72bb93525bcda32a814993b8c';
+        if (applied.checksum !== checksum && !acceptedIslandsCorrection) {
           throw new Error(`Migration ${name} changed after it was applied`);
         }
         continue;
       }
 
-      this.db.transaction(() => {
-        this.db.exec(sql);
-        this.db.prepare(`
-          INSERT INTO schema_migrations (version, name, checksum, applied_at)
-          VALUES (?, ?, ?, ?)
-        `).run(version, name, checksum, now());
-      })();
+      try {
+        this.db.transaction(() => {
+          this.db.exec(sql);
+          this.db.prepare(`
+            INSERT INTO schema_migrations (version, name, checksum, applied_at)
+            VALUES (?, ?, ?, ?)
+          `).run(version, name, checksum, now());
+        })();
+      } catch (error) {
+        throw new Error(`Local database update ${name} failed: ${error.message}`, { cause: error });
+      }
+      this.logger?.info?.('local-data', 'A local database update completed.', { migration: name, schemaVersion: version });
     }
   }
 

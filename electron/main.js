@@ -1265,6 +1265,16 @@ app.whenReady().then(() => {
     // BrowserWindow, so that test would never be true once the shell is up.
     ensureMainWindow();
   });
+}).catch((error) => {
+  logger.error('app', 'briizOS could not finish starting. The saved workspace has not been reset.', {
+    error: error?.message || String(error),
+    stack: error?.stack,
+    databasePath: path.join(app.getPath('userData'), 'briizos.db'),
+    nextStep: 'The startup error must be resolved before reopening the workspace.',
+  });
+  dialog.showErrorBox('briizOS could not start',
+    `The saved workspace has not been reset.\n\n${error?.message || error}\n\nDatabase: ${path.join(app.getPath('userData'), 'briizos.db')}`);
+  app.quit();
 });
 
 /**
