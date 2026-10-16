@@ -7,7 +7,7 @@ export const GLYPH = {
   laptop: '􀟛', chevron: '􀆊', chevronLeft: '􀆉', chevronDown: '􀆈', share: '􀈂', eye: '􀋭', eyeClosed: '􂽁',
   archive: '􀈭', link: '􀉣', dashed: '􀓔', calendar: '􀉉', clock: '􀐫', undo: '􀱍', check: '􀆅',
   circle: '􀀀', compose: '􀈎', more: '􀍠', play: '􀊃', stop: '􀛶', open: '􀄯', pointer: '􀄮',
-  warning: '􀅎', expand: '􀅊', collapse: '􀅋', folder: '􀈕', file: '􀈷', tag: '􀋡', copy: '􀉁',
+  warning: '􀅎', ladybug: '􀯔', expand: '􀅊', collapse: '􀅋', folder: '􀈕', file: '􀈷', tag: '􀋡', copy: '􀉁',
   desk: '􀇴', hammer: '􀙄', pin: '􀎦', bolt: '􀋥',
 };
 

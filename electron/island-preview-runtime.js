@@ -126,7 +126,7 @@ async function planPreview(projectPath) {
   const compound = /concurrently|&&|\|\||\bturbo\b|electron|wrangler|remotion|tsup|webpack|nodemon/i.test(dev);
   let managed = null;
 
-  if (installed && deps.next && /^next(?:\s+dev)?(?:\s|$)/.test(dev) && !compound) {
+  if (installed && deps.next && /^next\s+dev(?:\s|$)/.test(dev) && !compound) {
     managed = { mode: 'managed', framework: 'next', packageManager, script: 'dev', args: runArgs('dev'), env: {} };
   } else if (installed && deps.vite && /^vite(?:\s|$)/.test(dev) && !compound) {
     managed = { mode: 'managed', framework: 'vite', packageManager, script: 'dev', args: runArgs('dev'), env: {} };
