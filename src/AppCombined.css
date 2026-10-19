@@ -3036,32 +3036,42 @@ body {
     cursor: not-allowed;}
 .task-input-form {
     display: flex;
-    gap: var(--cc-gap-large);
     margin-bottom: 12px;}
 .task-input {
     flex: 1;
     padding: var(--cc-padding-medium) var(--cc-padding-large);
     background: rgba(30, 70, 90, 0.7);
-    border: 1px solid var(--palette-text-faint);
-    border-radius: var(--cc-radius-slight);
+    border: 1px solid transparent;
+    corner-top-right-shape:square !important;
+    corner-bottom-right-shape:square !important;
     color: var(--palette-text-main);
     font-size: var(--cc-font-size-small);
     transition: border-width .2s linear;}
-.task-input::placeholder {
+
+
+
+    .task-input::placeholder {
     color: var(--palette-text-muted);
-    opacity: .4 !important;}
+    opacity: 1 !important;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    font-weight:400;
+}
+
+
+
+
 .task-input:focus {
-    outline: none;
-    border-width: 2px;}
+    outline: none;}
 .task-add-btn {
     padding: var(--cc-padding-medium) var(--cc-padding-large);
+    line-height:1;
     background: rgba(0, 150, 180, 0.4);
     border: 1px solid rgba(0, 200, 200, 0.3);
     border-radius: var(--cc-radius-slight);
     color: var(--palette-accent-primary);
     font-size: var(--cc-font-size-medium);
-    cursor: pointer;
-    transition: all 0.2s ease;}
+    cursor: pointer;}
 .task-add-btn:hover:not(:disabled) {
     background: rgba(0, 180, 200, 0.5);}
 .task-add-btn:disabled {
@@ -3069,16 +3079,83 @@ body {
     cursor: not-allowed;}
 .deck-input-form {
     display: flex;
-    gap: var(--cc-gap-large);
     margin-bottom: 12px;}
 .deck-input {
-    border-color: rgba(189, 0, 255, 0.25);}
-.deck-input:focus {
-    border-color: rgba(189, 0, 255, 0.5);}
+    background-color: rgba(120, 0, 160, 0.35);
+}
 .deck-add-btn {
     background: rgba(120, 0, 160, 0.35);
-    border-color: rgba(189, 0, 255, 0.35);
     color: var(--palette-neon-accent);}
+#task-inputs {
+        display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 10px;
+        background-clip:;
+        background-size: 200% 200%;
+}
+
+
+.task-add-btn, .deck-add-btn {
+    transition: all 1s;
+    opacity:1 !important;
+    corner-top-left-shape:square !important;
+corner-bottom-left-shape: square !important;
+border:none;
+}
+
+.task-input, .deck-input, .task-add-btn, .deck-add-btn {
+        font-size: var(--cc-font-size-tiny);
+        height: 18px;
+        transition: all 1s;
+}
+
+.task-input:focus, .task-input:focus ~ .task-add-btn, .deck-input:focus, .deck-input:focus ~ .deck-add-btn {
+    font-size: var(--cc-font-size-medium);
+    height: 30px;
+}
+
+.task-input-form,
+.deck-input-form {
+    overflow:hidden;
+    width:100%;
+    transition:all .2s ease;
+}
+.task-input-form:has(input:focus) ~
+.deck-input-form {
+    width:0px;
+}
+.deck-input-form:has(input:focus) ~
+.task-input-form {
+    width:0px !important;
+}
+
+
+#task-inputs:has(.task-input-form input:focus) .deck-input-form {
+    width: 0 !important;
+    min-width: 0;
+    overflow: hidden;
+}
+
+#task-inputs:has(.deck-input-form input:focus) .task-input-form {
+    width: 0 !important;
+    min-width: 0;
+    overflow: hidden;
+}
+
+
+.task-input, .deck-input {
+    background-image: linear-gradient(to  right, transparent,transparent, var(--palette-accent-primary), transparent,transparent);
+    background-size:400%;
+    background-position:0%;
+}
+.task-input:focus, .deck-input:focus {
+    background-position:100%  10%;
+}
+
+
+
+
 .deck-add-btn:hover:not(:disabled) {
     background: rgba(150, 0, 200, 0.45);}
 .deck-status {
@@ -4630,7 +4707,7 @@ body {
 .subtask-input {
     flex: 1;
     padding: var(--cc-padding-small) var(--cc-padding-medium);
-    background: rgba(20, 40, 60, 0.6);
+    background-color: rgba(20, 40, 60, 0.6);
     border: 1px solid rgba(0, 200, 200, 0.2);
     border-radius: var(--cc-radius-slight);
     color: var(--palette-text-main);
@@ -12304,7 +12381,7 @@ body {
     padding: 5px 14px 6px;
     border: none;
     background: linear-gradient(180deg, color-mix(in srgb, var(--bzf-orange) 78%, #ffd28a), color-mix(in srgb, var(--bzf-orange) 55%, #442200));
-    color: #1a0e00 !important;
+    color: var(palette-text-faint) !important;
     cursor: pointer;
     transition: filter var(--layout-transition-fast, 0.15s ease);}
 .briizify-tab:hover {
@@ -12317,6 +12394,7 @@ body {
     font-size: var(--cc-font-size-medium);
     letter-spacing: 0.01em;
     color: black;}
+    .briizify-tab-dock.engaged .briizify-tab-strong { color: white; }
 .briizify-tab-soft {
     font-weight: 200;
     font-size: var(--cc-font-size-small);}
@@ -12353,10 +12431,6 @@ body {
     letter-spacing: 0.01em;
     user-select: none;
     margin: 0;}
-.briizify-logo.rail {
-    margin-top: auto;
-    padding: 6px 2px 2px;
-    font-size: 15px;}
 /* ── briizify setup stepper ─────────────────────────────────────
    Four views, one at a time: (1) timeframe + channels, (2) time
    range, (3) candidates, (4) custom input. The drawer never
@@ -24915,8 +24989,8 @@ section.fw:has(.interaction-panel) {
 /* ---------- Grid tile pop-out affordance ---------- */
 .panel-popout-btn {
     position: absolute;
-    top: calc(var(--layout-header-height, 30px) + 6px);
-    right: 8px;
+    top: 0;
+    right: 0px;
     z-index: 6;
     width: 22px;
     height: 22px;
@@ -24931,8 +25005,8 @@ section.fw:has(.interaction-panel) {
     line-height: 1;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.15s ease, transform 0.15s ease;}
-.panel-wrapper:hover .panel-popout-btn,
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
 .panel-popout-btn:focus-visible {
     opacity: 0.9;}
 .panel-popout-btn:hover {
@@ -27532,10 +27606,28 @@ input):focus-visible {
     transform: translateY(-1px);
     border-color: rgba(var(--accent-rgb), 0.8);
     background: rgba(var(--accent-rgb), 0.28);}
-.fo-island__fog {
+.fo-island__canvas {
     position: absolute;
     top: 12px;
     right: 60px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--fo-text);
+    font-size: 15px;
+    transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;}
+.fo-island__canvas:hover {
+    transform: translateY(-1px);
+    border-color: rgba(var(--accent-rgb), 0.8);
+    background: rgba(var(--accent-rgb), 0.28);}
+.fo-island__fog {
+    position: absolute;
+    top: 12px;
+    right: 102px;
     display: grid;
     place-items: center;
     width: 34px;
@@ -30623,6 +30715,164 @@ button.fo-stack__fact:hover b {
 .fo-root[data-dim='true'] .fo-full {
     background: linear-gradient(to top left, #00171b, #001314, black);}
 
+/* Desk Preview: cards as flat pictures, nothing runs */
+.fo-card--preview {
+    cursor: default;}
+.fo-card--preview .fo-card__head {
+    cursor: default;}
+.fo-preview {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.25);}
+.fo-preview img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top left;
+    pointer-events: none;}
+.fo-preview__blank {
+    font-size: 44px;
+    color: rgba(var(--accent-rgb), 0.35);}
+
+/* Size snapper beside the resize handle: Small, Medium, Large */
+.fo-snapper {
+    position: absolute;
+    top: 100%;
+    right: -8px;
+    z-index: 6;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(var(--accent-rgb), 0.55);
+    border-radius: 14px;
+    background: var(--fo-panel);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    transform: scale(var(--snap-scale, 1));
+    transform-origin: top right;
+    cursor: default;}
+.fo-snapper__shape {
+    display: grid;
+    place-items: center;
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.04);
+    transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;}
+.fo-snapper__shape i {
+    display: block;
+    height: 30px;
+    border-radius: 4px 10px 2px 12px;
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.8), rgba(var(--accent-rgb), 0.3));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);}
+.fo-snapper__shape[data-shape='small'] i {
+    height: 30px;}
+.fo-snapper__shape[data-shape='large'] i {
+    height: 60px;}
+.fo-snapper__shape:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.4);}
+.fo-snapper__shape[aria-pressed='true'] {
+    border-color: rgb(var(--accent-rgb));
+    background: rgba(var(--accent-rgb), 0.18);}
+
+/* Tag arrangement rows */
+.fo-desk__rowlabel {
+    position: absolute;
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    color: var(--fo-text);
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    opacity: 0.8;
+    pointer-events: none;}
+.fo-desk__rowlabel .fo-whisper {
+    font-size: 28px;
+    font-family: var(--fo-mono);}
+
+/* Canvas view: one island on its own infinite canvas, cards live, frame fixed to the screen */
+.fo-canvas {
+    background: var(--fo-stage);}
+.fo-canvas__ground {
+    position: absolute;
+    left: -200000px;
+    top: -200000px;
+    width: 400000px;
+    height: 400000px;}
+.fo-canvas__ground[data-tool]:not([data-tool='pointer']):not([data-tool='hand']) {
+    cursor: crosshair;}
+.fo-canvas__frame {
+    position: absolute;
+    inset: 58px 12px 12px;
+    z-index: 3;
+    border: 1.5px solid rgb(var(--accent-rgb));
+    border-radius: var(--fo-island-radius);
+    corner-shape: var(--ui-corner-shape);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.2), 0 0 40px rgba(var(--accent-rgb), 0.18), inset 0 0 60px rgba(0, 0, 0, 0.35);
+    pointer-events: none;}
+.fo-canvas__frame::after {
+    content: '';
+    position: absolute;
+    top: -1.5px;
+    left: 160px;
+    right: 90px;
+    height: 6px;
+    border-radius: 0 0 6px 6px;
+    background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.88), rgba(255, 255, 255, 0.7), rgba(var(--accent-rgb), 0.45));
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.5);}
+.fo-canvas__tab {
+    position: absolute;
+    top: 56px;
+    left: 10px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 44px;
+    padding: 0 12px 0 18px;
+    border-radius: 10px 22px 22px 4px;
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.98), rgba(var(--accent-rgb), 0.62));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 14px 30px rgba(var(--accent-rgb), 0.25);
+    color: #050806;}
+.fo-canvas__corner {
+    position: absolute;
+    top: 62px;
+    right: 22px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 8px;}
+.fo-canvas__zoom {
+    margin-right: 6px;}
+.fo-canvas__rail {
+    left: 12px;
+    right: 12px;
+    z-index: 4;}
+.fo-canvas[data-closing='true'] .fo-canvas__corner,
+.fo-canvas[data-closing='true'] .fo-canvas__rail {
+    opacity: 0.5;
+    pointer-events: none;}
+.fo-top__crumbs--canvas b {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: color-mix(in srgb, rgb(var(--accent-rgb)) 70%, white);}
+.fo-top__crumbs--canvas .fo-whisper {
+    margin-left: 8px;
+    text-transform: none;
+    letter-spacing: 0;}
+
 /* Tag strip: grass along the bottom of the desk; a picked tag blooms on a stem.
    Look carried from the old Forest tag strip; the flower is an illustration, not an icon. */
 .fo-tagstrip {
@@ -30800,6 +31050,7 @@ background:transparent;
     .fo-tagstrip__tag,
     .fo-bloom,
     .fo-bloom__leaf,
+    .fo-snapper__shape,
     .fo-drawer {
         transition: none;
         animation: none;}

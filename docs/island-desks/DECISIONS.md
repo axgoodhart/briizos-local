@@ -186,3 +186,16 @@ Not in it yet: card covers (its own open item), and editing priority signals her
 - On first open after this change, `unifyTags` merges existing spellings and logs each merge under `island.tags`.
 - The tag strip shows the active desk's tags (up to 18, most used first). Picking tags narrows: islands missing any picked tag dim. The flower on a picked tag is the old Forest bloom, carried over.
 - Arrange by tag groups islands by their leading tag, the one they share with the most islands on that desk.
+
+## Simple, Preview, Canvas (decided 2026-10-19, built the same night)
+
+Talked out in `notepad-simple-view.md`; that file is the record of the conversation. The result:
+
+- An island on the desk has three states. **Simple**: the shape, name, chips, cover (zoomed out). **Preview**: zoomed in, its cards as flat pictures at their real spots, nothing running. **Canvas view**: the island opened alone on an infinite canvas, cards live. The **full screen view** (the + button) stays as it was: header, masonry wall, timeline, files.
+- Simple and Preview share one rectangle; the zoom line between them is a desk setting ("Preview from", default 42%). Nothing on the desk runs any more: terminals, webviews and agents only run on the Canvas view and in the full screen view.
+- Preview pictures are taken when the Canvas view closes: one window capture cropped per card, saved under `Islands/Snapshots/`. Webview cards keep the capture they already made. A card with no picture yet shows its glyph.
+- Island size stays free. Pressing the resize handle also opens the size snapper: Small 728×720, Medium 1672×712, Large 1672×1424 (taken from Kensingsongs, I Want You Green, conducdots as Alex sized them). Picking one snaps exactly; cards past the edge are cropped, not moved.
+- Arrange by tag is temporary. While on, islands sit in rows by leading tag with a label per row and take Small or Medium so rows stay even. Moving an island, switching desks, Esc or the button again puts everything back. Nothing is saved.
+- Cards never move because of any of this.
+
+Where: `CanvasView.jsx` (the canvas), `Island.jsx` (`PreviewCard`, `SizeSnapper`, `placeFromTool`), `stageInput.js` (wheel and space shared by desk and canvas), `store.js` (`openCanvas`, `closeCanvas`, `storeSnapshots`, `snapIslandShape`, `toggleTagArrangement`, `previewZoom` on desks), `electron/island-workspace.js` (`snapshotCards`). Open the canvas from the arrows button at an island's top right, by double-clicking a preview card, or from the full screen view's header.

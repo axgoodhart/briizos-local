@@ -327,7 +327,47 @@ async function openExternal(url) {
   return { ok: true };
 }
 
+// ==== PREVIEW SNAPSHOTS ====
+const SNAPSHOT_MIN_PX = 24;            // cards smaller than this on screen are not worth a picture
+const SNAPSHOT_MAX_CARDS = 60;
+
+// One screenshot of the window, cropped once per card. Taken when the Canvas view closes, so the
+// desk's Preview shows each card as it last looked. Webview cards keep their own capture.
+async function snapshotCards(sender, input = {}) {
+  const islandId = String(input.islandId || '');
+  const cards = (Array.isArray(input.cards) ? input.cards : []).slice(0, SNAPSHOT_MAX_CARDS);
+  if (!islandId || !cards.length) return { ok: true, snapshots: {} };
+  const started = Date.now();
+  const image = await sender.capturePage();
+  const size = image.getSize();
+  const bounds = sender.getOwnerBrowserWindow()?.getContentBounds() || { width: size.width, height: size.height };
+  const ratio = size.width / Math.max(1, bounds.width);
+  const folder = path.join(ownedRoot(), 'Snapshots');
+  await fs.mkdir(folder, { recursive: true });
+  const snapshots = {};
+  const skipped = [];
+  for (const card of cards) {
+    const rect = card.rect || {};
+    const x = Math.max(0, Math.round(rect.x * ratio));
+    const y = Math.max(0, Math.round(rect.y * ratio));
+    const width = Math.min(size.width - x, Math.round(rect.width * ratio));
+    const height = Math.min(size.height - y, Math.round(rect.height * ratio));
+    if (!card.cardId || width < SNAPSHOT_MIN_PX || height < SNAPSHOT_MIN_PX) { skipped.push(card.cardId || '?'); continue; }
+    const crop = image.crop({ x, y, width, height });
+    const safeId = String(card.cardId).replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 160);
+    const target = path.join(folder, `${safeId}.png`);
+    await fs.writeFile(`${target}.new`, crop.toPNG());
+    await fs.rename(`${target}.new`, target);
+    snapshots[card.cardId] = { path: target, at: new Date().toISOString() };
+  }
+  logger.info('island.preview', `Saved ${Object.keys(snapshots).length} card picture${Object.keys(snapshots).length === 1 ? '' : 's'} for the desk Preview as the Canvas view closed.`, {
+    islandId, folder, skippedTooSmall: skipped, durationMs: Date.now() - started,
+  });
+  return { ok: true, snapshots };
+}
+
 function registerIslandWorkspace({ ipcMain }) {
+  ipcMain.handle('island-snapshot-cards', async (event, input) => snapshotCards(event.sender, input || {}));
   ipcMain.handle('island-open-external', async (_event, url) => openExternal(url));
   ipcMain.handle('island-owned-create', async (_event, input) => createOwnedFile(input || {}));
   ipcMain.handle('island-owned-write', async (_event, filePath, content) => writeOwnedFile(filePath, content));

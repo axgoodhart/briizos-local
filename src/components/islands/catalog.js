@@ -33,7 +33,15 @@ export const ISLAND_MIN = { w: 520, h: 360 };
 export const ISLAND_HEAD = 104;        // tab + name band
 export const ISLAND_RAIL = 84;         // node rail band
 export const ISLAND_PAD = 24;
-export const LOD_SUMMARY = 0.42;       // below this zoom, islands show their summary
+export const LOD_SUMMARY = 0.42;       // default zoom line: Simple below, Preview above (each desk can change it)
+
+// ==== ISLAND SHAPES (the size snapper; sizes taken from Alex's resized islands, 2026-10-19) ====
+export const ISLAND_SHAPES = [
+  { id: 'small', label: 'Small', w: 728, h: 720 },
+  { id: 'medium', label: 'Medium', w: 1672, h: 712 },
+  { id: 'large', label: 'Large', w: 1672, h: 1424 },
+];
+export const SHAPE_DEFAULT = 'medium';
 
 export const ACCENTS = [
   { hex: '#16C784', rgb: '22,199,132' },

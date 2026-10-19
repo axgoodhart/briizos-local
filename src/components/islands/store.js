@@ -5,7 +5,7 @@ import { useSyncExternalStore, useCallback, useEffect } from 'react';
 import logger from '../../lib/logger';
 import {
   ACCENTS, CARD_TEMPLATES, CARD_TYPES, DEFAULT_SHIP_STEPS, DEFAULT_STAGES, GRID, ISLAND_HEAD, ISLAND_MIN,
-  ISLAND_PAD, ISLAND_RAIL, ISLAND_TEMPLATES, ISLAND_VIEWS, CARD_MIN, PROJECT_QUESTIONS, cardType,
+  ISLAND_PAD, ISLAND_RAIL, ISLAND_SHAPES, ISLAND_TEMPLATES, ISLAND_VIEWS, CARD_MIN, LOD_SUMMARY, PROJECT_QUESTIONS, cardType,
 } from './catalog';
 import {
   accentForSeed, canonicalTag, cleanTag, clamp, dedupe, hashString, hexToRgb, isMediaFile, normalizeText, rectsOverlap, snap,
@@ -62,6 +62,8 @@ const S = {
     journalTab: 'log',
     focusIslandId: null,
     fullIslandId: null,       // island shown full screen (the + button)
+    canvasIslandId: null,     // island opened on its own canvas, cards live
+    tagArrangement: null,     // temporary rows by tag: { positions, sizes, rows } or null
     tagFilter: [],            // tags picked on the tag strip; islands without all of them dim
   },
   fileStatus: {},             // path → 'ok' | 'missing'
@@ -227,6 +229,8 @@ function normalizeIsland(project = {}) {
     field: typeof project.field === 'string' ? project.field : '',
     rootPath: typeof project.rootPath === 'string' ? project.rootPath : '',
     fog: project.fog === true,
+    snapshots: project.snapshots && typeof project.snapshots === 'object' ? project.snapshots : {},   // cardId → { path, at }
+    canvasViewport: project.canvasViewport && Number.isFinite(project.canvasViewport.scale) ? project.canvasViewport : null,
     cover: project.cover && typeof project.cover.path === 'string' && project.cover.path
       ? { path: project.cover.path, name: project.cover.name || project.cover.path.split('/').pop() }
       : null,
@@ -278,6 +282,7 @@ function normalizeDesk(desk = {}) {
     islandViews: desk.islandViews && typeof desk.islandViews === 'object' ? desk.islandViews : {},
     showAgents: desk.showAgents !== false,
     dim: desk.dim === true,
+    previewZoom: Number.isFinite(Number(desk.previewZoom)) && Number(desk.previewZoom) > 0 ? clamp(Number(desk.previewZoom), 0.1, 1.5) : LOD_SUMMARY,
     viewport: desk.viewport && Number.isFinite(desk.viewport.scale) ? desk.viewport : null,
     createdAt: desk.createdAt || new Date().toISOString(),
   };
@@ -491,6 +496,43 @@ export function closeFullView() {
   if (!S.ui.fullIslandId) return;
   setUi({ fullIslandId: null, zoomTo: island?.id || null });
   if (island) log('info', 'island.fullview', `Closed the full view of “${island.name}” and went back to the desk.`);
+}
+
+export function openCanvas(islandId) {
+  const island = getIsland(islandId);
+  if (!island) return;
+  setUi({ canvasIslandId: islandId, fullIslandId: null, focusIslandId: islandId, selection: { islandId }, menu: null, naming: null, questions: null, stack: false, tagArrangement: null });
+  touchIsland(islandId, false);
+  log('info', 'island.canvas', `Opened “${island.name}” on its own canvas: ${island.cards.length} card${island.cards.length === 1 ? '' : 's'} live.`);
+}
+
+// Called by the Canvas view after it has taken its pictures.
+export function closeCanvas({ snapshots = null } = {}) {
+  const island = getIsland(S.ui.canvasIslandId);
+  if (!island) { setUi({ canvasIslandId: null }); return; }
+  if (snapshots) storeSnapshots(island.id, snapshots);
+  setUi({ canvasIslandId: null, zoomTo: island.id });
+  log('info', 'island.canvas', `Closed the canvas of “${island.name}”${snapshots ? `; ${Object.keys(snapshots).length} card picture${Object.keys(snapshots).length === 1 ? '' : 's'} refreshed for the desk Preview` : ''}.`);
+}
+
+export function storeSnapshots(islandId, snapshots) {
+  writeIsland(islandId, (island) => {
+    const live = new Set(island.cards.map((c) => c.id));
+    const next = { ...island.snapshots };
+    Object.entries(snapshots).forEach(([cardId, snap]) => { if (live.has(cardId) && snap?.path) next[cardId] = snap; });
+    Object.keys(next).forEach((cardId) => { if (!live.has(cardId)) delete next[cardId]; });
+    return { ...island, snapshots: next };
+  }, { touch: false });
+}
+
+export function setCanvasViewport(islandId, viewport) {
+  writeIsland(islandId, (island) => ({ ...island, canvasViewport: viewport }), { touch: false });
+}
+
+// The picture a card shows in the desk Preview: webviews keep their own capture, others the canvas snapshot.
+export function cardPicture(island, card) {
+  if (card.kind === 'webview' && card.data.previewPath) return { path: card.data.previewPath, at: card.data.previewCapturedAt || '' };
+  return island.snapshots[card.id] || null;
 }
 
 /* ── Reads ─────────────────────────────────────────────────────────── */
@@ -757,6 +799,7 @@ export function setStage(id, stageIndex) {
 }
 
 export function moveIsland(id, pos) {
+  if (S.ui.tagArrangement) setUi({ tagArrangement: null }, false);
   const desk = activeDesk();
   const x = snap(pos.x);
   const y = snap(pos.y);
@@ -764,12 +807,26 @@ export function moveIsland(id, pos) {
   else writeDesk(desk.id, (d) => ({ ...d, layout: { ...d.layout, [id]: { x, y } } }));
 }
 
-export function resizeIsland(id, size) {
+export function resizeIsland(id, size, { exact = false } = {}) {
   writeIsland(id, (island) => {
+    if (exact) return { ...island, w: snap(size.w), h: snap(size.h) };
     const fit = islandSizeFor(island.cards, {});
     return { ...island, w: snap(Math.max(fit.w - 160, size.w)), h: snap(Math.max(fit.h, size.h)) };
   }, { touch: false });
 }
+
+// The size snapper: Small, Medium or Large, exactly. Cards past the edge are simply cropped.
+export function snapIslandShape(id, shapeId) {
+  const shape = ISLAND_SHAPES.find((s) => s.id === shapeId);
+  const island = getIsland(id);
+  if (!shape || !island) return;
+  resizeIsland(id, shape, { exact: true });
+  log('info', 'island.island', `“${island.name}” snapped to ${shape.label} (${shape.w}×${shape.h}).`);
+}
+
+export const shapeOf = (w, h) => ISLAND_SHAPES.find((s) => s.w === w && s.h === h)?.id || null;
+// In the tag arrangement only Small and Medium exist; Large and anything wide become Medium.
+export const arrangementShape = (island) => (island.w >= (ISLAND_SHAPES[0].w + ISLAND_SHAPES[1].w) / 2 ? ISLAND_SHAPES[1] : ISLAND_SHAPES[0]);
 
 export function deleteIsland(id) {
   const island = getIsland(id);
@@ -955,6 +1012,7 @@ function writeDesk(id, fn, notify = true) {
 }
 
 export function switchDesk(id) {
+  if (S.ui.tagArrangement) setUi({ tagArrangement: null }, false);
   const desk = S.desks.find((d) => d.id === id);
   if (!desk || id === S.activeDeskId) return;
   S.activeDeskId = id;
@@ -1736,11 +1794,17 @@ export function setCover(islandId, file) {
   }
 }
 
-/* ── Arrange by tags ──────────────────────────────────────────────── */
+/* ── Arrange by tags (temporary) ──────────────────────────────────── */
 
-// Lines the active desk's islands up in rows, one row per leading tag (the island's most
-// shared tag), biggest group first. Returns the new rects so the caller can frame them.
-export function arrangeByTags() {
+// Rows by leading tag (the tag shared with the most islands on the desk), biggest group first,
+// untagged last. Islands take Small or Medium for the duration so rows stay even. Nothing is saved:
+// moving an island, switching desks or pressing the button again puts everything back.
+export function toggleTagArrangement() {
+  if (S.ui.tagArrangement) {
+    setUi({ tagArrangement: null });
+    log('info', 'island.desk', `Left the tag arrangement on “${activeDesk().name}”; islands are back in their own places and sizes.`);
+    return [];
+  }
   const desk = activeDesk();
   const islands = deskIslands(desk);
   if (!islands.length) return [];
@@ -1750,32 +1814,31 @@ export function arrangeByTags() {
     const lead = [...island.tags].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b))[0] || '';
     groups.set(lead, [...(groups.get(lead) || []), island]);
   });
-  const rows = [...groups.entries()].sort((a, b) => (b[0] !== '') - (a[0] !== '') || b[1].length - a[1].length || a[0].localeCompare(b[0]));
-  const GAP_X = 160;
-  const GAP_Y = 240;
+  const ordered = [...groups.entries()].sort((a, b) => (b[0] !== '') - (a[0] !== '') || b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const GAP_X = 120;
+  const GAP_Y = 200;
+  const positions = {};
+  const sizes = {};
+  const rows = [];
   const rects = [];
   let y = 0;
-  const layout = {};
-  rows.forEach(([, list]) => {
+  ordered.forEach(([tag, list]) => {
     let x = 0;
     let tallest = 0;
     list.sort((a, b) => (Date.parse(b.lastSessionAt) || 0) - (Date.parse(a.lastSessionAt) || 0)).forEach((island) => {
-      layout[island.id] = { x: snap(x), y: snap(y) };
-      rects.push({ ...layout[island.id], w: island.w, h: island.h });
-      x += island.w + GAP_X;
-      tallest = Math.max(tallest, island.h);
+      const shape = arrangementShape(island);
+      positions[island.id] = { x, y };
+      sizes[island.id] = { w: shape.w, h: shape.h };
+      rects.push({ x, y, w: shape.w, h: shape.h });
+      x += shape.w + GAP_X;
+      tallest = Math.max(tallest, shape.h);
     });
+    rows.push({ tag, x: 0, y, w: x - GAP_X, count: list.length });
     y += tallest + GAP_Y;
   });
-  if (desk.id === ALL_DESK_ID) {
-    S.projects = S.projects.map((island) => (layout[island.id] ? { ...island, ...layout[island.id] } : island));
-    emit();
-    scheduleSave();
-  } else {
-    writeDesk(desk.id, (d) => ({ ...d, layout: { ...d.layout, ...layout } }));
-  }
-  log('info', 'island.desk', `Arranged ${islands.length} island${islands.length === 1 ? '' : 's'} on “${desk.name}” into ${rows.length} row${rows.length === 1 ? '' : 's'} by tag.`, {
-    rows: rows.map(([tag, list]) => `${tag ? `#${tag}` : 'no tags'}: ${list.map((i) => i.name).join(', ')}`),
+  setUi({ tagArrangement: { deskId: desk.id, positions, sizes, rows }, selection: null });
+  log('info', 'island.desk', `Arranged ${islands.length} island${islands.length === 1 ? '' : 's'} on “${desk.name}” into ${rows.length} row${rows.length === 1 ? '' : 's'} by tag. Temporary: nothing was moved for keeps.`, {
+    rows: rows.map((row) => `${row.tag ? `#${row.tag}` : 'no tags'}: ${row.count}`),
   });
   return rects;
 }

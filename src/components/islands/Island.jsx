@@ -1,15 +1,94 @@
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  cardsForView, moveIsland, openFullView, openPanel, resizeIsland, select, setFog, setIslandView, setUi, updateIsland, addCard,
-  importPaths, getIsland, addFilesToIsland,
+  cardPicture, cardsForView, moveIsland, openCanvas, openFullView, openPanel, resizeIsland, select, setFog, setIslandView,
+  setUi, shapeOf, snapIslandShape, updateIsland, addCard, importPaths, getIsland, addFilesToIsland,
 } from './store';
 import { getScale, screenToWorld } from './camera';
 import { pickFiles, trackPointer } from './gestures';
 import {
-  CARD_MIN, GLYPH, GRID, ISLAND_HEAD, ISLAND_MIN, ISLAND_PAD, ISLAND_RAIL, ISLAND_VIEWS, cardType,
+  CARD_MIN, GLYPH, GRID, ISLAND_HEAD, ISLAND_MIN, ISLAND_PAD, ISLAND_RAIL, ISLAND_SHAPES, ISLAND_VIEWS, cardType,
 } from './catalog';
 import { snap, toFileUrl, uid } from './util';
-import CardFrame from './CardFrame';
+
+// What a drag with the current tool makes on an island. Shared with the Canvas view.
+export async function placeFromTool(island, tool, rect, screen) {
+  if (tool === 'attach') {
+    const paths = await pickFiles();
+    if (paths.length) importPaths(paths, { islandId: island.id });
+    return;
+  }
+  if (tool === 'folder') {
+    const dir = await window.api.islandOpenDirectoryDialog?.();
+    if (!dir) return;
+    const name = dir.split('/').filter(Boolean).pop() || dir;
+    const record = { id: uid('file'), name, path: dir, typeGroup: 'folder', ext: '', size: 0, modifiedAt: new Date().toISOString() };
+    const card = addCard(island.id, { kind: 'docs', title: name, rect, data: { fileIds: [], openFileId: record.id } });
+    addFilesToIsland(island.id, [record], { cardId: card?.id, source: 'linked folder' });
+    if (!getIsland(island.id)?.rootPath) updateIsland(island.id, { rootPath: dir });
+    return;
+  }
+  if (TOOL_KINDS[tool]) {
+    addCard(island.id, { kind: TOOL_KINDS[tool], rect });
+    return;
+  }
+  setUi({ menu: { islandId: island.id, rect, screen } });
+}
+
+// Desk Preview: a card as a flat picture. Nothing inside it runs.
+export function PreviewCard({ island, card, selected, isMain, onOpen }) {
+  const type = cardType(card.kind);
+  const picture = cardPicture(island, card);
+  return (
+    <article
+      className="fo-card fo-card--preview"
+      data-card-id={card.id}
+      data-kind={card.kind}
+      data-selected={selected ? 'true' : undefined}
+      data-main={isMain ? 'true' : undefined}
+      style={{ left: card.x, top: card.y, width: card.w, height: card.h }}
+      onPointerDown={(e) => { e.stopPropagation(); select({ islandId: island.id, cardId: card.id }); }}
+      onDoubleClick={(e) => { e.stopPropagation(); onOpen(); }}
+      title={`${card.title} · double-click to open the canvas`}
+    >
+      <header className="fo-card__head">
+        <span className="fo-glyph fo-card__glyph">{type.glyph}</span>
+        <span className="fo-card__title">{card.title}</span>
+      </header>
+      <div className="fo-card__body fo-preview">
+        {picture ? <img src={`${toFileUrl(picture.path)}?t=${encodeURIComponent(picture.at || '')}`} alt="" draggable={false} loading="lazy" />
+          : <span className="fo-glyph fo-preview__blank">{type.glyph}</span>}
+      </div>
+    </article>
+  );
+}
+
+// The size snapper beside the resize handle: Small, Medium, Large.
+function SizeSnapper({ island, onClose }) {
+  const current = shapeOf(island.w, island.h);
+  const scale = 1 / Math.max(0.05, getScale());
+  useEffect(() => {
+    const away = (e) => { if (!e.target.closest?.('.fo-snapper, .fo-island__resize')) onClose(); };
+    const key = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('pointerdown', away, true);
+    window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('pointerdown', away, true); window.removeEventListener('keydown', key); };
+  }, [onClose]);
+  return (
+    <div className="fo-snapper" style={{ '--snap-scale': scale }} onPointerDown={(e) => e.stopPropagation()}>
+      {ISLAND_SHAPES.map((shape) => (
+        <button
+          key={shape.id}
+          type="button"
+          className="fo-snapper__shape"
+          data-shape={shape.id}
+          aria-pressed={current === shape.id}
+          title={`${shape.label} · ${shape.w}×${shape.h}`}
+          onClick={() => { snapIslandShape(island.id, shape.id); onClose(); }}
+        ><i style={{ aspectRatio: `${shape.w} / ${shape.h}` }} /></button>
+      ))}
+    </div>
+  );
+}
 
 // Palette tools that make a card directly when you drag on an island.
 export const TOOL_KINDS = { terminal: 'terminal', doc: 'docs', web: 'webview', text: 'thoughts', pencil: 'planning' };
@@ -103,26 +182,28 @@ function ViewMenu({ islandId, current, onClose }) {
 }
 
 const Island = memo(function Island({
-  island, x, y, viewId, showAgents, summary, selected, selectedCardId, dimmed, tool, fileStatus, terminals, tasks,
+  island, x, y, viewId, showAgents, summary, selected, selectedCardId, dimmed, tool, fileStatus, terminals, tasks, forcedSize = null,
 }) {
   const ref = useRef(null);
   const [renaming, setRenaming] = useState(false);
   const [viewMenu, setViewMenu] = useState(false);
   const [marquee, setMarquee] = useState(null);
+  const [snapper, setSnapper] = useState(false);
   const view = viewId || 'full';
-  const packed = view !== 'full';
+  const packed = view !== 'full' && !forcedSize;
   const visible = useMemo(() => cardsForView(island, view, showAgents), [island, view, showAgents]);
   const cards = useMemo(() => (packed ? packCards(visible) : visible), [visible, packed]);
   const size = useMemo(() => {
+    if (forcedSize) return forcedSize;
     if (!packed) return { w: island.w, h: island.h };
     const right = cards.reduce((m, c) => Math.max(m, c.x + c.w), 0);
     const bottom = cards.reduce((m, c) => Math.max(m, c.y + c.h), 0);
     return { w: Math.max(ISLAND_MIN.w, right + ISLAND_PAD * 2), h: Math.max(ISLAND_MIN.h, bottom + ISLAND_HEAD + ISLAND_RAIL + ISLAND_PAD) };
-  }, [packed, cards, island.w, island.h]);
+  }, [packed, cards, island.w, island.h, forcedSize]);
   const viewLabel = ISLAND_VIEWS.find((v) => v.id === view)?.label || 'Full view';
 
   const startMove = (event) => {
-    if (event.button !== 0 || event.target.closest('.fo-island__gear, .fo-island__full, .fo-island__fog, .fo-island__resize, .fo-summary__add')) return;
+    if (event.button !== 0 || event.target.closest('.fo-island__gear, .fo-island__full, .fo-island__canvas, .fo-island__fog, .fo-island__resize, .fo-snapper, .fo-summary__add')) return;
     const onView = !!event.target.closest('.fo-island__view');
     const el = ref.current;
     trackPointer(event, {
@@ -149,7 +230,9 @@ const Island = memo(function Island({
   };
 
   const startResize = (event) => {
+    if (event.button !== 0) return;
     const el = ref.current;
+    setSnapper(true);
     trackPointer(event, {
       onMove: (dx, dy) => {
         const scale = getScale();
@@ -169,29 +252,6 @@ const Island = memo(function Island({
   const groundPoint = (clientX, clientY) => {
     const at = screenToWorld(clientX, clientY);
     return { x: at.x - x - ISLAND_PAD, y: at.y - y - ISLAND_HEAD };
-  };
-
-  const placeFromTool = async (rect, screen) => {
-    if (tool === 'attach') {
-      const paths = await pickFiles();
-      if (paths.length) importPaths(paths, { islandId: island.id });
-      return;
-    }
-    if (tool === 'folder') {
-      const dir = await window.api.islandOpenDirectoryDialog?.();
-      if (!dir) return;
-      const name = dir.split('/').filter(Boolean).pop() || dir;
-      const record = { id: uid('file'), name, path: dir, typeGroup: 'folder', ext: '', size: 0, modifiedAt: new Date().toISOString() };
-      const card = addCard(island.id, { kind: 'docs', title: name, rect, data: { fileIds: [], openFileId: record.id } });
-      addFilesToIsland(island.id, [record], { cardId: card?.id, source: 'linked folder' });
-      if (!getIsland(island.id)?.rootPath) updateIsland(island.id, { rootPath: dir });
-      return;
-    }
-    if (TOOL_KINDS[tool]) {
-      addCard(island.id, { kind: TOOL_KINDS[tool], rect });
-      return;
-    }
-    setUi({ menu: { islandId: island.id, rect, screen } });
   };
 
   const onGroundPointerDown = (event) => {
@@ -220,7 +280,7 @@ const Island = memo(function Island({
           w: snap(Math.max(CARD_MIN.w, w)),
           h: snap(Math.max(CARD_MIN.h, h)),
         };
-        placeFromTool(rect, { x: e.clientX, y: e.clientY });
+        placeFromTool(island, tool, rect, { x: e.clientX, y: e.clientY });
       },
     });
   };
@@ -287,7 +347,10 @@ const Island = memo(function Island({
             <button type="button" className="fo-island__fog" aria-pressed={island.fog} onClick={(e) => { e.stopPropagation(); setFog(island.id, !island.fog); }} title={island.fog ? 'Lift the fog' : 'Fog: hide what is inside'}>
               <span className="fo-glyph">{island.fog ? GLYPH.eyeClosed : GLYPH.eye}</span>
             </button>
-            <button type="button" className="fo-island__full" onClick={(e) => { e.stopPropagation(); openFullView(island.id); }} title="Open full view">
+            <button type="button" className="fo-island__canvas" onClick={(e) => { e.stopPropagation(); openCanvas(island.id); }} title="Open on its own canvas">
+              <span className="fo-glyph">􀥩</span>
+            </button>
+            <button type="button" className="fo-island__full" onClick={(e) => { e.stopPropagation(); openFullView(island.id); }} title="Open full screen view">
               <span className="fo-glyph">{GLYPH.plus}</span>
             </button>
           </header>
@@ -300,17 +363,13 @@ const Island = memo(function Island({
           >
             {island.fog && <div className="fo-island__fogbank" aria-hidden="true" />}
             {!island.fog && cards.map((card) => (
-              <CardFrame
+              <PreviewCard
                 key={card.id}
                 island={island}
                 card={card}
-                packed={packed}
                 selected={selectedCardId === card.id}
                 isMain={island.mainCardId === card.id}
-                terminal={card.kind === 'terminal' ? terminals[card.id] : null}
-                task={card.kind === 'agent' ? tasks[card.data.taskId] : null}
-                tasks={card.kind === 'goals' || card.kind === 'agent' ? tasks : null}
-                fileStatus={card.kind === 'docs' || card.kind === 'media' ? fileStatus : null}
+                onOpen={() => openCanvas(island.id)}
               />
             ))}
             {marquee && <div className="fo-marquee fo-marquee--card" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
@@ -319,6 +378,7 @@ const Island = memo(function Island({
           {!packed && <div className="fo-island__resize" onPointerDown={startResize} />}
         </>
       )}
+      {snapper && <SizeSnapper island={island} onClose={() => setSnapper(false)} />}
     </section>
   );
 });

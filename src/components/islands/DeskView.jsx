@@ -3,16 +3,16 @@ import {
   ALL_DESK_ID, deskPositions, getState, importPaths, matchesTagFilter, select, setDeskViewport, setUi,
 } from './store';
 import {
-  attachCamera, detachCamera, frameRects, getCamera, getScale, onCamera, panBy, screenToWorld, viewRect, zoomAt,
+  attachCamera, detachCamera, frameRects, getCamera, getScale, onCamera, panBy, screenToWorld, viewRect,
 } from './camera';
-import { canScrollWithin, trackPointer } from './gestures';
-import { ISLAND_MIN, LOD_SUMMARY } from './catalog';
+import { trackPointer } from './gestures';
+import { useStageInput } from './stageInput';
+import { ISLAND_MIN } from './catalog';
 import { normalizeText, rectsOverlap, snap } from './util';
 import Island from './Island';
 import Minimap from './Minimap';
 
 // ==== DESK INPUT ====
-const WHEEL_ZOOM = 0.0022;
 const MIN_MARQUEE_PX = 48;
 const CULL_MARGIN = 0.5;               // islands within half a screen of the view stay drawn
 
@@ -28,19 +28,23 @@ export default function DeskView({ desk, islands }) {
   const worldRef = useRef(null);
   const [summary, setSummary] = useState(false);
   const [marquee, setMarquee] = useState(null);
-  const [spaceDown, setSpaceDown] = useState(false);
+  const spaceDown = useStageInput(stageRef);
   const [visibleKey, setVisibleKey] = useState(null);
   const S = getState();
   const { ui } = S;
-  const positions = deskPositions(desk, islands);
-  const latest = useRef({ islands, positions });
-  latest.current = { islands, positions };
+  const arrangement = ui.tagArrangement?.deskId === desk.id ? ui.tagArrangement : null;
+  const positions = arrangement ? arrangement.positions : deskPositions(desk, islands);
+  const sizeOf = (island) => arrangement?.sizes[island.id] || { w: island.w, h: island.h };
+  const latest = useRef({ islands, positions, sizeOf });
+  latest.current = { islands, positions, sizeOf };
+  const lineRef = useRef(desk.previewZoom);   // the zoom line is a desk setting; read live without re-attaching the camera
+  lineRef.current = desk.previewZoom;
 
   // Only islands near the view are in the page; the rest cost no graphics memory.
   const cull = () => {
     const view = viewRect(CULL_MARGIN);
-    const { islands: list, positions: pos } = latest.current;
-    const key = list.filter((i) => pos[i.id] && rectsOverlap(view, { ...pos[i.id], w: i.w, h: i.h })).map((i) => i.id).join(',');
+    const { islands: list, positions: pos, sizeOf: sz } = latest.current;
+    const key = list.filter((i) => pos[i.id] && rectsOverlap(view, { ...pos[i.id], ...sz(i) })).map((i) => i.id).join(',');
     setVisibleKey((was) => (was === key ? was : key));
   };
   useEffect(cull);
@@ -53,11 +57,11 @@ export default function DeskView({ desk, islands }) {
     if (!saved) {
       requestAnimationFrame(() => frameRects(islands.map((i) => ({ ...positions[i.id], w: i.w, h: i.h })), { animate: false }));
     }
-    setSummary(getScale() < LOD_SUMMARY);
+    setSummary(getScale() < lineRef.current);
     let timer = null;
     let frame = 0;
     const off = onCamera((cam) => {
-      setSummary((was) => (was !== cam.scale < LOD_SUMMARY ? cam.scale < LOD_SUMMARY : was));
+      setSummary((was) => (was !== cam.scale < lineRef.current ? cam.scale < lineRef.current : was));
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(cull);
       clearTimeout(timer);
@@ -67,30 +71,7 @@ export default function DeskView({ desk, islands }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desk.id]);
 
-  useEffect(() => {
-    const stage = stageRef.current;
-    const onWheel = (event) => {
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * WHEEL_ZOOM * (event.ctrlKey ? 4 : 1)));
-        return;
-      }
-      if (canScrollWithin(event.target, stage, event.deltaX, event.deltaY)) return;
-      event.preventDefault();
-      panBy(-event.deltaX, -event.deltaY);
-    };
-    stage.addEventListener('wheel', onWheel, { passive: false });
-    const typing = () => /input|textarea|select/i.test(document.activeElement?.tagName || '') || document.activeElement?.isContentEditable;
-    const down = (e) => { if (e.code === 'Space' && !typing() && stage.matches(':hover')) { e.preventDefault(); setSpaceDown(true); } };
-    const up = (e) => { if (e.code === 'Space') setSpaceDown(false); };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => {
-      stage.removeEventListener('wheel', onWheel);
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-    };
-  }, []);
+  useEffect(() => { setSummary(getScale() < desk.previewZoom); }, [desk.previewZoom]);
 
   const startPan = (event) => {
     let last = { x: 0, y: 0 };
@@ -181,7 +162,13 @@ export default function DeskView({ desk, islands }) {
             fileStatus={S.fileStatus}
             terminals={S.terminals}
             tasks={S.tasks}
+            forcedSize={arrangement?.sizes[island.id] || null}
           />
+        ))}
+        {arrangement?.rows.map((row) => (
+          <div key={row.tag || 'none'} className="fo-desk__rowlabel" style={{ left: row.x, top: row.y - 96 }}>
+            {row.tag ? `#${row.tag}` : 'no tags'}<span className="fo-whisper">{row.count}</span>
+          </div>
         ))}
         {marquee && (
           <div className="fo-marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />

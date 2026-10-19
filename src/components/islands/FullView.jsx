@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import logger from '../../lib/logger';
-import { addMilestone, closeFullView, importPaths, openPanel, relocateFile, select, toggleMilestone } from './store';
+import { addMilestone, closeFullView, importPaths, openCanvas, openPanel, relocateFile, select, toggleMilestone } from './store';
 import { GLYPH, cardType } from './catalog';
 import { pickFiles, trackPointer } from './gestures';
 import { clamp, fileBadge, formatBytes, isAudio, isoDay, isVideo, relativeTime, toFileUrl, whenShort } from './util';
@@ -461,7 +461,8 @@ export default function FullView({ island, selectedCardId, terminals, tasks, fil
             <button key={id} type="button" aria-pressed={section === id} onClick={() => jump(id)}>{label}</button>
           ))}
         </nav>
-        <button type="button" className="fo-icon-btn fo-full__journal" onClick={() => openPanel('journal', island.id)} title="Journal"><span className="fo-glyph">{GLYPH.journal}</span></button>
+        <button type="button" className="fo-icon-btn fo-full__journal" onClick={() => openCanvas(island.id)} title="Open on its own canvas"><span className="fo-glyph">􀥩</span></button>
+        <button type="button" className="fo-icon-btn fo-full__close" onClick={() => openPanel('journal', island.id)} title="Journal"><span className="fo-glyph">{GLYPH.journal}</span></button>
         <button type="button" className="fo-icon-btn fo-full__close" onClick={closeFullView} title="Back to the desk (Esc)"><span className="fo-glyph">{GLYPH.close}</span></button>
       </header>
 

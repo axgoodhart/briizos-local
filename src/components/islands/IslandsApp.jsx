@@ -7,6 +7,7 @@ import { frameRects } from './camera';
 import DeskView from './DeskView';
 import StackView from './StackView';
 import FullView from './FullView';
+import CanvasView from './CanvasView';
 import IslandSettings from './IslandSettings';
 import IslandsJournal from './IslandsJournal';
 import DeskPanel from './DeskPanel';
@@ -24,19 +25,20 @@ export default function IslandsApp() {
   const { ui } = S;
   const desk = activeDesk();
   const islands = deskIslands(desk);
-  const positions = deskPositions(desk, islands);
-  const rects = islands.map((i) => ({ ...positions[i.id], w: i.w, h: i.h }));
+  const positions = ui.tagArrangement?.deskId === desk.id ? ui.tagArrangement.positions : deskPositions(desk, islands);
+  const rects = islands.map((i) => ({ ...positions[i.id], ...(ui.tagArrangement?.sizes[i.id] || { w: i.w, h: i.h }) }));
   const focusIsland = getIsland(ui.focusIslandId || ui.selection?.islandId);
   const panelIsland = getIsland(ui.panelIslandId);
   const fullIsland = getIsland(ui.fullIslandId);
+  const canvasIsland = !fullIsland ? getIsland(ui.canvasIslandId) : null;
 
   useEffect(() => {
-    if (!ui.zoomTo || ui.stack || ui.fullIslandId) return;
+    if (!ui.zoomTo || ui.stack || ui.fullIslandId || ui.canvasIslandId) return;
     const island = getIsland(ui.zoomTo);
     const pos = deskPositions(activeDesk(), [island].filter(Boolean))[ui.zoomTo];
     if (island && pos) requestAnimationFrame(() => frameRects([{ ...pos, w: island.w, h: island.h }], { maxScale: 1 }));
     setUi({ zoomTo: null, focusIslandId: ui.zoomTo });
-  }, [ui.zoomTo, ui.stack, ui.fullIslandId]);
+  }, [ui.zoomTo, ui.stack, ui.fullIslandId, ui.canvasIslandId]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -46,6 +48,8 @@ export default function IslandsApp() {
         if (now.menu || now.naming || now.questions) setUi({ menu: null, naming: null, questions: null });
         else if (now.panel) closePanel();
         else if (now.fullIslandId) closeFullView();
+        else if (now.canvasIslandId) window.dispatchEvent(new CustomEvent('island-canvas-close'));
+        else if (now.tagArrangement) setUi({ tagArrangement: null });
         else setUi({ selection: null, tool: 'pointer' });
       }
       if ((e.key === 'Backspace' || e.key === 'Delete') && now.selection?.cardId && !now.stack) {
@@ -76,15 +80,17 @@ export default function IslandsApp() {
 
   return (
     <RootContext.Provider value={rootRef}>
-      <div ref={rootRef} className="fo-root" data-dim={desk.dim ? 'true' : undefined} data-stack={ui.stack ? 'true' : undefined} data-full={fullIsland ? 'true' : undefined}>
-        <TopBar desk={desk} focusIsland={focusIsland} />
+      <div ref={rootRef} className="fo-root" data-dim={desk.dim ? 'true' : undefined} data-stack={ui.stack ? 'true' : undefined} data-full={fullIsland ? 'true' : undefined} data-canvas={canvasIsland ? 'true' : undefined}>
+        <TopBar desk={desk} focusIsland={focusIsland} canvasIsland={canvasIsland} />
         <div className="fo-body">
           {fullIsland ? (
             <FullView island={fullIsland} selectedCardId={ui.selection?.islandId === fullIsland.id ? ui.selection.cardId || null : null} fileStatus={S.fileStatus} terminals={S.terminals} tasks={S.tasks} />
+          ) : canvasIsland ? (
+            <CanvasView island={canvasIsland} selectedCardId={ui.selection?.islandId === canvasIsland.id ? ui.selection.cardId || null : null} tool={ui.tool} fileStatus={S.fileStatus} terminals={S.terminals} tasks={S.tasks} />
           ) : ui.stack ? <StackView islands={islands} /> : <DeskView desk={desk} islands={islands} />}
           {!ui.stack && !fullIsland && <ToolPalette tool={ui.tool} />}
-          {!ui.stack && !fullIsland && <TagStrip desk={desk} />}
-          {!fullIsland && <DeskControls desk={desk} rects={rects} stack={ui.stack} minimap={ui.minimap} />}
+          {!ui.stack && !fullIsland && !canvasIsland && <TagStrip desk={desk} />}
+          {!fullIsland && !canvasIsland && <DeskControls desk={desk} rects={rects} stack={ui.stack} minimap={ui.minimap} />}
           {panel}
           {ui.menu && <NewCardMenu menu={ui.menu} />}
           {ui.naming && <NamingPrompt naming={ui.naming} />}

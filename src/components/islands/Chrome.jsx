@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ALL_DESK_ID, arrangeByTags, clearTagFilter, createDesk, deskIslands, getState, openPanel, setUi, switchDesk, tagVocabulary,
-  toast, toggleTagFilter,
+  ALL_DESK_ID, clearTagFilter, createDesk, deskIslands, getState, openPanel, setUi, switchDesk, tagVocabulary,
+  toast, toggleTagArrangement, toggleTagFilter,
 } from './store';
 import { frameRects, getCamera, onCamera, stageRect, zoomBy, screenToWorld } from './camera';
 import { GLYPH, ISLAND_MIN } from './catalog';
@@ -80,7 +80,7 @@ const TOOLS = [
   { id: 'pencil', glyph: GLYPH.pencil, title: 'Visual planning — drag on an island' },
 ];
 
-export function TopBar({ desk, focusIsland }) {
+export function TopBar({ desk, focusIsland, canvasIsland = null }) {
   const { ui } = getState();
   const searchRef = useRef(null);
 
@@ -119,7 +119,13 @@ export function TopBar({ desk, focusIsland }) {
         <button type="button" className="fo-top__desk" onClick={() => setUi({ panel: 'desks' })}>
           <span className="fo-glyph">{GLYPH.laptop}</span>{desk.name}
         </button>
-        {focusIsland && (
+        {canvasIsland ? (
+          <nav className="fo-top__crumbs fo-top__crumbs--canvas" style={{ '--accent': canvasIsland.accent, '--accent-rgb': canvasIsland.accentRgb }}>
+            <span className="fo-glyph">{GLYPH.chevron}</span>
+            <b>{canvasIsland.name}</b>
+            <span className="fo-whisper">canvas</span>
+          </nav>
+        ) : focusIsland && (
           <nav className="fo-top__crumbs">
             <span className="fo-glyph">{GLYPH.chevron}</span>
             <button type="button" onClick={() => setUi({ zoomTo: focusIsland.id })}>{focusIsland.name}</button>
@@ -191,7 +197,7 @@ export function ToolPalette({ tool }) {
 export function DeskControls({ desk, rects, stack, minimap }) {
   const [zoom, setZoom] = useState(Math.round(getCamera().scale * 100));
   const [switcher, setSwitcher] = useState(false);
-  const { desks } = getState();
+  const { desks, ui } = getState();
   useEffect(() => onCamera((cam) => setZoom(Math.round(cam.scale * 100))), []);
 
   return (
@@ -205,7 +211,13 @@ export function DeskControls({ desk, rects, stack, minimap }) {
           <span className="fo-glyph">{GLYPH.map}</span>
         </button>
         {!stack && (
-          <button type="button" className="fo-controls__btn" onClick={() => { const next = arrangeByTags(); if (next.length) requestAnimationFrame(() => frameRects(next)); }} title="Arrange islands by tag">
+          <button
+            type="button"
+            className="fo-controls__btn"
+            aria-pressed={!!ui.tagArrangement}
+            onClick={() => { const next = toggleTagArrangement(); if (next.length) requestAnimationFrame(() => frameRects(next)); }}
+            title={ui.tagArrangement ? 'Put islands back' : 'Arrange islands by tag (temporary)'}
+          >
             <span className="fo-glyph">{GLYPH.tag}</span>
           </button>
         )}

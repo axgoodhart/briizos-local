@@ -514,6 +514,7 @@ contextBridge.exposeInMainWorld('api', {
   islandOwnedWrite: (filePath, content) => ipcRenderer.invoke('island-owned-write', filePath, content),
   islandFilePreview: (filePath, maxBytes) => ipcRenderer.invoke('island-file-preview', filePath, maxBytes),
   islandArchiveIsland: (input) => ipcRenderer.invoke('island-archive-island', input),
+  islandSnapshotCards: (input) => ipcRenderer.invoke('island-snapshot-cards', input),
   islandTerminalRun: (input) => ipcRenderer.invoke('island-terminal-run', input),
   islandTerminalStop: (input) => ipcRenderer.invoke('island-terminal-stop', input),
   islandTerminalSnapshot: (input) => ipcRenderer.invoke('island-terminal-snapshot', input),

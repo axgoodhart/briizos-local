@@ -25,6 +25,7 @@ function DeskEditor({ desk, onDone }) {
     view: desk?.view || 'full',
     showAgents: desk?.showAgents !== false,
     dim: desk?.dim === true,
+    previewZoom: desk?.previewZoom || 0.42,
   }));
   const rule = DESK_RULES.find((r) => r.type === draft.rule.type);
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
@@ -33,9 +34,9 @@ function DeskEditor({ desk, onDone }) {
     if (isNew) {
       if (!draft.name.trim()) return;
       const created = createDesk(draft);
-      updateDesk(created.id, { dim: draft.dim });
+      updateDesk(created.id, { dim: draft.dim, previewZoom: draft.previewZoom });
     } else {
-      updateDesk(desk.id, isAll ? { view: draft.view, showAgents: draft.showAgents, dim: draft.dim } : draft);
+      updateDesk(desk.id, isAll ? { view: draft.view, showAgents: draft.showAgents, dim: draft.dim, previewZoom: draft.previewZoom } : draft);
     }
     onDone();
   };
@@ -89,6 +90,11 @@ function DeskEditor({ desk, onDone }) {
         <span className="fo-row__name">Dim</span>
         <Segmented value={draft.dim} options={[[false, 'Off'], [true, 'On']]} onChange={(dim) => set({ dim })} />
       </div>
+      <label className="fo-row">
+        <span className="fo-row__name">Preview from</span>
+        <input type="range" min="10" max="120" step="1" value={Math.round(draft.previewZoom * 100)} onChange={(e) => set({ previewZoom: Number(e.target.value) / 100 })} />
+        <span className="fo-row__value">{Math.round(draft.previewZoom * 100)}% zoom</span>
+      </label>
       <div className="fo-desk-editor__actions">
         {!isNew && !isAll && (
           <button type="button" className="fo-danger fo-danger--small" onClick={() => { deleteDesk(desk.id); onDone(); }}>
