@@ -21343,6 +21343,54 @@ transform:translateX(-45px);    z-index: 10;}
     text-transform: uppercase;
     color: rgba(120, 180, 255, 0.7);
     white-space: nowrap;}
+.jv-page__type {
+    position: relative;}
+.jv-page__typebtn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: help;}
+.jv-page__typebtn:hover,
+.jv-page__type[data-pinned='true'] .jv-page__typebtn {
+    color: rgba(160, 205, 255, 0.95);
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;}
+.jv-page__dates {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 4;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 190px;
+    padding: 7px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    background: rgba(12, 16, 24, 0.96);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 11.5px;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;}
+.jv-page__dates span {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;}
+.jv-page__dates i {
+    font-style: normal;
+    color: rgba(120, 180, 255, 0.7);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;}
+.jv-page__type:hover .jv-page__dates,
+.jv-page__type[data-pinned='true'] .jv-page__dates {
+    display: flex;}
 .jv-page__body {
     flex: 1;
     display: flex;
@@ -27484,6 +27532,69 @@ input):focus-visible {
     transform: translateY(-1px);
     border-color: rgba(var(--accent-rgb), 0.8);
     background: rgba(var(--accent-rgb), 0.28);}
+.fo-island__fog {
+    position: absolute;
+    top: 12px;
+    right: 60px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+    border-radius: 11px;
+    color: var(--fo-soft);
+    font-size: 15px;
+    opacity: 0;
+    transition: opacity 0.16s ease, background 0.16s ease, border-color 0.16s ease;}
+.fo-island:hover .fo-island__fog,
+.fo-island__fog[aria-pressed='true'] {
+    opacity: 1;}
+.fo-island__fog:hover,
+.fo-island__fog[aria-pressed='true'] {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--fo-text);}
+/* Fog: the frame and name stay, the inside is a bank of mist at any zoom */
+.fo-island__fogbank {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    background:
+        radial-gradient(ellipse 60% 50% at 30% 40%, rgba(255, 255, 255, 0.16), transparent 70%),
+        radial-gradient(ellipse 50% 60% at 75% 65%, rgba(255, 255, 255, 0.12), transparent 70%),
+        linear-gradient(180deg, rgba(220, 232, 226, 0.14), rgba(190, 205, 200, 0.06));
+    box-shadow: inset 0 0 60px rgba(255, 255, 255, 0.1);}
+.fo-island[data-fog='true'] {
+    border-style: dashed;}
+.fo-island[data-fog='true']::before {
+    background: linear-gradient(125deg, rgba(var(--accent-rgb), 0.14), rgba(200, 214, 208, 0.12) 50%, rgba(0, 40, 25, 0.35));}
+.fo-island[data-fog='true'] .fo-summary__chips {
+    min-height: 104px;
+    justify-content: flex-end;}
+/* Cover: the island's picture, behind everything (carried from the old project-card cover) */
+.fo-island__cover {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;}
+.fo-island__cover img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    opacity: 0.34;
+    filter: saturate(0.6) contrast(1.02);}
+.fo-island__cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(8, 17, 11, 0.7) 0%, rgba(8, 17, 11, 0.25) 35%, transparent 75%, rgba(8, 17, 11, 0.3) 100%);}
+.fo-island[data-summary='true'] .fo-island__cover img,
+.fo-island[data-fog='true'] .fo-island__cover img {
+    opacity: 0.6;
+    filter: saturate(0.9);}
 .fo-island__viewmenu {
     position: absolute;
     left: 8px;
@@ -27538,8 +27649,20 @@ input):focus-visible {
     border-radius: 0 0 3px 0;
     opacity: 0;}
 .fo-island:hover > .fo-island__resize::after,
+.fo-island:hover > .fo-island__summary-hit > .fo-island__resize::after,
 .fo-card:hover > .fo-card__resize::after {
     opacity: 1;}
+/* Zoomed out, the handle grows so it stays grabbable at small scales */
+.fo-island[data-summary='true'] .fo-island__resize {
+    width: 140px;
+    height: 140px;}
+.fo-island[data-summary='true'] .fo-island__resize::after {
+    right: 34px;
+    bottom: 34px;
+    width: 44px;
+    height: 44px;
+    border-width: 6px;
+    border-radius: 0 0 10px 0;}
 
 /* Node rail along the island's bottom edge */
 .fo-rail {
@@ -28404,6 +28527,25 @@ display: flex;
     opacity: 0;}
 .fo-media__tile:hover .fo-media__remove {
     opacity: 1;}
+.fo-media__cover {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 7px;
+    background: black;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 10px;
+    opacity: 0;}
+.fo-media__tile:hover .fo-media__cover,
+.fo-media__cover[aria-pressed='true'] {
+    opacity: 1;}
+.fo-media__cover[aria-pressed='true'] {
+    background: rgb(var(--accent-rgb));
+    color: #fff;}
 .fo-media__tile[data-missing='true'] {
     display: grid;
     place-items: center;
@@ -30111,6 +30253,12 @@ button.fo-stack__fact:hover b {
     pointer-events: none;
     -webkit-mask-image: linear-gradient(180deg, #000 20%, transparent);
     mask-image: linear-gradient(180deg, #000 20%, transparent);}
+.fo-full__hero[data-cover='true'] {
+    height: 340px;
+    opacity: 0.55;}
+.fo-full__hero[data-cover='true'] img,
+.fo-full__hero[data-cover='true'] video {
+    filter: saturate(1.05) brightness(0.8);}
 .fo-full__hero img,
 .fo-full__hero video {
     flex: 1;
@@ -30475,6 +30623,129 @@ button.fo-stack__fact:hover b {
 .fo-root[data-dim='true'] .fo-full {
     background: linear-gradient(to top left, #00171b, #001314, black);}
 
+/* Tag strip: grass along the bottom of the desk; a picked tag blooms on a stem.
+   Look carried from the old Forest tag strip; the flower is an illustration, not an icon. */
+.fo-tagstrip {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 18;
+    height: 104px;
+    pointer-events: none;}
+.fo-tagstrip__ground {
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    bottom: -1px;
+    height: 48px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(to bottom, lightgreen, darkgreen 30%, brown, darkred, rgb(69, 32, 13));
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.28), inset 0 0 60px black;
+    opacity: 0.9;}
+.fo-tagstrip__row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    height: 104px;
+    padding: 56px 240px 0 320px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;}
+.fo-tagstrip__row::-webkit-scrollbar {
+    display: none;}
+.fo-tagstrip__row > * {
+    pointer-events: auto;}
+.fo-tagstrip__slot {
+    position: relative;
+    display: inline-flex;
+    flex: none;}
+.fo-tagstrip__tag {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 86px;
+    overflow: hidden;
+    padding: 2px 8px;
+    border: 0.5px solid rgba(255, 255, 255, 0.7);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.94);
+    font-size: 12px;
+    white-space: nowrap;
+    transition: all 0.15s cubic-bezier(0.3, 0.75, 0.7, 1.2);}
+.fo-tagstrip__tag span {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.72);}
+.fo-tagstrip__tag:hover {
+    width: auto;
+    min-width: 120px;
+    transform: translateY(-1px);}
+.fo-tagstrip__slot[data-bloomed='true'] .fo-tagstrip__tag {
+    transform: translateY(calc(-1 * var(--bloom-lift, 56px)));
+    width: auto;
+    min-width: 80px;
+    max-width: 170px;
+    color: #53331f;
+    background: linear-gradient(180deg, #fff3d6, #ffd3e0);
+    border-color: rgba(255, 224, 138, 0.95);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 214, 130, 0.5);}
+.fo-tagstrip__slot[data-bloomed='true'] .fo-tagstrip__tag span {
+    color: rgba(83, 51, 31, 0.65);}
+.fo-tagstrip__slot[data-bloomed='true'] .fo-tagstrip__tag:hover {
+    transform: translateY(calc(-3px - var(--bloom-lift, 56px)));
+    background: linear-gradient(180deg, #fff7e2, #ffdfe8);
+    border-color: #ffe08a;}
+.fo-bloom {
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    z-index: 0;
+    width: 28px;
+    height: calc(var(--bloom-lift, 56px) + 16px);
+    transform: translateX(-50%);
+    transform-origin: bottom center;
+    pointer-events: none;}
+.fo-bloom__stem {
+    stroke: #3fa34d;
+    stroke-width: 2.6;
+    stroke-linecap: round;}
+.fo-bloom__leaf {
+    fill: #46b258;
+    transform-box: fill-box;
+    animation: bloom-leaf-flutter var(--bloom-flutter, 3.4s) ease-in-out infinite alternate;}
+.fo-bloom__leaf--left {
+    transform-origin: right center;}
+.fo-bloom__leaf--right {
+    fill: #2f8f41;
+    transform-origin: left center;
+    animation-duration: calc(var(--bloom-flutter, 3.4s) * 0.82);
+    animation-delay: 0.4s;}
+.fo-bloom__petals ellipse {
+    fill: #ff9db8;}
+.fo-bloom__crown {
+    fill: #ffb3c7;}
+.fo-tagstrip__slot[data-sprouting='true'] .fo-tagstrip__tag {
+    animation: bloom-sprout-chip var(--bloom-dur, 0.5s) ease-out var(--bloom-delay, 0s) backwards;}
+.fo-tagstrip__slot[data-sprouting='true'] .fo-bloom {
+    animation: bloom-sprout-stem var(--bloom-dur, 0.5s) ease-out var(--bloom-delay, 0s) backwards;}
+.fo-tagstrip__clear {
+    flex: none;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 11.5px;}
+.fo-root[data-dim='true'] .fo-tagstrip__ground {
+    background: linear-gradient(to bottom, lightgreen, teal 30%, darkblue, darkslategray);}
+
 /* Dim desk: the old dim mode */
 .fo-root[data-dim='true'] .fo-desk {
     background: linear-gradient(to top left, #00171b, #001314, black);}
@@ -30526,6 +30797,9 @@ background:transparent;
     .fo-docs__row,
     .fo-full,
     .fo-full__masonry > .fo-card,
+    .fo-tagstrip__tag,
+    .fo-bloom,
+    .fo-bloom__leaf,
     .fo-drawer {
         transition: none;
         animation: none;}

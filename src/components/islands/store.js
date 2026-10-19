@@ -8,13 +8,14 @@ import {
   ISLAND_PAD, ISLAND_RAIL, ISLAND_TEMPLATES, ISLAND_VIEWS, CARD_MIN, PROJECT_QUESTIONS, cardType,
 } from './catalog';
 import {
-  accentForSeed, cleanTag, clamp, dedupe, hashString, hexToRgb, isMediaFile, normalizeText, rectsOverlap, snap, uid,
+  accentForSeed, canonicalTag, cleanTag, clamp, dedupe, hashString, hexToRgb, isMediaFile, normalizeText, rectsOverlap, snap,
+  tagStem, uid,
 } from './util';
 
 // ==== TIMING ====
 const SAVE_DELAY_MS = 550;
 const FILE_CHECK_EVERY_MS = 5 * 60 * 1000;
-const AUTO_TAG_TARGET = 12;
+const AUTO_TAG_TARGET = 8;
 const AUTO_TAG_START_DELAY_MS = 4000;
 const AUTO_TAG_GAP_MS = 1200;
 const AUTO_TAG_REJECTED_MAX = 100;
@@ -61,6 +62,7 @@ const S = {
     journalTab: 'log',
     focusIslandId: null,
     fullIslandId: null,       // island shown full screen (the + button)
+    tagFilter: [],            // tags picked on the tag strip; islands without all of them dim
   },
   fileStatus: {},             // path → 'ok' | 'missing'
   terminals: {},              // cardId → { running, cwd, command }
@@ -224,6 +226,10 @@ function normalizeIsland(project = {}) {
     status: typeof project.status === 'string' ? project.status : '',
     field: typeof project.field === 'string' ? project.field : '',
     rootPath: typeof project.rootPath === 'string' ? project.rootPath : '',
+    fog: project.fog === true,
+    cover: project.cover && typeof project.cover.path === 'string' && project.cover.path
+      ? { path: project.cover.path, name: project.cover.name || project.cover.path.split('/').pop() }
+      : null,
     webLaunch: normalizeWebLaunch(project.webLaunch),
     answers: project.answers && typeof project.answers === 'object' ? project.answers : {},
     journal: {
@@ -341,6 +347,7 @@ export async function load() {
       ...(migratedCount ? { carriedOver: `${migratedCount} older Island project${migratedCount === 1 ? ' was' : 's were'} turned into islands. Their files were placed into cards; nothing on disk moved.` } : {}),
     });
     if (migratedCount) scheduleSave(true);
+    unifyTags();
     refreshTasks();
     checkFiles();
     queueAutoTag(AUTO_TAG_START_DELAY_MS);
@@ -1608,6 +1615,7 @@ async function autoTagIsland(island) {
     tags: [...island.tags],
     rejected: [...island.autoTag.rejected],
     need: AUTO_TAG_TARGET - island.tags.length,
+    vocabulary: [...tagVocabulary().entries()].sort((a, b) => b[1] - a[1]).slice(0, 80).map(([tag, count]) => ({ tag, count })),
     files: island.files.slice(0, 400).map((f) => ({ name: f.name, path: f.path, ext: f.ext, typeGroup: f.typeGroup, size: f.size })),
     milestones: island.milestones.map((m) => m.label).slice(0, 20),
     relevance: island.relevance,
@@ -1620,7 +1628,16 @@ async function autoTagIsland(island) {
     return;
   }
   const rejected = new Set(live.autoTag.rejected);
-  const added = dedupe((result.tags || []).map(cleanTag)).filter((t) => t && !live.tags.includes(t) && !rejected.has(t)).slice(0, Math.max(0, AUTO_TAG_TARGET - live.tags.length));
+  const vocabulary = tagVocabulary();
+  const stems = new Set(live.tags.map(tagStem));
+  const added = [];
+  dedupe((result.tags || []).map((t) => canonicalTag(t, vocabulary))).forEach((tag) => {
+    const stem = tagStem(tag);
+    if (!tag || live.tags.includes(tag) || rejected.has(tag) || stems.has(stem)) return;
+    stems.add(stem);
+    added.push(tag);
+  });
+  added.splice(Math.max(0, AUTO_TAG_TARGET - live.tags.length));
   writeIsland(island.id, (current) => ({
     ...current,
     tags: dedupe([...current.tags, ...added]),
@@ -1640,9 +1657,127 @@ export function removeTag(islandId, tag) {
 }
 
 export function addTag(islandId, raw) {
-  const tag = cleanTag(raw.replace(/^#/, ''));
+  const tag = canonicalTag(raw, tagVocabulary());
   if (!tag) return;
+  const island = getIsland(islandId);
+  if (island?.tags.some((t) => tagStem(t) === tagStem(tag))) return;   // same idea already on it
   writeIsland(islandId, (island) => ({ ...island, tags: dedupe([...island.tags, tag]) }));
+  if (tag !== cleanTag(raw.replace(/^#/, ''))) log('info', 'island.tags', `Tagged “${island?.name}” #${tag} (the form already used elsewhere) instead of #${cleanTag(raw.replace(/^#/, ''))}.`);
+}
+
+// Every tag in use across all islands, with how many islands carry it.
+export function tagVocabulary(islands = S.projects) {
+  const counts = new Map();
+  islands.forEach((island) => island.tags.forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1)));
+  return counts;
+}
+
+// Collapses "color", "colors", "colorful" across islands into the one most-used form.
+export function unifyTags() {
+  const vocabulary = tagVocabulary();
+  const byStem = new Map();
+  vocabulary.forEach((count, tag) => {
+    const stem = tagStem(tag);
+    const current = byStem.get(stem);
+    if (!current || count > current.count || (count === current.count && tag.length < current.tag.length)) byStem.set(stem, { tag, count });
+  });
+  const merged = new Map();
+  let touched = 0;
+  S.projects = S.projects.map((island) => {
+    const tags = dedupe(island.tags.map((tag) => {
+      const keep = byStem.get(tagStem(tag))?.tag || tag;
+      if (keep !== tag) merged.set(tag, keep);
+      return keep;
+    }));
+    if (tags.length === island.tags.length && tags.every((t, i) => t === island.tags[i])) return island;
+    touched += 1;
+    return { ...island, tags };
+  });
+  if (!touched) return;
+  emit();
+  scheduleSave();
+  log('info', 'island.tags', `Merged ${merged.size} tag spelling${merged.size === 1 ? '' : 's'} on ${touched} island${touched === 1 ? '' : 's'} so one idea has one tag.`, {
+    merged: [...merged.entries()].map(([from, to]) => `#${from} → #${to}`),
+  });
+}
+
+/* ── Tag strip filter ─────────────────────────────────────────────── */
+
+export function toggleTagFilter(tag) {
+  const on = S.ui.tagFilter.includes(tag);
+  setUi({ tagFilter: on ? S.ui.tagFilter.filter((t) => t !== tag) : [...S.ui.tagFilter, tag] });
+}
+export function clearTagFilter() {
+  setUi({ tagFilter: [] });
+}
+export const matchesTagFilter = (island, filter = S.ui.tagFilter) => filter.every((tag) => island.tags.includes(tag));
+
+/* ── Fog and covers ───────────────────────────────────────────────── */
+
+export function setFog(islandId, on) {
+  const island = getIsland(islandId);
+  if (!island || island.fog === on) return;
+  writeIsland(islandId, (current) => ({ ...current, fog: on }), { touch: false });
+  log('info', 'island.island', on
+    ? `Fog on “${island.name}”: its frame and name stay on the desk, nothing inside shows at any zoom. The full view still opens it.`
+    : `Fog lifted from “${island.name}”; its cards show again.`);
+}
+
+export function setCover(islandId, file) {
+  const island = getIsland(islandId);
+  if (!island) return;
+  const cover = file?.path ? { path: file.path, name: file.name || file.path.split('/').pop() } : null;
+  writeIsland(islandId, (current) => ({ ...current, cover }), { touch: false });
+  if (cover) {
+    addEntry(islandId, 'file', `Cover set to “${cover.name}”.`);
+    log('info', 'island.island', `“${island.name}” now uses “${cover.name}” as its cover. The image stays where it is on disk.`, { path: cover.path });
+  } else if (island.cover) {
+    log('info', 'island.island', `Removed the cover from “${island.name}”.`);
+  }
+}
+
+/* ── Arrange by tags ──────────────────────────────────────────────── */
+
+// Lines the active desk's islands up in rows, one row per leading tag (the island's most
+// shared tag), biggest group first. Returns the new rects so the caller can frame them.
+export function arrangeByTags() {
+  const desk = activeDesk();
+  const islands = deskIslands(desk);
+  if (!islands.length) return [];
+  const counts = tagVocabulary(islands);
+  const groups = new Map();
+  islands.forEach((island) => {
+    const lead = [...island.tags].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b))[0] || '';
+    groups.set(lead, [...(groups.get(lead) || []), island]);
+  });
+  const rows = [...groups.entries()].sort((a, b) => (b[0] !== '') - (a[0] !== '') || b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const GAP_X = 160;
+  const GAP_Y = 240;
+  const rects = [];
+  let y = 0;
+  const layout = {};
+  rows.forEach(([, list]) => {
+    let x = 0;
+    let tallest = 0;
+    list.sort((a, b) => (Date.parse(b.lastSessionAt) || 0) - (Date.parse(a.lastSessionAt) || 0)).forEach((island) => {
+      layout[island.id] = { x: snap(x), y: snap(y) };
+      rects.push({ ...layout[island.id], w: island.w, h: island.h });
+      x += island.w + GAP_X;
+      tallest = Math.max(tallest, island.h);
+    });
+    y += tallest + GAP_Y;
+  });
+  if (desk.id === ALL_DESK_ID) {
+    S.projects = S.projects.map((island) => (layout[island.id] ? { ...island, ...layout[island.id] } : island));
+    emit();
+    scheduleSave();
+  } else {
+    writeDesk(desk.id, (d) => ({ ...d, layout: { ...d.layout, ...layout } }));
+  }
+  log('info', 'island.desk', `Arranged ${islands.length} island${islands.length === 1 ? '' : 's'} on “${desk.name}” into ${rows.length} row${rows.length === 1 ? '' : 's'} by tag.`, {
+    rows: rows.map(([tag, list]) => `${tag ? `#${tag}` : 'no tags'}: ${list.map((i) => i.name).join(', ')}`),
+  });
+  return rects;
 }
 
 /* ── Changes (auto tags and File Hunter), shown in the journal log ── */

@@ -11,7 +11,7 @@ import IslandSettings from './IslandSettings';
 import IslandsJournal from './IslandsJournal';
 import DeskPanel from './DeskPanel';
 import HuntPanel from './HuntPanel';
-import { DeskControls, ToolPalette, TopBar } from './Chrome';
+import { DeskControls, TagStrip, ToolPalette, TopBar } from './Chrome';
 import { NamingPrompt, NewCardMenu, QuestionsPopover, RootContext, Toasts } from './Overlays';
 
 const typing = () => /input|textarea|select/i.test(document.activeElement?.tagName || '') || document.activeElement?.isContentEditable;
@@ -83,6 +83,7 @@ export default function IslandsApp() {
             <FullView island={fullIsland} selectedCardId={ui.selection?.islandId === fullIsland.id ? ui.selection.cardId || null : null} fileStatus={S.fileStatus} terminals={S.terminals} tasks={S.tasks} />
           ) : ui.stack ? <StackView islands={islands} /> : <DeskView desk={desk} islands={islands} />}
           {!ui.stack && !fullIsland && <ToolPalette tool={ui.tool} />}
+          {!ui.stack && !fullIsland && <TagStrip desk={desk} />}
           {!fullIsland && <DeskControls desk={desk} rects={rects} stack={ui.stack} minimap={ui.minimap} />}
           {panel}
           {ui.menu && <NewCardMenu menu={ui.menu} />}

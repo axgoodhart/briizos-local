@@ -14,6 +14,42 @@ export function cleanTag(value) {
   return normalizeText(value).replace(/\s+/g, '-').replace(/[^a-z0-9._-]/g, '').slice(0, 32);
 }
 
+// One stem per idea: "color", "colors", "colorful", "coloring" all stem to "color".
+const STEM_KEEP = new Set(['news', 'series', 'species', 'analysis', 'business', 'canvas', 'chess', 'glass', 'bass', 'css', 'ios', 'macos', 'sass', 'less', 'process', 'access']);
+function stemWord(word) {
+  let w = word;
+  if (w.length <= 3 || STEM_KEEP.has(w)) return w;
+  if (w.endsWith('ies') && w.length > 4) w = `${w.slice(0, -3)}y`;
+  else if (w.endsWith('sses')) w = w.slice(0, -2);
+  else if (w.endsWith('es') && /[sxz]es$|[cs]hes$/.test(w)) w = w.slice(0, -2);
+  else if (w.endsWith('s') && !w.endsWith('ss') && !w.endsWith('us')) w = w.slice(0, -1);
+  for (const suffix of ['fulness', 'ousness', 'iveness', 'ation', 'fully', 'ness', 'ment', 'able', 'ible', 'ical', 'ious', 'ful', 'ing', 'ous', 'ive', 'ist', 'ism', 'ity', 'ise', 'ize', 'ers', 'er', 'ed', 'ly', 'al', 'ic', 'y']) {
+    if (w.length - suffix.length >= 4 && w.endsWith(suffix)) { w = w.slice(0, -suffix.length); break; }
+  }
+  if (w.endsWith('i')) w = `${w.slice(0, -1)}y`;
+  return w.replace(/([a-z])\1$/, '$1');
+}
+export function tagStem(tag) {
+  return cleanTag(tag).split(/[-._]+/).filter(Boolean).map(stemWord).sort().join('-');
+}
+
+// Picks the form already in use for the same idea, else the cleaned tag itself.
+// `vocabulary` is a Map of tag → count (or any iterable of tags).
+export function canonicalTag(raw, vocabulary) {
+  const tag = cleanTag(String(raw).replace(/^#/, ''));
+  if (!tag) return '';
+  const stem = tagStem(tag);
+  let best = null;
+  let bestCount = -1;
+  const entries = vocabulary instanceof Map ? vocabulary.entries() : [...(vocabulary || [])].map((t) => [t, 1]);
+  for (const [known, count] of entries) {
+    if (known === tag) return tag;
+    if (tagStem(known) !== stem) continue;
+    if (count > bestCount || (count === bestCount && known.length < best.length)) { best = known; bestCount = count; }
+  }
+  return best || tag;
+}
+
 export function hashString(value) {
   let hash = 2166136261;
   const input = String(value ?? '');

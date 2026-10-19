@@ -1,10 +1,72 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ALL_DESK_ID, createDesk, deskIslands, getState, openPanel, setUi, switchDesk, toast,
+  ALL_DESK_ID, arrangeByTags, clearTagFilter, createDesk, deskIslands, getState, openPanel, setUi, switchDesk, tagVocabulary,
+  toast, toggleTagFilter,
 } from './store';
 import { frameRects, getCamera, onCamera, stageRect, zoomBy, screenToWorld } from './camera';
 import { GLYPH, ISLAND_MIN } from './catalog';
-import { snap } from './util';
+import { hashString, snap } from './util';
+
+// ==== TAG STRIP ====
+const STRIP_TAGS_MAX = 18;
+
+// The flower an active tag sprouts on (carried over from the old Forest strip).
+function Bloom() {
+  return (
+    <svg className="fo-bloom" viewBox="0 0 28 72" preserveAspectRatio="none" aria-hidden="true">
+      <path className="fo-bloom__stem" d="M14 70 C 10.5 58, 17.5 46, 13.8 12" fill="none" />
+      <path className="fo-bloom__leaf fo-bloom__leaf--left" d="M13.2 44 C 6.4 42.6, 3.2 37.4, 2.6 32 C 8.8 33.4, 12.4 37.8, 13.2 44 Z" />
+      <path className="fo-bloom__leaf fo-bloom__leaf--right" d="M14.6 34 C 21.4 32.4, 24.6 27.2, 25.2 21.8 C 19 23.2, 15.4 27.6, 14.6 34 Z" />
+      <g className="fo-bloom__petals">
+        <ellipse cx="8" cy="13" rx="4.4" ry="2.9" transform="rotate(-35 8 13)" />
+        <ellipse cx="20" cy="13" rx="4.4" ry="2.9" transform="rotate(35 20 13)" />
+        <ellipse className="fo-bloom__crown" cx="14" cy="10" rx="4.8" ry="3.2" />
+      </g>
+    </svg>
+  );
+}
+
+// Grass along the bottom of the desk; the desk's tags grow on it and bloom when picked.
+export function TagStrip({ desk }) {
+  const { ui } = getState();
+  const islands = deskIslands(desk);
+  const tags = useMemo(() => [...tagVocabulary(islands).entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, STRIP_TAGS_MAX), [islands]);
+  const active = new Set(ui.tagFilter);
+  const bloomed = useRef(new Set());   // flowers already up; only new ones play the sprout
+  const sprouting = new Set();
+  active.forEach((tag) => { if (!bloomed.current.has(tag)) sprouting.add(tag); });
+  useEffect(() => { bloomed.current = new Set(active); });
+  if (!tags.length && !active.size) return null;
+
+  return (
+    <div className="fo-tagstrip" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="fo-tagstrip__ground" aria-hidden="true" />
+      <div className="fo-tagstrip__row">
+        {tags.map(([tag, count]) => {
+          const on = active.has(tag);
+          const seed = hashString(tag);
+          const style = on ? {
+            '--bloom-lift': `${48 + (seed % 13)}px`,
+            '--bloom-dur': `${420 + ((seed >>> 4) % 200)}ms`,
+            '--bloom-delay': `${((seed >>> 8) % 5) * 30}ms`,
+            '--bloom-flutter': `${2600 + ((seed >>> 6) % 1400)}ms`,
+          } : undefined;
+          return (
+            <span key={tag} className="fo-tagstrip__slot" data-bloomed={on ? 'true' : undefined} data-sprouting={sprouting.has(tag) ? 'true' : undefined} style={style}>
+              {on && <Bloom />}
+              <button type="button" className="fo-tagstrip__tag" aria-pressed={on} onClick={() => toggleTagFilter(tag)} title={on ? 'Clear this tag' : 'Show only islands with this tag'}>
+                #{tag}<span>{count}</span>
+              </button>
+            </span>
+          );
+        })}
+        {active.size > 0 && <button type="button" className="fo-tagstrip__clear" onClick={clearTagFilter}>clear</button>}
+      </div>
+    </div>
+  );
+}
 
 // ==== TOOLS ====
 const TOOLS = [
@@ -142,6 +204,11 @@ export function DeskControls({ desk, rects, stack, minimap }) {
         <button type="button" className="fo-controls__btn" aria-pressed={minimap} onClick={() => setUi({ minimap: !minimap })} title="Map">
           <span className="fo-glyph">{GLYPH.map}</span>
         </button>
+        {!stack && (
+          <button type="button" className="fo-controls__btn" onClick={() => { const next = arrangeByTags(); if (next.length) requestAnimationFrame(() => frameRects(next)); }} title="Arrange islands by tag">
+            <span className="fo-glyph">{GLYPH.tag}</span>
+          </button>
+        )}
         <div className="fo-controls__zoom">
           <button type="button" onClick={() => zoomBy(1 / 1.2)} title="Zoom out"><span className="fo-glyph">{GLYPH.minus}</span></button>
           <button

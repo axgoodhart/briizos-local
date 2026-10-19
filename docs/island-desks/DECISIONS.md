@@ -117,6 +117,9 @@ What exists now, and where:
 | Island settings, desks panel, File Hunter, stacked view | `IslandSettings.jsx`, `DeskPanel.jsx`, `HuntPanel.jsx`, `StackView.jsx` |
 | Islands journal (in the workspace and the Journals app) | `IslandsJournal.jsx`; shelf card in `src/components/journals/JournalPanel.jsx` |
 | Full view of one island (the + button) | `FullView.jsx`; opened and closed from `store.js` (`openFullView`, `closeFullView`) |
+| Tag strip, arrange by tag | `Chrome.jsx` (`TagStrip`, desk controls); `store.js` (`tagVocabulary`, `unifyTags`, `arrangeByTags`, tag filter) |
+| Fog, covers | `Island.jsx`, `IslandSettings.jsx`, `cards/MediaCard.jsx`; `store.js` (`setFog`, `setCover`) |
+| Tag stemming | `util.js` (`tagStem`, `canonicalTag`); AI prompt in `electron/island-ai.js` |
 | Files made in briizOS, file previews, dated archives, terminal sessions | `electron/island-workspace.js` |
 | Saving desks and templates | `electron/local-data-service.js` (`saveIslandState`, `getIslandState`) |
 | Styles | `src/AppCombined.css`, Islands section |
@@ -149,14 +152,14 @@ Not built yet unless a row says otherwise. Where this reverses a row in "Where e
 
 | Item | What Alex wants | What the code does today |
 |---|---|---|
-| Journal page dates | Hovering or clicking the page-type word in the top right of a folio shows when the page was made and when it was last edited | The word is a plain label (`JournalView.jsx`, `.jv-page__type`). The database already stores `created_at` and `updated_at` per folio; the renderer never reads them |
-| Auto tagging | Bring it back. The old version was wasteful: it produced "color", "colors", "colorful" across projects, which defeats tagging. Tags must be shared across islands and reduced to one form | Still runs in `store.js` (`runAutoTagQueue`) and `electron/island-ai.js`, up to 12 tags per island, each island asked on its own with no view of other islands' tags; `cleanTag` only lowercases and trims. Tags are not shown anywhere on the island |
-| Tag filter strip with flowers | Bring it back | Removed with the old project board (`app.js`, `renderTagStrip`, the bloom SVG). The decisions table had turned it into "make a desk from a rule"; Alex wants the strip itself |
-| Fog | A per-island toggle. The island frame and title stay visible; nothing inside is, at any zoom | Nothing. The only hiding is the zoomed-out summary, which is zoom-driven, not a choice |
-| Resize at any zoom | An island can always be resized | The resize handle is only rendered in the full view when not zoomed out (`Island.jsx`: `!packed`, and the summary branch has no handle). `resizeIsland` also refuses to go smaller than the cards' packed size |
-| Arrange by tags | Islands can lay themselves out on the desk by their tags | `deskPositions` only lines islands up in order. No tag-based layout |
+| Journal page dates | Hovering or clicking the page-type word in the top right of a folio shows when the page was made and when it was last edited | **Built 2026-10-18.** Hover the page-type word for made and edited dates; click pins them open (`JournalView.jsx`, `FolioStamp`) |
+| Auto tagging | Bring it back. The old version was wasteful: it produced "color", "colors", "colorful" across projects, which defeats tagging. Tags must be shared across islands and reduced to one form | **Reworked 2026-10-18.** One shared vocabulary: the AI gets every tag in use across islands and must reuse them, singular nouns only; results are folded onto existing tags by stem (color/colors/colorful → color) before they land; existing tags were merged the same way on first open. Target is 8 tags per island, down from 12 |
+| Tag filter strip with flowers | Bring it back | **Built 2026-10-18.** Grass along the bottom of the desk with the desk's tags; a picked tag blooms on a stem; islands without every picked tag dim (`Chrome.jsx`, `TagStrip`) |
+| Fog | A per-island toggle. The island frame and title stay visible; nothing inside is, at any zoom | **Built 2026-10-18.** Eye button at the top right of an open island, or the Fog row in settings. Frame, name and cover stay; cards, rail and count chips go, at any zoom. The full view still opens the island |
+| Resize at any zoom | An island can always be resized | **Built 2026-10-18** for the zoomed-out island: a large corner handle. Main-view and Progress islands still size to their cards |
+| Arrange by tags | Islands can lay themselves out on the desk by their tags | **Built 2026-10-18.** Tag button in the bottom-left desk controls: one row per leading tag, biggest group first, untagged last; the desk then frames the result. Positions are saved like a drag |
 | Island full view (the + button) | The top-right + on an island opens that island full screen. It should grow from the old fully-expanded card / Project Viewer: scroll-and-pinch timeline, file browsing, and the island's cards auto-arranged in a masonry grid. Alex: a major missing feature | **Built 2026-10-18**, see "Full view" below. Before this, the + in the zoomed-out summary only zoomed the camera to the island |
-| Covers | Optional cover image on an island, as the old cards had | Dropped on purpose on 2026-10-13 ("replaced by the main view card"). Alex wants the cover back as its own thing. Old `coverFileId` still migrates into the Media card |
+| Covers | Optional cover image on an island, as the old cards had | **Built 2026-10-18.** Cover row in island settings, or the picture button on a Media card tile. Shows faded behind the island, stronger when zoomed out or fogged, and as the full view's hero. The image stays where it lives on disk |
 
 ## Full view (built 2026-10-18)
 
@@ -174,3 +177,12 @@ What is in it, top to bottom:
 Logged to the Log Panel under `island.fullview`, `island.timeline` and `island.files`: opening and closing, milestones added or toggled, files opened or shown from here.
 
 Not in it yet: card covers (its own open item), and editing priority signals here (they stay in island settings).
+
+## Tags (reworked 2026-10-18)
+
+- One idea, one tag, across every island. `tagStem` reduces a tag to its idea (plural, -ful, -ing, -ed and similar endings drop); `canonicalTag` picks the form already in use for that idea, preferring the most-used spelling.
+- Auto tagging sends the AI the shared vocabulary with counts and tells it to reuse those and to use singular nouns. Anything it returns is still folded onto existing tags by stem, and a tag whose idea the island already carries is dropped.
+- Adding a tag by hand goes through the same fold.
+- On first open after this change, `unifyTags` merges existing spellings and logs each merge under `island.tags`.
+- The tag strip shows the active desk's tags (up to 18, most used first). Picking tags narrows: islands missing any picked tag dim. The flower on a picked tag is the old Forest bloom, carried over.
+- Arrange by tag groups islands by their leading tag, the one they share with the most islands on that desk.

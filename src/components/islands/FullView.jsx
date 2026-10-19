@@ -418,7 +418,10 @@ export default function FullView({ island, selectedCardId, terminals, tasks, fil
     const q = query.trim().toLowerCase();
     return island.files.filter((f) => (!activeTags.size || f.tags.some((t) => activeTags.has(t))) && (!q || f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)));
   }, [island.files, activeTags, query]);
-  const hero = useMemo(() => island.files.filter((f) => f.previewable && !isAudio(f)).slice(0, HERO_MAX), [island.files]);
+  const hero = useMemo(() => {
+    const media = island.files.filter((f) => f.previewable && !isAudio(f) && f.path !== island.cover?.path);
+    return island.cover ? [{ id: 'cover', ...island.cover, ext: island.cover.name.split('.').pop() }] : media.slice(0, HERO_MAX);
+  }, [island.files, island.cover]);
   const tags = useMemo(() => [...new Set([...island.tags, ...island.files.flatMap((f) => f.tags)])], [island.tags, island.files]);
   const done = island.milestones.filter((m) => m.completed).length;
   const progress = island.milestones.length ? Math.round((done / island.milestones.length) * 100) : null;
@@ -464,7 +467,7 @@ export default function FullView({ island, selectedCardId, terminals, tasks, fil
 
       <div ref={scrollRef} className="fo-full__scroll">
         {hero.length > 0 && (
-          <div className="fo-full__hero" aria-hidden="true">
+          <div className="fo-full__hero" data-cover={island.cover ? 'true' : undefined} aria-hidden="true">
             {hero.map((f) => (isVideo(f)
               ? <video key={f.id} src={toFileUrl(f.path)} muted playsInline preload="metadata" />
               : <img key={f.id} src={toFileUrl(f.path)} alt="" loading="lazy" draggable={false} />))}

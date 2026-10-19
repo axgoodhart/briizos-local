@@ -988,6 +988,37 @@ function FolioTitle({ folio, onRename }) {
   );
 }
 
+/* The page-type word in the top right. Hover shows when the page was made and
+   last edited; click pins that open. Dates come from the folio row itself. */
+const stampDate = (value) => {
+  const date = new Date(Number(value) || value);
+  return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+};
+function FolioStamp({ folio, onDelete }) {
+  const [pinned, setPinned] = useState(false);
+  useEffect(() => setPinned(false), [folio.id]);
+  const made = stampDate(folio.createdAt);
+  const edited = stampDate(folio.updatedAt);
+  return (
+    <span className="jv-page__type" data-pinned={pinned ? 'true' : undefined}>
+      <button
+        type="button"
+        className="jv-page__typebtn"
+        aria-expanded={pinned}
+        title={`made ${made}\nedited ${edited}`}
+        onClick={() => setPinned((p) => !p)}
+      >{TYPE_LABELS[folio.type] || folio.type}</button>
+      {onDelete && (
+        <button type="button" className="jv-x" title="Remove this page" onClick={onDelete}>×</button>
+      )}
+      <span className="jv-page__dates" role="tooltip">
+        <span><i>made</i>{made}</span>
+        <span><i>edited</i>{edited}</span>
+      </span>
+    </span>
+  );
+}
+
 function FolioPage({
   folio, siblings, pageUrl, onSave, onDelete, onRename,
   onRebalanced, pullSource, registerEditor, registerRebalance, onEditorReady, onTick, onAttachmentRequest,
@@ -1002,12 +1033,7 @@ function FolioPage({
       <div className={'jv-page__paper' + (fixed ? ' jv-page__paper--fixed' : '')}>
         <header className="jv-page__head">
           <FolioTitle folio={folio} onRename={onRename} />
-          <span className="jv-page__type">
-            {TYPE_LABELS[folio.type] || folio.type}
-            {onDelete && (
-              <button type="button" className="jv-x" title="Remove this page" onClick={onDelete}>×</button>
-            )}
-          </span>
+          <FolioStamp folio={folio} onDelete={onDelete} />
         </header>
         <div className="jv-page__body">
           <Renderer

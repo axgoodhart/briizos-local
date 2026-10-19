@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import {
   ALL_DESK_ID, addCard, addTag, archiveIsland, closePanel, deleteIsland, getState, liveAgentCount, openPanel,
-  openStepCount, pickIslandFolder, removeTag, saveIslandTemplate, select, setIslandOnDesk, setStage, setUi, updateIsland,
+  openStepCount, pickIslandFolder, removeTag, saveIslandTemplate, select, setCover, setFog, setIslandOnDesk, setStage, setUi,
+  updateIsland,
 } from './store';
 import { ACCENTS, GLYPH, cardType } from './catalog';
+import { pickFiles } from './gestures';
 import { EditableText } from './cards/fields';
+
+async function chooseCover(island) {
+  const [path] = await pickFiles({ multiple: false, accept: 'image/*,video/*' });
+  if (path) setCover(island.id, { path, name: path.split('/').pop() });
+}
 
 function StageChips({ island }) {
   const [editing, setEditing] = useState(null);
@@ -115,6 +122,24 @@ export default function IslandSettings({ island }) {
               />
             ))}
           </div>
+        </div>
+
+        <label className="fo-row">
+          <span className="fo-row__name">Fog</span>
+          <input type="checkbox" checked={island.fog} onChange={(e) => setFog(island.id, e.target.checked)} />
+          <span className="fo-row__value">{island.fog ? 'frame and name only, at any zoom' : 'cards show'}</span>
+        </label>
+        <div className="fo-row">
+          <span className="fo-row__name">Cover</span>
+          <span className="fo-row__value" title={island.cover?.path}>{island.cover ? island.cover.name : 'none'}</span>
+          <button type="button" className="fo-icon-btn" title={island.cover ? 'Choose another cover' : 'Choose a cover image'} onClick={() => chooseCover(island)}>
+            <span className="fo-glyph">􀏅</span>
+          </button>
+          {island.cover && (
+            <button type="button" className="fo-icon-btn" title="Remove the cover" onClick={() => setCover(island.id, null)}>
+              <span className="fo-glyph">{GLYPH.close}</span>
+            </button>
+          )}
         </div>
 
         <button type="button" className="fo-settings__more" aria-expanded={more} onClick={() => setMore((m) => !m)}>

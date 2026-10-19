@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { importPaths, relocateFile, removeFileFromCard } from '../store';
+import { importPaths, relocateFile, removeFileFromCard, setCover } from '../store';
 import { GLYPH } from '../catalog';
 import { pickFiles } from '../gestures';
 import { isAudio, isVideo, toFileUrl } from '../util';
@@ -69,6 +69,15 @@ export default function MediaCard({ island, card, fileStatus }) {
                   <button type="button" className="fo-link" onClick={(e) => { e.stopPropagation(); relocateFile(island.id, file.id); }}>Find it</button>
                 </div>
               ) : <Preview file={file} />}
+              {!missing && (
+                <button
+                  type="button"
+                  className="fo-media__cover"
+                  aria-pressed={island.cover?.path === file.path}
+                  onClick={(e) => { e.stopPropagation(); setCover(island.id, island.cover?.path === file.path ? null : file); }}
+                  title={island.cover?.path === file.path ? 'Island cover (click to remove)' : 'Use as the island cover'}
+                ><span className="fo-glyph">􀏅</span></button>
+              )}
               <button type="button" className="fo-media__remove" onClick={(e) => { e.stopPropagation(); removeFileFromCard(island.id, card.id, file.id); }} title="Take off this card">
                 <span className="fo-glyph">{GLYPH.close}</span>
               </button>

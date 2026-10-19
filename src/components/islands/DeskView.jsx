@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  ALL_DESK_ID, deskPositions, getState, importPaths, select, setDeskViewport, setUi,
+  ALL_DESK_ID, deskPositions, getState, importPaths, matchesTagFilter, select, setDeskViewport, setUi,
 } from './store';
 import {
   attachCamera, detachCamera, frameRects, getCamera, getScale, onCamera, panBy, screenToWorld, viewRect, zoomAt,
@@ -176,7 +176,7 @@ export default function DeskView({ desk, islands }) {
             summary={summary}
             selected={ui.selection?.islandId === island.id}
             selectedCardId={ui.selection?.islandId === island.id ? ui.selection.cardId || null : null}
-            dimmed={!matchesQuery(island, ui.query)}
+            dimmed={!matchesQuery(island, ui.query) || !matchesTagFilter(island, ui.tagFilter)}
             tool={ui.tool}
             fileStatus={S.fileStatus}
             terminals={S.terminals}

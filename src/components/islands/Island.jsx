@@ -1,6 +1,6 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import {
-  cardsForView, moveIsland, openFullView, openPanel, resizeIsland, select, setIslandView, setUi, updateIsland, addCard,
+  cardsForView, moveIsland, openFullView, openPanel, resizeIsland, select, setFog, setIslandView, setUi, updateIsland, addCard,
   importPaths, getIsland, addFilesToIsland,
 } from './store';
 import { getScale, screenToWorld } from './camera';
@@ -8,7 +8,7 @@ import { pickFiles, trackPointer } from './gestures';
 import {
   CARD_MIN, GLYPH, GRID, ISLAND_HEAD, ISLAND_MIN, ISLAND_PAD, ISLAND_RAIL, ISLAND_VIEWS, cardType,
 } from './catalog';
-import { snap, uid } from './util';
+import { snap, toFileUrl, uid } from './util';
 import CardFrame from './CardFrame';
 
 // Palette tools that make a card directly when you drag on an island.
@@ -34,12 +34,12 @@ function chipsFor(island) {
   return [...counts.entries()].map(([kind, count]) => ({ kind, count, glyph: cardType(kind).glyph }));
 }
 
-function IslandSummary({ island, onAdd }) {
+function IslandSummary({ island, fog, onAdd }) {
   const chips = useMemo(() => chipsFor(island), [island]);
   return (
     <div className="fo-summary">
       <div className="fo-summary__chips">
-        {chips.map((chip) => (
+        {!fog && chips.map((chip) => (
           <span key={chip.kind} className="fo-summary__chip" data-kind={chip.kind}>
             <span className="fo-glyph">{chip.glyph}</span>×{chip.count}
           </span>
@@ -122,7 +122,7 @@ const Island = memo(function Island({
   const viewLabel = ISLAND_VIEWS.find((v) => v.id === view)?.label || 'Full view';
 
   const startMove = (event) => {
-    if (event.button !== 0 || event.target.closest('.fo-island__gear, .fo-island__full, .fo-summary__add')) return;
+    if (event.button !== 0 || event.target.closest('.fo-island__gear, .fo-island__full, .fo-island__fog, .fo-island__resize, .fo-summary__add')) return;
     const onView = !!event.target.closest('.fo-island__view');
     const el = ref.current;
     trackPointer(event, {
@@ -245,11 +245,19 @@ const Island = memo(function Island({
       data-selected={selected ? 'true' : undefined}
       data-dimmed={dimmed ? 'true' : undefined}
       data-summary={summary ? 'true' : undefined}
+      data-fog={island.fog ? 'true' : undefined}
+      data-cover={island.cover ? 'true' : undefined}
       style={{ left: x, top: y, width: size.w, height: size.h, '--accent': island.accent, '--accent-rgb': island.accentRgb }}
     >
+      {island.cover && (
+        <div className="fo-island__cover" aria-hidden="true">
+          <img src={toFileUrl(island.cover.path)} alt="" loading="lazy" draggable={false} />
+        </div>
+      )}
       {summary ? (
         <div className="fo-island__summary-hit" onPointerDown={startMove} onDoubleClick={() => setUi({ zoomTo: island.id })}>
-          <IslandSummary island={island} onAdd={(e) => { e.stopPropagation(); openFullView(island.id); }} />
+          <IslandSummary island={island} fog={island.fog} onAdd={(e) => { e.stopPropagation(); openFullView(island.id); }} />
+          <div className="fo-island__resize" onPointerDown={startResize} />
         </div>
       ) : (
         <>
@@ -276,6 +284,9 @@ const Island = memo(function Island({
             ) : (
               <h2 className="fo-island__name" onPointerDown={startMove} onDoubleClick={() => setRenaming(true)}>{island.name}</h2>
             )}
+            <button type="button" className="fo-island__fog" aria-pressed={island.fog} onClick={(e) => { e.stopPropagation(); setFog(island.id, !island.fog); }} title={island.fog ? 'Lift the fog' : 'Fog: hide what is inside'}>
+              <span className="fo-glyph">{island.fog ? GLYPH.eyeClosed : GLYPH.eye}</span>
+            </button>
             <button type="button" className="fo-island__full" onClick={(e) => { e.stopPropagation(); openFullView(island.id); }} title="Open full view">
               <span className="fo-glyph">{GLYPH.plus}</span>
             </button>
@@ -287,7 +298,8 @@ const Island = memo(function Island({
             onPointerDown={onGroundPointerDown}
             onDoubleClick={onGroundDoubleClick}
           >
-            {cards.map((card) => (
+            {island.fog && <div className="fo-island__fogbank" aria-hidden="true" />}
+            {!island.fog && cards.map((card) => (
               <CardFrame
                 key={card.id}
                 island={island}
@@ -303,7 +315,7 @@ const Island = memo(function Island({
             ))}
             {marquee && <div className="fo-marquee fo-marquee--card" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
           </div>
-          <NodeRail island={island} cards={cards} height={size.h} terminals={terminals} tasks={tasks} />
+          {!island.fog && <NodeRail island={island} cards={cards} height={size.h} terminals={terminals} tasks={tasks} />}
           {!packed && <div className="fo-island__resize" onPointerDown={startResize} />}
         </>
       )}

@@ -13,7 +13,7 @@ const { isIgnored } = require('./island-ignore');
 const islandFs = require('./island-fs');
 
 // ==== AUTO TAG ====
-const TAG_TARGET = 12;
+const TAG_TARGET = 8;
 const READ_LINE_BUDGET = 200;          // non-empty lines across all files, per project
 const READ_FILES_PREFERRED = 2;
 const READ_FILES_MAX = 3;
@@ -207,12 +207,16 @@ async function suggestProjectTags(input = {}) {
     `Return exactly ${need} tags when the material supports it, fewer if it truly does not.`,
     'Each tag: lowercase, 1 to 3 words joined with hyphens, at most 32 characters, no # sign.',
     'Tags describe subject, purpose, medium, client, tool, or audience. Be specific to this project.',
+    'Tags are shared across every project on the board, so one idea must have exactly one tag. Reuse a tag from the shared vocabulary whenever it fits instead of inventing a near-duplicate.',
+    'Use the singular noun form only: "color", never "colors", "colorful" or "coloring". Never add a tag that is a plural, adjective or verb form of an existing or vocabulary tag.',
     'Never repeat or rephrase an existing tag. Never use a rejected tag. Avoid generic words like file, project, misc, documents, final, draft.',
   ].join('\n');
+  const vocabulary = (Array.isArray(input.vocabulary) ? input.vocabulary : []).slice(0, 80);
   const user = [
     `Project name: ${input.name || 'Untitled Project'}`,
     `Existing tags: ${existing.join(', ') || 'none'}`,
     `Rejected tags (never suggest): ${[...rejected].join(', ') || 'none'}`,
+    vocabulary.length ? `Shared vocabulary already in use across the board (tag ×projects), prefer these when they fit: ${vocabulary.map((v) => `${v.tag} ×${v.count}`).join(', ')}` : 'Shared vocabulary: empty so far; your tags will start it.',
     input.relevance ? `Owner's note on relevance: ${String(input.relevance).slice(0, 600)}` : '',
     (input.milestones || []).length ? `Milestones: ${input.milestones.slice(0, 20).join('; ')}` : '',
     `Files (${files.length} total, first 80 shown):\n${fileList || '- none yet'}`,
