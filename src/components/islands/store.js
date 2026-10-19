@@ -1,7 +1,7 @@
 // Island store: desks > islands > cards. One module-level state shared by every
 // mounted Island panel; saved through window.api.islandSaveState.
 // Spec: docs/island-desks/DECISIONS.md
-import { useSyncExternalStore, useCallback } from 'react';
+import { useSyncExternalStore, useCallback, useEffect } from 'react';
 import logger from '../../lib/logger';
 import {
   ACCENTS, CARD_TEMPLATES, CARD_TYPES, DEFAULT_SHIP_STEPS, DEFAULT_STAGES, GRID, ISLAND_HEAD, ISLAND_MIN,
@@ -23,6 +23,12 @@ const TAG_UNDO_WINDOW_MS = 7 * 86400000;
 const JOURNAL_ENTRIES_MAX = 2000;
 const TOAST_MS = 6000;
 const OWN_SAVE_ECHO_MS = 1500;          // ignore the database change event caused by our own save
+
+// ==== APPERTURE LINK ====
+const LINK_DELAY_MS = 1500;             // after a save, before project.json files are touched
+const APPERTURE_POLL_MS = 10000;        // board refresh while a card shows it
+const APPERTURE_FRESH_MS = 4000;        // reads closer together than this are skipped
+const AGENT_HISTORY_MAX = 50;           // goals remembered per agent card
 
 export const ALL_DESK_ID = 'desk-all';
 
@@ -58,6 +64,7 @@ const S = {
   fileStatus: {},             // path → 'ok' | 'missing'
   terminals: {},              // cardId → { running, cwd, command }
   tasks: {},                  // taskId → task row
+  apperture: {},              // project folder → { ok, project, board, commands } | { ok: false, error }
   hunt: null,                 // File Hunter run for one island
 };
 
@@ -391,6 +398,7 @@ export async function saveNow() {
     lastOwnSaveAt = Date.now();
     lastSaveError = null;
     setUi({ saveState: `✓ ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` });
+    queueLinkSync();
   } catch (error) {
     const message = error?.message || 'Unknown problem';
     const rejected = /INVALID_INPUT|too large|too long|max \d|must be/i.test(message);
@@ -1301,11 +1309,13 @@ export async function startAgent(islandId, cardId, goal) {
     if (!taskId) throw new Error('The task was not created');
     const { automateTask } = await import('../../lib/taskAutomation');
     await automateTask(taskId);
-    updateCardData(islandId, cardId, (data) => ({ goal: goal.trim(), taskId, history: dedupe([taskId, ...(data.history || [])]).slice(0, 20) }));
+    updateCardData(islandId, cardId, (data) => ({ goal: goal.trim(), taskId, history: dedupe([taskId, ...(data.history || [])]).slice(0, AGENT_HISTORY_MAX) }));
     addEntry(islandId, 'agent', `Gave an agent the goal: ${goal.trim()}`, { ref: cardId });
+    const shared = await recordCommand(island, cardId, 'goal', goal.trim(), taskId);
     log('info', 'island.agent', `Started an agent on “${island.name}”. It runs as a briizOS task, so its steps and permission requests also appear in the Tasks panel.`, {
       goal: goal.trim(),
       taskId,
+      sharedHistory: shared,
       note: 'Today agents advance only while the briizOS window is open (docs/island-desks/DECISIONS.md → Background agents).',
     });
     refreshTasks();
@@ -1323,7 +1333,8 @@ export async function pauseAgent(islandId, cardId) {
     const fresh = await window.api.localData.tasks.get(task.id);
     await window.api.localData.tasks.update(task.id, fresh.revision, { automated: false, status: 'pending' });
     addEntry(islandId, 'agent', `Paused the agent working on: ${task.title}`);
-    log('info', 'island.agent', 'Paused an island\'s agent. Its steps so far are kept; starting it again resumes from the next unchecked step.', { goal: task.title });
+    const shared = await recordCommand(getIsland(islandId), cardId, 'pause', task.title, task.id);
+    log('info', 'island.agent', 'Paused an island\'s agent. Its steps so far are kept; starting it again resumes from the next unchecked step.', { goal: task.title, sharedHistory: shared });
     refreshTasks();
   } catch (error) {
     log('error', 'island.agent', 'Could not pause the agent', { problem: error?.message });
@@ -1337,7 +1348,8 @@ export async function resumeAgent(islandId, cardId) {
     const { automateTask } = await import('../../lib/taskAutomation');
     await automateTask(card.data.taskId);
     addEntry(islandId, 'agent', `Resumed the agent on: ${card.data.goal}`);
-    log('info', 'island.agent', 'Resumed an island\'s agent', { goal: card.data.goal });
+    const shared = await recordCommand(getIsland(islandId), cardId, 'resume', card.data.goal, card.data.taskId);
+    log('info', 'island.agent', 'Resumed an island\'s agent', { goal: card.data.goal, sharedHistory: shared });
     refreshTasks();
   } catch (error) {
     log('error', 'island.agent', 'Islands could not resume the agent', { problem: error?.message });
@@ -1351,10 +1363,164 @@ export async function answerAgent(islandId, cardId, text) {
     const { handleUserResponse } = await import('../../lib/taskAutomation');
     await handleUserResponse(card.data.taskId, text.trim());
     addEntry(islandId, 'agent', `Answered the agent: ${text.trim()}`);
-    log('info', 'island.agent', 'Answered a question from an island\'s agent', { goal: card.data.goal });
+    const shared = await recordCommand(getIsland(islandId), cardId, 'answer', text.trim(), card.data.taskId);
+    log('info', 'island.agent', 'Answered a question from an island\'s agent', { goal: card.data.goal, sharedHistory: shared });
     refreshTasks();
   } catch (error) {
     log('error', 'island.agent', 'Could not send your answer to the agent', { problem: error?.message });
+  }
+}
+
+export function setAgentFace(islandId, cardId, face) {
+  const card = getCard(islandId, cardId);
+  if (!card || (card.data.face === 'apperture' ? 'apperture' : 'agent') === face) return;
+  updateCardData(islandId, cardId, { face });
+  log('info', 'island.card', `The agent card “${card.title}” now shows ${face === 'apperture' ? 'its Apperture board and launcher' : 'its agent and command history'}`, {
+    island: getIsland(islandId)?.name,
+  });
+}
+
+/* ── Apperture link: shared files in the project folder's .auto-claude/ ── */
+
+const appertureLoads = new Map();   // folder → read in flight
+const appertureReadAt = new Map();  // folder → last read time
+const appertureNoted = new Map();   // folder → last logged outcome, so polling doesn't flood the log
+const linkSent = new Map();         // islandId → last link signature sent
+let linkTimer = null;
+
+const homeShort = (p) => p.replace(/^\/Users\/[^/]+/, '~');
+
+function summaryKey(entry) {
+  if (!entry) return '';
+  if (!entry.ok) return `error:${entry.error}`;
+  const last = entry.commands[entry.commands.length - 1];
+  return [entry.project?.updatedAt, entry.project?.name, entry.board?.updatedAt, entry.board?.tasks.length, entry.board?.artifacts.length, entry.commands.length, last?.id].join('|');
+}
+
+function noteApperture(rootPath, entry) {
+  const outcome = entry.ok ? (entry.board ? 'board' : 'no board') : `error:${entry.error}`;
+  if (appertureNoted.get(rootPath) === outcome) return;
+  appertureNoted.set(rootPath, outcome);
+  if (!entry.ok) {
+    log('warn', 'island.apperture', `Islands could not read the Apperture files in ${homeShort(rootPath)}. Agent cards there show only their own goals until it can.`, {
+      folder: rootPath, problem: entry.error, nextStep: 'Check that the island’s folder (Settings → More → Folder) still exists.',
+    });
+  } else if (outcome === 'no board') {
+    log('debug', 'island.apperture', `${homeShort(rootPath)} has no Apperture board yet; Apperture writes one once it has tasks for this folder.`, {
+      openedInApperture: entry.project?.id ? 'yes' : 'not yet', sharedCommands: entry.commands.length,
+    });
+  } else {
+    log('info', 'island.apperture', `Islands is showing the Apperture board for ${homeShort(rootPath)}`, {
+      project: entry.project?.name || 'unnamed', tasks: entry.board?.tasks.length ?? 0, artifacts: entry.board?.artifacts.length ?? 0, sharedCommands: entry.commands.length,
+    });
+  }
+}
+
+export function loadApperture(rootPath, { force = false } = {}) {
+  if (!rootPath || !window.api.appertureProjectSummary) return null;
+  const inFlight = appertureLoads.get(rootPath);
+  if (inFlight) return force ? inFlight.then(() => loadApperture(rootPath, { force: true })) : inFlight;
+  if (!force && Date.now() - (appertureReadAt.get(rootPath) || 0) < APPERTURE_FRESH_MS) return null;
+  const run = window.api.appertureProjectSummary(rootPath)
+    .catch((error) => ({ ok: false, error: error?.message || 'Unknown problem' }))
+    .then((result) => {
+      appertureReadAt.set(rootPath, Date.now());
+      const next = result?.ok
+        ? { ok: true, project: result.project, board: result.board, commands: result.commands || [] }
+        : { ok: false, error: result?.error || 'Unknown problem' };
+      if (summaryKey(next) !== summaryKey(S.apperture[rootPath])) {
+        S.apperture = { ...S.apperture, [rootPath]: next };
+        emit();
+      }
+      noteApperture(rootPath, next);
+    })
+    .finally(() => appertureLoads.delete(rootPath));
+  appertureLoads.set(rootPath, run);
+  return run;
+}
+
+export function useApperture(rootPath) {
+  const entry = useIsland(useCallback((s) => (rootPath ? s.apperture[rootPath] || null : null), [rootPath]));
+  useEffect(() => {
+    if (!rootPath) return undefined;
+    loadApperture(rootPath);
+    const timer = setInterval(() => loadApperture(rootPath), APPERTURE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [rootPath]);
+  return entry;
+}
+
+// Mirrors an agent command into the project's shared history so Apperture sees it; returns a note for the log.
+async function recordCommand(island, cardId, kind, text, taskId) {
+  if (!island?.rootPath) return 'not shared: the island has no project folder';
+  try {
+    const result = await window.api.appertureAppendCommand?.(island.rootPath, {
+      kind, text, taskRef: taskId ? { app: 'briizos', id: taskId } : null, islandId: island.id, cardId,
+    });
+    if (!result?.ok) throw new Error(result?.error || 'This briizOS version cannot write shared history');
+    loadApperture(island.rootPath, { force: true });
+    return `added to ${homeShort(result.path)}`;
+  } catch (error) {
+    log('warn', 'island.apperture', `Islands could not add this ${kind} to the shared command history in “${island.name}”’s project folder. The agent itself is unaffected.`, {
+      folder: island.rootPath, problem: error?.message, nextStep: 'Check that the island’s folder (Settings → More → Folder) still exists and can be written to.',
+    });
+    return 'not shared: see the warning before this entry';
+  }
+}
+
+export async function launchApperture(islandId) {
+  const island = getIsland(islandId);
+  if (!island?.rootPath) return null;
+  const result = await window.api.appertureLaunch?.(island.rootPath).catch((error) => ({ ok: false, error: error?.message }));
+  if (!result?.ok) {
+    toast('Apperture could not open — see the log');
+    if (!result) log('error', 'island.apperture', 'This briizOS build cannot open Apperture yet.', { nextStep: 'Restart briizOS so its new background part loads.' });
+    return null;
+  }
+  toast(result.mode === 'dev' ? 'Starting Apperture — the first window can take a minute' : `Opened “${island.name}” in Apperture`);
+  addEntry(islandId, 'log', 'Opened the project in Apperture.');
+  return result;
+}
+
+export async function pickIslandFolder(islandId) {
+  const island = getIsland(islandId);
+  if (!island) return;
+  const dir = await window.api.islandOpenDirectoryDialog?.({ title: `Project folder for “${island.name}”`, buttonLabel: 'Use this folder' });
+  if (!dir || dir === island.rootPath) return;
+  updateIsland(islandId, { rootPath: dir });
+  log('info', 'island.island', `“${island.name}” now points at the project folder ${homeShort(dir)}. Nothing in it was moved; agents, terminals and Apperture use it as the project.`, {
+    before: island.rootPath || 'none',
+  });
+}
+
+function linkKeys(island) {
+  return { islandId: island.id, accent: island.accent, tags: island.tags, stage: island.stages[island.stage] || '' };
+}
+
+function queueLinkSync() {
+  if (!window.api.appertureWriteLink) return;
+  clearTimeout(linkTimer);
+  linkTimer = setTimeout(syncLinks, LINK_DELAY_MS);
+}
+
+// Writes islandId, accent, tags and stage into each linked folder's project.json; Apperture's own keys stay as they are.
+async function syncLinks() {
+  for (const island of S.projects) {
+    if (!island.rootPath) continue;
+    const keys = linkKeys(island);
+    const signature = JSON.stringify([island.rootPath, keys]);
+    if (linkSent.get(island.id) === signature) continue;
+    linkSent.set(island.id, signature);
+    const result = await window.api.appertureWriteLink(island.rootPath, keys).catch((error) => ({ ok: false, error: error?.message }));
+    if (result?.written) {
+      log('info', 'island.apperture', `Shared “${island.name}”’s accent, tags and stage with Apperture through its project folder`, {
+        file: homeShort(result.path), stage: keys.stage, tags: keys.tags.length ? keys.tags.map((t) => `#${t}`) : 'none', accent: keys.accent,
+      });
+    } else if (!result?.ok) {
+      log('warn', 'island.apperture', `Islands could not share “${island.name}”’s accent, tags and stage with Apperture. The island itself saved normally.`, {
+        folder: island.rootPath, problem: result?.error || 'Unknown problem', nextStep: 'Islands tries again the next time this island changes.',
+      });
+    }
   }
 }
 

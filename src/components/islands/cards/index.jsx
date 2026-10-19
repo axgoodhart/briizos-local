@@ -2,7 +2,7 @@ import TerminalCard from './TerminalCard';
 import WebviewCard from './WebviewCard';
 import ThoughtsCard from './ThoughtsCard';
 import MediaCard from './MediaCard';
-import AgentCard from './AgentCard';
+import AgentCard, { AgentFaceToggle } from './AgentCard';
 import DocsCard from './DocsCard';
 import GoalsCard from './GoalsCard';
 import PlanningCard from './PlanningCard';
@@ -21,6 +21,15 @@ const BODIES = {
   ship: ShipCard,
   monetize: MonetizeCard,
 };
+
+const HEADS = {
+  agent: AgentFaceToggle,
+};
+
+export function CardHead(props) {
+  const Head = HEADS[props.card.kind];
+  return Head ? <Head {...props} /> : null;
+}
 
 export default function CardBody(props) {
   const Body = BODIES[props.card.kind] || DocsCard;

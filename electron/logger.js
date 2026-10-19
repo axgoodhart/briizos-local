@@ -56,6 +56,7 @@ const CATEGORY_LABELS = {
   'island.agent': 'Island agents',
   'island.journal': 'Islands journal',
   'island.hunter': 'File Hunter',
+  'island.apperture': 'Apperture link',
   app: 'App startup',
   agent: 'AI',
   'agent.stream': 'AI response',

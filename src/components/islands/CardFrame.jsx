@@ -3,7 +3,7 @@ import { moveCard, removeCard, resizeCard, saveCardTemplate, select, setMainCard
 import { getScale } from './camera';
 import { trackPointer } from './gestures';
 import { CARD_MIN, GLYPH, cardType } from './catalog';
-import CardBody from './cards';
+import CardBody, { CardHead } from './cards';
 
 function CardMenu({ island, card, isMain, onRename, onClose }) {
   const [naming, setNaming] = useState(false);
@@ -112,6 +112,7 @@ const CardFrame = memo(function CardFrame({ island, card, packed, selected, isMa
         ) : (
           <span className="fo-card__title" onDoubleClick={() => setRenaming(true)}>{card.title}</span>
         )}
+        <CardHead island={island} card={card} />
         <button type="button" className="fo-card__more" onClick={() => setMenu((m) => !m)} title="Card options">
           <span className="fo-glyph">{GLYPH.more}</span>
         </button>

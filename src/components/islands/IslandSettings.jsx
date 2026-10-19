@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   ALL_DESK_ID, addCard, addTag, archiveIsland, closePanel, deleteIsland, getState, liveAgentCount, openPanel,
-  openStepCount, removeTag, saveIslandTemplate, select, setIslandOnDesk, setStage, setUi, updateIsland,
+  openStepCount, pickIslandFolder, removeTag, saveIslandTemplate, select, setIslandOnDesk, setStage, setUi, updateIsland,
 } from './store';
 import { ACCENTS, GLYPH, cardType } from './catalog';
 import { EditableText } from './cards/fields';
@@ -125,10 +125,9 @@ export default function IslandSettings({ island }) {
             <label className="fo-row">
               <span className="fo-row__name">Folder</span>
               <span className="fo-row__value" title={island.rootPath}>{island.rootPath ? island.rootPath.replace(/^\/Users\/[^/]+/, '~') : 'none'}</span>
-              <button type="button" className="fo-icon-btn" title="Choose the project folder" onClick={async () => {
-                const dir = await window.api.islandOpenDirectoryDialog?.();
-                if (dir) updateIsland(island.id, { rootPath: dir });
-              }}><span className="fo-glyph">{GLYPH.folder}</span></button>
+              <button type="button" className="fo-icon-btn" title="Choose the project folder" onClick={() => pickIslandFolder(island.id)}>
+                <span className="fo-glyph">{GLYPH.folder}</span>
+              </button>
             </label>
             <label className="fo-row">
               <span className="fo-row__name">Deadline</span>

@@ -23,3 +23,6 @@ dist_jsport_verify/
 # Compiled briizy capture/OCR helper — rebuilt from source at postinstall
 # (scripts/build-briizy-helper.sh). Never commit the binary.
 electron/bin/
+
+# apperture data directory
+.auto-claude/

@@ -64,6 +64,7 @@ const operationReceipts = require('./agent-op-receipts');
 const islandFs = require('./island-fs');
 const islandAi = require('./island-ai');
 const { registerIslandWorkspace, stopAllIslandProcesses } = require('./island-workspace');
+const { registerIslandApperture } = require('./island-apperture');
 // briizy work memory: supervised native capture helper + indexer + assistants.
 // Screen data is local-only and stays outside the SyncContract entirely.
 const { createBriizy } = require('./briizy');
@@ -1103,6 +1104,7 @@ ipcMain.handle('island-consolidate-project', async (_event, projectName, filePat
 );
 
 registerIslandWorkspace({ ipcMain });
+registerIslandApperture({ ipcMain });
 
 ipcMain.handle('island-autotag-suggest', async (_event, input) => islandAi.runAutoTag(input || {}));
 ipcMain.handle('island-hunt-run', async (event, input) => islandAi.runHunt(input || {}, (update) => {

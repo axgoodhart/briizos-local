@@ -28672,11 +28672,32 @@ tr[data-kind='cost'] .fo-money__kind {
 .fo-agent {
     display: flex;
     flex: 1;
+    border-radius: 8px;
     flex-direction: column;
     gap: 8px;
     min-height: 0;
     overflow: auto;
     padding: 6px 12px 10px;}
+
+
+    .fo-card[data-kind='agent'] {
+    border-radius:8px;
+        filter:hue-rotate(40deg)contrast(1.12)saturate(5);box-shadow:none;
+        border-width: 5px;
+        box-shadow:inset 0 0 10px white;
+    }
+.fo-card[data-kind='agent']:has([data-phase='done']){
+    animation:shadowglow 1s linear infinite alternate;
+}
+
+/* planning ,no else?*/
+
+
+    @keyframes shadowglow{
+        0%{filter:hue-rotate(40deg)contrast(1.12)saturate(5);box-shadow:none;}
+        100%{filter:hue-rotate(40deg)contrast(1.12)saturate(5);box-shadow:inset 0 0 10px white;}
+    }
+
 .fo-agent__form {
     display: flex;
     flex: 1;
@@ -28769,6 +28790,193 @@ tr[data-kind='cost'] .fo-money__kind {
     display: flex;
     gap: 6px;
     margin-top: auto;}
+.fo-agent__faces {
+    flex: none;
+    padding: 1px;
+    border-radius: 9px;}
+.fo-agent__faces button {
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 8px;
+    font-size: 10.5px;}
+.fo-agent[data-history='true'] .fo-agent__form,
+.fo-agent[data-history='true'] .fo-agent__goal-input {
+    flex: none;}
+.fo-agent__history {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 84px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);}
+.fo-agent__kicker {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0 0 3px;
+    color: var(--fo-soft);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;}
+.fo-agent__kicker .fo-whisper {
+    font-size: 10px;
+    letter-spacing: 0;}
+.fo-agent__cmds {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;}
+.fo-agent__cmd-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 20px;
+    padding: 1px 3px;
+    border-radius: 6px;
+    color: inherit;
+    font-size: 11.5px;
+    text-align: left;}
+button.fo-agent__cmd-line:hover:not(:disabled),
+.fo-agent__cmd[data-open='true'] > .fo-agent__cmd-line {
+    background: rgba(var(--accent-rgb, 23, 217, 138), 0.12);}
+button.fo-agent__cmd-line:disabled {
+    cursor: default;}
+.fo-agent__caret {
+    flex: none;
+    width: 9px;
+    color: var(--fo-soft);
+    font-size: 8.5px;}
+.fo-agent__cmd-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;}
+.fo-agent__cmd-text b {
+    margin-right: 2px;
+    color: color-mix(in srgb, rgb(var(--accent-rgb, 23, 217, 138)) 60%, white);
+    font-weight: 650;}
+.fo-agent__cmd-line time,
+.fo-agent__tasklog time {
+    flex: none;
+    min-width: 42px;
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;}
+.fo-agent__chip {
+    flex: none;
+    height: 15px;
+    padding: 0 6px;
+    border: 1px solid rgba(var(--fo-neon-rgb), 0.3);
+    border-radius: 999px;
+    background: rgba(var(--fo-neon-rgb), 0.12);
+    color: #9dffc9;
+    font-size: 10px;
+    line-height: 13px;
+    white-space: nowrap;}
+.fo-agent__chip b {
+    font-weight: 700;}
+.fo-agent__chip[data-status='needs you'],
+.fo-agent__chip[data-status='ai_review'],
+.fo-agent__chip[data-status='human_review'] {
+    border-color: rgba(224, 163, 82, 0.4);
+    background: rgba(224, 163, 82, 0.16);
+    color: #f6d29e;}
+.fo-agent__chip[data-status='paused'],
+.fo-agent__chip[data-status='stopped'],
+.fo-agent__chip[data-status='removed'],
+.fo-agent__chip[data-status='…'],
+.fo-agent__chip[data-status='backlog'],
+.fo-agent__chip[data-status='queue'] {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--fo-soft);}
+.fo-agent__chip[data-status='in_progress'],
+.fo-agent__chip[data-status='working'],
+.fo-agent__chip[data-status='planning'],
+.fo-agent__chip[data-status='starting'] {
+    border-color: rgba(53, 208, 208, 0.38);
+    background: rgba(53, 208, 208, 0.14);
+    color: #a6f1f1;}
+.fo-agent__chip[data-status='error'] {
+    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(248, 113, 113, 0.12);
+    color: #fca5a5;}
+.fo-agent__src {
+    flex: none;
+    padding: 0 4px;
+    border: 1px solid rgba(var(--fo-neon-rgb), 0.28);
+    border-radius: 3.5px;
+    color: var(--fo-neon);
+    font-size: 9.5px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    line-height: 13px;}
+.fo-agent__src[data-source='apperture'] {
+    border-color: rgba(53, 208, 208, 0.34);
+    color: #5fe0e0;}
+.fo-agent__tasklog {
+    margin: 1px 0 4px 7px;
+    padding: 1px 0 1px 9px;
+    border-left: 1px solid rgba(var(--accent-rgb, 23, 217, 138), 0.3);
+    list-style: none;}
+.fo-agent__tasklog li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 1px 0;
+    font-size: 11px;
+    line-height: 1.3;}
+.fo-agent__tasklog li[data-type='error'] {
+    color: #fca5a5;}
+.fo-agent__tasklog li[data-type='question'] {
+    color: #f6d29e;}
+.fo-agent__tasklog li[data-type='response'] {
+    color: var(--fo-text);
+    font-style: italic;}
+.fo-apx__where {
+    display: block;
+    margin-top: -5px;
+    overflow: hidden;
+    font-size: 10.5px;
+    text-overflow: ellipsis;}
+.fo-apx__counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;}
+.fo-apx__section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;}
+.fo-apx__kind {
+    flex: none;
+    min-width: 46px;
+    color: #5fe0e0;
+    font-family: var(--fo-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;}
+.fo-apx__kind[data-kind='mockup'] {
+    color: #a48af7;}
+.fo-apx__kind[data-kind='scene'] {
+    color: #f08bd4;}
+.fo-apx__kind[data-kind='sprites'] {
+    color: var(--fo-amber);}
+.fo-apx__kind[data-kind='code'] {
+    color: var(--fo-neon);}
+.fo-apx__note {
+    margin: 0;
+    color: var(--fo-soft);
+    font-size: 12px;
+    line-height: 1.4;}
+.fo-apx__note[data-tone='error'] {
+    color: #fca5a5;}
+.fo-agent__actions .fo-apx__launch {
+    flex: 1;}
 
 /* Planning card */
 .fo-plan {

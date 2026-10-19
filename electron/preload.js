@@ -523,6 +523,10 @@ contextBridge.exposeInMainWorld('api', {
   islandPreviewSaveCapture: (input) => ipcRenderer.invoke('island-preview-save-capture', input),
   islandPreviewSuggest: (input) => ipcRenderer.invoke('island-preview-suggest', input),
   islandOpenExternal: (url) => ipcRenderer.invoke('island-open-external', url),
+  appertureProjectSummary: (rootPath) => ipcRenderer.invoke('apperture-project-summary', rootPath),
+  appertureAppendCommand: (rootPath, entry) => ipcRenderer.invoke('apperture-append-command', rootPath, entry),
+  appertureWriteLink: (rootPath, keys) => ipcRenderer.invoke('apperture-write-link', rootPath, keys),
+  appertureLaunch: (rootPath) => ipcRenderer.invoke('apperture-launch', rootPath),
   onIslandTerminalData: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on('island-terminal-data', handler);

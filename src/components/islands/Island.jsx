@@ -294,7 +294,7 @@ const Island = memo(function Island({
                 isMain={island.mainCardId === card.id}
                 terminal={card.kind === 'terminal' ? terminals[card.id] : null}
                 task={card.kind === 'agent' ? tasks[card.data.taskId] : null}
-                tasks={card.kind === 'goals' ? tasks : null}
+                tasks={card.kind === 'goals' || card.kind === 'agent' ? tasks : null}
                 fileStatus={card.kind === 'docs' || card.kind === 'media' ? fileStatus : null}
               />
             ))}
