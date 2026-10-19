@@ -1,6 +1,6 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import {
-  cardsForView, moveIsland, openPanel, resizeIsland, select, setIslandView, setUi, updateIsland, addCard,
+  cardsForView, moveIsland, openFullView, openPanel, resizeIsland, select, setIslandView, setUi, updateIsland, addCard,
   importPaths, getIsland, addFilesToIsland,
 } from './store';
 import { getScale, screenToWorld } from './camera';
@@ -44,7 +44,7 @@ function IslandSummary({ island, onAdd }) {
             <span className="fo-glyph">{chip.glyph}</span>×{chip.count}
           </span>
         ))}
-        <button type="button" className="fo-summary__add" onClick={onAdd} title="Add a card">{GLYPH.plus}</button>
+        <button type="button" className="fo-summary__add" onClick={onAdd} title="Open full view">{GLYPH.plus}</button>
       </div>
       <h2 className="fo-summary__name">{island.name}</h2>
     </div>
@@ -122,7 +122,7 @@ const Island = memo(function Island({
   const viewLabel = ISLAND_VIEWS.find((v) => v.id === view)?.label || 'Full view';
 
   const startMove = (event) => {
-    if (event.button !== 0 || event.target.closest('.fo-island__gear, .fo-summary__add')) return;
+    if (event.button !== 0 || event.target.closest('.fo-island__gear, .fo-island__full, .fo-summary__add')) return;
     const onView = !!event.target.closest('.fo-island__view');
     const el = ref.current;
     trackPointer(event, {
@@ -249,7 +249,7 @@ const Island = memo(function Island({
     >
       {summary ? (
         <div className="fo-island__summary-hit" onPointerDown={startMove} onDoubleClick={() => setUi({ zoomTo: island.id })}>
-          <IslandSummary island={island} onAdd={(e) => { e.stopPropagation(); select({ islandId: island.id }); setUi({ focusIslandId: island.id, zoomTo: island.id }); }} />
+          <IslandSummary island={island} onAdd={(e) => { e.stopPropagation(); openFullView(island.id); }} />
         </div>
       ) : (
         <>
@@ -276,6 +276,9 @@ const Island = memo(function Island({
             ) : (
               <h2 className="fo-island__name" onPointerDown={startMove} onDoubleClick={() => setRenaming(true)}>{island.name}</h2>
             )}
+            <button type="button" className="fo-island__full" onClick={(e) => { e.stopPropagation(); openFullView(island.id); }} title="Open full view">
+              <span className="fo-glyph">{GLYPH.plus}</span>
+            </button>
           </header>
           <div
             className="fo-island__ground"

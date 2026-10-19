@@ -116,6 +116,7 @@ What exists now, and where:
 | Top bar, tool palette, desk controls, popovers | `Chrome.jsx`, `Overlays.jsx` |
 | Island settings, desks panel, File Hunter, stacked view | `IslandSettings.jsx`, `DeskPanel.jsx`, `HuntPanel.jsx`, `StackView.jsx` |
 | Islands journal (in the workspace and the Journals app) | `IslandsJournal.jsx`; shelf card in `src/components/journals/JournalPanel.jsx` |
+| Full view of one island (the + button) | `FullView.jsx`; opened and closed from `store.js` (`openFullView`, `closeFullView`) |
 | Files made in briizOS, file previews, dated archives, terminal sessions | `electron/island-workspace.js` |
 | Saving desks and templates | `electron/local-data-service.js` (`saveIslandState`, `getIslandState`) |
 | Styles | `src/AppCombined.css`, Islands section |
@@ -141,3 +142,35 @@ Rules for the canvas (`.fo-world`):
 - The aurora sits outside the canvas and animates on the GPU; the top bar is the one place with background blur.
 
 Gemini suggested dropping the moving layer and positioning every card in screen pixels. Not done: cards would have to recompute every size and font at each zoom, and established canvas tools (React Flow, tldraw) use one moving layer plus culling, which is what this now does.
+
+## Alex's feedback, 2026-10-18 — open items
+
+Not built yet unless a row says otherwise. Where this reverses a row in "Where each earlier project-board feature went", that row is now wrong and this section wins.
+
+| Item | What Alex wants | What the code does today |
+|---|---|---|
+| Journal page dates | Hovering or clicking the page-type word in the top right of a folio shows when the page was made and when it was last edited | The word is a plain label (`JournalView.jsx`, `.jv-page__type`). The database already stores `created_at` and `updated_at` per folio; the renderer never reads them |
+| Auto tagging | Bring it back. The old version was wasteful: it produced "color", "colors", "colorful" across projects, which defeats tagging. Tags must be shared across islands and reduced to one form | Still runs in `store.js` (`runAutoTagQueue`) and `electron/island-ai.js`, up to 12 tags per island, each island asked on its own with no view of other islands' tags; `cleanTag` only lowercases and trims. Tags are not shown anywhere on the island |
+| Tag filter strip with flowers | Bring it back | Removed with the old project board (`app.js`, `renderTagStrip`, the bloom SVG). The decisions table had turned it into "make a desk from a rule"; Alex wants the strip itself |
+| Fog | A per-island toggle. The island frame and title stay visible; nothing inside is, at any zoom | Nothing. The only hiding is the zoomed-out summary, which is zoom-driven, not a choice |
+| Resize at any zoom | An island can always be resized | The resize handle is only rendered in the full view when not zoomed out (`Island.jsx`: `!packed`, and the summary branch has no handle). `resizeIsland` also refuses to go smaller than the cards' packed size |
+| Arrange by tags | Islands can lay themselves out on the desk by their tags | `deskPositions` only lines islands up in order. No tag-based layout |
+| Island full view (the + button) | The top-right + on an island opens that island full screen. It should grow from the old fully-expanded card / Project Viewer: scroll-and-pinch timeline, file browsing, and the island's cards auto-arranged in a masonry grid. Alex: a major missing feature | **Built 2026-10-18**, see "Full view" below. Before this, the + in the zoomed-out summary only zoomed the camera to the island |
+| Covers | Optional cover image on an island, as the old cards had | Dropped on purpose on 2026-10-13 ("replaced by the main view card"). Alex wants the cover back as its own thing. Old `coverFileId` still migrates into the Media card |
+
+## Full view (built 2026-10-18)
+
+The + button on an island, both the big one when zoomed out and the small one at the top right of an open island, opens that island full screen. The desk unmounts underneath it (same as the stacked view), so each card runs in one place at a time. Esc or the × goes back to the desk, which then frames that island.
+
+What is in it, top to bottom:
+
+- A faded strip of the island's images and videos behind the title (the old viewer's hero), the island's name, and facts as pills: stage, file count, when it was made, last session, milestone progress, deadline.
+- Its tags as toggles. Turning tags on filters the file list and the files on the timeline.
+- **Cards**: every card, live, laid out in columns like a masonry wall. Column count follows the window width; a card much wider than a column (a webview) takes two. Cards keep their own proportions within limits. They cannot be dragged here; the layout is automatic. Clicking a card selects it as on the desk.
+- **Timeline**: one track with years / months / days / hours tiers that fade in as you zoom. Pinch (or ⌘ + scroll) zooms around the pointer; sideways scroll or drag pans; Fit and Today buttons; − and + zoom. It shows when the island was made, milestones (click to mark done or not), the deadline, ship dates from Ship cards, journal entries (click opens the journal), and files at their modified time (click opens the file). Crowded nodes drop to dots and show their label on hover. Double-click an empty spot to place a milestone on that day.
+- **Files**: every file on the island grouped by kind, with a search box, size, age, which cards hold it, and its tags. Click opens the file in its app; the folder button shows it in the Finder; a missing file gets a Find button (FileHawk). Add files picks files into the island.
+- A node rail along the bottom, one node per card as in the mockup; click to scroll to that card. Live terminals and agents glow the same way as on the desk.
+
+Logged to the Log Panel under `island.fullview`, `island.timeline` and `island.files`: opening and closing, milestones added or toggled, files opened or shown from here.
+
+Not in it yet: card covers (its own open item), and editing priority signals here (they stay in island settings).

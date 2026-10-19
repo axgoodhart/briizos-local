@@ -60,6 +60,7 @@ const S = {
     saveState: 'Ready',
     journalTab: 'log',
     focusIslandId: null,
+    fullIslandId: null,       // island shown full screen (the + button)
   },
   fileStatus: {},             // path → 'ok' | 'missing'
   terminals: {},              // cardId → { running, cwd, command }
@@ -470,6 +471,21 @@ export function closePanel() {
   setUi({ panel: null });
 }
 
+export function openFullView(islandId) {
+  const island = getIsland(islandId);
+  if (!island) return;
+  setUi({ fullIslandId: islandId, focusIslandId: islandId, selection: { islandId }, menu: null, naming: null, questions: null, stack: false });
+  touchIsland(islandId, false);
+  log('info', 'island.fullview', `Opened the full view of “${island.name}”: ${island.cards.length} card${island.cards.length === 1 ? '' : 's'}, ${island.files.length} file${island.files.length === 1 ? '' : 's'}, ${island.milestones.length} milestone${island.milestones.length === 1 ? '' : 's'} on its timeline.`);
+}
+
+export function closeFullView() {
+  const island = getIsland(S.ui.fullIslandId);
+  if (!S.ui.fullIslandId) return;
+  setUi({ fullIslandId: null, zoomTo: island?.id || null });
+  if (island) log('info', 'island.fullview', `Closed the full view of “${island.name}” and went back to the desk.`);
+}
+
 /* ── Reads ─────────────────────────────────────────────────────────── */
 
 export const getIsland = (id) => S.projects.find((p) => p.id === id) || null;
@@ -623,6 +639,23 @@ export function removeEntry(islandId, entryId) {
     ...island,
     journal: { ...island.journal, entries: island.journal.entries.filter((e) => e.id !== entryId) },
   }));
+}
+
+export function addMilestone(islandId, { label, date }) {
+  const island = getIsland(islandId);
+  if (!island || !label) return;
+  const milestone = { id: uid('ms'), label, date, completed: false, description: '', estimatedDays: 0, fileIds: [], subtasks: [] };
+  writeIsland(islandId, (current) => ({ ...current, milestones: [...current.milestones, milestone] }));
+  addEntry(islandId, 'log', `Milestone “${label}” placed on ${new Date(`${date}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}.`);
+  log('info', 'island.timeline', `Added the milestone “${label}” to “${island.name}” on ${date}.`);
+}
+
+export function toggleMilestone(islandId, milestoneId) {
+  const island = getIsland(islandId);
+  const milestone = island?.milestones.find((m) => m.id === milestoneId);
+  if (!milestone) return;
+  writeIsland(islandId, (current) => ({ ...current, milestones: current.milestones.map((m) => (m.id === milestoneId ? { ...m, completed: !m.completed } : m)) }));
+  log('info', 'island.timeline', `Marked the milestone “${milestone.label}” on “${island.name}” as ${milestone.completed ? 'not done' : 'done'}.`);
 }
 
 export function setChapter(islandId, chapter) {
@@ -1380,7 +1413,7 @@ export function setAgentFace(islandId, cardId, face) {
   });
 }
 
-/* ── Apperture link: shared files in the project folder's .auto-claude/ ── */
+/* ── Apperture link: shared files in the project folder's .apperture/ ── */
 
 const appertureLoads = new Map();   // folder → read in flight
 const appertureReadAt = new Map();  // folder → last read time

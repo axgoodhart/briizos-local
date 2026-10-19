@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import {
-  activeDesk, attach, deskIslands, deskPositions, detach, getIsland, getState, load, removeCard, setUi, useIslandVersion,
+  activeDesk, attach, closeFullView, deskIslands, deskPositions, detach, getIsland, getState, load, removeCard, setUi, useIslandVersion,
   closePanel,
 } from './store';
 import { frameRects } from './camera';
 import DeskView from './DeskView';
 import StackView from './StackView';
+import FullView from './FullView';
 import IslandSettings from './IslandSettings';
 import IslandsJournal from './IslandsJournal';
 import DeskPanel from './DeskPanel';
@@ -27,14 +28,15 @@ export default function IslandsApp() {
   const rects = islands.map((i) => ({ ...positions[i.id], w: i.w, h: i.h }));
   const focusIsland = getIsland(ui.focusIslandId || ui.selection?.islandId);
   const panelIsland = getIsland(ui.panelIslandId);
+  const fullIsland = getIsland(ui.fullIslandId);
 
   useEffect(() => {
-    if (!ui.zoomTo || ui.stack) return;
+    if (!ui.zoomTo || ui.stack || ui.fullIslandId) return;
     const island = getIsland(ui.zoomTo);
     const pos = deskPositions(activeDesk(), [island].filter(Boolean))[ui.zoomTo];
     if (island && pos) requestAnimationFrame(() => frameRects([{ ...pos, w: island.w, h: island.h }], { maxScale: 1 }));
     setUi({ zoomTo: null, focusIslandId: ui.zoomTo });
-  }, [ui.zoomTo, ui.stack]);
+  }, [ui.zoomTo, ui.stack, ui.fullIslandId]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -43,6 +45,7 @@ export default function IslandsApp() {
       if (e.key === 'Escape') {
         if (now.menu || now.naming || now.questions) setUi({ menu: null, naming: null, questions: null });
         else if (now.panel) closePanel();
+        else if (now.fullIslandId) closeFullView();
         else setUi({ selection: null, tool: 'pointer' });
       }
       if ((e.key === 'Backspace' || e.key === 'Delete') && now.selection?.cardId && !now.stack) {
@@ -73,12 +76,14 @@ export default function IslandsApp() {
 
   return (
     <RootContext.Provider value={rootRef}>
-      <div ref={rootRef} className="fo-root" data-dim={desk.dim ? 'true' : undefined} data-stack={ui.stack ? 'true' : undefined}>
+      <div ref={rootRef} className="fo-root" data-dim={desk.dim ? 'true' : undefined} data-stack={ui.stack ? 'true' : undefined} data-full={fullIsland ? 'true' : undefined}>
         <TopBar desk={desk} focusIsland={focusIsland} />
         <div className="fo-body">
-          {ui.stack ? <StackView islands={islands} /> : <DeskView desk={desk} islands={islands} />}
-          {!ui.stack && <ToolPalette tool={ui.tool} />}
-          <DeskControls desk={desk} rects={rects} stack={ui.stack} minimap={ui.minimap} />
+          {fullIsland ? (
+            <FullView island={fullIsland} selectedCardId={ui.selection?.islandId === fullIsland.id ? ui.selection.cardId || null : null} fileStatus={S.fileStatus} terminals={S.terminals} tasks={S.tasks} />
+          ) : ui.stack ? <StackView islands={islands} /> : <DeskView desk={desk} islands={islands} />}
+          {!ui.stack && !fullIsland && <ToolPalette tool={ui.tool} />}
+          {!fullIsland && <DeskControls desk={desk} rects={rects} stack={ui.stack} minimap={ui.minimap} />}
           {panel}
           {ui.menu && <NewCardMenu menu={ui.menu} />}
           {ui.naming && <NamingPrompt naming={ui.naming} />}
