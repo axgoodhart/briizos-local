@@ -1,7 +1,7 @@
 /**
  * Apperture link for Islands: reads and appends the shared files in
- * <project>/.auto-claude/ (apperture/docs/PROJECT_DATA_CONTRACT.md) and opens Apperture on a project.
- * briizOS writes only its own keys and never reaches outside <project>/.auto-claude/.
+ * <project>/.apperture/ (apperture/docs/PROJECT_DATA_CONTRACT.md) and opens Apperture on a project.
+ * briizOS writes only its own keys and never reaches outside <project>/.apperture/.
  */
 const path = require('path');
 const fsSync = require('fs');
@@ -16,7 +16,7 @@ const { logger } = require('./logger');
 const APPERTURE_ROOT = path.join(os.homedir(), 'Documents', 'Cufolio', 'apperture');
 const APPERTURE_APP = path.join(APPERTURE_ROOT, 'apps', 'desktop', 'dist', 'mac-arm64', 'Apperture.app');
 const APPERTURE_DEV_DIR = path.join(APPERTURE_ROOT, 'apps', 'desktop');
-const DATA_DIR = '.auto-claude';
+const DATA_DIR = '.apperture';
 const COMMANDS_READ_MAX = 200;
 const COMMANDS_TAIL_BYTES = 512 * 1024;   // only the end of commands.jsonl is read
 const COMMAND_TEXT_MAX = 2000;
@@ -48,7 +48,7 @@ async function projectRoot(input) {
   return real;
 }
 
-// Symlinks are resolved, so a link inside .auto-claude can't point elsewhere.
+// Symlinks are resolved, so a link inside .apperture can't point elsewhere.
 async function dataPath(root, name) {
   const dir = path.join(root, DATA_DIR);
   const target = path.resolve(dir, name);
