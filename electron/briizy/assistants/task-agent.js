@@ -83,7 +83,7 @@ function createTaskAgent({ service, logger, automation }) {
 
       if (!steps.length) return { steps: 0 };
 
-      steps.forEach((title) => service.createTaskStep(task.id, { title }));
+      service.createTaskSteps(task.id, steps.map((title) => ({ title })));
       logger?.info?.('briizy.taskAgent', 'Plan staged into the task', {
         taskId: task.id,
         steps: steps.length,

@@ -501,7 +501,7 @@ export function closeFullView() {
 export function openCanvas(islandId) {
   const island = getIsland(islandId);
   if (!island) return;
-  setUi({ canvasIslandId: islandId, fullIslandId: null, focusIslandId: islandId, selection: { islandId }, menu: null, naming: null, questions: null, stack: false, tagArrangement: null });
+  setUi({ canvasIslandId: islandId, fullIslandId: null, focusIslandId: islandId, selection: { islandId }, menu: null, naming: null, questions: null, stack: false });
   touchIsland(islandId, false);
   log('info', 'island.canvas', `Opened “${island.name}” on its own canvas: ${island.cards.length} card${island.cards.length === 1 ? '' : 's'} live.`);
 }

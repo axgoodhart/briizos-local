@@ -69,19 +69,12 @@ export function useTasks() {
   // Add multiple subtasks at once (used by AI breakdown)
   const addSubtasks = useCallback(async (parentId, subtasks) => {
     try {
-      const parent = await api.localData.tasks.get(parentId);
-      const start = parent?.subtasks?.length || 0;
-      const ids = [];
-      for (let index = 0; index < subtasks.length; index += 1) {
-        const subtask = subtasks[index];
-        const result = await api.localData.tasks.steps.create(parentId, {
-          title: subtask.title,
-          status: subtask.status || 'pending',
-          position: start + index,
-        });
-        ids.push(result.row.id);
-      }
-      return ids;
+      if (!subtasks.length) return [];
+      const result = await api.localData.tasks.steps.createMany(parentId, subtasks.map((subtask) => ({
+        title: subtask.title,
+        status: subtask.status || 'pending',
+      })));
+      return result.rows.map((row) => row.id);
     } catch (error) {
       logger.error('ui', 'Failed to add subtasks', error?.message);
       throw error;

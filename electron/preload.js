@@ -191,6 +191,7 @@ contextBridge.exposeInMainWorld('api', {
       steps: {
         list: (taskId, filters) => invokeLocalData('local-data:task-steps:list', taskId, filters),
         create: (taskId, input) => invokeLocalData('local-data:task-steps:create', taskId, input),
+        createMany: (taskId, inputs) => invokeLocalData('local-data:task-steps:create-many', taskId, inputs),
         update: (stepId, expectedRevision, patch) =>
           invokeLocalData('local-data:task-steps:update', stepId, expectedRevision, patch),
         archive: (stepId, expectedRevision) =>

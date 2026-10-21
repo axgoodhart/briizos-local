@@ -127,6 +127,56 @@ export function parseDayPlannerResponse(text) {
   return { summary: String(parsed.summary || '').trim(), proposals };
 }
 
+// ==== INTERVALS ====
+const DAY_MINUTES = 1440;
+
+// Same bounds DayTimeline draws with: start plus duration, clipped to the day.
+export function toInterval(startMinute, durationMinutes) {
+  const start = Math.max(0, Number(startMinute) || 0);
+  const end = Math.min(DAY_MINUTES, start + Math.max(0, Number(durationMinutes) || 0));
+  return { start, end };
+}
+
+// Touching ends (9:00–10:00 and 10:00–11:00) do not overlap.
+export function intervalsOverlap(a, b) {
+  return a.start < b.end && b.start < a.end;
+}
+
+export function occupiedIntervals({ events = [], placements = [] }) {
+  const fromEvents = events.map((event) => {
+    const startMinute = event.start == null ? 9 * 60 : event.start;
+    const durationMinutes = Math.max(15, event.duration || (event.end != null ? event.end - startMinute : 60));
+    return toInterval(startMinute, durationMinutes);
+  });
+  const fromPlacements = placements.map((placement) => toInterval(placement.start_minute, placement.duration_minutes));
+  return [...fromEvents, ...fromPlacements];
+}
+
+// Drops proposals that repeat a task/project or collide with the schedule or an earlier proposal.
+export function filterConflictingProposals(proposals, { events = [], placements = [] } = {}) {
+  const taken = occupiedIntervals({ events, placements });
+  const seenTasks = new Set();
+  const seenProjects = new Set();
+  const kept = [];
+  const dropped = [];
+  for (const proposal of proposals) {
+    const interval = toInterval(proposal.startMinute, proposal.durationMinutes);
+    let reason = null;
+    if (proposal.kind === 'task' && seenTasks.has(proposal.taskId)) reason = 'duplicate task';
+    else if (proposal.kind === 'island_project' && seenProjects.has(proposal.projectId)) reason = 'duplicate project';
+    else if (taken.some((other) => intervalsOverlap(interval, other))) reason = 'overlaps schedule';
+    if (reason) {
+      dropped.push({ proposal, reason });
+      continue;
+    }
+    if (proposal.kind === 'task') seenTasks.add(proposal.taskId);
+    if (proposal.kind === 'island_project') seenProjects.add(proposal.projectId);
+    taken.push(interval);
+    kept.push(proposal);
+  }
+  return { kept, dropped };
+}
+
 export async function runDayPlanner(input) {
   if (!api.langgraphCreateThread || !api.langgraphSendMessage) throw new Error('Agent backend unavailable');
   const created = await api.langgraphCreateThread('planner');

@@ -640,7 +640,6 @@ function Priorifact({
               </button>
             );
           })}
-          <span className="briizify-logo rail">briizify</span>
         </div>
 
         <div className="priorifact-main">

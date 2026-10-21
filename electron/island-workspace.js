@@ -340,18 +340,19 @@ async function snapshotCards(sender, input = {}) {
   const started = Date.now();
   const image = await sender.capturePage();
   const size = image.getSize();
-  const bounds = sender.getOwnerBrowserWindow()?.getContentBounds() || { width: size.width, height: size.height };
-  const ratio = size.width / Math.max(1, bounds.width);
+  const viewport = input.viewport?.width > 0 && input.viewport?.height > 0 ? input.viewport : (sender.getOwnerBrowserWindow()?.getContentBounds() || size);
+  const ratioX = size.width / Math.max(1, viewport.width);   // capture px per CSS px; differs from Retina scale when the page is zoomed
+  const ratioY = size.height / Math.max(1, viewport.height);
   const folder = path.join(ownedRoot(), 'Snapshots');
   await fs.mkdir(folder, { recursive: true });
   const snapshots = {};
   const skipped = [];
   for (const card of cards) {
     const rect = card.rect || {};
-    const x = Math.max(0, Math.round(rect.x * ratio));
-    const y = Math.max(0, Math.round(rect.y * ratio));
-    const width = Math.min(size.width - x, Math.round(rect.width * ratio));
-    const height = Math.min(size.height - y, Math.round(rect.height * ratio));
+    const x = Math.max(0, Math.round(rect.x * ratioX));
+    const y = Math.max(0, Math.round(rect.y * ratioY));
+    const width = Math.min(size.width - x, Math.round(rect.width * ratioX));
+    const height = Math.min(size.height - y, Math.round(rect.height * ratioY));
     if (!card.cardId || width < SNAPSHOT_MIN_PX || height < SNAPSHOT_MIN_PX) { skipped.push(card.cardId || '?'); continue; }
     const crop = image.crop({ x, y, width, height });
     const safeId = String(card.cardId).replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 160);

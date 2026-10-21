@@ -1532,6 +1532,42 @@ class LocalDataService extends EventEmitter {
     });
   }
 
+  // All steps land together or not at all; one tasks revision, one change event.
+  createTaskSteps(taskId, inputs) {
+    taskId = v.identifier(taskId, 'taskId');
+    if (!Array.isArray(inputs) || !inputs.length || inputs.length > 100) {
+      v.fail('INVALID_INPUT', 'task steps must be a list of 1 to 100 steps');
+    }
+    const steps = inputs.map((input, index) => {
+      v.object(input, `task steps[${index}]`, ['title', 'status', 'position']);
+      return {
+        title: v.string(input.title, `task steps[${index}].title`, { required: true, max: 1000 }),
+        status: v.optional(input.status, (value) => v.oneOf(value, 'status', TASK_STATUSES)) ?? 'pending',
+        position: v.optional(input.position, (value) => v.integer(value, 'position', { min: 0 })),
+      };
+    });
+    return this._write('tasks', (timestamp) => {
+      const task = this.db.prepare('SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL').get(taskId);
+      if (!task) v.fail('NOT_FOUND', 'The task does not exist');
+      const next = this.db.prepare(
+        'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM task_steps WHERE task_id = ? AND deleted_at IS NULL',
+      ).get(taskId).next;
+      const insert = this.db.prepare(`
+        INSERT INTO task_steps (
+          id, task_id, title, status, position, completed_at, created_at, updated_at, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `);
+      const select = this.db.prepare('SELECT * FROM task_steps WHERE id = ?');
+      const rows = steps.map((step, index) => {
+        const stepId = id();
+        const position = step.position ?? next + index;
+        insert.run(stepId, taskId, step.title, step.status, position, step.status === 'completed' ? timestamp : null, timestamp, timestamp);
+        return select.get(stepId);
+      });
+      return { rows };
+    });
+  }
+
   updateTaskStep(stepId, expectedRevision, patch) {
     v.object(patch, 'task step patch', ['title', 'status', 'position']);
     const columnMap = {

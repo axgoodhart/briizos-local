@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import logger from '../lib/logger';
-import { runDayPlanner } from '../lib/dayPlanner';
+import { runDayPlanner, filterConflictingProposals } from '../lib/dayPlanner';
 
 const CLOSED_TASK_STATUSES = new Set(['completed', 'cancelled']);
 
@@ -36,14 +36,20 @@ export function useDayPlanner({ dateStr, events, placements, createPlacement, ad
       });
       const knownIds = new Set(openTasks.map((task) => task.id));
       const projectsById = new Map(projects.map((project) => [project.id, project]));
-      const safeProposals = result.proposals
-        .filter((proposal) => (
-          (proposal.kind !== 'task' || knownIds.has(proposal.taskId))
-          && (proposal.kind !== 'island_project' || projectsById.has(proposal.projectId))
-        ))
-        .map((proposal) => proposal.kind === 'island_project'
-          ? { ...proposal, project: projectsById.get(proposal.projectId) }
-          : proposal);
+      const knownProposals = result.proposals.filter((proposal) => (
+        (proposal.kind !== 'task' || knownIds.has(proposal.taskId))
+        && (proposal.kind !== 'island_project' || projectsById.has(proposal.projectId))
+      ));
+      const { kept, dropped } = filterConflictingProposals(knownProposals, { events, placements });
+      if (dropped.length) {
+        logger.warn('agent.planner', 'Day proposals dropped', {
+          date: dateStr,
+          dropped: dropped.map(({ proposal, reason }) => ({ title: proposal.title, startMinute: proposal.startMinute, reason })),
+        });
+      }
+      const safeProposals = kept.map((proposal) => proposal.kind === 'island_project'
+        ? { ...proposal, project: projectsById.get(proposal.projectId) }
+        : proposal);
       setProposals(safeProposals);
       setSummary(result.summary);
       return safeProposals;

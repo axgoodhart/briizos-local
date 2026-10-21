@@ -35,8 +35,10 @@ export default function IslandsApp() {
   useEffect(() => {
     if (!ui.zoomTo || ui.stack || ui.fullIslandId || ui.canvasIslandId) return;
     const island = getIsland(ui.zoomTo);
-    const pos = deskPositions(activeDesk(), [island].filter(Boolean))[ui.zoomTo];
-    if (island && pos) requestAnimationFrame(() => frameRects([{ ...pos, w: island.w, h: island.h }], { maxScale: 1 }));
+    const sorted = ui.tagArrangement?.deskId === activeDesk().id ? ui.tagArrangement : null; // zoom to where it sits right now, sorted or not
+    const pos = sorted ? sorted.positions[ui.zoomTo] : deskPositions(activeDesk(), [island].filter(Boolean))[ui.zoomTo];
+    const size = sorted?.sizes[ui.zoomTo] || (island && { w: island.w, h: island.h });
+    if (island && pos) requestAnimationFrame(() => frameRects([{ ...pos, ...size }], { maxScale: 1 }));
     setUi({ zoomTo: null, focusIslandId: ui.zoomTo });
   }, [ui.zoomTo, ui.stack, ui.fullIslandId, ui.canvasIslandId]);
 

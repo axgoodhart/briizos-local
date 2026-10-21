@@ -23,7 +23,7 @@ async function takeSnapshots(stage, island) {
   stage.querySelectorAll('.fo-card[data-card-id]').forEach((el) => {
     const card = island.cards.find((c) => c.id === el.dataset.cardId);
     if (!card || card.kind === 'webview') return;
-    const r = el.getBoundingClientRect();
+    const r = (el.querySelector('.fo-card__body') || el).getBoundingClientRect(); // body only: the desk card draws its own header
     const x = Math.max(r.left, bounds.left);
     const y = Math.max(r.top, bounds.top);
     const right = Math.min(r.right, bounds.right);
@@ -33,7 +33,8 @@ async function takeSnapshots(stage, island) {
   });
   if (!cards.length) return {};
   try {
-    const result = await window.api.islandSnapshotCards({ islandId: island.id, cards });
+    const viewport = { width: window.innerWidth, height: window.innerHeight }; // CSS px, so page zoom and Retina both map onto the capture
+    const result = await window.api.islandSnapshotCards({ islandId: island.id, cards, viewport });
     return result?.snapshots || {};
   } catch (error) {
     logger.warn('island.preview', `Could not take the card pictures for “${island.name}”; the desk Preview keeps its last ones.`, { problem: error?.message });

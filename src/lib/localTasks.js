@@ -31,19 +31,12 @@ export async function updateTask(taskId, updates = {}) {
 }
 
 export async function addSubtasks(taskId, subtasks) {
-  const parent = await getTask(taskId);
-  if (!parent) throw new Error('Task not found');
-  const ids = [];
-  for (let index = 0; index < subtasks.length; index += 1) {
-    const subtask = subtasks[index];
-    const result = await tasksApi().steps.create(taskId, {
-      title: subtask.title,
-      status: subtask.status || 'pending',
-      position: parent.subtasks.length + index,
-    });
-    ids.push(result.row.id);
-  }
-  return ids;
+  if (!subtasks.length) return [];
+  const result = await tasksApi().steps.createMany(taskId, subtasks.map((subtask) => ({
+    title: subtask.title,
+    status: subtask.status || 'pending',
+  })));
+  return result.rows.map((row) => row.id);
 }
 
 export async function appendTaskLog(taskId, type, message) {

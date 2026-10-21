@@ -456,10 +456,10 @@ function TasksPanel() {
         <span>Tasks</span>
         <div className="panel-header-actions">
           <span className="task-progress-label">{stats.completed}/{stats.total}</span>
-          <button className="panel-header-btn" title="Expand">&#11036;</button>
         </div>
       </div>
       <div className="panel-content">
+        <div id="task-inputs">
         {/* Add Task Input */}
         <form onSubmit={handleAddTask} className="task-input-form">
           <input
@@ -497,6 +497,7 @@ function TasksPanel() {
             {deckMaker.isWorking ? '…' : '✦'}
           </button>
         </form>
+        </div>
         {deckMaker.status === 'thinking' && (
           <div className="deck-status">Building deck…</div>
         )}
