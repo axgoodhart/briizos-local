@@ -368,6 +368,7 @@ function JournalCard({ journal, selected, onSelect, onPopOut }) {
 
 /* The shared Islands journal (docs/island-desks/DECISIONS.md → Journal). */
 function IslandsJournalCard({ selected, onSelect }) {
+  const url = getCoverUrl('IslandsJournal', { journalId: ISLANDS_JOURNAL_ID, surface: 'shelf' });
   const [count, setCount] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -377,7 +378,9 @@ function IslandsJournalCard({ selected, onSelect }) {
   return (
     <div className={'jr-cardwrap' + (selected ? ' is-selected' : '')}>
       <button type="button" className={'jr-card jr-card--islands' + (selected ? ' is-selected' : '')} onClick={onSelect} aria-pressed={selected}>
-        <span className="jr-card__cover jr-card__cover--islands" />
+        {url
+          ? <img className="jr-card__cover" src={url} alt="" draggable={false} />
+          : <span className="jr-card__cover jr-card__cover--missing" />}
         <span className="jr-card__plaque">
           <span className="jr-card__name">Islands</span>
           <span className="jr-card__count">{count == null ? '' : count === 1 ? '1 project' : `${count} projects`}</span>

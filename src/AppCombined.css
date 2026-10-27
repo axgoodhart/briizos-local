@@ -31080,15 +31080,6 @@ background:transparent;
         transition: none;
         animation: none;}
 }
-.jr-card__cover--islands {
-    display: block;
-    background:
-        linear-gradient(#e0479e, #e0479e) 16% 20% / 46% 24% no-repeat,
-        linear-gradient(#16c784, #16c784) 74% 64% / 40% 20% no-repeat,
-        linear-gradient(#3d7be8, #3d7be8) 22% 84% / 28% 12% no-repeat,
-        linear-gradient(rgba(42, 178, 228, 0.18) 1px, transparent 1px) 0 0 / 12px 12px,
-        linear-gradient(90deg, rgba(42, 178, 228, 0.18) 1px, transparent 1px) 0 0 / 12px 12px,
-        linear-gradient(160deg, #0a1a20, #16394a 50%, #0d2530);}
 /* The app-wide control font rule is !important, so these deliberate exceptions must be too. */
 .fo-top__brand {
     font-family: ZnikomitNo24, var(--ui-font-main), Chillax, serif !important;}
