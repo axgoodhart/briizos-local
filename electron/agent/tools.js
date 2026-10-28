@@ -1561,6 +1561,90 @@ const briizos_get_recent_activity = makeDataReadTool({
 });
 
 // =============================================================================
+// Stylofact history tools — read-only lookups into Split's copy of the user's
+// own ChatGPT history. Split is a separate local server; main.js injects the
+// client after it registers the Stylofact module.
+// =============================================================================
+
+let splitClient = null;
+function setSplitClient(client) {
+  splitClient = client;
+}
+
+const HISTORY_PREVIEW_CHARS = 1200;
+
+const history_search = tool(
+  async (input) => {
+    if (!splitClient) return 'Error: history search is not available in this build of briizOS.';
+    const startedAt = Date.now();
+    try {
+      const result = await splitClient.search({
+        queries: input.queries,
+        role: input.role || 'user',
+        from: input.from || undefined,
+        to: input.to || undefined,
+        limit: input.limit || 20,
+      });
+      const messages = result.messages.map((message) => ({
+        conversation: message.conversation,
+        index: message.index,
+        title: message.title,
+        date: message.date,
+        role: message.role,
+        matched: message.matched,
+        text: message.text.slice(0, HISTORY_PREVIEW_CHARS),
+        truncated: message.truncated || message.text.length > HISTORY_PREVIEW_CHARS,
+      }));
+      logger.info('agent.data', `history_search → ${messages.length} of ${result.meta.totalMatches} matching messages`, { phrasings: input.queries, ms: Date.now() - startedAt });
+      return JSON.stringify({ totalMatches: result.meta.totalMatches, returned: messages.length, note: 'Text is lowercase. Call history_context before quoting a hit.', messages });
+    } catch (error) {
+      logger.warn('agent.data', 'history_search failed', { reason: error?.message, code: error?.code });
+      return `Error: ${error?.message || 'the history search failed'}`;
+    }
+  },
+  {
+    name: 'history_search',
+    description: "Search the user's own ChatGPT history (held by the Split app) for messages that contain any of several phrasings. Results are ranked by how many phrasings a message contains, newest first among ties; only the user's own messages are searched unless role says otherwise. Send several phrasings in one call: the literal words, synonyms, metaphors the user might have reached for, nearby topics. Text comes back lowercase.",
+    schema: z.object({
+      queries: z.array(z.string().min(1).max(120)).min(1).max(12),
+      role: z.enum(['user', 'assistant', 'both']).optional().default('user'),
+      from: z.string().optional(),
+      to: z.string().optional(),
+      limit: z.number().int().min(1).max(100).optional().default(20),
+    }),
+  },
+);
+
+const history_context = tool(
+  async (input) => {
+    if (!splitClient) return 'Error: history lookups are not available in this build of briizOS.';
+    try {
+      const result = await splitClient.context({ conversation: input.conversation, index: input.index, before: input.before ?? 1, after: input.after ?? 1 });
+      return JSON.stringify({
+        conversation: result.conversation,
+        title: result.title,
+        conversationDate: result.conversationDate,
+        focus: result.focus,
+        messages: result.messages.map((message) => ({ index: message.index, role: message.role, date: message.date, text: message.text, truncated: message.truncated })),
+      });
+    } catch (error) {
+      logger.warn('agent.data', 'history_context failed', { reason: error?.message, code: error?.code });
+      return `Error: ${error?.message || 'the history lookup failed'}`;
+    }
+  },
+  {
+    name: 'history_context',
+    description: "Read one message from the user's ChatGPT history (via Split) in full, together with the messages before and after it in the same conversation. Use it on a promising history_search hit before quoting it, so the quote is complete and in context. Only role user messages are the user's own words; assistant messages are context, never evidence.",
+    schema: z.object({
+      conversation: z.number().int().min(0),
+      index: z.number().int().min(0),
+      before: z.number().int().min(0).max(5).optional().default(1),
+      after: z.number().int().min(0).max(5).optional().default(1),
+    }),
+  },
+);
+
+// =============================================================================
 // Public set used by the lead_agent.
 // =============================================================================
 
@@ -1600,6 +1684,8 @@ const BASE_TOOLS = [
   ask_clarification,
   findScheduleConflicts,
   lookupOnline,
+  history_search,
+  history_context,
 ];
 
 const ALL_TOOLS = [
@@ -1608,6 +1694,7 @@ const ALL_TOOLS = [
 ];
 
 module.exports = {
+  setSplitClient,
   ALL_TOOLS,
   bashIsDestructive,
   decideToolAction,

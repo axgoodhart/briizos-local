@@ -280,6 +280,7 @@ Built by `applyPromptTemplate()`, which composes these sections:
 - `briizos_search_notes`
 - `briizos_search_screen_memory`
 - `briizos_get_recent_activity`
+- `history_search`, `history_context` — the user's own ChatGPT history, read through the Split app (used by Stylofact; see `docs/stylofact-design.md`)
 - `read_file`, `ls`
 
 **System tools:**

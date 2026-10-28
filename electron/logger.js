@@ -81,6 +81,9 @@ const CATEGORY_LABELS = {
   sync: 'Cloud sync',
   'cloud-gateway': 'Cloud sync',
   weather: 'Header weather',
+  stylofact: 'Stylofact',
+  'stylofact.split': 'Stylofact history (Split)',
+  'stylofact.samples': 'Stylofact samples',
 };
 
 function humanizeIdentifier(value) {

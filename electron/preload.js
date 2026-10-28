@@ -129,6 +129,14 @@ contextBridge.exposeInMainWorld('briizy', {
   },
 });
 
+const invokeStylofact = async (channel, ...args) => {
+  const result = await ipcRenderer.invoke(channel, ...args);
+  if (result?.ok) return result.value;
+  const error = new Error(result?.error?.message || 'Stylofact could not complete that action.');
+  error.code = result?.error?.code || 'STYLOFACT_ERROR';
+  throw error;
+};
+
 contextBridge.exposeInMainWorld('api', {
   // Platform info
   platform: process.platform,
@@ -485,6 +493,33 @@ contextBridge.exposeInMainWorld('api', {
       const listener = (_event, payload) => callback(payload);
       ipcRenderer.on('execubriiz-changed', listener);
       return () => ipcRenderer.removeListener('execubriiz-changed', listener);
+    },
+  },
+  stylofact: {
+    snapshot: () => invokeStylofact('stylofact-snapshot'),
+    saveGuide: (guideId, expectedRevision, patch) => invokeStylofact('stylofact-guide-save', guideId, expectedRevision, patch),
+    addSample: (guideId, input) => invokeStylofact('stylofact-samples-add', guideId, input),
+    updateSample: (sampleId, patch) => invokeStylofact('stylofact-samples-update', sampleId, patch),
+    removeSample: (sampleId) => invokeStylofact('stylofact-samples-remove', sampleId),
+    readSampleFile: (filePath) => invokeStylofact('stylofact-samples-read', filePath),
+    pickSampleFiles: () => invokeStylofact('stylofact-samples-pick'),
+    createPiece: (input) => invokeStylofact('stylofact-pieces-create', input),
+    updatePiece: (pieceId, expectedRevision, patch) => invokeStylofact('stylofact-pieces-update', pieceId, expectedRevision, patch),
+    archivePiece: (pieceId) => invokeStylofact('stylofact-pieces-archive', pieceId),
+    recordRun: (input) => invokeStylofact('stylofact-runs-record', input),
+    verifyQuotes: (quotes) => invokeStylofact('stylofact-quotes-verify', quotes),
+    split: {
+      status: () => invokeStylofact('stylofact-split-status'),
+      context: (input) => invokeStylofact('stylofact-split-context', input),
+      start: () => invokeStylofact('stylofact-split-start'),
+      stop: () => invokeStylofact('stylofact-split-stop'),
+      saveSettings: (patch) => invokeStylofact('stylofact-split-settings', patch),
+      chooseFolder: () => invokeStylofact('stylofact-split-choose-folder'),
+    },
+    subscribe: (callback) => {
+      const listener = (_event, payload) => callback(payload);
+      ipcRenderer.on('stylofact-changed', listener);
+      return () => ipcRenderer.removeListener('stylofact-changed', listener);
     },
   },
   notefallsList: () => ipcRenderer.invoke('island-notefalls-list'),

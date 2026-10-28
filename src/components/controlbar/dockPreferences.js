@@ -28,6 +28,7 @@ export const HEADER_DOCK_ITEM_IDS = Object.freeze([
   'notefalls',
   'sources',
   'tasks',
+  'stylofact',
 ]);
 
 // New panel launchers live in Ctrl Bar first. They only enter the compact
