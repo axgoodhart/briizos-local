@@ -11,6 +11,7 @@ export const DOCK_FLOAT_APP_BY_ITEM = Object.freeze({
   notefalls: 'notefalls',
   sources: 'sources',
   tasks: 'tasks',
+  stylofact: 'stylofact',
 });
 
 const FLOAT_APP_TO_DOCK_ITEM = Object.fromEntries(

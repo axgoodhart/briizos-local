@@ -42,6 +42,7 @@ const SETTING_KEYS = new Set([
   'shell_mode',
   'ambient_workspace',
   'briizy_quick_chat_session',
+  'stylofact_split',
 ]);
 const SHELL_MODES = ['grid', 'windowed', 'hybrid'];
 const AMBIENT_WINDOW_FIELDS = ['id', 'app', 'title', 'x', 'y', 'width', 'height', 'z', 'minimized', 'closed', 'filled', 'prevBounds'];
@@ -458,6 +459,14 @@ class LocalDataService extends EventEmitter {
     if (key === 'chat_config') {
       v.object(value, key, ['provider', 'providers', 'snapshots', 'chatBackground', 'chatBgBlur', 'themeChatBackgrounds']);
       return value;
+    }
+    if (key === 'stylofact_split') {
+      v.object(value, key, ['folder', 'address', 'autoStart']);
+      return {
+        folder: value.folder == null || value.folder === '' ? null : v.string(value.folder, `${key}.folder`, { max: 1000 }),
+        address: v.string(value.address || 'http://localhost:9002', `${key}.address`, { max: 300 }),
+        autoStart: value.autoStart === undefined ? true : v.boolean(value.autoStart, `${key}.autoStart`),
+      };
     }
     return value;
   }

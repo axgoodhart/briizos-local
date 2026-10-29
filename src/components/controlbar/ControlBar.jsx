@@ -46,6 +46,7 @@ export const EDITABLE_DOCK_ITEMS = Object.freeze([
   { id: 'notefalls', label: 'Notefalls', glyph: '􀢾', accent: '#bda6ff' },
   { id: 'sources', label: 'Sources', glyph: '􀫥', accent: '#74dcea' },
   { id: 'tasks', label: 'Tasks', glyph: '􀷾', accent: '#ffd36b' },
+  { id: 'stylofact', label: 'Stylofact', glyph: '􀋿', accent: '#f0a35e' },
 ]);
 
 const DEFAULT_HEADER_DOCK_ITEM_IDS = Object.freeze([
@@ -335,6 +336,7 @@ function ControlBar({
   notefallsOpen,
   sourcesOpen,
   tasksOpen,
+  stylofactOpen,
   onToggleControlBar,
   onToggleChat,
   onToggleBriiztorm,
@@ -348,6 +350,7 @@ function ControlBar({
   onToggleNotefalls,
   onToggleSources,
   onToggleTasks,
+  onToggleStylofact,
   canvasesPopoverSlot,
   dockItems = DEFAULT_HEADER_DOCK_ITEM_IDS,
   onDockItemsChange,
@@ -591,6 +594,12 @@ function ControlBar({
         item={DOCK_ITEMS_BY_ID.get('tasks')}
         active={tasksOpen}
         onLaunch={onToggleTasks}
+        dockItemProps={dockItemProps}
+      />
+      <HeaderDockButton
+        item={DOCK_ITEMS_BY_ID.get('stylofact')}
+        active={stylofactOpen}
+        onLaunch={onToggleStylofact}
         dockItemProps={dockItemProps}
       />
       </div>

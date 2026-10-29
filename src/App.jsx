@@ -6,6 +6,7 @@ import './AppCombined.css';
 import SourcesPanel from './components/SourcesPanel';
 import InteractionPanel from './components/InteractionPanel';
 import TasksPanel from './components/TasksPanel';
+import StylofactPanel from './components/stylofact/StylofactPanel.jsx';
 import MediaPanel from './components/MediaPanel';
 import { JournalPanel } from './components/journals/JournalPanel.jsx';
 import { JournalFloat } from './components/journals/JournalFloat.jsx';
@@ -503,6 +504,7 @@ function AppContent({ layout, shell, floats }) {
   const islandPanel = getPanelByType('island');
   const sourcesPanel = getPanelByType('sources');
   const tasksPanel = getPanelByType('tasks');
+  const stylofactPanel = getPanelByType('stylofact');
 
 
 
@@ -578,6 +580,15 @@ function AppContent({ layout, shell, floats }) {
     addPanel({ id: 'tasks', type: 'tasks', size: 20, visible: true });
     logger.info('tasks', 'Tasks panel opened');
   }, [tasksPanel, togglePanelVisibility, addPanel]);
+
+  const openStylofactPanel = useCallback(() => {
+    if (stylofactPanel) {
+      togglePanelVisibility(stylofactPanel.id);
+      return;
+    }
+    addPanel({ id: 'stylofact', type: 'stylofact', size: 24, visible: true });
+    logger.info('stylofact', 'Stylofact panel opened');
+  }, [stylofactPanel, togglePanelVisibility, addPanel]);
 
   const resizeThemeStudio = useCallback((width) => {
     const next = Math.round(Math.min(480, Math.max(300, width)));
@@ -726,6 +737,9 @@ function AppContent({ layout, shell, floats }) {
       case 'tasks':
         openTasksPanel();
         break;
+      case 'stylofact':
+        openStylofactPanel();
+        break;
       default:
         break;
     }
@@ -735,6 +749,7 @@ function AppContent({ layout, shell, floats }) {
     openNotefallsPanel,
     openSourcesPanel,
     openTasksPanel,
+    openStylofactPanel,
     toggleInteractionPanel,
   ]);
 
@@ -1320,6 +1335,8 @@ function AppContent({ layout, shell, floats }) {
         return <InteractionPanel showPanelBackground={!windowedOnly} />;
       case 'tasks':
         return <TasksPanel />;
+      case 'stylofact':
+        return <StylofactPanel />;
       case 'media':
         return <MediaPanel />;
       case 'journal':
@@ -1463,6 +1480,7 @@ function AppContent({ layout, shell, floats }) {
             notefallsOpen={notefallsPanel?.visible === true}
             sourcesOpen={sourcesPanel?.visible === true}
             tasksOpen={tasksPanel?.visible === true}
+            stylofactOpen={stylofactPanel?.visible === true}
             onToggleControlBar={toggleControlBar}
             onToggleChat={toggleInteractionPanel}
             onToggleBriiztorm={() => setBriiztormOpen(!briiztormOpen)}
@@ -1476,6 +1494,7 @@ function AppContent({ layout, shell, floats }) {
             onToggleNotefalls={openNotefallsPanel}
             onToggleSources={openSourcesPanel}
             onToggleTasks={openTasksPanel}
+            onToggleStylofact={openStylofactPanel}
             onDockItemsChange={handleHeaderDockItemsChange}
             canvasesPopoverSlot={(
               <CanvasesPopover

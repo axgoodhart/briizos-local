@@ -14,6 +14,7 @@ export const FLOAT_APPS = Object.freeze({
   journal: { title: 'Journals', width: 660, height: 580 },
   notefalls: { title: 'Notefalls', width: 540, height: 620 },
   island: { title: 'Islands', width: 760, height: 580 },
+  stylofact: { title: 'Stylofact', width: 640, height: 700 },
 });
 
 const SETTINGS_KEY = 'ambient_workspace';

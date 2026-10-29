@@ -56,6 +56,8 @@ const codexProvider = require('./codex-provider');
 const { LocalDataService } = require('./local-data-service');
 const { registerLocalDataIPC } = require('./local-data-ipc');
 const { registerExecubriiz } = require('./execubriiz');
+const { registerStylofact } = require('./stylofact');
+const agentTools = require('./agent/tools');
 const { CloudGateway } = require('./cloud-gateway');
 const { AutomationRunner } = require('./automation-runner');
 const operationReceipts = require('./agent-op-receipts');
@@ -75,6 +77,7 @@ const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 let localDataService = null;
 let unregisterLocalDataIPC = null;
 let execubriiz = null;
+let stylofact = null;
 let cloudGateway = null;
 let automationRunner = null;
 let briizy = null;
@@ -442,7 +445,7 @@ const DEFAULT_AGENT_CONFIG = Object.freeze({
 const DEFAULT_SKILLS_CONFIG = Object.freeze({
   'deep-research': true, bootstrap: true, 'skill-creator': true,
   'frontend-design': true, 'web-design-guidelines': true,
-  'consulting-analysis': true, 'data-analysis': true,
+  'consulting-analysis': true, 'data-analysis': true, stylofact: true,
   'chart-visualization': false, 'image-generation': false,
   'video-generation': false, 'podcast-generation': false,
   'ppt-generation': false, 'github-deep-research': false,
@@ -1171,6 +1174,8 @@ app.whenReady().then(() => {
   });
   langgraph.setLocalDataService(localDataService);
   execubriiz = registerExecubriiz({ ipcMain, BrowserWindow, service: localDataService, logger });
+  stylofact = registerStylofact({ ipcMain, BrowserWindow, dialog, service: localDataService, logger });
+  agentTools.setSplitClient(stylofact.split);
   operationReceipts.setLocalDataService(localDataService);
   cloudGateway = new CloudGateway({
     service: localDataService,
@@ -1338,6 +1343,8 @@ app.on('before-quit', (event) => {
   automationRunner = null;
   unregisterLocalDataIPC?.();
   unregisterLocalDataIPC = null;
+  stylofact?.close();
+  stylofact = null;
   execubriiz?.close();
   execubriiz = null;
   localDataService?.close();
